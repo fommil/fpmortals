@@ -1,2 +1,1 @@
-# drone-dynamic-agents
-Dynamically size your drone.io farm
+Dynamically manage your [drone.io](https://github.com/drone/drone) cluster of agents.
