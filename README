@@ -40,7 +40,11 @@ A `SIGTERM` will stop an agent from accepting new jobs but will finish existing 
 
 It's possible to use the Amazon ECS service, see http://docs.datadoghq.com/integrations/ecs/ to set up an appropriate container (which is in a Task, which run in Instances, which are grouped in a Cluster).
 
-A reasonable instance for libre projects is a [c4.xlarge](https://aws.amazon.com/ec2/instance-types/) instance (4 CPUs, 7.5GB RAM), costing ~$0.06/hour (rounded up to an hour) using the spot price. It is possible to set up budgets and alerts on Amazon, which is a good safety net in case of bugs.
+A reasonable instance for libre projects is a [c4.xlarge](https://aws.amazon.com/ec2/instance-types/) instance (4 CPUs, 7.5GB RAM), costing ~$0.06/hour (rounded up to an hour) using the spot price. It is possible to set up budgets and alerts on Amazon, which is a good safety net in case of bugs. Their machines are pretty fast, ensime-server taskes around 11 mins on 4 CPUs x 7.5GB.
+
+Another option is to use the Google Container service. I managed to get a kubernetes Deployment working with this file http://stackoverflow.com/questions/42273332 On pricing, they charge similarly to Amazon with [a cheaper pre-emptable option](https://cloud.google.com/container-engine/docs/preemptible-vm) options. Also rounded up hourly (AFAICT). Their machines are marginally slower than the EC2 ones. e.g. an ensime-server build takes 13 mins on 4 CPUs x 8GB. Bumping to 8 CPUs x 8GB gets it to 11mins, on par with the lower spec Amazon machine (probably not worth the extra caps).
+
+Digitalocean have a really nice API, but are pretty expensive ($0.11 / hour for the same spec machine as Amazon), but their CPUs are super slow. An ensime-server build takes 25mins.
 
 There are many ways to programmatically communicate with Amazon http://docs.aws.amazon.com/AmazonECS/latest/APIReference/Welcome.html we'd ideally prefer to use a pure JVM solution without having to rely on proprietary binaries (e.g. REST).
 
