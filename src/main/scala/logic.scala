@@ -21,7 +21,6 @@ class DynamicAgents[F[_]](
       work <- d.receiveWorkQueue()
       active <- d.receiveActiveWork()
       nodes <- c.getNodes()
-      <- newOp(a,b,c,d...)
     } yield (work, active, nodes)
 
     ddd flatMap {
