@@ -4,6 +4,9 @@ package logic
 
 import algebra._
 import cats.free._
+import cats.syntax.traverse._
+import cats.instances.list._
+import cats.syntax.functor._
 
 class DynamicAgents[F[_]](
   implicit
@@ -13,20 +16,21 @@ class DynamicAgents[F[_]](
 ) {
 
   def doStuff(): Free[F, Unit] = {
-    for {
+
+    val ddd = for {
       work <- d.receiveWorkQueue()
       active <- d.receiveActiveWork()
-      time <- c.getTime()
       nodes <- c.getNodes()
+    } yield (work, active, nodes)
 
-      // this is what I'd like to write, but the syntax is not correct
-      if ((work.length + active > 0) && nodes.isEmpty)
-        c.startAgent
-      } else if (nodes.nonEmpty) {
-        agents.foreach(c.stopAgent)
-      }
-
-    } yield ()
+    ddd flatMap {
+      case (w, a, Nil) if w + a > 0 =>
+        for {
+          uid <- c.startAgent()
+        } yield {}
+      case (w, a, n) =>
+        n.traverseU(c.stopAgent).void
+    }
   }
 
 }
