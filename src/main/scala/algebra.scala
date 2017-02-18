@@ -3,32 +3,46 @@
 package algebra
 
 import java.util.UUID
-
-object Timing {
-  sealed trait Ops[A]
-  case class GetTime() extends Ops[String]
-}
+import cats.free._
 
 object Drone {
   sealed trait Ops[A]
   case class ReceiveWorkQueue() extends Ops[Int] // will be push
   case class ReceiveActiveWork() extends Ops[Int] // will be push
+
+  // boilerplate
+  class Services[F[_]](implicit I: Ops :<: F) {
+    def receiveWorkQueue(): Free[F, Int] = Free.inject[Ops, F](ReceiveWorkQueue())
+    def receiveActiveWork(): Free[F, Int] = Free.inject[Ops, F](ReceiveActiveWork())
+  }
 }
 
 object Container {
   sealed trait Ops[A]
   case class GetTime() extends Ops[String]
-  case class GetNodes() extends Ops[List[String]]
+  case class GetNodes() extends Ops[List[UUID]]
   case class StartAgent() extends Ops[UUID]
   case class StopAgent(uuid: UUID) extends Ops[Unit]
 
   case class ReceiveKillEvent() extends Ops[UUID] // will be push
+
+  // boilerplate
+  class Services[F[_]](implicit I: Ops :<: F) {
+    def getTime(): Free[F, String] = Free.inject[Ops, F](GetTime())
+    def getNodes(): Free[F, List[UUID]] = Free.inject[Ops, F](GetNodes())
+    def startAgent(): Free[F, UUID] = Free.inject[Ops, F](StartAgent())
+    def stopAgent(uuid: UUID): Free[F, Unit] = Free.inject[Ops, F](StopAgent(uuid))
+  }
+
 }
 
 object Audit {
-  case class Auditable()
-
   sealed trait Ops[A]
-  case class StoreEvent(e: Auditable) extends Ops[Unit]
-}
+  case class Store(a: String) extends Ops[Unit]
 
+  // boilerplate
+  class Services[F[_]](implicit I: Ops :<: F) {
+    def store(a: String): Free[F, Unit] = Free.inject[Ops, F](Store(a))
+  }
+
+}
