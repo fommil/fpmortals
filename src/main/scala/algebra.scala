@@ -15,6 +15,9 @@ object Drone {
     def receiveWorkQueue(): Free[F, Int] = Free.inject[Ops, F](ReceiveWorkQueue())
     def receiveActiveWork(): Free[F, Int] = Free.inject[Ops, F](ReceiveActiveWork())
   }
+  object Services {
+    implicit def services[F[_]](implicit I: Ops :<: F): Services[F] = new Services
+  }
 }
 
 object Container {
@@ -33,7 +36,9 @@ object Container {
     def startAgent(): Free[F, UUID] = Free.inject[Ops, F](StartAgent())
     def stopAgent(uuid: UUID): Free[F, Unit] = Free.inject[Ops, F](StopAgent(uuid))
   }
-
+  object Services {
+    implicit def services[F[_]](implicit I: Ops :<: F): Services[F] = new Services
+  }
 }
 
 object Audit {
@@ -44,5 +49,7 @@ object Audit {
   class Services[F[_]](implicit I: Ops :<: F) {
     def store(a: String): Free[F, Unit] = Free.inject[Ops, F](Store(a))
   }
-
+  object Services {
+    implicit def services[F[_]](implicit I: Ops :<: F): Services[F] = new Services
+  }
 }
