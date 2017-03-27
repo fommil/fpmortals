@@ -3,7 +3,6 @@
 package algebra
 
 import java.util.UUID
-import cats.free._
 import freestyle._
 
 object Drone {
@@ -18,35 +17,16 @@ object Drone {
 }
 
 object Container {
-  sealed trait Ops[A]
-  case class GetTime() extends Ops[String]
-  case class GetNodes() extends Ops[List[UUID]]
-  case class StartAgent() extends Ops[UUID]
-  case class StopAgent(uuid: UUID) extends Ops[Unit]
-
-  case class ReceiveKillEvent() extends Ops[UUID] // will be push
-
-  // boilerplate
-  class Services[F[_]](implicit I: Ops :<: F) {
-    def getTime(): Free[F, String] = Free.inject[Ops, F](GetTime())
-    def getNodes(): Free[F, List[UUID]] = Free.inject[Ops, F](GetNodes())
-    def startAgent(): Free[F, UUID] = Free.inject[Ops, F](StartAgent())
-    def stopAgent(uuid: UUID): Free[F, Unit] = Free.inject[Ops, F](StopAgent(uuid))
-  }
-  object Services {
-    implicit def services[F[_]](implicit I: Ops :<: F): Services[F] = new Services
+  @free trait Services[F[_]] {
+    def getTime(): FreeS[F, String]
+    def getNodes(): FreeS[F, List[UUID]]
+    def startAgent(): FreeS[F, UUID]
+    def stopAgent(uuid: UUID): FreeS[F, Unit]
   }
 }
 
 object Audit {
-  sealed trait Ops[A]
-  case class Store(a: String) extends Ops[Unit]
-
-  // boilerplate
-  class Services[F[_]](implicit I: Ops :<: F) {
-    def store(a: String): Free[F, Unit] = Free.inject[Ops, F](Store(a))
-  }
-  object Services {
-    implicit def services[F[_]](implicit I: Ops :<: F): Services[F] = new Services
+  @free trait Services[F[_]] {
+    def store(a: String): FreeS[F, Unit]
   }
 }

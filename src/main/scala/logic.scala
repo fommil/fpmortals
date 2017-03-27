@@ -3,10 +3,10 @@
 package logic
 
 import algebra._
-import cats.free._
 import cats.syntax.traverse._
 import cats.instances.list._
-import cats.syntax.functor._
+import freestyle.implicits._
+import freestyle._
 
 class DynamicAgents[F[_]](
   implicit
@@ -15,7 +15,7 @@ class DynamicAgents[F[_]](
   a: Audit.Services[F]
 ) {
 
-  def doStuff(): Free[F, Unit] = {
+  def doStuff(): FreeS[F, Unit] = {
 
     val ddd = for {
       work <- d.receiveWorkQueue()
@@ -23,13 +23,13 @@ class DynamicAgents[F[_]](
       nodes <- c.getNodes()
     } yield (work, active, nodes)
 
-    ddd flatMap {
+    ddd map {
       case (w, a, Nil) if w.items + a.items > 0 =>
         for {
           uid <- c.startAgent()
         } yield {}
-      case (w, a, n) =>
-        n.traverseU(c.stopAgent).void
+      case (w, a, ns) =>
+        ns.traverseU(c.stopAgent)
     }
   }
 
