@@ -7,6 +7,7 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import freestyle.implicits._
 import freestyle._
+import Container._
 
 class DynamicAgents[F[_]](
   implicit
@@ -20,16 +21,16 @@ class DynamicAgents[F[_]](
     val ddd = for {
       work <- d.receiveWorkQueue()
       active <- d.receiveActiveWork()
-      nodes <- c.getNodes()
-    } yield (work, active, nodes)
+      available <- c.getAvailable()
+    } yield (work, active, available)
 
     ddd map {
-      case (w, a, Nil) if w.items + a.items > 0 =>
+      case (w, a, Nodes(Nil)) if w.items + a.items > 0 =>
         for {
           uid <- c.startAgent()
         } yield {}
-      case (w, a, ns) =>
-        ns.traverseU(c.stopAgent)
+      case (w, a, available) =>
+        available.nodes.traverseU(c.stopAgent)
     }
   }
 
