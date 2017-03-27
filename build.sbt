@@ -11,6 +11,6 @@ libraryDependencies ++= Seq(
 )
 
 // http://frees.io/docs/
-// but needs `sbt freestyle/publishLocal` in a checkout
+resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 libraryDependencies += "com.47deg" %% "freestyle" % "0.1.0-SNAPSHOT"
