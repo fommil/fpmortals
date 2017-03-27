@@ -16,18 +16,19 @@ object Drone {
   }
 }
 
-object Container {
+object Machines {
   case class Node(id: UUID)
   sealed trait Response
   case class Time(time: String) extends Response
-  case class Nodes(nodes: List[Node]) extends Response
+  case class Managed(nodes: Set[Node]) extends Response
+  case class Active(nodes: Set[Node]) extends Response
 
   @free trait Services[F[_]] {
     def getTime(): FreeS[F, Time]
-    def getAvailable(): FreeS[F, Nodes]
-    def getActive(): FreeS[F, Nodes]
-    def startAgent(): FreeS[F, Node]
-    def stopAgent(node: Node): FreeS[F, Unit]
+    def getManaged(): FreeS[F, Managed]
+    def getActive(): FreeS[F, Active]
+    def start(node: Node): FreeS[F, Node]
+    def stop(node: Node): FreeS[F, Unit]
   }
 }
 
