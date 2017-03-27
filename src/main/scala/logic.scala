@@ -24,7 +24,7 @@ class DynamicAgents[F[_]](
     } yield (work, active, nodes)
 
     ddd flatMap {
-      case (w, a, Nil) if w + a > 0 =>
+      case (w, a, Nil) if w.items + a.items > 0 =>
         for {
           uid <- c.startAgent()
         } yield {}

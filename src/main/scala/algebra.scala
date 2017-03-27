@@ -6,14 +6,18 @@ import java.util.UUID
 import cats.free._
 
 object Drone {
+  sealed trait Response
+  case class WorkQueue(items: Int) extends Response
+  case class WorkActive(items: Int) extends Response
+
   sealed trait Ops[A]
-  case class ReceiveWorkQueue() extends Ops[Int] // will be push
-  case class ReceiveActiveWork() extends Ops[Int] // will be push
+  case class ReceiveWorkQueue() extends Ops[WorkQueue]
+  case class ReceiveActiveWork() extends Ops[WorkActive]
 
   // boilerplate
   class Services[F[_]](implicit I: Ops :<: F) {
-    def receiveWorkQueue(): Free[F, Int] = Free.inject[Ops, F](ReceiveWorkQueue())
-    def receiveActiveWork(): Free[F, Int] = Free.inject[Ops, F](ReceiveActiveWork())
+    def receiveWorkQueue(): Free[F, WorkQueue] = Free.inject[Ops, F](ReceiveWorkQueue())
+    def receiveActiveWork(): Free[F, WorkActive] = Free.inject[Ops, F](ReceiveActiveWork())
   }
   object Services {
     implicit def services[F[_]](implicit I: Ops :<: F): Services[F] = new Services
