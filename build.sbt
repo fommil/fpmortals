@@ -10,6 +10,8 @@ libraryDependencies ++= Seq(
   "com.spinoco" %% "fs2-http" % "0.1.6"
 )
 
+scalacOptions += "-Ypartial-unification"
+
 // http://frees.io/docs/
 // but needs `sbt freestyleJVM/publishLocal` in a checkout
 resolvers += Resolver.sonatypeRepo("snapshots")
