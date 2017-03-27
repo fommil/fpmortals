@@ -9,3 +9,8 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats" % "0.9.0",
   "com.spinoco" %% "fs2-http" % "0.1.6"
 )
+
+// http://frees.io/docs/
+// but needs `sbt freestyle/publishLocal` in a checkout
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+libraryDependencies += "com.47deg" %% "freestyle" % "0.1.0-SNAPSHOT"
