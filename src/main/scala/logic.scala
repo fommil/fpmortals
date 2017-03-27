@@ -3,8 +3,7 @@
 package logic
 
 import algebra._
-import cats.syntax.traverse._
-import cats.instances.list._
+import cats.implicits._
 import freestyle.implicits._
 import freestyle._
 import Container._
@@ -17,20 +16,11 @@ class DynamicAgents[F[_]](
 ) {
 
   def doStuff(): FreeS[F, Unit] = {
-
-    val ddd = for {
-      work <- d.receiveWorkQueue()
-      active <- d.receiveActiveWork()
-      available <- c.getAvailable()
-    } yield (work, active, available)
-
-    ddd map {
+    (d.receiveWorkQueue() |@| d.receiveActiveWork() |@| c.getAvailable()).map {
       case (w, a, Nodes(Nil)) if w.items + a.items > 0 =>
-        for {
-          uid <- c.startAgent()
-        } yield {}
+        for { started <- c.startAgent() } yield started
       case (w, a, available) =>
-        available.nodes.traverseU(c.stopAgent)
+        available.nodes.map(c.stopAgent)
     }
   }
 
