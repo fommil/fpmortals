@@ -51,14 +51,14 @@ class DynamicAgents[F[_]](
 
     // when there is no pending work, stop all active nodes
     case State(0, _, managed, active, pending) if active.nonEmpty =>
-      // TODO: how do I gather the results into a single Free and fold
-      // over the States? (i.e. add each node to the pending part of
-      // the State)
-      (active -- pending).map { n => n -> c.stop(n) }
+      val stopping: List[FreeS[F, Node]] = (active -- pending).toList.map { n => c.stop(n).map(_ => n) }
 
-    case _ =>
+      // TODO: go over the Nodes and update the state by adding to pending
+      // stopping.sequenceU.fold(state) { ... }
+      ???
+
     // do nothing...
-    // TODO how do I represent that?
+    case _ => state.pure
   }
 
 }
