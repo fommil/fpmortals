@@ -34,7 +34,7 @@ class DynamicAgents[F[_]](
 ) {
 
   def initial: FreeS[F, State] =
-    (d.receiveWorkQueue() |@| d.receiveActiveWork() |@| c.getManaged() |@| c.getActive()).map {
+    (d.getWorkQueue |@| d.getActiveWork |@| c.getManaged |@| c.getActive).map {
       case (w, a, av, ac) => State(w.items, a.items, av.nodes, ac.nodes, Set.empty)
     }
 

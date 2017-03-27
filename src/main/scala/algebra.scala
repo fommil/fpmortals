@@ -11,8 +11,8 @@ object Drone {
   case class WorkActive(items: Int) extends Response
 
   @free trait Services[F[_]] {
-    def receiveWorkQueue(): FreeS[F, WorkQueue]
-    def receiveActiveWork(): FreeS[F, WorkActive]
+    def getWorkQueue: FreeS[F, WorkQueue]
+    def getActiveWork: FreeS[F, WorkActive]
   }
 }
 
@@ -24,9 +24,9 @@ object Machines {
   case class Active(nodes: Set[Node]) extends Response
 
   @free trait Services[F[_]] {
-    def getTime(): FreeS[F, Time]
-    def getManaged(): FreeS[F, Managed]
-    def getActive(): FreeS[F, Active]
+    def getTime: FreeS[F, Time]
+    def getManaged: FreeS[F, Managed]
+    def getActive: FreeS[F, Active]
     def start(node: Node): FreeS[F, Node]
     def stop(node: Node): FreeS[F, Unit]
   }
