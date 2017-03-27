@@ -5,7 +5,7 @@ package logic
 import algebra._
 import cats.implicits._
 import freestyle.implicits._
-import freestyle.FreeS
+import freestyle._
 import Machines._
 
 /**
@@ -58,7 +58,7 @@ class DynamicAgents[F[_]](
       ???
 
     // do nothing...
-    case _ => state.pure
+    case _ => FreeS.pure(state)
   }
 
 }
