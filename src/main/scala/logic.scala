@@ -2,16 +2,15 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package logic
 
-import algebra._
-import cats.data.{
-  NonEmptyList => Nel
-}
-import java.time.temporal.ChronoUnit
-import cats.implicits._
-import freestyle.implicits._
-import freestyle._
-import Machines._
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
+
+import algebra._
+import algebra.Machines._
+import cats.data.{NonEmptyList => Nel}
+import cats.implicits._
+import freestyle._
+import freestyle.implicits._
 
 /**
  * @param backlog how many builds are waiting to be run on the ci
