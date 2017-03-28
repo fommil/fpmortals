@@ -43,3 +43,11 @@ object Audit {
     def store(a: String): FreeS[F, Unit]
   }
 }
+
+object Modules {
+  @module trait DynamicDroneDeps[F[_]] {
+    val drone: Drone.Services[F]
+    val machines: Machines.Services[F]
+    val audit: Audit.Services[F]
+  }
+}

@@ -5,6 +5,7 @@ import org.scalatest._
 import org.scalatest.Matchers._
 
 import cats._
+import cats.free._
 
 import algebra._
 import logic._
@@ -29,7 +30,13 @@ object IdInterpreters {
     }
   }
 
-  //val impl = new DynamicAgents
+  import Modules.DynamicDroneDeps._
+
+//  import Drone.Services._
+//  import Machines.Services._
+//  import Audit.Services._
+
+  val impl = new DynamicAgents[Id]
 }
 
 class LogicSpec extends FlatSpec {
