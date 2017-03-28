@@ -8,28 +8,30 @@ import java.util.UUID
 import cats.data.NonEmptyList
 import freestyle._
 
-object Drone {
+object drone {
   // responses form a sealed family to make it easier to switch
   // between procedural / streaming uses of the API.
 
-  sealed trait Response
-  case class WorkQueue(items: Int) extends Response
-  case class WorkActive(items: Int) extends Response
+  sealed trait DroneResp
+  case class WorkQueue(items: Int) extends DroneResp
+  case class WorkActive(items: Int) extends DroneResp
 
-  @free trait Services[F[_]] {
+  @free trait Drone[F[_]] {
     def getWorkQueue: FreeS[F, WorkQueue]
     def getActiveWork: FreeS[F, WorkActive]
   }
+
 }
 
-object Machines {
+object machines {
   case class Node(id: UUID)
-  sealed trait Response
-  case class Time(time: ZonedDateTime) extends Response
-  case class Managed(nodes: NonEmptyList[Node]) extends Response
-  case class Alive(nodes: Map[Node, ZonedDateTime]) extends Response
 
-  @free trait Services[F[_]] {
+  sealed trait MachinesResp
+  case class Time(time: ZonedDateTime) extends MachinesResp
+  case class Managed(nodes: NonEmptyList[Node]) extends MachinesResp
+  case class Alive(nodes: Map[Node, ZonedDateTime]) extends MachinesResp
+
+  @free trait Machines[F[_]] {
     def getTime: FreeS[F, Time]
     def getManaged: FreeS[F, Managed]
     def getAlive: FreeS[F, Alive]
@@ -38,16 +40,8 @@ object Machines {
   }
 }
 
-object Audit {
-  @free trait Services[F[_]] {
+object audit {
+  @free trait Audit[F[_]] {
     def store(a: String): FreeS[F, Unit]
-  }
-}
-
-object Modules {
-  @module trait Services[F[_]] {
-    val d: Drone.Services[F]
-    val c: Machines.Services[F]
-    val a: Audit.Services[F]
   }
 }

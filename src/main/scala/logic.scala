@@ -5,8 +5,10 @@ package logic
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
-import algebra._
-import algebra.Machines._
+import algebra.drone._
+import algebra.machines._
+import algebra.audit._
+
 import cats.data.{NonEmptyList => Nel}
 import cats.implicits._
 import freestyle._
@@ -36,9 +38,19 @@ case class State(
   time: ZonedDateTime
 )
 
-class DynamicAgents[F[_]](
+// a bit of boilerplate to combine the algebras
+object coproductk {
+  @module trait DynAgents[F[_]] {
+    val d: Drone[F]
+    val c: Machines[F]
+    val a: Audit[F]
+  }
+}
+import coproductk._
+
+class DynAgentsLogic[F[_]](
   implicit
-  m: Modules.Services[F]
+  m: DynAgents[F]
 ) {
   import m._
 
