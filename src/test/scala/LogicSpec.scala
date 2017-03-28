@@ -4,6 +4,7 @@ package tests
 
 import algebra._
 import cats._
+import freestyle._
 import freestyle.implicits._
 import logic._
 import org.scalatest._
@@ -13,35 +14,33 @@ object IdInterpreters {
 
   implicit val drone: Drone.Services.Handler[Id] = new Drone.Services.Handler[Id] {
     import algebra.Drone._
-    def getActiveWork: Id[WorkActive] = ???
-    def getWorkQueue: Id[WorkQueue] = ???
+    def getActiveWork: WorkActive = ???
+    def getWorkQueue: WorkQueue = ???
   }
 
   implicit val machines: Machines.Services.Handler[Id] = new Machines.Services.Handler[Id] {
     import algebra.Machines._
-    def getAlive: Id[Alive] = ???
-    def getManaged: Id[Managed] = ???
-    def getTime: Id[Time] = ???
-    def start(node: Node): Id[Node] = ???
-    def stop(node: Node): Id[Unit] = ???
+    def getAlive: Alive = ???
+    def getManaged: Managed = ???
+    def getTime: Time = ???
+    def start(node: Node): Node = ???
+    def stop(node: Node): Unit = ???
   }
 
   implicit val audit: Audit.Services.Handler[Id] = new Audit.Services.Handler[Id] {
     //import Audit._
-    def store(msg: String): Id[Unit] = ???
+    def store(msg: String): Unit = ???
   }
 
-  // WTF? Why does this take Op instead of Id?
   val impl = new DynamicAgents[Modules.Services.Op]
 }
 
 class LogicSpec extends FlatSpec {
 
   "Business Logic" should "generate an initial state" in {
-    //import IdInterpreters._
+    import IdInterpreters._
 
-    //    impl.initial
-
+    impl.initial.exec[Id] shouldBe a[State]
   }
 
 }
