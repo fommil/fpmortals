@@ -20,7 +20,6 @@ object drone {
     def getBacklog: FreeS[F, Backlog]
     def getAgents: FreeS[F, Agents]
   }
-
 }
 
 object machines {
@@ -37,11 +36,5 @@ object machines {
     def getAlive: FreeS[F, Alive]
     def start(node: Node): FreeS[F, Unit]
     def stop(node: Node): FreeS[F, Unit]
-  }
-}
-
-object audit {
-  @free trait Audit[F[_]] {
-    def store(a: String): FreeS[F, Unit]
   }
 }

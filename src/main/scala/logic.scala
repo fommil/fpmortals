@@ -7,7 +7,6 @@ import java.time.temporal.ChronoUnit
 
 import algebra.drone._
 import algebra.machines._
-import algebra.audit._
 
 import cats.data.{NonEmptyList => Nel}
 import cats.implicits._
@@ -43,7 +42,6 @@ object coproductk {
   @module trait DynAgents[F[_]] {
     val d: Drone[F]
     val c: Machines[F]
-    val a: Audit[F]
   }
 }
 import coproductk._

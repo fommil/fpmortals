@@ -2,7 +2,6 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package tests
 
-import algebra.audit._
 import algebra.drone._
 import algebra.machines._
 import cats._
@@ -36,10 +35,6 @@ final case class StaticInterpreters(state: State) {
     def getTime: Time = Time(state.time)
     def start(node: Node): Unit = ()
     def stop(node: Node): Unit = ()
-  }
-
-  implicit val audit: Audit.Handler[Id] = new Audit.Handler[Id] {
-    def store(msg: String): Unit = ???
   }
 }
 
