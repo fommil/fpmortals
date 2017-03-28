@@ -35,7 +35,7 @@ object machines {
     def getTime: FreeS[F, Time]
     def getManaged: FreeS[F, Managed]
     def getAlive: FreeS[F, Alive]
-    def start(node: Node): FreeS[F, Node]
+    def start(node: Node): FreeS[F, Unit]
     def stop(node: Node): FreeS[F, Unit]
   }
 }
