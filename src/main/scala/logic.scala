@@ -82,6 +82,21 @@ final case class DynAgentsLogic[F[_]](
           nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
         }
 
+    // even if there is pending work, stop older agents. this is a
+    // safety cap and will probably be removed when I trust the app.
+    case WorldView(_, _, managed, alive, pending, time) if alive.nonEmpty =>
+      // FIXME: so much repeated code!
+      (alive -- pending.keys).toList
+        .flatMap {
+          case (n, started) =>
+            val up = ChronoUnit.MINUTES.between(started, time)
+            if (up >= 290) Some(n)
+            else None
+        }.traverse { n => c.stop(n).map(_ => n) }
+        .map { nodes =>
+          nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
+        }
+
     // do nothing...
     case _ => FreeS.pure(state)
   }
