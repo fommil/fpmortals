@@ -40,6 +40,8 @@ final case class StaticInterpreters(state: WorldView) {
     def start(node: Node): Unit = started += 1
     def stop(node: Node): Unit = stopped += 1
   }
+
+  val program = DynAgentsLogic[DynAgents.Op]
 }
 
 class LogicSpec extends FlatSpec {
@@ -48,7 +50,7 @@ class LogicSpec extends FlatSpec {
     val interpreters = StaticInterpreters(needsAgents)
     import interpreters._
 
-    DynAgentsLogic[DynAgents.Op].initial.exec[Id] shouldBe needsAgents
+    program.initial.exec[Id] shouldBe needsAgents
   }
 
   it should "correctly request agents" in {
@@ -59,7 +61,7 @@ class LogicSpec extends FlatSpec {
       pending = Map(node1 -> time1)
     )
 
-    DynAgentsLogic[DynAgents.Op].act(needsAgents).exec[Id] shouldBe expected
+    program.act(needsAgents).exec[Id] shouldBe expected
 
     interpreters.stopped shouldBe 0
     interpreters.started shouldBe 1
