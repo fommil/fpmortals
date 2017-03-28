@@ -16,4 +16,4 @@ scalacOptions += "-Ypartial-unification"
 // but needs `sbt freestyleJVM/publishLocal` in a checkout
 resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-libraryDependencies += "com.47deg" %% "freestyle" % "0.1.0-SNAPSHOT"
+libraryDependencies += "com.47deg" %% "freestyle-effects" % "0.1.0-SNAPSHOT"

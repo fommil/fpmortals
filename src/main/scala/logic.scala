@@ -12,6 +12,7 @@ import cats.data.{NonEmptyList => Nel}
 import cats.implicits._
 import freestyle._
 import freestyle.implicits._
+import freestyle.effects.state
 
 /**
  * @param backlog how many builds are waiting to be run on the ci
@@ -52,9 +53,15 @@ final case class DynAgentsLogic[F[_]](
 ) {
   import m._
 
-  def initial: FreeS[F, WorldView] =
+  val st = state[WorldView]
+  import st.implicits._
+
+  def initial: FreeS[F, Unit] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
-      case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
+      case (w, a, av, ac, t) =>
+        st.StateM[F].set(
+          WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
+        )
     }
 
   def act(state: WorldView): FreeS[F, WorldView] = state match {
