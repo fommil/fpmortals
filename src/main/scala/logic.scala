@@ -28,7 +28,7 @@ import freestyle.implicits._
  *             the nodes. Note that this is stale by definition, but
  *             there are best endeavours to refresh it regularly.
  */
-final case class State(
+final case class WorldView(
   backlog: Int,
   agents: Int,
   managed: Nel[Node],
@@ -52,14 +52,14 @@ final case class DynAgentsLogic[F[_]](
 ) {
   import m._
 
-  def initial: FreeS[F, State] =
+  def initial: FreeS[F, WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
-      case (w, a, av, ac, t) => State(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
+      case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
     }
 
-  def act(state: State): FreeS[F, State] = state match {
+  def act(state: WorldView): FreeS[F, WorldView] = state match {
     // when there is a backlog, but no agents or pending nodes, start a node
-    case State(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
+    case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
       for {
         _ <- c.start(start)
         update = state.copy(pending = Map(start -> time))
@@ -70,7 +70,7 @@ final case class DynAgentsLogic[F[_]](
     // in their 58th+ minute. Assumes that we are called fairly
     // regularly (otherwise we may miss this window). Also a safety
     // cap of ~5 hours for any node.
-    case State(0, _, managed, alive, pending, time) if alive.nonEmpty =>
+    case WorldView(0, _, managed, alive, pending, time) if alive.nonEmpty =>
       (alive -- pending.keys).toList
         .flatMap {
           case (n, started) =>

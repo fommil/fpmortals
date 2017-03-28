@@ -23,7 +23,7 @@ object Data {
 }
 import Data._
 
-final case class StaticInterpreters(state: State) {
+final case class StaticInterpreters(state: WorldView) {
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
     def getBacklog: Backlog = Backlog(state.backlog)
     def getAgents: Agents = Agents(state.agents)
@@ -40,8 +40,8 @@ final case class StaticInterpreters(state: State) {
 
 class LogicSpec extends FlatSpec {
 
-  "Business Logic" should "generate an initial state" in {
-    val state = State(5, 0, NonEmptyList(node1, Nil), Map.empty, Map.empty, time1)
+  "Business Logic" should "generate an initial world view" in {
+    val state = WorldView(5, 0, NonEmptyList(node1, Nil), Map.empty, Map.empty, time1)
 
     val interpreters = StaticInterpreters(state)
     import interpreters._
