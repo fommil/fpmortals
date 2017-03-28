@@ -30,7 +30,8 @@ object IdInterpreters {
     }
   }
 
-  import Modules.DynamicDroneDeps._
+//  import Modules.Services._
+//  import Modules.DynamicDroneDeps._
 
 //  import Drone.Services._
 //  import Machines.Services._

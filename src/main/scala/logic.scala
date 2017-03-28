@@ -38,10 +38,9 @@ case class State(
 
 class DynamicAgents[F[_]](
   implicit
-  d: Drone.Services[F],
-  c: Machines.Services[F],
-  a: Audit.Services[F]
+  m: Modules.Services[F]
 ) {
+  import m._
 
   def initial: FreeS[F, State] =
     (d.getWorkQueue |@| d.getActiveWork |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
