@@ -18,22 +18,22 @@ import freestyle.implicits._
  * @param backlog how many builds are waiting to be run on the ci
  * @param agents how many agents are fulfilling ci jobs
  * @param managed nodes that are available
- * @param active nodes are currently active, values are when they were
+ * @param alive nodes are currently alive, values are when they were
  *               started
  * @param pending nodes that we have recently changed the state of.
  *                These should be considered "unavailable". NOTE: we
  *                have a visibility problem here if we never hear back
- *                when they change state to available / active. Values
+ *                when they change state to available / alive. Values
  *                are when we requested a change of state.
  * @param time is the most recent clock tick from the service managing
  *             the nodes. Note that this is stale by definition, but
  *             there are best endeavours to refresh it regularly.
  */
-case class State(
+final case class State(
   backlog: Int,
   agents: Int,
   managed: Nel[Node],
-  active: Map[Node, ZonedDateTime],
+  alive: Map[Node, ZonedDateTime],
   pending: Map[Node, ZonedDateTime],
   time: ZonedDateTime
 )
@@ -48,32 +48,32 @@ object coproductk {
 }
 import coproductk._
 
-class DynAgentsLogic[F[_]](
+final case class DynAgentsLogic[F[_]](
   implicit
   m: DynAgents[F]
 ) {
   import m._
 
   def initial: FreeS[F, State] =
-    (d.getWorkQueue |@| d.getActiveWork |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
+    (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
       case (w, a, av, ac, t) => State(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
     }
 
   def act(state: State): FreeS[F, State] = state match {
     // when there is a backlog, but no agents or pending nodes, start a node
-    case State(w, 0, Nel(start, _), active, pending, time) if w > 0 && active.isEmpty && pending.isEmpty =>
+    case State(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
       for {
         _ <- c.start(start)
         update = state.copy(pending = Map(start -> time))
       } yield update
 
-    // when there is no pending work, stop all active nodes. However,
+    // when there is no pending work, stop all alive nodes. However,
     // since Google / AWS charge per hour we only shut down machines
     // in their 58th+ minute. Assumes that we are called fairly
     // regularly (otherwise we may miss this window). Also a safety
     // cap of ~5 hours for any node.
-    case State(0, _, managed, active, pending, time) if active.nonEmpty =>
-      (active -- pending.keys).toList
+    case State(0, _, managed, alive, pending, time) if alive.nonEmpty =>
+      (alive -- pending.keys).toList
         .flatMap {
           case (n, started) =>
             val up = ChronoUnit.MINUTES.between(started, time)

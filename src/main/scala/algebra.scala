@@ -13,12 +13,12 @@ object drone {
   // between procedural / streaming uses of the API.
 
   sealed trait DroneResp
-  case class WorkQueue(items: Int) extends DroneResp
-  case class WorkActive(items: Int) extends DroneResp
+  case class Backlog(items: Int) extends DroneResp
+  case class Agents(items: Int) extends DroneResp
 
   @free trait Drone[F[_]] {
-    def getWorkQueue: FreeS[F, WorkQueue]
-    def getActiveWork: FreeS[F, WorkActive]
+    def getBacklog: FreeS[F, Backlog]
+    def getAgents: FreeS[F, Agents]
   }
 
 }

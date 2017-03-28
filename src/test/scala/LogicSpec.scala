@@ -24,16 +24,16 @@ object Data {
 }
 import Data._
 
-object NeedsAgents {
+final case class StaticInterpreters(state: State) {
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
-    def getActiveWork: WorkActive = WorkActive(1)
-    def getWorkQueue: WorkQueue = WorkQueue(5)
+    def getBacklog: Backlog = Backlog(state.backlog)
+    def getAgents: Agents = Agents(state.agents)
   }
 
   implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
-    def getAlive: Alive = Alive(Map.empty)
-    def getManaged: Managed = Managed(NonEmptyList(node1, Nil))
-    def getTime: Time = Time(time1)
+    def getAlive: Alive = Alive(state.alive)
+    def getManaged: Managed = Managed(state.managed)
+    def getTime: Time = Time(state.time)
     def start(node: Node): Unit = ()
     def stop(node: Node): Unit = ()
   }
@@ -46,9 +46,12 @@ object NeedsAgents {
 class LogicSpec extends FlatSpec {
 
   "Business Logic" should "generate an initial state" in {
-    import NeedsAgents._
+    val state = State(5, 0, NonEmptyList(node1, Nil), Map.empty, Map.empty, time1)
 
-    new DynAgentsLogic[DynAgents.Op].initial.exec[Id] shouldBe a[State]
+    val interpreters = StaticInterpreters(state)
+    import interpreters._
+
+    DynAgentsLogic[DynAgents.Op].initial.exec[Id] shouldBe state
   }
 
 }
