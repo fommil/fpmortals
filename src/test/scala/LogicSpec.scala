@@ -10,25 +10,15 @@ import cats.free._
 import algebra._
 import logic._
 
+import freestyle.implicits._
+
 object IdInterpreters {
 
-  implicit def drone: Drone.Services.Op ~> Id = new (Drone.Services.Op ~> Id) {
-    def apply[A](fa: Drone.Services.Op[A]): Id[A] = fa match {
-      case _ => ???
-    }
-  }
+  implicit def drone = new Drone.Services.Handler[Id] { }
 
-  implicit def machines: Machines.Services.Op ~> Id = new (Machines.Services.Op ~> Id) {
-    def apply[A](fa: Machines.Services.Op[A]): Id[A] = fa match {
-      case _ => ???
-    }
-  }
+  implicit def machines = new Machines.Services.Handler[Id] { }
 
-  implicit def audit: Audit.Services.Op ~> Id = new (Audit.Services.Op ~> Id) {
-    def apply[A](fa: Audit.Services.Op[A]): Id[A] = fa match {
-      case _ => ???
-    }
-  }
+  implicit def audit = new Audit.Services.Handler[Id] {  }
 
 //  import Modules.Services._
 //  import Modules.DynamicDroneDeps._
