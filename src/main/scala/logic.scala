@@ -44,18 +44,18 @@ object coproductk {
     val d: Drone[F]
     val c: Machines[F]
   }
+  val st = state[WorldView]
 }
 import coproductk._
 
 final case class DynAgentsLogic[F[_]](
   implicit
-  m: DynAgents[F]
+  m: DynAgents[F],
+  s: st.StateM[F]
 ) {
   import m._
 
-  val st = state[WorldView]
-
-  def initial(implicit s: st.StateM[F]): FreeS[F, Unit] =
+  def initial: FreeS[F, Unit] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
       case (w, a, av, ac, t) =>
         s.set(
@@ -63,7 +63,7 @@ final case class DynAgentsLogic[F[_]](
         )
     }
 
-  def act(implicit s: st.StateM[F]): FreeS[F, Unit] =
+  def act: FreeS[F, Unit] =
     for {
       state <- s.get
       _ <- state match {
