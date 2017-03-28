@@ -54,43 +54,45 @@ final case class DynAgentsLogic[F[_]](
   import m._
 
   val st = state[WorldView]
-  import st.implicits._
 
-  def initial: FreeS[F, Unit] =
+  def initial(implicit s: st.StateM[F]): FreeS[F, Unit] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
       case (w, a, av, ac, t) =>
-        st.StateM[F].set(
+        s.set(
           WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
         )
     }
 
-  def act(state: WorldView): FreeS[F, WorldView] = state match {
-    // when there is a backlog, but no agents or pending nodes, start a node
-    case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
-      for {
-        _ <- c.start(start)
-        update = state.copy(pending = Map(start -> time))
-      } yield update
+  def act(implicit s: st.StateM[F]): FreeS[F, Unit] =
+    for {
+      state <- s.get
+      _ <- state match {
+        // when there is a backlog, but no agents or pending nodes, start a node
+        case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
+          for {
+            _ <- c.start(start)
+            _ <- s.modify(_.copy(pending = Map(start -> time)))
+          } yield ()
 
-    // when there is no pending work, stop all alive nodes. However,
-    // since Google / AWS charge per hour we only shut down machines
-    // in their 58th+ minute. Assumes that we are called fairly
-    // regularly (otherwise we may miss this window). Also a safety
-    // cap of ~5 hours for any node.
-    case WorldView(0, _, managed, alive, pending, time) if alive.nonEmpty =>
-      (alive -- pending.keys).toList
-        .flatMap {
-          case (n, started) =>
-            val up = ChronoUnit.MINUTES.between(started, time)
-            if (up % 60 >= 58 || up >= 290) Some(n)
-            else None
-        }.traverse { n => c.stop(n).map(_ => n) }
-        .map { nodes =>
-          nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
-        }
+        // when there is no pending work, stop all alive nodes. However,
+        // since Google / AWS charge per hour we only shut down machines
+        // in their 58th+ minute. Assumes that we are called fairly
+        // regularly (otherwise we may miss this window). Also a safety
+        // cap of ~5 hours for any node.
+        case WorldView(0, _, managed, alive, pending, time) if alive.nonEmpty =>
+          (alive -- pending.keys).toList
+            .flatMap {
+              case (n, started) =>
+                val up = ChronoUnit.MINUTES.between(started, time)
+                if (up % 60 >= 58 || up >= 290) Some(n)
+                else None
+            }.traverse { n => c.stop(n).map(_ => n) }
+            .map { nodes =>
+              nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
+            }
 
-    // do nothing...
-    case _ => FreeS.pure(state)
-  }
-
+        // do nothing...
+        case _ => FreeS.pure(state)
+      }
+    } yield ()
 }
