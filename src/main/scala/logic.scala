@@ -59,6 +59,21 @@ final case class DynAgentsLogic[F[_]](
 
   private def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
 
+  // Detects nodes that should be shutdown.
+  // This is a very ugly way to do this.
+  object Stale {
+    def unapply(world: WorldView): Option[Nel[Node]] = world match {
+      case WorldView(backlog, _, managed, alive, pending, time) if alive.nonEmpty =>
+        val stale = (alive -- pending.keys).collect {
+          case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
+          case (n, started) if diff(started, time) >= 290                     => n
+        }.toList
+        Nel.fromList(stale)
+
+      case _ => None
+    }
+  }
+
   // written as exclusive actions. It would be instructive to refactor
   // as a series of steps that are always performed.
   def act(world: WorldView): FreeS[F, WorldView] = world match {
@@ -78,13 +93,8 @@ final case class DynAgentsLogic[F[_]](
     //
     // Even if there is a backlog, stop older agents: a safety net and
     // will probably be removed when I trust the app.
-    case WorldView(backlog, _, managed, alive, pending, time) if alive.nonEmpty =>
-      val stale: List[Node] = (alive -- pending.keys).collect {
-        case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
-        case (n, started) if diff(started, time) >= 290                     => n
-      }.toList
-
-      val update = stale.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> time)) }
+    case world @ Stale(stale) =>
+      val update = stale.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> world.time)) }
       // this is gnarly, I'd rather we did the world update before
       // each c.stop, so if we exit early then we don't claim to have
       // moved a bunch of nodes into the pending list
