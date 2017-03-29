@@ -19,11 +19,11 @@ import freestyle.implicits._
  * @param managed nodes that are available
  * @param alive nodes are currently alive, values are when they were
  *               started
- * @param pending nodes that we have recently changed the state of.
+ * @param pending nodes that we have recently changed the world of.
  *                These should be considered "unavailable". NOTE: we
  *                have a visibility problem here if we never hear back
- *                when they change state to available / alive. Values
- *                are when we requested a change of state.
+ *                when they change world to available / alive. Values
+ *                are when we requested a change of world.
  * @param time is the most recent clock tick from the service managing
  *             the nodes. Note that this is stale by definition, but
  *             there are best endeavours to refresh it regularly.
@@ -59,12 +59,13 @@ final case class DynAgentsLogic[F[_]](
 
   private def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
 
-  def act(state: WorldView): FreeS[F, WorldView] = state match {
+  def act(world: WorldView): FreeS[F, WorldView] = world match {
     // when there is a backlog, but no agents or pending nodes, start a node
     case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
+      // annoying that this can't be in the for-comp
+      val update = world.copy(pending = Map(start -> time))
       for {
         _ <- c.start(start)
-        update = state.copy(pending = Map(start -> time))
       } yield update
 
     // when there is no pending work, stop all alive nodes. However,
@@ -72,24 +73,26 @@ final case class DynAgentsLogic[F[_]](
     // in their 58th+ minute. Assumes that we are called fairly
     // regularly (otherwise we may miss this window, should we take
     // control over calling getTime instead of expecting it in the
-    // State?).
+    // World?).
     //
     // Even if there is pending work, stop older agents. this is a
     // safety cap and will probably be removed when I trust the app.
     case WorldView(backlog, _, managed, alive, pending, time) if alive.nonEmpty =>
-      (alive -- pending.keys).toList
-        .collect {
-          case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
-          case (n, started) if diff(started, time) >= 290                     => n
-        }.traverse { n => c.stop(n).map(_ => n) }
-        .map { nodes =>
-          nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
-        }
+      val stale: List[Node] = (alive -- pending.keys).collect {
+        case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
+        case (n, started) if diff(started, time) >= 290                     => n
+      }.toList
+
+      val update = stale.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> time)) }
+      // this is gnarly, I'd rather we did the world update before
+      // each c.stop, so if we exit early then we don't claim to have
+      // moved a bunch of nodes into the pending list
+      stale.traverse { n => c.stop(n) }.map(_ => update)
 
     // TODO: remove pending actions that never went anywhere
 
     // do nothing...
-    case _ => FreeS.pure(state)
+    case _ => FreeS.pure(world)
   }
 
 }
