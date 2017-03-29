@@ -59,6 +59,8 @@ final case class DynAgentsLogic[F[_]](
 
   private def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
 
+  // written as exclusive actions. It would be instructive to refactor
+  // as a series of steps that are always performed.
   def act(world: WorldView): FreeS[F, WorldView] = world match {
     // when there is a backlog, but no agents or pending nodes, start a node
     case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
@@ -68,15 +70,14 @@ final case class DynAgentsLogic[F[_]](
         _ <- c.start(start)
       } yield update
 
-    // when there is no pending work, stop all alive nodes. However,
-    // since Google / AWS charge per hour we only shut down machines
-    // in their 58th+ minute. Assumes that we are called fairly
-    // regularly (otherwise we may miss this window, should we take
-    // control over calling getTime instead of expecting it in the
-    // World?).
+    // when there is no backlog, stop all alive nodes. However, since
+    // Google / AWS charge per hour we only shut down machines in
+    // their 58th+ minute. Assumes that we are called fairly regularly
+    // otherwise we may miss this window (should we take control over
+    // calling getTime instead of expecting it in the World?).
     //
-    // Even if there is pending work, stop older agents. this is a
-    // safety cap and will probably be removed when I trust the app.
+    // Even if there is a backlog, stop older agents: a safety net and
+    // will probably be removed when I trust the app.
     case WorldView(backlog, _, managed, alive, pending, time) if alive.nonEmpty =>
       val stale: List[Node] = (alive -- pending.keys).collect {
         case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
