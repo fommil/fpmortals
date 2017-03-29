@@ -57,6 +57,19 @@ final case class DynAgentsLogic[F[_]](
       case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
     }
 
+  def update(world: WorldView): FreeS[F, WorldView] = for {
+    snap <- initial
+    update = world.copy(
+      backlog = snap.backlog,
+      agents = snap.agents,
+      managed = snap.managed,
+      alive = snap.alive,
+      // ignore unresponsive pending actions
+      pending = world.pending.filterNot { case (n, started) => diff(started, snap.time) >= 10 },
+      time = snap.time
+    )
+  } yield update
+
   // FIXME refactor as a series of steps that are always performed.
   //
   // FIXME: extractors feel very ugly (splits scenario detection from
@@ -75,9 +88,6 @@ final case class DynAgentsLogic[F[_]](
       //        early then we don't claim to have moved a bunch of
       //        nodes into the pending list
       nodes.traverse { n => c.stop(n) }.map(_ => update)
-
-    case Unresponsive(nodes) =>
-      FreeS.pure(world.copy(pending = world.pending -- nodes.toList))
 
     case _ => FreeS.pure(world)
   }
@@ -110,19 +120,6 @@ final case class DynAgentsLogic[F[_]](
         }.toList
         Nel.fromList(stale)
 
-      case _ => None
-    }
-  }
-
-  // nodes that were scheduled for an action, but that action timed
-  // out, so forget we ever asked.
-  private object Unresponsive {
-    def unapply(world: WorldView): Option[Nel[Node]] = world match {
-      case WorldView(_, _, _, _, pending, time) =>
-        val unresp = pending.collect {
-          case (n, started) if diff(started, time) >= 10 => n
-        }.toList
-        Nel.fromList(unresp)
       case _ => None
     }
   }

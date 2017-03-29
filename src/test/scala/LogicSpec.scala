@@ -149,14 +149,15 @@ class LogicSpec extends FlatSpec {
     interpreters.started shouldBe 0
   }
 
-  it should "remove pending actions if they timed out" in {
-    val interpreters = StaticInterpreters(needsAgents)
+  it should "ignore unresponsive pending actions during update" in {
+    val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
+    val interpreters = StaticInterpreters(world)
     import interpreters._
 
-    val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
+    val initial = world.copy(time = time1)
     val expected = world.copy(pending = Map.empty)
 
-    program.act(world).exec[Id] shouldBe expected
+    program.update(initial).exec[Id] shouldBe expected
 
     interpreters.stopped shouldBe 0
     interpreters.started shouldBe 0
