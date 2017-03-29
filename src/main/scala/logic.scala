@@ -59,14 +59,9 @@ final case class DynAgentsLogic[F[_]](
 
   def update(world: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    update = world.copy(
-      backlog = snap.backlog,
-      agents = snap.agents,
-      managed = snap.managed,
-      alive = snap.alive,
+    update = snap.copy(
       // ignore unresponsive pending actions
-      pending = world.pending.filterNot { case (n, started) => diff(started, snap.time) >= 10 },
-      time = snap.time
+      pending = world.pending.filterNot { case (n, started) => diff(started, snap.time) >= 10 }
     )
   } yield update
 
