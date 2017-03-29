@@ -80,11 +80,13 @@ final case class DynAgentsLogic[F[_]](
       } yield update
 
     case Stale(nodes) =>
-      val update = nodes.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> world.time)) }
-      // FIXME: do a world update after each c.stop, so if we exit
-      //        early then we don't claim to have moved a bunch of
-      //        nodes into the pending list
-      nodes.traverse { n => c.stop(n) }.map(_ => update)
+      nodes.foldM(world) {
+        case (world, n) =>
+          for {
+            _ <- c.stop(n)
+            update = world.copy(pending = world.pending + (n -> world.time))
+          } yield update
+      }
 
     case _ => FreeS.pure(world)
   }
