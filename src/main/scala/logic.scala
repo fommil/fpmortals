@@ -57,13 +57,53 @@ final case class DynAgentsLogic[F[_]](
       case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
     }
 
-  private def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
+  // FIXME refactor as a series of steps that are always performed.
+  //
+  // FIXME: extractors feel very ugly (splits scenario detection from
+  //        action, and demands all info be in the WorldView), is
+  //        there a more idiomatic way?
+  def act(world: WorldView): FreeS[F, WorldView] = world match {
+    case NeedsAgent(node) =>
+      for {
+        _ <- c.start(node)
+        update = world.copy(pending = Map(node -> world.time))
+      } yield update
 
-  // Detects nodes that should be shutdown.
-  // This is a very ugly way to do this.
-  object Stale {
+    case Stale(nodes) =>
+      val update = nodes.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> world.time)) }
+      // FIXME: do a world update after each c.stop, so if we exit
+      //        early then we don't claim to have moved a bunch of
+      //        nodes into the pending list
+      nodes.traverse { n => c.stop(n) }.map(_ => update)
+
+    case Unresponsive(nodes) =>
+      FreeS.pure(world.copy(pending = world.pending -- nodes.toList))
+
+    case _ => FreeS.pure(world)
+  }
+
+  def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
+
+  // with a backlog, but no agents or pending nodes, start a node
+  private object NeedsAgent {
+    def unapply(world: WorldView): Option[Node] = world match {
+      case WorldView(w, 0, Nel(start, _), alive, pending, _) if w > 0 && alive.isEmpty && pending.isEmpty => Some(start)
+      case _ => None
+    }
+  }
+
+  // when there is no backlog, stop all alive nodes. However, since
+  // Google / AWS charge per hour we only shut down machines in their
+  // 58th+ minute.
+  //
+  // Assumes that we are called fairly regularly otherwise we may miss
+  // this window (should we take control over calling getTime instead
+  // of expecting it from the WorldView we are handed?).
+  //
+  // Safety net: even if there is a backlog, stop older agents.
+  private object Stale {
     def unapply(world: WorldView): Option[Nel[Node]] = world match {
-      case WorldView(backlog, _, managed, alive, pending, time) if alive.nonEmpty =>
+      case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
         val stale = (alive -- pending.keys).collect {
           case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
           case (n, started) if diff(started, time) >= 290                     => n
@@ -74,36 +114,17 @@ final case class DynAgentsLogic[F[_]](
     }
   }
 
-  // written as exclusive actions.
-  // FIXME refactor as a series of steps that are always performed.
-  def act(world: WorldView): FreeS[F, WorldView] = world match {
-    // when there is a backlog, but no agents or pending nodes, start a node
-    case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
-      // annoying that this can't be in the for-comp
-      val update = world.copy(pending = Map(start -> time))
-      for {
-        _ <- c.start(start)
-      } yield update
-
-    // when there is no backlog, stop all alive nodes. However, since
-    // Google / AWS charge per hour we only shut down machines in
-    // their 58th+ minute. Assumes that we are called fairly regularly
-    // otherwise we may miss this window (should we take control over
-    // calling getTime instead of expecting it in the World?).
-    //
-    // Even if there is a backlog, stop older agents: a safety net and
-    // will probably be removed when I trust the app.
-    case world @ Stale(stale) =>
-      val update = stale.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> world.time)) }
-      // FIXME: do the world update with each c.stop, so if we exit
-      //        early then we don't claim to have moved a bunch of
-      //        nodes into the pending list
-      stale.traverse { n => c.stop(n) }.map(_ => update)
-
-    // FIXME: remove pending actions that never went anywhere
-
-    // do nothing...
-    case _ => FreeS.pure(world)
+  // nodes that were scheduled for an action, but that action timed
+  // out, so forget we ever asked.
+  private object Unresponsive {
+    def unapply(world: WorldView): Option[Nel[Node]] = world match {
+      case WorldView(_, _, _, _, pending, time) =>
+        val unresp = pending.collect {
+          case (n, started) if diff(started, time) >= 10 => n
+        }.toList
+        Nel.fromList(unresp)
+      case _ => None
+    }
   }
 
 }

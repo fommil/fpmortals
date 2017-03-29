@@ -149,4 +149,16 @@ class LogicSpec extends FlatSpec {
     interpreters.started shouldBe 0
   }
 
+  it should "remove pending actions if they timed out" in {
+    val interpreters = StaticInterpreters(needsAgents)
+    import interpreters._
+
+    val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
+    val expected = world.copy(pending = Map.empty)
+
+    program.act(world).exec[Id] shouldBe expected
+
+    interpreters.stopped shouldBe 0
+    interpreters.started shouldBe 0
+  }
 }
