@@ -5,6 +5,8 @@ package logic
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
+import scala.concurrent.duration._
+
 import algebra.drone._
 import algebra.machines._
 
@@ -61,7 +63,7 @@ final case class DynAgentsLogic[F[_]](
     snap <- initial
     update = snap.copy(
       // ignore unresponsive pending actions
-      pending = world.pending.filterNot { case (n, started) => diff(started, snap.time) >= 10 }
+      pending = world.pending.filterNot { case (n, started) => diff(started, snap.time) >= 10.minutes }
     )
   } yield update
 
@@ -87,7 +89,7 @@ final case class DynAgentsLogic[F[_]](
     case _ => FreeS.pure(world)
   }
 
-  def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
+  def diff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration = ChronoUnit.MINUTES.between(from, to).minutes
 
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
@@ -110,8 +112,8 @@ final case class DynAgentsLogic[F[_]](
     def unapply(world: WorldView): Option[Nel[Node]] = world match {
       case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
         val stale = (alive -- pending.keys).collect {
-          case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
-          case (n, started) if diff(started, time) >= 290                     => n
+          case (n, started) if backlog == 0 && diff(started, time).toMinutes % 60 >= 58 => n
+          case (n, started) if diff(started, time) >= 5.hours                           => n
         }.toList
         Nel.fromList(stale)
 
