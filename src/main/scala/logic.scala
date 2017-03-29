@@ -57,6 +57,8 @@ final case class DynAgentsLogic[F[_]](
       case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
     }
 
+  private def diff(from: ZonedDateTime, to: ZonedDateTime) = ChronoUnit.MINUTES.between(from, to)
+
   def act(state: WorldView): FreeS[F, WorldView] = state match {
     // when there is a backlog, but no agents or pending nodes, start a node
     case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
@@ -68,34 +70,23 @@ final case class DynAgentsLogic[F[_]](
     // when there is no pending work, stop all alive nodes. However,
     // since Google / AWS charge per hour we only shut down machines
     // in their 58th+ minute. Assumes that we are called fairly
-    // regularly (otherwise we may miss this window). Also a safety
-    // cap of ~5 hours for any node.
-    case WorldView(0, _, managed, alive, pending, time) if alive.nonEmpty =>
+    // regularly (otherwise we may miss this window, should we take
+    // control over calling getTime instead of expecting it in the
+    // State?).
+    //
+    // Even if there is pending work, stop older agents. this is a
+    // safety cap and will probably be removed when I trust the app.
+    case WorldView(backlog, _, managed, alive, pending, time) if alive.nonEmpty =>
       (alive -- pending.keys).toList
-        .flatMap {
-          case (n, started) =>
-            val up = ChronoUnit.MINUTES.between(started, time)
-            if (up % 60 >= 58 || up >= 290) Some(n)
-            else None
+        .collect {
+          case (n, started) if backlog == 0 && diff(started, time) % 60 >= 58 => n
+          case (n, started) if diff(started, time) >= 290                     => n
         }.traverse { n => c.stop(n).map(_ => n) }
         .map { nodes =>
           nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
         }
 
-    // even if there is pending work, stop older agents. this is a
-    // safety cap and will probably be removed when I trust the app.
-    case WorldView(_, _, managed, alive, pending, time) if alive.nonEmpty =>
-      // FIXME: so much repeated code!
-      (alive -- pending.keys).toList
-        .flatMap {
-          case (n, started) =>
-            val up = ChronoUnit.MINUTES.between(started, time)
-            if (up >= 290) Some(n)
-            else None
-        }.traverse { n => c.stop(n).map(_ => n) }
-        .map { nodes =>
-          nodes.foldLeft(state) { (state, node) => state.copy(pending = state.pending + (node -> time)) }
-        }
+    // TODO: remove pending actions that never went anywhere
 
     // do nothing...
     case _ => FreeS.pure(state)
