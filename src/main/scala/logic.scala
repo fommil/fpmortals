@@ -74,8 +74,8 @@ final case class DynAgentsLogic[F[_]](
     }
   }
 
-  // written as exclusive actions. It would be instructive to refactor
-  // as a series of steps that are always performed.
+  // written as exclusive actions.
+  // FIXME refactor as a series of steps that are always performed.
   def act(world: WorldView): FreeS[F, WorldView] = world match {
     // when there is a backlog, but no agents or pending nodes, start a node
     case WorldView(w, 0, Nel(start, _), alive, pending, time) if w > 0 && alive.isEmpty && pending.isEmpty =>
@@ -95,12 +95,12 @@ final case class DynAgentsLogic[F[_]](
     // will probably be removed when I trust the app.
     case world @ Stale(stale) =>
       val update = stale.foldLeft(world) { (world, n) => world.copy(pending = world.pending + (n -> world.time)) }
-      // this is gnarly, I'd rather we did the world update before
-      // each c.stop, so if we exit early then we don't claim to have
-      // moved a bunch of nodes into the pending list
+      // FIXME: do the world update with each c.stop, so if we exit
+      //        early then we don't claim to have moved a bunch of
+      //        nodes into the pending list
       stale.traverse { n => c.stop(n) }.map(_ => update)
 
-    // TODO: remove pending actions that never went anywhere
+    // FIXME: remove pending actions that never went anywhere
 
     // do nothing...
     case _ => FreeS.pure(world)
