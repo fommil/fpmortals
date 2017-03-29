@@ -80,12 +80,11 @@ final case class DynAgentsLogic[F[_]](
       } yield update
 
     case Stale(nodes) =>
-      nodes.foldM(world) {
-        case (world, n) =>
-          for {
-            _ <- c.stop(n)
-            update = world.copy(pending = world.pending + (n -> world.time))
-          } yield update
+      nodes.foldM(world) { (world, n) =>
+        for {
+          _ <- c.stop(n)
+          update = world.copy(pending = world.pending + (n -> world.time))
+        } yield update
       }
 
     case _ => FreeS.pure(world)
