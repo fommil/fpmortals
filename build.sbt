@@ -29,7 +29,7 @@ scalacOptions ++= Seq(
   "-Ysysdef", Seq(
     "java.lang.String",
     "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Unit,Null,Nothing,Option,Some,None,Either,Left,Right}",
-    "scala.annotations.{tailrec,inductive}",
+    "scala.annotation.{tailrec,inductive}",
     "scala.collection.immutable.{Map,Seq,List,::,Set,Vector}",
     "scala.util.{Try,Success,Failure}",
     "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}", // prefer `the` to `implicitly`
