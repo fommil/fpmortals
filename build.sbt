@@ -21,7 +21,9 @@ inThisBuild(
 )
 
 val common = Seq(
-  libraryDependencies += "org.typelevel" %% "cats" % "0.9.0"
+  libraryDependencies ++= Seq(
+    "org.typelevel" %% "cats" % "0.9.0"
+  ) ++ shapeless.value
 )
 
 val predef = project.settings(common)

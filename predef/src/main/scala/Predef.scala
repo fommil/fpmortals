@@ -2,7 +2,12 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package fommil
 
+import scala.language.experimental.macros
+
 object Predef {
+  // maybe a step too far?
+  def cachedImplicit[T]: T = macro shapeless.CachedImplicitMacros.cachedImplicitImpl[T]
+
   type String = java.lang.String
   type Boolean = scala.Boolean
   type Int = scala.Int
