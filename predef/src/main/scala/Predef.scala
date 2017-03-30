@@ -35,8 +35,4 @@ object Predef {
 
   @inline def ??? : Nothing = scala.Predef.???
 
-  // WORKAROUND https://github.com/47deg/freestyle/issues/155
-  type Product = scala.Product
-  type Serializable = java.io.Serializable
-
 }
