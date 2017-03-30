@@ -30,7 +30,7 @@ scalacOptions ++= Seq(
     "java.lang.String",
     "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Unit,Null,Nothing,Option,Some,None,Either,Left,Right}",
     "scala.annotation.{tailrec,inductive}",
-    "scala.collection.immutable.{Map,Seq,List,::,Set,Vector}",
+    "scala.collection.immutable.{Map,Seq,List,::,Nil,Set,Vector}",
     "scala.util.{Try,Success,Failure}",
     "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}", // prefer `the` to `implicitly`
     "cats._,cats.data.{Coproduct=>CoproductK,Product=>ProductK,_},cats.implicits._",
