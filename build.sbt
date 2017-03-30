@@ -26,7 +26,16 @@ scalacOptions ++= Seq(
   "-Yinduction-heuristics",
   "-Yliteral-types",
   "-Xstrict-patmat-analysis",
-  "-Ysysdef", "java.lang.String,scala.{Any,AnyRef,AnyVal,Boolean,Byte,Int,Long,Unit,Nothing,Option,Some,None,Either,Left,Right},scala.collection.immutable.{Map,Seq,List,Set},scala.Predef.{???,ArrowAssoc},cats._,cats.data._,cats.implicits._,freestyle._,freestyle.implicits._,shapeless.cachedImplicit,fs2._",
+  "-Ysysdef", Seq(
+    "java.lang.String",
+    "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Int,Long,Unit,Nothing,Option,Some,None,Either,Left,Right}",
+    "scala.collection.immutable.{Map,Seq,List,Set}",
+    "scala.Predef.{???,ArrowAssoc}",
+    "cats._,cats.data._,cats.implicits._",
+    "freestyle._,freestyle.implicits._",
+    "shapeless.cachedImplicit",
+    "fs2._"
+  ).mkString(","),
   "-Ypredef", "_"
 )
 
