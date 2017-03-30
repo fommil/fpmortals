@@ -38,7 +38,7 @@ val core = project.settings(common)
     // ENSIME users should add the following to ensime.sbt
     // ensimeScalacOptions := (scalacOptions in LocalProject("core")).value
     scalacOptions ++= Seq(
-      "-Ysysdef", "cats._,cats.data._,cats.implicits._,freestyle._,freestyle.implicits._,shapeless.cachedImplicit,fs2._",
+      "-Ysysdef", "java.lang.String,scala.{Any,AnyRef,AnyVal,Boolean,Byte,Int,Long,Unit,Nothing,Option,Some,None,Either,Left,Right},scala.collection.immutable.{Map,Seq,List,Set},scala.Predef.{???,ArrowAssoc},cats._,cats.data._,cats.implicits._,freestyle._,freestyle.implicits._,shapeless.cachedImplicit,fs2._",
       "-Ypredef", "fommil.Predef._"
     ),
     libraryDependencies ++= Seq(
