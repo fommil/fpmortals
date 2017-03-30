@@ -37,7 +37,7 @@ val core = project.settings(common)
   .settings(
     // don't forget to update ensimeScalacOptions in ensime.sbt if you use it...
     scalacOptions ++= Seq(
-      "-Ysysdef", "java.lang._,scala._,scala.collection.immutable._,cats._,cats.data._,cats.implicits._,freestyle._,freestyle.implicits._",
+      "-Ysysdef", "cats._,cats.data._,cats.implicits._,freestyle._,freestyle.implicits._",
       "-Ypredef", "fommil.Predef._"
     )
   )

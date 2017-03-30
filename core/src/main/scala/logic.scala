@@ -85,7 +85,7 @@ final case class DynAgentsLogic[F[_]](
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
     def unapply(world: WorldView): Option[Node] = world match {
-      case WorldView(w, 0, NonEmptyList(start, _), alive, pending, _) if w > 0 && alive.isEmpty && pending.isEmpty => Some(start)
+      case WorldView(w, 0, NonEmptyList(start, _), alive, pending, _) if w > 0 && alive.isEmpty && pending.isEmpty => Option(start)
       case _ => None
     }
   }
