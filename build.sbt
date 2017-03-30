@@ -7,7 +7,7 @@ inThisBuild(
     scalacOptions ++= Seq(
       "-Ywarn-value-discard",
       "-Ywarn-numeric-widen",
-      "-Ywarn-unused",
+      "-Ywarn-unused", // but remove in ensime because of PC false positives
       "-language:higherKinds",
       // https://github.com/typelevel/scala/blob/typelevel-readme/notes/2.12.1.md
       "-Ykind-polymorphism",
@@ -21,14 +21,7 @@ inThisBuild(
 )
 
 val common = Seq(
-  libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats" % "0.9.0",
-    "com.spinoco" %% "fs2-http" % "0.1.6"
-  ),
-  // http://frees.io/docs/
-  resolvers += Resolver.sonatypeRepo("snapshots"),
-  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
-  libraryDependencies += "com.47deg" %% "freestyle" % "0.1.0-SNAPSHOT"
+  libraryDependencies += "org.typelevel" %% "cats" % "0.9.0"
 )
 
 val predef = project.settings(common)
@@ -39,5 +32,12 @@ val core = project.settings(common)
     scalacOptions ++= Seq(
       "-Ysysdef", "cats._,cats.data._,cats.implicits._,freestyle._,freestyle.implicits._",
       "-Ypredef", "fommil.Predef._"
-    )
+    ),
+    libraryDependencies ++= Seq(
+      "com.spinoco" %% "fs2-http" % "0.1.6"
+    ),
+    // http://frees.io/docs/
+    resolvers += Resolver.sonatypeRepo("snapshots"),
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+    libraryDependencies += "com.47deg" %% "freestyle" % "0.1.0-SNAPSHOT"
   )

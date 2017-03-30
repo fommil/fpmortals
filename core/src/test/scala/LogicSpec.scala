@@ -2,16 +2,13 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package tests
 
-import algebra.drone._
-import algebra.machines._
-import cats._
-import cats.data.NonEmptyList
-import freestyle._
-import freestyle.implicits._
 import java.time.ZonedDateTime
 import java.util.UUID
+
+import algebra.drone._
+import algebra.machines._
 import logic._
-import logic.coproductk._
+import logic.coproductk.DynAgents
 import org.scalatest._
 import org.scalatest.Matchers._
 
