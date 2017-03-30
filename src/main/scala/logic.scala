@@ -67,11 +67,6 @@ final case class DynAgentsLogic[F[_]](
     )
   } yield update
 
-  // FIXME refactor as a series of steps that are always performed.
-  //
-  // FIXME: extractors feel very ugly (splits scenario detection from
-  //        action, and demands all info be in the WorldView), is
-  //        there a more idiomatic way?
   def act(world: WorldView): FreeS[F, WorldView] = world match {
     case NeedsAgent(node) =>
       for {
