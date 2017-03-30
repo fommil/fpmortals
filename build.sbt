@@ -28,13 +28,14 @@ scalacOptions ++= Seq(
   "-Xstrict-patmat-analysis",
   "-Ysysdef", Seq(
     "java.lang.String",
-    "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Int,Long,Unit,Nothing,Option,Some,None,Either,Left,Right}",
+    "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Unit,Null,Nothing,Option,Some,None,Either,Left,Right}",
+    "scala.annotations.{tailrec,inductive}",
     "scala.collection.immutable.{Map,Seq,List,::,Set,Vector}",
     "scala.util.{Try,Success,Failure}",
-    "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}", // prefer the to implicitly
-    "cats._,cats.data._,cats.implicits._",
+    "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}", // prefer `the` to `implicitly`
+    "cats._,cats.data.{Coproduct=>CoproductK,Product=>ProductK,_},cats.implicits._",
     "freestyle._,freestyle.implicits._",
-    "shapeless.{:: => #:, _}",
+    "shapeless.{::=>#:,_}",
     "fs2._"
   ).mkString(","),
   "-Ypredef", "_"
