@@ -29,11 +29,12 @@ scalacOptions ++= Seq(
   "-Ysysdef", Seq(
     "java.lang.String",
     "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Int,Long,Unit,Nothing,Option,Some,None,Either,Left,Right}",
-    "scala.collection.immutable.{Map,Seq,List,Set}",
-    "scala.Predef.{???,ArrowAssoc}",
+    "scala.collection.immutable.{Map,Seq,List,::,Set,Vector}",
+    "scala.util.{Try,Success,Failure}",
+    "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}", // prefer the to implicitly
     "cats._,cats.data._,cats.implicits._",
     "freestyle._,freestyle.implicits._",
-    "shapeless.cachedImplicit",
+    "shapeless.{:: => #:, _}",
     "fs2._"
   ).mkString(","),
   "-Ypredef", "_"
