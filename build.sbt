@@ -9,6 +9,9 @@ sonatypeGithub := ("fommil", "drone-dynamic-agents")
 licenses := Seq(Apache2)
 
 scalacOptions ++= Seq(
+  "-Ywarn-value-discard",
+  "-Ywarn-numeric-widen",
+  "-Ywarn-unused",
   "-language:higherKinds",
   // https://github.com/typelevel/scala/blob/typelevel-readme/notes/2.12.1.md
   "-Ykind-polymorphism",
