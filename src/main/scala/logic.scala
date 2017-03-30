@@ -10,11 +10,6 @@ import scala.concurrent.duration._
 import algebra.drone._
 import algebra.machines._
 
-import cats.data.{NonEmptyList => Nel}
-import cats.implicits._
-import freestyle._
-import freestyle.implicits._
-
 /**
  * @param backlog how many builds are waiting to be run on the ci
  * @param agents how many agents are fulfilling ci jobs
@@ -33,7 +28,7 @@ import freestyle.implicits._
 final case class WorldView(
   backlog: Int,
   agents: Int,
-  managed: Nel[Node],
+  managed: NonEmptyList[Node],
   alive: Map[Node, ZonedDateTime],
   pending: Map[Node, ZonedDateTime],
   time: ZonedDateTime
@@ -90,7 +85,7 @@ final case class DynAgentsLogic[F[_]](
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
     def unapply(world: WorldView): Option[Node] = world match {
-      case WorldView(w, 0, Nel(start, _), alive, pending, _) if w > 0 && alive.isEmpty && pending.isEmpty => Some(start)
+      case WorldView(w, 0, NonEmptyList(start, _), alive, pending, _) if w > 0 && alive.isEmpty && pending.isEmpty => Some(start)
       case _ => None
     }
   }
@@ -105,13 +100,13 @@ final case class DynAgentsLogic[F[_]](
   //
   // Safety net: even if there is a backlog, stop older agents.
   private object Stale {
-    def unapply(world: WorldView): Option[Nel[Node]] = world match {
+    def unapply(world: WorldView): Option[NonEmptyList[Node]] = world match {
       case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
         val stale = (alive -- pending.keys).collect {
           case (n, started) if backlog == 0 && diff(started, time).toMinutes % 60 >= 58 => n
           case (n, started) if diff(started, time) >= 5.hours                           => n
         }.toList
-        Nel.fromList(stale)
+        NonEmptyList.fromList(stale)
 
       case _ => None
     }
