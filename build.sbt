@@ -32,11 +32,13 @@ scalacOptions ++= Seq(
     "scala.annotation.{tailrec,inductive}",
     "scala.collection.immutable.{Map,Seq,List,::,Nil,Set,Vector}",
     "scala.util.{Try,Success,Failure}",
-    "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}", // prefer `the` to `implicitly`
-    "cats._,cats.data.{Coproduct=>CoproductK,Product=>ProductK,_},cats.implicits._",
-    "freestyle._,freestyle.implicits._",
-    "shapeless.{::=>#:,_}",
-    "fs2._"
+    // prefer `the` to `implicitly`
+    "scala.Predef.{???,ArrowAssoc,identity,<:<,=:=}"
+    // best not to import non-stdlib stuff or it breaks inferior IDEs
+    // "cats._,cats.data.{Coproduct=>CoproductK,Product=>ProductK,_},cats.implicits._",
+    // "freestyle._,freestyle.implicits._",
+    // "shapeless.{::=>#:,_}",
+    // "fs2._"
   ).mkString(","),
   "-Ypredef", "_"
 )

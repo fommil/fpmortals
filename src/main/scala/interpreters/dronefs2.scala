@@ -2,8 +2,9 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package interpreters.dronefs2
 
-import io.circe.generic.auto._
-import io.circe.fs2._
+import fs2._
+import _root_.io.circe.generic.auto._
+import _root_.io.circe.fs2._
 import spinoco.fs2.http
 import spinoco.fs2.http._
 import spinoco.protocol.http._

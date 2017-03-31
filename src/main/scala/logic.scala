@@ -7,6 +7,10 @@ import java.time.temporal.ChronoUnit
 
 import scala.concurrent.duration._
 
+import cats.data.NonEmptyList
+import cats.implicits._
+import freestyle._
+
 import algebra.drone._
 import algebra.machines._
 

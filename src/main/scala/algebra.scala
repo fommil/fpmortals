@@ -5,6 +5,9 @@ package algebra
 import java.time.ZonedDateTime
 import java.util.UUID
 
+import cats.data.NonEmptyList
+import freestyle._
+
 object drone {
   // responses form a sealed family to make it easier to switch
   // between procedural / streaming uses of the API.

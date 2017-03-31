@@ -5,12 +5,17 @@ package tests
 import java.time.ZonedDateTime
 import java.util.UUID
 
+import cats._
+import cats.data.NonEmptyList
+import freestyle._
+import freestyle.implicits._
+import org.scalatest._
+import org.scalatest.Matchers._
+
 import algebra.drone._
 import algebra.machines._
 import logic._
 import logic.coproductk.DynAgents
-import org.scalatest._
-import org.scalatest.Matchers._
 
 object Data {
   val node1 = Node(UUID.fromString("1243d1af-828f-4ba3-9fc0-a19d86852b5a"))
