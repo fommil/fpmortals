@@ -56,7 +56,7 @@ final class GceFs2(config: GceConfig) extends Machines.Handler[Task] {
 
     clientTask.flatMap { client =>
       client.request(clusterRequest).flatMap { resp =>
-        resp.body.chunks.through(byteParser).through(unmarshall).through(extract)
+        resp.body.chunks.through(byteParser andThen unmarshall andThen extract)
       }.runLast.map(_.get)
     }
   }
