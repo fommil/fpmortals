@@ -28,7 +28,7 @@ scalacOptions ++= Seq(
   "-Xstrict-patmat-analysis",
   "-Ysysdef", Seq(
     "java.lang.String",
-    "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Unit,Null,Nothing,Option,Some,None,Either,Left,Right}",
+    "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Unit,Null,Nothing,Option,Some,None,Either,Left,Right,StringContext}",
     "scala.annotation.{tailrec,inductive}",
     "scala.collection.immutable.{Map,Seq,List,::,Nil,Set,Vector}",
     "scala.util.{Try,Success,Failure}",
