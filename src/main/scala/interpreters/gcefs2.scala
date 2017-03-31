@@ -40,14 +40,15 @@ final class GceFs2(config: GceConfig) extends Machines.Handler[Task] {
   // TODO: take clientTask as input so we can mock
   private val clientTask: Task[HttpClient[Task]] = http.client()
 
+  private def get(path: String) = HttpRequest.get[Task](
+    Uri.https("container.googleapis.com", path)
+  ).withHeader(Authorization(OAuth2BearerToken(config.token)))
+
   // not sure if this is possible?
   def getTime: Task[Time] = ???
 
   // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters/get
-  // FIXME: we don't read Backlog off the wire, we read a custom format and then convert into Backlog
-  private val clusterRequest =
-    HttpRequest.get[Task](Uri.https("container.googleapis.com", s"/v1/projects/{config.projectId}/zones/{config.zone}/clusters/{config.clusterId}"))
-      .withHeader(Authorization(OAuth2BearerToken(config.token)))
+  private val clusterRequest = get(s"/v1/projects/${config.projectId}/zones/${config.zone}/clusters/${config.clusterId}")
 
   def getManaged: Task[Managed] = {
     val unmarshall = decoder[Task, Cluster]
