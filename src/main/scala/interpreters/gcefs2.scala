@@ -52,7 +52,7 @@ final class GceFs2(config: GceConfig) {
   private def get[G: Decoder](path: String): Task[G] = {
     val request = HttpRequest.get[Task](
       Uri.https("container.googleapis.com", path)
-    ).withHeader(Authorization(OAuth2BearerToken(config.token)))
+    ) //.withHeader(Authorization(OAuth2BearerToken(config.token)))
 
     clientTask.flatMap { client =>
       client.request(request).flatMap { resp =>

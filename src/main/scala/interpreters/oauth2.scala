@@ -23,7 +23,6 @@ package interpreters.oauth2.acg
  * 2. an algebra and fs2 interpreter to generate transient "bearer
  *    tokens" as required by every request to the third party API.
  *
- *
  * We'll use Google Cloud as an example, but the concept is
  * generalisable.
  *
@@ -72,17 +71,114 @@ package interpreters.oauth2.acg
  * provides their username / password, i.e. the "Client Credentials
  * Grant" variant of OAuth2.
  *
+ * Bearer tokens typically expire after an hour, and can
+ * [[https://tools.ietf.org/html/rfc6749#section-5 be refreshed]]
+ *
+ * {{{
+ *   POST /oauth2/v4/token HTTP/1.1
+ *   Host: www.googleapis.com
+ *   Content-length: 163
+ *   content-type: application/x-www-form-urlencoded
+ *   user-agent: google-oauth-playground
+ *   client_secret=CLIENT_SECRET&grant_type=refresh_token&refresh_token=REFRESH_TOKEN&client_id=CLIENT_ID
+ *  }}}
+ *
+ * giving
+ *
+ * {{{
+ * {
+ *   "access_token": "BEARER_TOKEN",
+ *   "token_type": "Bearer",
+ *   "expires_in": 3600
+ * }
+ * }}}
+ *
+ * But note that Google expires all but the most recent 50 bearer
+ * tokens (and any other implementation is free to do similar),
+ * so the expiry times are just guidance.
+ *
+ *
  * It used to be possible to use
  * [[http://stackoverflow.com/a/19766913/1041691 a pointy click UI]]
- * to do most of the above, but Google decided to limit the
- * `redirect_uri` to only domains owned by the owners of the app.
+ * to do most of the above for testing purposes, but Google decided to
+ * limit the `redirect_uri` to only domains owned by the owners of the
+ * app.
  */
 package client
 
-final case class OAuth2AcgConfig(
-  authorizationServer: String,
-  accessTokenServer: String,
+import java.net.URI
+import freestyle._
+import java.time.LocalDateTime
+
+/** Defines fixed information about a server's OAuth 2.0 service. */
+final case class ServerConfig(
+  auth: URI,
+  access: URI,
+  bearer: URI,
   scope: String,
   clientId: String,
   clientSecret: String
 )
+
+/** Code tokens are one-shot and expire on use */
+final case class CodeToken(token: String)
+
+/** Do not expire, unless in response to a security breach. */
+final case class RefreshToken(token: String)
+
+/** Expire very regularly, use the timestamp as a guideline only. */
+final case class BearerToken(token: String, expires: LocalDateTime)
+
+object algebra {
+  @free trait OAuth2Client[F[_]] {
+    // for use in one-shot apps requiring user interaction
+    def authenticate: FreeS[F, CodeToken]
+    def access(code: CodeToken): FreeS[F, (RefreshToken, Option[BearerToken])]
+
+    // for use in headless servers
+    def bearer(refresh: RefreshToken): FreeS[F, BearerToken]
+  }
+}
+
+/** The API as defined by the OAuth 2.0 server */
+package api {
+
+  final case class AuthRequest(
+    redirect_uri: URI,
+    scope: String,
+    client_id: String,
+    prompt: String = "consent",
+    response_type: String = "code",
+    access_type: String = "offline"
+  )
+  // AuthResponse is to send the user's browser to redirect_uri with a
+  // `code` param (yup, seriously).
+
+  final case class AccessRequest(
+    code: String,
+    redirect_uri: URI,
+    client_id: String,
+    client_secret: String,
+    scope: String = "",
+    grant_type: String = "authorization_code"
+  )
+  final case class AccessResponse(
+    access_token: String,
+    token_type: String,
+    expires_in: Int,
+    refresh_token: String
+  )
+
+  final case class RefreshRequest(
+    client_secret: String,
+    refresh_token: String,
+    client_id: String,
+    grant_type: String = "refresh_token"
+  )
+  final case class RefreshResponse(
+    access_token: String,
+    token_type: String,
+    expires_in: Int
+  )
+
+}
