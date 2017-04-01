@@ -6,6 +6,7 @@ import java.nio.channels.AsynchronousChannelGroup
 import java.util.concurrent.Executors
 
 import fs2._
+import _root_.io.circe._
 import _root_.io.circe.generic.auto._
 import _root_.io.circe.fs2._
 import spinoco.fs2.http
@@ -20,8 +21,7 @@ import apis.gce._
 final case class GceConfig(
   projectId: String, // e.g. summer-function-158620
   zone: String, // e.g. us-central1-a
-  clusterId: String, // e.g. cluster-1
-  token: String // https://console.developers.google.com/apis/credentials?project={projectId}
+  clusterId: String // e.g. cluster-1
 )
 
 // TODO: take what we need as implicits
@@ -34,36 +34,36 @@ object Resources {
 
 // https://cloud.google.com/container-engine/docs/
 // https://cloud.google.com/container-engine/reference/rest/
-final class GceFs2(config: GceConfig) extends Machines.Handler[Task] {
+final class GceFs2Machine extends Machines.Handler[Task] {
+  def getTime: Task[Time] = ???
+  def getManaged: Task[Managed] = ???
+  def getAlive: Task[Alive] = ???
+  def start(node: Node): Task[Unit] = ???
+  def stop(node: Node): Task[Unit] = ???
+}
+
+final class GceFs2(config: GceConfig) {
   import Resources._
 
   // TODO: take clientTask as input so we can mock
   private val clientTask: Task[HttpClient[Task]] = http.client()
 
-  private def get(path: String) = HttpRequest.get[Task](
-    Uri.https("container.googleapis.com", path)
-  ).withHeader(Authorization(OAuth2BearerToken(config.token)))
-
-  // not sure if this is possible?
-  def getTime: Task[Time] = ???
-
-  // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters/get
-  private val clusterRequest = get(s"/v1/projects/${config.projectId}/zones/${config.zone}/clusters/${config.clusterId}")
-
-  def getManaged: Task[Managed] = {
-    val unmarshall = decoder[Task, Cluster]
-    def extract: Pipe[Task, Cluster, Managed] = ???
+  // TODO: abstract out the OAuth with an algebra
+  private def get[G: Decoder](path: String): Task[G] = {
+    val request = HttpRequest.get[Task](
+      Uri.https("container.googleapis.com", path)
+    ).withHeader(Authorization(OAuth2BearerToken(config.token)))
 
     clientTask.flatMap { client =>
-      client.request(clusterRequest).flatMap { resp =>
-        resp.body.chunks.through(byteParser andThen unmarshall andThen extract)
+      client.request(request).flatMap { resp =>
+        resp.body.chunks.through(byteParser andThen decoder[Task, G])
       }.runLast.map(_.get)
     }
   }
 
-  def getAlive: Task[Alive] = ???
-  def start(node: Node): Task[Unit] = ???
-  def stop(node: Node): Task[Unit] = ???
+  // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters/get
+  def getCluster: Task[Cluster] =
+    get[Cluster](s"/v1/projects/${config.projectId}/zones/${config.zone}/clusters/${config.clusterId}")
 
 }
 
