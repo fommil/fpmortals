@@ -1,6 +1,6 @@
 // Copyright: 2017 https://github.com/fommil/drone-dynamic-agents/graphs
 // License: http://www.apache.org/licenses/LICENSE-2.0
-package interpreters.oauth2.acg
+package interpreters.oauth2.client
 
 /**
  * [[https://tools.ietf.org/html/rfc6749 OAuth2]] client
@@ -104,10 +104,11 @@ package interpreters.oauth2.acg
  * limit the `redirect_uri` to only domains owned by the owners of the
  * app.
  */
-package client
+package acg
 
 import java.net.URI
 import freestyle._
+import simulacrum._
 import java.time.LocalDateTime
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
@@ -120,16 +121,32 @@ final case class ServerConfig(
   clientSecret: String
 )
 
-/** Code tokens are one-shot and expire on use */
+/** Code tokens are one-shot and expire on use. */
 final case class CodeToken(token: String)
 
-/** Do not expire, unless in response to a security breach. */
+/**
+ * Refresh tokens do not expire, except in response to a security
+ * breach or user / server whim.
+ */
 final case class RefreshToken(token: String)
 
-/** Expire very regularly, use the timestamp as a guideline only. */
+/**
+ * Bearer tokens (aka access tokens) expire frequently and can also
+ * be expired on a whim by the server. For example, Google only allow
+ * 50 tokens, per user.
+ */
 final case class BearerToken(token: String, expires: LocalDateTime)
 
 object algebra {
+  @free trait UserInteraction[F[_]] {
+    /** returns the URI that the local server is listening on */
+    def start: FreeS[F, URI]
+    /** prompts the user to open this URI, which will end up at the local server */
+    def open(uri: URI): FreeS[F, Unit]
+    /** wait for the user interaction to complete and recover the code */
+    def stop: FreeS[F, CodeToken]
+  }
+
   @free trait OAuth2Client[F[_]] {
     // for use in one-shot apps requiring user interaction
     def authenticate: FreeS[F, CodeToken]
@@ -180,5 +197,47 @@ package api {
     token_type: String,
     expires_in: Int
   )
+
+}
+
+// there has got to be a typeclass like this somewhere in fs2
+object urlencoding {
+  @typeclass trait UrlEncoding[T] {
+    def urlEncoding(t: T): String
+  }
+}
+
+package interpreters {
+  import api._
+  import algebra._
+  import urlencoding.UrlEncoding
+  import fs2._
+
+  // TODO: take mockable client, server and user interaction
+  final class Fs2Handler(
+    config: ServerConfig
+  )(
+    implicit
+    user: UserInteraction[Task]
+  ) extends OAuth2Client.Handler[Task] {
+
+    import UrlEncoding.ops._
+    implicit object AuthRequestUrlEncoder extends UrlEncoding[AuthRequest] {
+      override def urlEncoding(t: AuthRequest): String = ???
+    }
+
+    override def authenticate: FreeS[Task, CodeToken] =
+      for {
+        callback <- user.start
+        params = AuthRequest(callback, config.scope, config.clientId)
+        // NOTE: multi-argument URI constructors quote illegal characters
+        auth = new URI(s"${config.auth}?${params.urlEncoding}")
+        _ <- user.open(auth)
+        code <- user.stop
+      } yield code
+
+    override def access(code: CodeToken): FreeS[Task, (RefreshToken, Option[BearerToken])] = ???
+    override def bearer(refresh: RefreshToken): FreeS[Task, BearerToken] = ???
+  }
 
 }
