@@ -82,7 +82,7 @@ package client
 final case class OAuth2AcgConfig(
   authorizationServer: String,
   accessTokenServer: String,
-  scopes: Seq[String],
+  scope: String,
   clientId: String,
   clientSecret: String
 )
