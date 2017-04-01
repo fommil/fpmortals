@@ -1,6 +1,6 @@
 // Copyright: 2017 https://github.com/fommil/drone-dynamic-agents/graphs
 // License: http://www.apache.org/licenses/LICENSE-2.0
-package interpreters.oauth2.client
+package oauth2.client
 
 /**
  * [[https://tools.ietf.org/html/rfc6749 OAuth2]] client
