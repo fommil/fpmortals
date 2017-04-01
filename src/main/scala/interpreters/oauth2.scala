@@ -147,13 +147,47 @@ object algebra {
     def stop: FreeS[F, CodeToken]
   }
 
-  @free trait OAuth2Client[F[_]] {
-    // for use in one-shot apps requiring user interaction
-    def authenticate: FreeS[F, CodeToken]
+  @free trait ServerInteraction[F[_]] {
     def access(code: CodeToken): FreeS[F, (RefreshToken, Option[BearerToken])]
-
-    // for use in headless servers
     def bearer(refresh: RefreshToken): FreeS[F, BearerToken]
+  }
+}
+
+// what's the canonical name for this sort of thing? It's about combining algebras
+package logic {
+  import algebra._
+
+  object coproductk {
+    @module trait Interactions[F[_]] {
+      val user: UserInteraction[F]
+      val server: ServerInteraction[F]
+    }
+  }
+
+  class OAuth2Client[F[_]](config: ServerConfig)(implicit i: coproductk.Interactions[F]) {
+    import i._
+
+    import api._
+    import urlencoding.UrlEncoding
+    import UrlEncoding.ops._
+    implicit object AuthRequestUrlEncoder extends UrlEncoding[AuthRequest] {
+      override def urlEncoding(t: AuthRequest): String = ???
+    }
+
+    // for use in one-shot apps requiring user interaction
+    def authenticate: FreeS[F, CodeToken] =
+      for {
+        callback <- user.start
+        params = AuthRequest(callback, config.scope, config.clientId)
+        // NOTE: multi-argument URI constructors quote illegal characters
+        auth = new URI(s"${config.auth}?${params.urlEncoding}")
+        _ <- user.open(auth)
+        code <- user.stop
+      } yield code
+
+    // annoying that we have to write this again, it's just forwarding...
+    def access(code: CodeToken) = server.access(code)
+    def bearer(refresh: RefreshToken) = server.bearer(refresh)
   }
 }
 
@@ -208,36 +242,18 @@ object urlencoding {
 }
 
 package interpreters {
-  import api._
   import algebra._
-  import urlencoding.UrlEncoding
   import fs2._
 
   // TODO: take mockable client, server and user interaction
-  final class Fs2Handler(
+  final class Fs2ServerHandler(
     config: ServerConfig
   )(
     implicit
     user: UserInteraction[Task]
-  ) extends OAuth2Client.Handler[Task] {
-
-    import UrlEncoding.ops._
-    implicit object AuthRequestUrlEncoder extends UrlEncoding[AuthRequest] {
-      override def urlEncoding(t: AuthRequest): String = ???
-    }
-
-    override def authenticate: FreeS[Task, CodeToken] =
-      for {
-        callback <- user.start
-        params = AuthRequest(callback, config.scope, config.clientId)
-        // NOTE: multi-argument URI constructors quote illegal characters
-        auth = new URI(s"${config.auth}?${params.urlEncoding}")
-        _ <- user.open(auth)
-        code <- user.stop
-      } yield code
-
-    override def access(code: CodeToken): FreeS[Task, (RefreshToken, Option[BearerToken])] = ???
-    override def bearer(refresh: RefreshToken): FreeS[Task, BearerToken] = ???
+  ) extends ServerInteraction.Handler[Task] {
+    override def access(code: CodeToken): Task[(RefreshToken, Option[BearerToken])] = ???
+    override def bearer(refresh: RefreshToken): Task[BearerToken] = ???
   }
 
 }
