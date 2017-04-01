@@ -106,15 +106,15 @@ package oauth2.client
  */
 package acg
 
-import java.net.URI
 import freestyle._
 import java.time.LocalDateTime
+import spinoco.protocol.http.Uri
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: URI,
-  access: URI,
-  bearer: URI,
+  auth: Uri,
+  access: Uri,
+  bearer: Uri,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -125,7 +125,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: URI
+  redirect_uri: Uri
 )
 
 /**
@@ -143,10 +143,10 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 
 object algebra {
   @free trait UserInteraction[F[_]] {
-    /** returns the URI that the local server is listening on */
-    def start: FreeS[F, URI]
-    /** prompts the user to open this URI, which will end up at the local server */
-    def open(uri: URI): FreeS[F, Unit]
+    /** returns the Uri that the local server is listening on */
+    def start: FreeS[F, Uri]
+    /** prompts the user to open this Uri, which will end up at the local server */
+    def open(uri: Uri): FreeS[F, Unit]
     /** wait for the user interaction to complete and recover the code */
     def stop: FreeS[F, CodeToken]
   }
@@ -165,7 +165,6 @@ object algebra {
 package logic {
   import http.client.algebra.JsonHttpClient
   import algebra._
-  import spinoco.protocol.http.Uri
 
   object coproductk {
     @module trait Interactions[F[_]] {
@@ -189,7 +188,6 @@ package logic {
 
     // TODO: move this stuff somewhere else / use generic derivs
     import http.client.encoding.UrlEncoded
-    import UrlEncoded.ops._
     implicit object AuthRequestUrlEncoder extends UrlEncoded[AuthRequest] {
       override def urlEncoded(t: AuthRequest): String = ???
     }
@@ -202,22 +200,18 @@ package logic {
       for {
         callback <- user.start
         params = AuthRequest(callback, config.scope, config.clientId)
-        auth = new URI(s"${config.auth}?${params.urlEncoded}")
-        _ <- user.open(auth)
+        // FIXME: config.auth.withQuery(params.toQuery)
+        _ <- user.open(config.auth)
         code <- user.stop
       } yield code
 
-    def access(code: CodeToken): FreeS[F, (RefreshToken, Option[BearerToken])] = {
-      // TODO: use a monad transformer here so uri can be in the for-comp
-      val uri = Uri.parse(config.access.toString).getOrElse(throw new java.lang.IllegalArgumentException("bad uri"))
-      // it's a shame we can't put the request in the for-comp
-      val request = AccessRequest(code.token, code.redirect_uri, config.clientId, config.clientSecret)
+    def access(code: CodeToken): FreeS[F, (RefreshToken, Option[BearerToken])] =
       for {
-        response <- server.postUrlencoded[AccessRequest, AccessResponse](uri, request)
+        request <- FreeS.pure(AccessRequest(code.token, code.redirect_uri, config.clientId, config.clientSecret))
+        response <- server.postUrlencoded[AccessRequest, AccessResponse](config.access, request)
         time <- clock.now
         //refresh = RefreshToken(response.access_token, )
       } yield ???
-    }
 
     //def bearer(refresh: RefreshToken) = server.bearer(refresh)
   }
@@ -227,7 +221,7 @@ package logic {
 package api {
 
   final case class AuthRequest(
-    redirect_uri: URI,
+    redirect_uri: Uri,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -239,7 +233,7 @@ package api {
 
   final case class AccessRequest(
     code: String,
-    redirect_uri: URI,
+    redirect_uri: Uri,
     client_id: String,
     client_secret: String,
     scope: String = "",
@@ -267,8 +261,8 @@ package api {
 }
 
 package interpreters {
-  import algebra._
-  import fs2._
+  //  import algebra._
+  //  import fs2._
 
   // TODO: take mockable client, server and user interaction
   // final class Fs2ServerHandler(
