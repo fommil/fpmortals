@@ -1,0 +1,36 @@
+// Copyright: 2017 https://github.com/fommil/drone-dynamic-agents/graphs
+// License: http://www.apache.org/licenses/LICENSE-2.0
+package http
+
+/**
+ * An algebra (and FS2 interpreter) for issuing basic GET / POST
+ * requests to a web server that returns JSON. Uses the spinoco HTTP
+ * protocol definition classes out of convenience.
+ */
+package client
+
+import io.circe.Decoder
+import freestyle._
+import simulacrum.typeclass
+import spinoco.protocol.http._
+import spinoco.protocol.http.header._
+
+object encoding {
+  @typeclass trait UrlEncoded[T] {
+    def urlEncoded(t: T): String
+  }
+  // TODO: basic / generic impls
+}
+
+object algebra {
+  import encoding._
+
+  final case class Response[T](header: HttpResponseHeader, body: T)
+
+  @free trait JsonHttpClient[F[_]] {
+    def get[B: Decoder](uri: Uri, headers: List[HttpHeader] = Nil): FreeS[F, Response[B]]
+
+    // using application/x-www-form-urlencoded
+    def postUrlencoded[A: UrlEncoded, B: Decoder](uri: Uri, payload: A, headers: List[HttpHeader] = Nil): FreeS[F, Response[B]]
+  }
+}
