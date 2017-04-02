@@ -1,6 +1,6 @@
 // Copyright: 2017 https://github.com/fommil/drone-dynamic-agents/graphs
 // License: http://www.apache.org/licenses/LICENSE-2.0
-package oauth2.client
+package http.oauth2
 
 /**
  * [[https://tools.ietf.org/html/rfc6749 OAuth2]] client
@@ -104,7 +104,7 @@ package oauth2.client
  * limit the `redirect_uri` to only domains owned by the owners of the
  * app.
  */
-package acg
+package client
 
 import freestyle._
 import java.time.LocalDateTime
@@ -114,7 +114,7 @@ import spinoco.protocol.http.Uri
 final case class ServerConfig(
   auth: Uri,
   access: Uri,
-  bearer: Uri,
+  refresh: Uri,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -142,7 +142,7 @@ final case class RefreshToken(token: String)
 final case class BearerToken(token: String, expires: LocalDateTime)
 
 object algebra {
-  @free trait UserInteraction[F[_]] {
+  @free trait UserLongeraction[F[_]] {
     /** returns the Uri that the local server is listening on */
     def start: FreeS[F, Uri]
     /** prompts the user to open this Uri, which will end up at the local server */
@@ -155,20 +155,21 @@ object algebra {
     def now: FreeS[F, LocalDateTime]
   }
 
-  // @free trait ServerInteraction[F[_]] {
-  //   def access(code: CodeToken): FreeS[F, (RefreshToken, Option[BearerToken])]
+  // @free trait ServerLongeraction[F[_]] {
+  //   def access(code: CodeToken): FreeS[F, (RefreshToken, BearerToken)]
   //   def bearer(refresh: RefreshToken): FreeS[F, BearerToken]
   // }
 }
 
 // what's the canonical name for this sort of thing? It's about combining algebras
 package logic {
+  import java.time.temporal.ChronoUnit
   import http.client.algebra.JsonHttpClient
   import algebra._
 
   object coproductk {
-    @module trait Interactions[F[_]] {
-      val user: UserInteraction[F]
+    @module trait Longeractions[F[_]] {
+      val user: UserLongeraction[F]
       val server: JsonHttpClient[F]
       val clock: LocalClock[F]
     }
@@ -178,7 +179,7 @@ package logic {
     config: ServerConfig
   )(
     implicit
-    I: coproductk.Interactions[F]
+    I: coproductk.Longeractions[F]
   ) {
     import I._
 
@@ -187,12 +188,15 @@ package logic {
     import io.circe.generic.auto._
 
     // TODO: move this stuff somewhere else / use generic derivs
-    import http.client.encoding.UrlEncoded
+    import http.encoding.UrlEncoded
     implicit object AuthRequestUrlEncoder extends UrlEncoded[AuthRequest] {
       override def urlEncoded(t: AuthRequest): String = ???
     }
     implicit object AccessRequestUrlEncoder extends UrlEncoded[AccessRequest] {
       override def urlEncoded(t: AccessRequest): String = ???
+    }
+    implicit object RefreshRequestUrlEncoder extends UrlEncoded[RefreshRequest] {
+      override def urlEncoded(t: RefreshRequest): String = ???
     }
 
     // for use in one-shot apps requiring user interaction
@@ -205,15 +209,26 @@ package logic {
         code <- user.stop
       } yield code
 
-    def access(code: CodeToken): FreeS[F, (RefreshToken, Option[BearerToken])] =
+    def access(code: CodeToken): FreeS[F, (RefreshToken, BearerToken)] =
       for {
         request <- FreeS.pure(AccessRequest(code.token, code.redirect_uri, config.clientId, config.clientSecret))
         response <- server.postUrlencoded[AccessRequest, AccessResponse](config.access, request)
         time <- clock.now
-        //refresh = RefreshToken(response.access_token, )
-      } yield ???
+        msg = response.body
+        expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+        refresh = RefreshToken(msg.refresh_token)
+        bearer = BearerToken(msg.access_token, expires)
+      } yield (refresh, bearer)
 
-    //def bearer(refresh: RefreshToken) = server.bearer(refresh)
+    def bearer(refresh: RefreshToken): FreeS[F, BearerToken] =
+      for {
+        request <- FreeS.pure(RefreshRequest(config.clientSecret, refresh.token, config.clientId))
+        response <- server.postUrlencoded[RefreshRequest, RefreshResponse](config.refresh, request)
+        time <- clock.now
+        msg = response.body
+        expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+        bearer = BearerToken(msg.access_token, expires)
+      } yield bearer
   }
 }
 
@@ -242,7 +257,7 @@ package api {
   final case class AccessResponse(
     access_token: String,
     token_type: String,
-    expires_in: Int,
+    expires_in: Long,
     refresh_token: String
   )
 
@@ -255,7 +270,7 @@ package api {
   final case class RefreshResponse(
     access_token: String,
     token_type: String,
-    expires_in: Int
+    expires_in: Long
   )
 
 }
@@ -269,9 +284,9 @@ package interpreters {
   //   config: ServerConfig
   // )(
   //   implicit
-  //   user: UserInteraction[Task]
-  // ) extends ServerInteraction.Handler[Task] {
-  //   override def access(code: CodeToken): Task[(RefreshToken, Option[BearerToken])] = ???
+  //   user: UserLongeraction[Task]
+  // ) extends ServerLongeraction.Handler[Task] {
+  //   override def access(code: CodeToken): Task[(RefreshToken, BearerToken)] = ???
   //   override def bearer(refresh: RefreshToken): Task[BearerToken] = ???
   // }
 

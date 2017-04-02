@@ -12,8 +12,6 @@ import _root_.io.circe.fs2._
 import spinoco.fs2.http
 import spinoco.fs2.http._
 import spinoco.protocol.http._
-import spinoco.protocol.http.header.Authorization
-import spinoco.protocol.http.header.value.HttpCredentials._
 
 import algebra.machines._
 import apis.gce._

@@ -11,20 +11,11 @@ package client
 
 import io.circe.Decoder
 import freestyle._
-import simulacrum.typeclass
 import spinoco.protocol.http._
 import spinoco.protocol.http.header._
-
-object encoding {
-  @typeclass trait UrlEncoded[T] {
-    def urlEncoded(t: T): String
-  }
-  // TODO: basic / generic impls
-}
+import http.encoding._
 
 object algebra {
-  import encoding._
-
   final case class Response[T](header: HttpResponseHeader, body: T)
 
   @free trait JsonHttpClient[F[_]] {
