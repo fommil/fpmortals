@@ -65,7 +65,8 @@ object UrlEncoded {
           if (rest.isEmpty) "" else s"&$rest"
         }
         val key = UrlEncodedString.urlEncoded(k.value.name)
-        s"${key}=${h.urlEncoded(hlist.head)}$rest"
+        val value = h.urlEncoded(hlist.head)
+        s"$key=$value$rest"
       }
     }
   implicit def UrlEncodedGeneric[T, Repr](
