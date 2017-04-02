@@ -154,11 +154,6 @@ object algebra {
   @free trait LocalClock[F[_]] {
     def now: FreeS[F, LocalDateTime]
   }
-
-  // @free trait ServerInteraction[F[_]] {
-  //   def access(code: CodeToken): FreeS[F, (RefreshToken, BearerToken)]
-  //   def bearer(refresh: RefreshToken): FreeS[F, BearerToken]
-  // }
 }
 
 // what's the canonical name for this sort of thing? It's about combining algebras
@@ -258,22 +253,5 @@ package api {
     token_type: String,
     expires_in: Long
   )
-
-}
-
-package interpreters {
-  //  import algebra._
-  //  import fs2._
-
-  // TODO: take mockable client, server and user interaction
-  // final class Fs2ServerHandler(
-  //   config: ServerConfig
-  // )(
-  //   implicit
-  //   user: UserInteraction[Task]
-  // ) extends ServerInteraction.Handler[Task] {
-  //   override def access(code: CodeToken): Task[(RefreshToken, BearerToken)] = ???
-  //   override def bearer(refresh: RefreshToken): Task[BearerToken] = ???
-  // }
 
 }
