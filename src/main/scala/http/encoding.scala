@@ -4,12 +4,17 @@ package http.encoding
 
 import shapeless.{:: => #:, _}
 import shapeless.labelled._
-import java.net.URLEncoder
+import java.net.{URLEncoder, URLDecoder}
 import simulacrum.typeclass
 import spinoco.protocol.http.Uri
+import spinoco.protocol.http.Uri.Query
 
 @typeclass trait UrlEncoded[T] {
   def urlEncoded(t: T): String
+}
+
+@typeclass trait QueryEncoded[T] {
+  def queryEncoded(t: T): Query
 }
 
 object UrlEncoded {
@@ -22,10 +27,10 @@ object UrlEncoded {
   }
 
   // useful impls
-  implicit object UrlEncodedStringyMap extends UrlEncoded[Map[String, String]] {
-    override def urlEncoded(m: Map[String, String]): String = {
+  implicit object UrlEncodedStringySeq extends UrlEncoded[Seq[(String, String)]] {
+    override def urlEncoded(m: Seq[(String, String)]): String = {
       m.map {
-        case (k, v) => s"$k=${UrlEncodedString.urlEncoded(v)}"
+        case (k, v) => s"${UrlEncodedString.urlEncoded(k)}=${UrlEncodedString.urlEncoded(v)}"
       }.mkString("&")
     }
   }
@@ -35,7 +40,7 @@ object UrlEncoded {
       val host = s"${u.host.host}"
       val port = u.host.port.fold("")(p => s":$p")
       val path = u.path.stringify
-      val query = UrlEncodedStringyMap.urlEncoded(u.query.params.toMap)
+      val query = UrlEncodedStringySeq.urlEncoded(u.query.params)
       val uri = s"$scheme://$host$port$path?$query"
       UrlEncodedString.urlEncoded(uri)
     }
@@ -47,7 +52,7 @@ object UrlEncoded {
   }
   implicit def UrlEncodedHList[Key <: Symbol, Value, Remaining <: HList](
     implicit
-    key: Witness.Aux[Key],
+    k: Witness.Aux[Key],
     h: UrlEncoded[Value],
     t: UrlEncoded[Remaining]
   ): UrlEncoded[FieldType[Key, Value] #: Remaining] =
@@ -57,7 +62,8 @@ object UrlEncoded {
           val rest = t.urlEncoded(hlist.tail)
           if (rest.isEmpty) "" else s"&$rest"
         }
-        s"${key.value.name}=${h.urlEncoded(hlist.head)}$rest"
+        val key = UrlEncodedString.urlEncoded(k.value.name)
+        s"${key}=${h.urlEncoded(hlist.head)}$rest"
       }
     }
   implicit def UrlEncodedGeneric[T, Repr](
@@ -68,4 +74,54 @@ object UrlEncoded {
     override def urlEncoded(t: T): String = u.urlEncoded(g.to(t))
   }
 
+}
+
+object QueryEncoded {
+  // primitive impls
+  implicit def QueryEncodedTuples[K, V](
+    implicit
+    k: UrlEncoded[K],
+    v: UrlEncoded[V]
+  ): QueryEncoded[Seq[(K, V)]] = new QueryEncoded[Seq[(K, V)]] {
+    override def queryEncoded(s: Seq[(K, V)]): Query = {
+      // in general we only have access to the url-encoded version
+      val entries = s.map {
+        case (key, value) =>
+          val decodedKey = URLDecoder.decode(k.urlEncoded(key), "UTF-8")
+          val decodedValue = URLDecoder.decode(v.urlEncoded(value), "UTF-8")
+          decodedKey -> decodedValue
+      }
+      Query(entries.toList)
+    }
+  }
+
+  // generic impl
+  implicit object QueryEncodedHNil extends QueryEncoded[HNil] {
+    override def queryEncoded(h: HNil): Query = Query(Nil)
+  }
+  implicit def QueryEncodedHList[Key <: Symbol, Value, Remaining <: HList](
+    implicit
+    key: Witness.Aux[Key],
+    h: UrlEncoded[Value],
+    t: QueryEncoded[Remaining]
+  ): QueryEncoded[FieldType[Key, Value] #: Remaining] =
+    new QueryEncoded[FieldType[Key, Value] #: Remaining] {
+      override def queryEncoded(hlist: FieldType[Key, Value] #: Remaining): Query = {
+        val first = {
+          val decodedKey = key.value.name
+          val decodedValue = URLDecoder.decode(h.urlEncoded(hlist.head), "UTF-8")
+          decodedKey -> decodedValue
+        }
+
+        val rest = t.queryEncoded(hlist.tail)
+        Query(first :: rest.params)
+      }
+    }
+  implicit def QueryEncodedGeneric[T, Repr](
+    implicit
+    g: LabelledGeneric.Aux[T, Repr],
+    u: QueryEncoded[Repr]
+  ): QueryEncoded[T] = new QueryEncoded[T] {
+    override def queryEncoded(t: T): Query = u.queryEncoded(g.to(t))
+  }
 }

@@ -20,7 +20,7 @@ class UrlEncodedSpec extends FlatSpec {
   }
 
   it should "encode stringy maps" in {
-    val stringy = Map(
+    val stringy = Seq(
       "apple" -> "http://foo",
       "bananas" -> "10",
       "pears" -> "%"

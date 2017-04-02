@@ -184,14 +184,14 @@ package logic {
     import I._
     import api._
     import io.circe.generic.auto._
+    import http.encoding.QueryEncoded.ops._
 
     // for use in one-shot apps requiring user interaction
     def authenticate: FreeS[F, CodeToken] =
       for {
         callback <- user.start
         params = AuthRequest(callback, config.scope, config.clientId)
-        // FIXME: config.auth.withQuery(params.toQuery)
-        _ <- user.open(config.auth)
+        _ <- user.open(config.auth.withQuery(params.queryEncoded))
         code <- user.stop
       } yield code
 
