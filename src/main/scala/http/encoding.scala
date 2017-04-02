@@ -36,6 +36,8 @@ object UrlEncoded {
   }
   implicit object UrlEncodedUri extends UrlEncoded[Uri] {
     override def urlEncoded(u: Uri): String = {
+      // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
+      //             (which would also let us remove UrlEncodedStringySeq)
       val scheme = u.scheme.toString
       val host = s"${u.host.host}"
       val port = u.host.port.fold("")(p => s":$p")
@@ -77,24 +79,6 @@ object UrlEncoded {
 }
 
 object QueryEncoded {
-  // primitive impls
-  implicit def QueryEncodedTuples[K, V](
-    implicit
-    k: UrlEncoded[K],
-    v: UrlEncoded[V]
-  ): QueryEncoded[Seq[(K, V)]] = new QueryEncoded[Seq[(K, V)]] {
-    override def queryEncoded(s: Seq[(K, V)]): Query = {
-      // in general we only have access to the url-encoded version
-      val entries = s.map {
-        case (key, value) =>
-          val decodedKey = URLDecoder.decode(k.urlEncoded(key), "UTF-8")
-          val decodedValue = URLDecoder.decode(v.urlEncoded(value), "UTF-8")
-          decodedKey -> decodedValue
-      }
-      Query(entries.toList)
-    }
-  }
-
   // generic impl
   implicit object QueryEncodedHNil extends QueryEncoded[HNil] {
     override def queryEncoded(h: HNil): Query = Query(Nil)
