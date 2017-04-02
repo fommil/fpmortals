@@ -15,7 +15,6 @@ import org.scalatest.Matchers._
 import algebra.drone._
 import algebra.machines._
 import logic._
-import logic.coproductk.DynAgents
 
 object Data {
   val node1 = Node(UUID.fromString("1243d1af-828f-4ba3-9fc0-a19d86852b5a"))
@@ -48,7 +47,7 @@ final case class StaticInterpreters(state: WorldView) {
     def stop(node: Node): Unit = stopped += 1
   }
 
-  val program = DynAgentsLogic[DynAgents.Op]
+  val program = DynAgents[Deps.Op]
 }
 
 class LogicSpec extends FlatSpec {

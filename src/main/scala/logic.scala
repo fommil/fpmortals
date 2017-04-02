@@ -38,20 +38,16 @@ final case class WorldView(
   time: ZonedDateTime
 )
 
-// a bit of boilerplate to combine the algebras
-object coproductk {
-  @module trait DynAgents[F[_]] {
-    val d: Drone[F]
-    val c: Machines[F]
-  }
+@module trait Deps[F[_]] {
+  val d: Drone[F]
+  val c: Machines[F]
 }
-import coproductk._
 
-final case class DynAgentsLogic[F[_]](
+final case class DynAgents[F[_]](
   implicit
-  m: DynAgents[F]
+  D: Deps[F]
 ) {
-  import m._
+  import D._
 
   def initial: FreeS[F, WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {

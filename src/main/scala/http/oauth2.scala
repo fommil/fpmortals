@@ -162,21 +162,19 @@ package logic {
   import http.client.algebra.JsonHttpClient
   import algebra._
 
-  object coproductk {
-    @module trait Interactions[F[_]] {
-      val user: UserInteraction[F]
-      val server: JsonHttpClient[F]
-      val clock: LocalClock[F]
-    }
+  @module trait Deps[F[_]] {
+    val user: UserInteraction[F]
+    val server: JsonHttpClient[F]
+    val clock: LocalClock[F]
   }
 
   class OAuth2Client[F[_]](
     config: ServerConfig
   )(
     implicit
-    I: coproductk.Interactions[F]
+    D: Deps[F]
   ) {
-    import I._
+    import D._
     import api._
     import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
