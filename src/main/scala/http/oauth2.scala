@@ -142,7 +142,7 @@ final case class RefreshToken(token: String)
 final case class BearerToken(token: String, expires: LocalDateTime)
 
 object algebra {
-  @free trait UserLongeraction[F[_]] {
+  @free trait UserInteraction[F[_]] {
     /** returns the Uri that the local server is listening on */
     def start: FreeS[F, Uri]
     /** prompts the user to open this Uri, which will end up at the local server */
@@ -155,7 +155,7 @@ object algebra {
     def now: FreeS[F, LocalDateTime]
   }
 
-  // @free trait ServerLongeraction[F[_]] {
+  // @free trait ServerInteraction[F[_]] {
   //   def access(code: CodeToken): FreeS[F, (RefreshToken, BearerToken)]
   //   def bearer(refresh: RefreshToken): FreeS[F, BearerToken]
   // }
@@ -168,8 +168,8 @@ package logic {
   import algebra._
 
   object coproductk {
-    @module trait Longeractions[F[_]] {
-      val user: UserLongeraction[F]
+    @module trait Interactions[F[_]] {
+      val user: UserInteraction[F]
       val server: JsonHttpClient[F]
       val clock: LocalClock[F]
     }
@@ -179,7 +179,7 @@ package logic {
     config: ServerConfig
   )(
     implicit
-    I: coproductk.Longeractions[F]
+    I: coproductk.Interactions[F]
   ) {
     import I._
 
@@ -284,8 +284,8 @@ package interpreters {
   //   config: ServerConfig
   // )(
   //   implicit
-  //   user: UserLongeraction[Task]
-  // ) extends ServerLongeraction.Handler[Task] {
+  //   user: UserInteraction[Task]
+  // ) extends ServerInteraction.Handler[Task] {
   //   override def access(code: CodeToken): Task[(RefreshToken, BearerToken)] = ???
   //   override def bearer(refresh: RefreshToken): Task[BearerToken] = ???
   // }
