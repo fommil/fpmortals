@@ -182,22 +182,8 @@ package logic {
     I: coproductk.Interactions[F]
   ) {
     import I._
-
     import api._
-
     import io.circe.generic.auto._
-
-    // TODO: move this stuff somewhere else / use generic derivs
-    import http.encoding.UrlEncoded
-    implicit object AuthRequestUrlEncoder extends UrlEncoded[AuthRequest] {
-      override def urlEncoded(t: AuthRequest): String = ???
-    }
-    implicit object AccessRequestUrlEncoder extends UrlEncoded[AccessRequest] {
-      override def urlEncoded(t: AccessRequest): String = ???
-    }
-    implicit object RefreshRequestUrlEncoder extends UrlEncoded[RefreshRequest] {
-      override def urlEncoded(t: RefreshRequest): String = ???
-    }
 
     // for use in one-shot apps requiring user interaction
     def authenticate: FreeS[F, CodeToken] =
