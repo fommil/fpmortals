@@ -7,6 +7,10 @@
 
 * TODO Libre
 * TODO Thanks
+* TODO Practicalities
+
+version of scala/cats, compiler flags, imports, etc
+
 * TODO Brief history of abstraction
 
 Inspired by [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup][Roads to Lambda]], motivate the natural progression of
@@ -24,6 +28,25 @@ slightly differently:
   - procedural code with an interface defining =doThenEtc=
   - this is just =flatMap=, the container is commonly called a =Monad=
 
+* TODO =for=
+
+We're going to be using these a lot. Need to be comfortable with it.
+
+Include a lot of stuff from "For: what is it good for?"
+
+** Example: =drone-dynamic-agents=
+
+Just the high level concepts. Ask the reader to suspend their belief
+of =@free= and we'll explain what it's doing later, plus the algebraic
+mixing.
+
+And an =Id= based test to show that we can really write business logic
+tests without a real implementation.
+
+An architect's dream: you can focus on algebras, business logic and
+functional requirements, and delegate the implementations to your
+teams.
+
 * TODO Pure business logic
 
 (the cross-over from previous section is not yet clear)
@@ -40,27 +63,6 @@ Everything can now be mocked, and we can write tests just of the
 business logic.
 
 Include some thoughts from [[http://degoes.net/articles/easy-monads][Beginner Friendly Tour]]
-
-We'll come back to an example after we revise what we can do in =for=
-comprehensions, because they are now going to be our primary tool for
-writing procedural code
-
-** TODO =for=
-
-Include a lot of stuff from "For: what is it good for?"
-
-** Example: =drone-dynamic-agents=
-
-Just the high level concepts. Ask the reader to suspend their belief
-of =@free= and we'll explain what it's doing later, plus the algebraic
-mixing.
-
-And an =Id= based test to show that we can really write business logic
-tests without a real implementation.
-
-An architect's dream: you can focus on algebras, business logic and
-functional requirements, and delegate the implementations to your
-teams.
 
 * RESEARCH Parallel work
 
@@ -91,6 +93,17 @@ monad and =|+|= on applicatives.
 
 Discourage hierarchies except for ADTs
 
+* TODO Cats
+** RESEARCH typeclasses
+
+Foldable being imminently more interesting than the others.
+
+Traversable will need to be discussed, seems to come up a lot.
+
+** RESEARCH data types
+
+Not really sure what to say here.
+
 * TODO Spotting patterns, refactoring
 
 Note that some of our algebras are actually common things and can be
@@ -103,8 +116,19 @@ These are called Effects.
 
 The basics, and covering the Effect, which can be our free monad.
 
+Why streams are so awesome. I'd like a simple example here of reading
+from a huge data source, doing parallel work and then writing out in
+order to a (slower) device to demonstrate backpressure and constant
+memory overhead. Maybe compare this vs hand rolled and akka streams
+for a perf test?
+
 Rewrite our business logic to be streaming, convert our GET api into a
 =Stream= by polling.
+
+* RESEARCH Monad Transformers
+
+Maybe too early? Let's say put it here if we need it for the
+interpreters, otherwise after Optics.
 
 * TODO interpreters
 
