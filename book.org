@@ -1,0 +1,129 @@
+#+TITLE: Functional Programming in Scala with Cats 
+#+AUTHOR: Sam Halliday
+#+DATE: 2017-04-05
+
+#+TAGS: ME OTHER
+#+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
+
+* TODO Libre
+* TODO Thanks
+* TODO Brief history of abstraction
+
+Inspired by [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup][Roads to Lambda]], motivate the natural progression of
+abstraction from Java 1.0 to flat-mapping over a container, but
+slightly differently:
+
+- Problem: abstract over elements of a container
+  - object on a =List=
+  - runtime exception
+  - workaround with =ListString= boilerplate
+  - paradigm: generics
+
+- Today's abstraction problem: the containers themselves / execution
+  - type constructors (feel free to think of as containers)
+  - procedural code with an interface defining =doThenEtc=
+  - this is just =flatMap=, the container is commonly called a =Monad=
+
+* TODO Pure business logic
+
+(the cross-over from previous section is not yet clear)
+
+We can define things that are like Java =interface=s, but with the
+container and its implementation abstracted away, called an Algebra.
+
+We can write all our business logic solely by combining these
+algebras. If you ever want to call some code that can throw an
+exception or speaks to the outside world, wrap it in an algebra so it
+can be abstracted.
+
+Everything can now be mocked, and we can write tests just of the
+business logic.
+
+Include some thoughts from [[http://degoes.net/articles/easy-monads][Beginner Friendly Tour]]
+
+We'll come back to an example after we revise what we can do in =for=
+comprehensions, because they are now going to be our primary tool for
+writing procedural code
+
+** TODO =for=
+
+Include a lot of stuff from "For: what is it good for?"
+
+** Example: =drone-dynamic-agents=
+
+Just the high level concepts. Ask the reader to suspend their belief
+of =@free= and we'll explain what it's doing later, plus the algebraic
+mixing.
+
+And an =Id= based test to show that we can really write business logic
+tests without a real implementation.
+
+An architect's dream: you can focus on algebras, business logic and
+functional requirements, and delegate the implementations to your
+teams.
+
+* RESEARCH Parallel work
+
+Generating the initial state and https://github.com/fommil/drone-dynamic-agents/issues/6
+
+Might require a moment to explain =FreeApplicative= (I'd rather not get into details yet).
+
+* TODO Reality Check
+
+- solved initial abstraction problem
+- clean way to write logic and divide labour
+- easier to write maintainable and testable code
+
+Three steps forward but one step back: performance.
+
+High level overview of what =@free= and =@module= is doing, and the
+concept of trampolining. For a detailed explanation of free style and
+the cats free monad implementation, see the appendix.
+
+** RESEARCH perf numbers
+
+* TODO Typeclasses
+
+look into the oauth / google / drone algebras as examples.
+
+how cats uses typeclasses, e.g. to provide the =flatMap= on the free
+monad and =|+|= on applicatives.
+
+Discourage hierarchies except for ADTs
+
+* TODO Spotting patterns, refactoring
+
+Note that some of our algebras are actually common things and can be
+rewritten: reader / writer / state / error / indexed monad. It's ok
+that this is a step you can do later.
+
+These are called Effects.
+
+* CODE FS2 Streams
+
+The basics, and covering the Effect, which can be our free monad.
+
+Rewrite our business logic to be streaming, convert our GET api into a
+=Stream= by polling.
+
+* TODO interpreters
+
+Show that although interpreters can be as messy as you like, you can
+continue to write them as a pure core with side effects pushed to the
+outside.
+
+* TODO type refinement
+
+instead of needing those =error= calls in the first place, just don't
+allow them to happen at your layer if you can get away with it.
+
+Protect yourself from mistyping
+
+* RESEARCH Optics
+
+not sure what the relevance to this project would be yet.
+
+* TODO Appendix: Free implementation
+
+detailed explanation about what =@free= / =@module= is generating and
+how that feeds into the cats =Free= implementation.
