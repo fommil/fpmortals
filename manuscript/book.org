@@ -1,11 +1,16 @@
-#+TITLE: Functional Programming in Scala with Cats 
+#+TITLE: Functional Programming in Scala for Mortals
 #+AUTHOR: Sam Halliday
-#+DATE: 2017-04-05
+#+DATE: 2017
 
+# https://lakshminp.com/publishing-book-using-org-mode
 #+TAGS: ME OTHER
 #+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
+#+OPTIONS: toc:nil
 
 * Introduction
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: introduction.md
+  :END:
 
 This book is for Scala developers with an Object Oriented (OOP)
 background who wish to learn the *Functional Programming* (FP)
@@ -27,6 +32,9 @@ more traction in industry and brings with it features, stability,
 interop, powerful frameworks and a commercial ecosystem.
 
 * Copyleft Notice
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: copyleft-notice.md
+  :END:
 
 This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]] for
 books: you can use this book as you like, you can redistribute this
@@ -42,9 +50,9 @@ This book uses the [[https://creativecommons.org/licenses/by-sa/4.0/legalcode][C
 International]] (CC BY-SA 4.0) license.
 
 * Thanks
-
-Thanks are due to the members of the community who helped by
-explaining the principles involved.
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: thanks.md
+  :END:
 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
 degrees for their help with understanding the principles of FP, cats
@@ -52,7 +60,7 @@ and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
-Free Monads]], Dick Wall Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
+Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
 John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]].
 
 Those who helped explain concepts needed to write the example project
@@ -65,6 +73,9 @@ The helpful souls on the [[https://gitter.im/functional-streams-for-scala/fs2][f
 Chlupacek, Pavel Chlupacek.
 
 * Practicalities
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: practicalities.md
+  :END:
 
 If you'd like to set up a project that uses the libraries presented in
 this book, you will need to use a recent version of Scala with some
@@ -105,6 +116,9 @@ import freestyle.implicits._
 #+END_SRC
 
 * TODO Brief history of abstraction
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: brief-history-of-abstraction.md
+  :END:
 
 Inspired by [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup][Roads to Lambda]], motivate the natural progression of
 abstraction from Java 1.0 to flat-mapping over a container, but
@@ -122,6 +136,9 @@ slightly differently:
   - this is just =flatMap=, the container is commonly called a =Monad=
 
 * TODO =for=
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: for.md
+  :END:
 
 We're going to be using these a lot. Need to be comfortable with it.
 
@@ -141,6 +158,9 @@ functional requirements, and delegate the implementations to your
 teams.
 
 * TODO Pure business logic
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: pure-business-logic.md
+  :END:
 
 (the cross-over from previous section is not yet clear)
 
@@ -158,12 +178,18 @@ business logic.
 Include some thoughts from [[http://degoes.net/articles/easy-monads][Beginner Friendly Tour]]
 
 * RESEARCH Parallel work
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: parallel-work.md
+  :END:
 
 Generating the initial state and https://github.com/fommil/drone-dynamic-agents/issues/6
 
 Might require a moment to explain =FreeApplicative= (I'd rather not get into details yet).
 
 * TODO Reality Check
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: reality-check.md
+  :END:
 
 - solved initial abstraction problem
 - clean way to write logic and divide labour
@@ -178,6 +204,9 @@ the cats free monad implementation, see the appendix.
 ** RESEARCH perf numbers
 
 * TODO Typeclasses
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: typeclasses.md
+  :END:
 
 look into the oauth / google / drone algebras as examples.
 
@@ -187,6 +216,9 @@ monad and =|+|= on applicatives.
 Discourage hierarchies except for ADTs
 
 * TODO Cats
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: cats.md
+  :END:
 ** RESEARCH typeclasses
 
 Foldable being imminently more interesting than the others.
@@ -198,6 +230,9 @@ Traversable will need to be discussed, seems to come up a lot.
 Not really sure what to say here.
 
 * TODO Spotting patterns, refactoring
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: spotting-patterns,-refactoring.md
+  :END:
 
 Note that some of our algebras are actually common things and can be
 rewritten: reader / writer / state / error / indexed monad. It's ok
@@ -206,6 +241,9 @@ that this is a step you can do later.
 These are called Effects.
 
 * CODE FS2 Streams
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: fs2-streams.md
+  :END:
 
 The basics, and covering the Effect, which can be our free monad.
 
@@ -219,17 +257,26 @@ Rewrite our business logic to be streaming, convert our GET api into a
 =Stream= by polling.
 
 * RESEARCH Monad Transformers
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: monad-transformers.md
+  :END:
 
 Maybe too early? Let's say put it here if we need it for the
 interpreters, otherwise after Optics.
 
 * TODO interpreters
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: interpreters.md
+  :END:
 
 Show that although interpreters can be as messy as you like, you can
 continue to write them as a pure core with side effects pushed to the
 outside.
 
 * TODO type refinement
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: type-refinement.md
+  :END:
 
 instead of needing those =error= calls in the first place, just don't
 allow them to happen at your layer if you can get away with it.
@@ -237,11 +284,20 @@ allow them to happen at your layer if you can get away with it.
 Protect yourself from mistyping
 
 * RESEARCH Optics
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: optics.md
+  :END:
 
 not sure what the relevance to this project would be yet.
 
 * TODO Appendix: Free implementation
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: appendix:-free-implementation.md
+  :END:
 
 detailed explanation about what =@free= / =@module= is generating and
 how that feeds into the cats =Free= implementation.
 * RESEARCH Appendix: tagless final style
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: appendix:-tagless-final-style.md
+  :END:

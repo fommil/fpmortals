@@ -1,4 +1,4 @@
-"Functional Programming in Scala with Cats" is a book aimed at Scala
+"Functional Programming in Scala for Mortals" is a book aimed at Scala
 developers with an Object Oriented (OOP) background who wish to learn
 the *Functional Programming* (FP) paradigm.
 
@@ -9,12 +9,6 @@ do not believe that learning Haskell should be a prerequisite. We also
 do not accept that the merits of FP are obvious. Therefore, this book
 justifies every concept with practical examples, in Scala.
 
-We recommend
-[[https://www.manning.com/books/functional-programming-in-scala][The
-Red Book]] as further reading. It is a textbook to learn the
-fundamentals and write your own FP library in Scala, serving a
-different purpose than this book.
-
 * Call for Action
 
 *This book is not yet written. You need to help.*
@@ -22,19 +16,10 @@ different purpose than this book.
 If FP is going to become more than a niche within the Scala community,
 it needs to be easy to learn and use by the typical OOP developer.
 
-We feel that the best people to write this book are OOP developers who
-find the existing material lacking. If you are trying to learn FP, you
-can help out by contributing material as you progress in your journey.
+If you are trying to learn FP, you can help out by contributing
+feedback of what helped you as you progress in your journey, and by
+reading early drafts of this book.
 
-If you are an expert in FP, you can help out by assisting the authors
-in their journey to understand, e.g. answering questions in
+If you are an expert in FP, you can help out by assisting the author
+in his journey to understand, e.g. answering questions in
 [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]].
-
-* Libre
-
-This book is libre and distributed under the terms of the
-[[https://creativecommons.org/licenses/by-sa/4.0/][Creative Commons
-BY-SA]] (copyleft) license, meaning that any derivative works must
-also be libre. But the book is not free (gratis) to write or produce.
-If you feel that you have benefited from this book, please contribute
-or donate to the [[http://ensime.org/][ENSIME]] project.
