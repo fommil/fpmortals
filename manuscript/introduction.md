@@ -72,9 +72,8 @@ blocking. In either case, it's a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
-parent. We use a feature of the scala type system that lets us
-abstract over a type that takes a single type parameter. `C[_]` is
-called a *type constructor*.
+parent. We use the *higher kinded types* Scala language feature that
+lets us abstract over a type that takes a single type parameter.
 
 {lang="scala"}
 ~~~~~~~~
@@ -84,10 +83,9 @@ trait Terminal[C[_]] {
 }
 ~~~~~~~~
 
-By definining `Now` to "construct to itself" we can now write
-implementations of a common interface. If you need a word to associate
-to `C`, *Context* is a reasonable analogy because we can say `C` in
-the context of `Future` or `C` in the context of `Now`.
+The syntax `C[_]` is often called a *type constructor*. By definining
+`Now` to construct to *itself* (a powerful trick) we can implement a
+common interface for synchronous and asynchronous:
 
 {lang="scala"}
 ~~~~~~~~
@@ -104,13 +102,15 @@ object TerminalFuture extends Terminal[Future] {
 }
 ~~~~~~~~
 
-But the type `C` has no constraints, and if we get handed a
-`C[String]` without knowing anything about `C` we can't do anything
-with it. We still can't write a generic `echo`.
+If you need a word to associate to `C`, *Context* is a reasonable
+analogy because we can say "in the context of executing in the
+`Future`" or "in the context of executing `Now`".
 
-Even though `Now` and `Future` don't share a common parent, we can take
-a parameter to give us methods that we can call on `C`. What we need
-is an execution environment with this signature:
+But we know nothing about `C` and if we get handed a `C[String]` we
+can't get the `String`. However, even though `Now` and `Future` don't
+share a common parent, we can depend on a parameterised trait that
+will give us methods to call on `C`. What we need is a kind of
+execution environment with this signature:
 
 {lang="scala"}
 ~~~~~~~~
@@ -132,17 +132,17 @@ def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
   }
 ~~~~~~~~
 
-which means we can now share the `echo` implementation between
-synchronous and asynchronous codepaths! We only need to write an
-implementation for `Execution[Now]` and `Execution[Future]` once and
-we can reuse it forever. We can trivially write a mock implementation
-of `Terminal[Now]` and use it in our tests.
+We can now share the `echo` implementation between synchronous and
+asynchronous codepaths! We only need to write an implementation for
+`Execution[Now]` and `Execution[Future]` once and we can reuse it
+forever, for any method like this. We can trivially write a mock
+implementation of `Terminal[Now]` and use it in a test for `echo`.
 
-But that syntax is horrible. Let's use the `implicit class` Scala
-language feature (aka "enriching" or "ops") to make it look like `C`
-has `Execution`'s methods on it when there is an implicit `Execution`
-available. Also, we'll call these methods `flatMap` and `map` for
-reasons that will become clearer in a moment:
+But the code is horrible. Let's use the `implicit class` Scala
+language feature (aka "enriching" or "ops") to give `C` some nicer
+methods when there is an implicit `Execution` available. We'll call
+these methods `flatMap` and `map` for reasons that will become clearer
+in a moment:
 
 {lang="scala"}
 ~~~~~~~~
@@ -167,8 +167,8 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
 ~~~~~~~~
 
 we can now reveal why we used `flatMap` as the method name: it lets us
-use the *for comprehension* Scala language feature, which is just
-syntax sugar to re-write nested calls to `flatMap` and `map`.
+use a *for comprehension*, which is just syntax sugar to re-write
+nested calls to `flatMap` and `map`.
 
 {lang="scala"}
 ~~~~~~~~
@@ -180,9 +180,9 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
 ~~~~~~~~
 
 Now we admit that our `Execution` looks an awfully lot like a trait in
-cats called `Monad`, which has more or less the same type signature.
-We say that `C` is *monadic* when there is an implicit `Monad[M]`
-available. And our `Now` is more commonly known as `Id`.
+cats called `Monad`, which has the same type signature. We say that
+`C` is *monadic* when there is an implicit `Monad[C]` available. And
+our `Now` is more commonly known as `Id`.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write procedural code that abstracts over its execution
