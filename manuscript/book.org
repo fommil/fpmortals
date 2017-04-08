@@ -115,7 +115,12 @@ import freestyle.implicits._
 :END:
 {mainmatter}
 
+* Introduction and Sample :sample:
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: introduction-and-sample.md
+  :END:
 ** TODO Brief history of abstraction
+
 Inspired by [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup][Roads to Lambda]], motivate the natural progression of
 abstraction from Java 1.0 to flat-mapping over a container, but
 slightly differently:
@@ -131,6 +136,10 @@ slightly differently:
   - procedural code with an interface defining =doThenEtc=
   - this is just =flatMap=, the container is commonly called a =Monad=
 
+* Main Text
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: main-text.md
+  :END:
 ** TODO =for=
 
 We're going to be using these a lot. Need to be comfortable with it.
