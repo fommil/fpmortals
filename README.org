@@ -1,6 +1,8 @@
-"Functional Programming in Scala for Mortals" is a book aimed at Scala
-developers with an Object Oriented (OOP) background who wish to learn
-the *Functional Programming* (FP) paradigm.
+/Functional Programming in Scala for Mortals/ is a book aimed at Scala
+developers with an Object Oriented background who wish to learn the
+*Functional Programming* paradigm.
+
+This book is for sale at http://leanpub.com/fp-scala-mortals
 
 * Why?
 
@@ -10,8 +12,6 @@ do not accept that the merits of FP are obvious. Therefore, this book
 justifies every concept with practical examples, in Scala.
 
 * Call for Action
-
-*This book is not yet written. You need to help.*
 
 If FP is going to become more than a niche within the Scala community,
 it needs to be easy to learn and use by the typical OOP developer.
