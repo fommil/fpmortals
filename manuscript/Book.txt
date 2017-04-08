@@ -2,7 +2,7 @@ frontmatter.md
 
 mainmatter.md
 
-introduction-and-sample.md
+introduction.md
 
 main-text.md
 

@@ -6,6 +6,10 @@ We're going to be using these a lot. Need to be comfortable with it.
 
 Include a lot of stuff from "For: what is it good for?"
 
+# TODO Implicits
+
+Perhaps need a refresher on how implicits work.
+
 # TODO Example
 
 Just the high level concepts. Ask the reader to suspend their belief
