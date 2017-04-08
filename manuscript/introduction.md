@@ -104,12 +104,12 @@ object TerminalFuture extends Terminal[Future] {
 }
 ~~~~~~~~
 
-But the type `M` has no constraints, so if we get handed an
-`C[String]` without knowing anything about `M` we can't do anything
-with it. So we still can't write a generic `echo`.
+But the type `C` has no constraints, and if we get handed a
+`C[String]` without knowing anything about `C` we can't do anything
+with it. We still can't write a generic `echo`.
 
 Even though `Now` and `Future` don't share a common parent, we can take
-a parameter to give us methods that we can call on `M`. What we need
+a parameter to give us methods that we can call on `C`. What we need
 is an execution environment with this signature:
 
 {lang="scala"}
@@ -124,7 +124,7 @@ letting us write (really ugly!) code like:
 
 {lang="scala"}
 ~~~~~~~~
-def echo[C[_]](t: Terminal[M], e: Execution[M]): C[String] =
+def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
   e.doAndThen(t.read) { in: String =>
     e.doAndThen(t.write(in)) { _: Unit =>
       e.returns(in)
@@ -139,7 +139,7 @@ we can reuse it forever. We can trivially write a mock implementation
 of `Terminal[Now]` and use it in our tests.
 
 But that syntax is horrible. Let's use the `implicit class` Scala
-language feature (aka "enriching" or "ops") to make it look like `M`
+language feature (aka "enriching" or "ops") to make it look like `C`
 has `Execution`'s methods on it when there is an implicit `Execution`
 available. Also, we'll call these methods `flatMap` and `map` for
 reasons that will become clearer in a moment:
@@ -147,7 +147,7 @@ reasons that will become clearer in a moment:
 {lang="scala"}
 ~~~~~~~~
 object Execution {
-  implicit class Ops[A, C[_]](m: C[A])(implicit e: Execution[M]) {
+  implicit class Ops[A, C[_]](m: C[A])(implicit e: Execution[C]) {
     def flatMap[B](f: A => C[B]): C[B] = e.doAndThen(m)(f)
     def map[B](f: A => B): C[B] = e.doAndThen(m)(f andThen e.returns)
   }
@@ -158,7 +158,7 @@ cleaning up `echo` a little bit
 
 {lang="scala"}
 ~~~~~~~~
-def echo[C[_]](implicit t: Terminal[M], e: Execution[M]): C[String] =
+def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   t.read.flatMap { in: String =>
     t.write(in).map { _: Unit =>
       in
@@ -172,7 +172,7 @@ syntax sugar to re-write nested calls to `flatMap` and `map`.
 
 {lang="scala"}
 ~~~~~~~~
-def echo[C[_]](implicit t: Terminal[M], e: Execution[M]): C[String] =
+def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   for {
     in <- t.read
      _ <- t.write(in)
@@ -188,7 +188,7 @@ The takeaway is: if we write methods that operate on monadic types,
 then we can write procedural code that abstracts over its execution
 context. Here, we've shown an abstraction over synchronous and
 asynchronous execution but it can also be for the purpose of more
-rigorous error handling (where `M[_]` is `Either[Error, _]`) or
+rigorous error handling (where `C[_]` is `Either[Error, _]`) or
 recording / auditing of the session.
 
 ## Pure Functional Programming

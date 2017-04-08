@@ -63,14 +63,16 @@ Chlupacek, Pavel Chlupacek.
 # Practicalities
 
 If you'd like to set up a project that uses the libraries presented in
-this book, you will need to use a recent version of Scala with some
+this book, you will need to use a recent version of Scala with
 FP-specific features enabled (e.g. in `build.sbt`):
 
 {lang="scala"}
 ~~~~~~~~
 scalaVersion in ThisBuild := "2.12.1"
-//scalaOrganization in ThisBuild := "org.typelevel"
-scalacOptions in ThisBuild += "-Ypartial-unification"
+scalacOptions in ThisBuild ++= Seq(
+  "-language:_",
+  "-Ypartial-unification"
+)
 ~~~~~~~~
 
 and add the following dependencies to your project's settings:
@@ -101,6 +103,7 @@ import cats._
 import cats.implicits._
 import freestyle._
 import freestyle.implicits._
+import fs2._
 ~~~~~~~~
 
 
