@@ -97,7 +97,8 @@ trait Terminal[C[_]] {
 ~~~~~~~~
 
 By definining `Now[_]` to construct to *itself* (a powerful trick), we
-can implement a common interface for synchronous and asynchronous:
+can implement a common interface for synchronous and asynchronous
+terminals:
 
 {lang="scala"}
 ~~~~~~~~
@@ -123,14 +124,14 @@ share a common parent, we can depend on a parameterised trait that
 will give us methods to call on `C`.
 
 What we need is a kind of execution environment that lets us call a
-method returning `C[?]` and then be able to do something with the `?`.
-We also need a way of wrapping a value that we have as a `C[?]`. This
-signature works well:
+method returning `C[T]` and then be able to do something with the `T`,
+including calling another method on `Terminal`. We also need a way of
+wrapping a value as a `C[?]`. This signature works well:
 
 {lang="scala"}
 ~~~~~~~~
 trait Execution[C[_]] {
-  def doAndThen[A, B](m: C[A])(f: A => C[B]): C[B]
+  def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
   def wrap[B](b: B): C[B]
 }
 ~~~~~~~~
