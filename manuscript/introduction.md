@@ -79,13 +79,11 @@ fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
 parent. To do this, we need to use the *higher kinded types* Scala
-language feature which gives us *type constructor* syntax.
-
-A type constructor, which looks like `C[_]`, is a way of saying that
-whatever goes here must take a type parameter but we don't care what
-that parameter is. In our case, we want to define `Terminal` for a
-type constructor `C[_]` allowing us to use types like `C[String]` and
-`C[Unit]` in our method signatures:
+language feature. This provides the *type constructor*, which looks
+like `C[_]`, a way of saying that whatever goes here must take a type
+parameter but we don't care what that parameter is. In our case, we
+want to define `Terminal` for a type constructor `C[_]` allowing us to
+use types like `C[String]` and `C[Unit]` in our method signatures:
 
 {lang="scala"}
 ~~~~~~~~
