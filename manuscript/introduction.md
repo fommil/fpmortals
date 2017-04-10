@@ -81,12 +81,11 @@ Let's try to solve the problem like Java 1.2 by introducing a common
 parent. To do this, we need to use the *higher kinded types* Scala
 language feature which gives us *type constructor* syntax.
 
-A type constructor, which looks like `C[_]`, is a type that you can
-apply to type arguments to construct a type. e.g. `List[_]` is a type
-constructor and we can apply it to `String` to construct a
-`List[String]`. In our case, we want to define `Terminal` over a type
-constructor `C[_]` allowing us to construct other types such as
-`C[String]` and `C[Unit]`:
+A type constructor, which looks like `C[_]`, is a way of saying that
+whatever goes here must take a type parameter but we don't care what
+that parameter is. In our case, we want to define `Terminal` for a
+type constructor `C[_]` allowing us to use types like `C[String]` and
+`C[Unit]` in our method signatures:
 
 {lang="scala"}
 ~~~~~~~~
@@ -96,9 +95,9 @@ trait Terminal[C[_]] {
 }
 ~~~~~~~~
 
-By definining `Now[_]` to construct to *itself* (a powerful trick), we
-can implement a common interface for synchronous and asynchronous
-terminals:
+By defining `Now[_]` to construct to *itself* (a powerful trick that
+takes a moment to understand), we can implement a common interface for
+synchronous and asynchronous terminals:
 
 {lang="scala"}
 ~~~~~~~~
