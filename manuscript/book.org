@@ -203,10 +203,15 @@ blocking. In either case, it's a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
-parent. We use the /higher kinded types/ Scala language feature that
-lets us abstract over a type that takes a single type parameter.
+parent. To do this, we need to use the /higher kinded types/ Scala
+language feature which gives us /type constructor/ syntax.
 
-TODO: more intro to HKT
+A type constructor, which looks like =C[_]=, is a type that you can
+apply to type arguments to construct a type. e.g. =List[_]= is a type
+constructor and we can apply it to =String= to construct a
+=List[String]=. In our case, we want to define =Terminal= over a type
+constructor =C[_]= allowing us to construct other types such as
+=C[String]= and =C[Unit]=:
 
 #+BEGIN_SRC scala
 trait Terminal[C[_]] {
@@ -215,9 +220,8 @@ trait Terminal[C[_]] {
 }
 #+END_SRC
 
-The syntax =C[_]= is often called a /type constructor/. By definining
-=Now= to construct to /itself/ (a powerful trick) we can implement a
-common interface for synchronous and asynchronous:
+By definining =Now[_]= to construct to /itself/ (a powerful trick), we
+can implement a common interface for synchronous and asynchronous:
 
 #+BEGIN_SRC scala
 type Now[+X] = X
