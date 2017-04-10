@@ -59,6 +59,8 @@ degrees for their help with understanding the principles of FP, cats
 and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
+Ani Chakraborty for giving feedback on early drafts of this text.
+
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
 John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]].
@@ -127,14 +129,14 @@ import fs2._
   :END:
 ** Introduction
 
-When hearing of a new paradigm, it is human instinct to be sceptical.
-To put some perspective on how far we've come, and the paradigm shifts
-we've adopted on the JVM, let's start with a quick recap of the last
-25 years.
+It is human instinct to be sceptical of a new paradigm. To put some
+perspective on how far we've come, and the shifts we've already
+accepted on the JVM, let's start with a quick recap of the last 20
+years.
 
 Java 1.2 introduced the Collections API, allowing us to write methods
-that abstracted over mutable collections. It was useful for general
-purpose algorithms and became a bedrock of business logic.
+that abstracted over mutable collections. It was useful for writing
+general purpose algorithms and was the bedrock of our codebases.
 
 But there was a problem, we had to perform runtime casting:
 
@@ -144,27 +146,33 @@ public String first(Collection collection) {
 }
 #+END_SRC
 
-In response, developers defined domain objects that were effectively
-=CollectionOfThings=, and the Collection API became implementation
-detail.
+In response, developers defined domain objects in their business logic
+that were effectively =CollectionOfThings=, and the Collection API
+became implementation detail.
 
-In 2005, Java 5 introduced Generics, allowing us to define
-=Collection<Thing>=, abstracting over the container and its elements.
-Generics changed how we wrote Java.
+In 2005, Java 5 introduced /generics/, allowing us to define
+=Collection<Thing>=, abstracting over the container *and* its
+elements. Generics changed how we wrote Java.
 
-Then Scala arrived with terse syntax and a fusion of object oriented
-(OOP) and functional programming (FP). For most developers, FP means
-using immutable data structures as much as possible, but mutable state
-still needs to be managed by Akka. That's just the way applications
-work: they need to keep track of some information that changes over
-time.
+The author of the Java generics compiler, Martin Odersky, then created
+Scala with a stronger type system, immutable data structures and
+multiple inheritance. This brought about a fusion of object oriented
+(OOP) and functional programming (FP).
+
+For most developers, FP means using immutable data structures as much
+as possible, but mutable state is still a necessary evil that must be
+isolated and managed, e.g. with Akka. This style of FP results in
+simpler programs that are easier to parallelise and distribute, an
+improvement over Java. But it is only scratching the surface of the
+benefits of FP, as we'll discover in this book.
 
 Scala also brings =Future=, making it easy to write asynchronous
 applications. But when a =Future= makes it into a return type,
 /everything/ needs to be rewritten to accomodate it, including the
-tests, which now are subject to arbitrary timeouts. We have a problem
-similar to Java 1.0: there is no way of abstracting over execution,
-much as we had no way of abstracting over collections.
+tests, which are now subject to arbitrary timeouts.
+
+We have a problem similar to Java 1.0: there is no way of abstracting
+over execution, much as we had no way of abstracting over collections.
 
 *** Abstracting over Execution
 
@@ -178,7 +186,7 @@ trait TerminalSync {
   def write(t: String): Unit
 }
 
-trait TerminalFuture {
+trait TerminalAsync {
   def read(): Future[String]
   def write(t: String): Future[Unit]
 }
@@ -197,6 +205,8 @@ fundamentally dealing with different APIs that are not unified.
 Let's try to solve the problem like Java 1.2 by introducing a common
 parent. We use the /higher kinded types/ Scala language feature that
 lets us abstract over a type that takes a single type parameter.
+
+TODO: more intro to HKT
 
 #+BEGIN_SRC scala
 trait Terminal[C[_]] {
@@ -217,36 +227,39 @@ object TerminalSync extends Terminal[Now] {
   def write(t: String): Unit = ???
 }
 
-object TerminalFuture extends Terminal[Future] {
+object TerminalAsync extends Terminal[Future] {
   def read: Future[String] = ???
   def write(t: String): Future[Unit] = ???
 }
 #+END_SRC
 
-If you need a word to associate to =C=, /Context/ is a reasonable
-analogy because we can say "in the context of executing in the
-=Future=" or "in the context of executing =Now=".
+You can think of =C= as a /Context/ because we say "in the context of
+executing =Now=" or "in the =Future=".
 
-But we know nothing about =C= and if we get handed a =C[String]= we
+But we know nothing about =C= and if we are given a =C[String]= we
 can't get the =String=. However, even though =Now= and =Future= don't
 share a common parent, we can depend on a parameterised trait that
-will give us methods to call on =C=. What we need is a kind of
-execution environment with this signature:
+will give us methods to call on =C=.
+
+What we need is a kind of execution environment that lets us call a
+method returning =C[?]= and then be able to do something with the =?=.
+We also need a way of wrapping a value that we have as a =C[?]=. This
+signature works well:
 
 #+BEGIN_SRC scala
 trait Execution[C[_]] {
   def doAndThen[A, B](m: C[A])(f: A => C[B]): C[B]
-  def returns[B](b: B): C[B]
+  def wrap[B](b: B): C[B]
 }
 #+END_SRC
 
-letting us write (really ugly!) code like:
+letting us write:
 
 #+BEGIN_SRC scala
 def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
   e.doAndThen(t.read) { in: String =>
     e.doAndThen(t.write(in)) { _: Unit =>
-      e.returns(in)
+      e.wrap(in)
     }
   }
 #+END_SRC
@@ -267,7 +280,7 @@ in a moment:
 object Execution {
   implicit class Ops[A, C[_]](m: C[A])(implicit e: Execution[C]) {
     def flatMap[B](f: A => C[B]): C[B] = e.doAndThen(m)(f)
-    def map[B](f: A => B): C[B] = e.doAndThen(m)(f andThen e.returns)
+    def map[B](f: A => B): C[B] = e.doAndThen(m)(f andThen e.wrap)
   }
 }
 #+END_SRC
@@ -284,8 +297,8 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
 #+END_SRC
 
 we can now reveal why we used =flatMap= as the method name: it lets us
-use a /for comprehension/, which is just syntax sugar to re-write
-nested calls to =flatMap= and =map=.
+use a /for comprehension/, which is just syntax sugar over nested
+=flatMap= and =map=.
 
 #+BEGIN_SRC scala
 def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
@@ -295,10 +308,10 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   } yield in
 #+END_SRC
 
-Now we admit that our =Execution= looks an awfully lot like a trait in
-cats called =Monad=, which has the same type signature. We say that
-=C= is /monadic/ when there is an implicit =Monad[C]= available. And
-our =Now= is more commonly known as =Id=.
+Our =Execution= has the same signature as a trait in the cats library
+called =Monad= (except =doAndThen= is =flatMap= and =wrap= is =pure=).
+We say that =C= is /monadic/ when there is an implicit =Monad[C]=
+available. In addition, our =Now= is exactly the same as cats' =Id=.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write procedural code that abstracts over its execution
@@ -309,33 +322,45 @@ recording / auditing of the session.
 
 *** Pure Functional Programming
 
-A pure FP language does not allow side effects: mutating state or
-interacting with the world. But in Scala, we do this all the time. A
-call to =println= will perform I/O (which is really hard to assert in
-a test) and a call to =asString= on a =Http= instance will speak to a
-web server. It's fair to say that typical Scala is *not* FP.
+FP functions have three key properties:
 
-But something beautiful happened when we wrote our implementation of
-=echo= --- it has no side-effects. Anything that interacts with the
-world or mutates state is in the =Terminal= implementation. We are
-free to implement =Terminal= without any interactions with a real
-console, exactly what we want to do in our tests.
+- *Totality* return a value for every possible input
+- *Determinism* return the same value for the same input
+- *Purity* the only effect is the computation of a return value.
 
-If we write our business logic using FP, we not only get to abstract
-over the execution environment, but we also get to dramatically
-improve the repeatability - and performance - of our tests.
+Together, these properties give us an unprecedented ability to reason
+about our code. For example, caching is easier to understand with
+determinism and purity, and input validation is easier to isolate with
+totality.
+
+The kinds of things that break these properties are /side effects/,
+e.g. accessing or changing mutable state (e.g. generating random
+numbers, maintaining a =var= in a class), communicating with external
+resources (e.g. files or network lookup), or throwing exceptions.
+
+But in Scala, we perform side effects all the time. A call to
+=println= will perform I/O and a call to =asString= on a =Http=
+instance will speak to a web server. It's fair to say that typical
+Scala is *not* FP.
+
+However, something beautiful happened when we wrote our implementation
+of =echo=. Anything that depends on state or external resources is
+provided as an explicit input: our functions are deterministic and
+pure. We not only get to abstract over execution environment, but we
+also get to dramatically improve the repeatability - and performance -
+of our tests. For example, we are free to implement =Terminal= without
+any interactions with a real console.
 
 Of course we cannot write an application devoid of interaction with
 the world. In FP we push the code that deals with side effects to the
-edges. That kind of code looks much like what you've been writing to
-date, and can use battle tested libraries like NIO, Akka and Play.
+edges. That kind of code can use battle-tested libraries like NIO,
+Akka and Play.
 
-This book expands on the style introduced in this chapter. Instead of
-inventing any more primitives, we're going to use the traits and
-classes defined in the /cats/ and /fs2/ libraries to implement pure FP
-streaming applications. We'll also use the /freestyle/ and
-/simulacrum/ developer tooling to eliminate boilerplate, allowing you
-to focus on writing pure business logic.
+This book expands on the FP style introduced in this chapter. We're
+going to use the traits and classes defined in the /cats/ and /fs2/
+libraries to implement streaming applications. We'll also use the
+/freestyle/ and /simulacrum/ developer tooling to eliminate
+boilerplate, allowing you to focus on writing pure business logic.
 
 * Main Text
   :PROPERTIES:
