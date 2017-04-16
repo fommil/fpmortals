@@ -130,7 +130,7 @@ import fs2._
 ** Introduction
 
 It is human instinct to be sceptical of a new paradigm. To put some
-perspective on how far we've come, and the shifts we've already
+perspective on how far we have come, and the shifts we have already
 accepted on the JVM, let's start with a quick recap of the last 20
 years.
 
@@ -317,7 +317,7 @@ available. In addition, our =Now= is exactly the same as cats' =Id=.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write procedural code that abstracts over its execution
-context. Here, we've shown an abstraction over synchronous and
+context. Here, we have shown an abstraction over synchronous and
 asynchronous execution but it can also be for the purpose of more
 rigorous error handling (where =C[_]= is =Either[Error, _]=) or
 recording / auditing of the session.
