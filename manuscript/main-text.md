@@ -6,6 +6,11 @@ We're going to be using these a lot. Need to be comfortable with it.
 
 Include a lot of stuff from "For: what is it good for?"
 
+## RESEARCH Monad Transformers
+
+Maybe too early? Let's say put it here if we need it for the
+interpreters, otherwise after Optics.
+
 # TODO Implicits
 
 Perhaps need a refresher on how implicits work.
@@ -101,11 +106,6 @@ for a perf test?
 
 Rewrite our business logic to be streaming, convert our GET api into a
 `Stream` by polling.
-
-# RESEARCH Monad Transformers
-
-Maybe too early? Let's say put it here if we need it for the
-interpreters, otherwise after Optics.
 
 # TODO interpreters
 

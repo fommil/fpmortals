@@ -35,10 +35,11 @@ multiple inheritance. This brought about a fusion of object oriented
 
 For most developers, FP means using immutable data structures as much
 as possible, but mutable state is still a necessary evil that must be
-isolated and managed, e.g. with Akka. This style of FP results in
-simpler programs that are easier to parallelise and distribute, an
-improvement over Java. But it is only scratching the surface of the
-benefits of FP, as we'll discover in this book.
+isolated and managed, e.g. with Akka actors or `synchronized` classes.
+This style of FP results in simpler programs that are easier to
+parallelise and distribute, an improvement over Java. But it is only
+scratching the surface of the benefits of FP, as we'll discover in
+this book.
 
 Scala also brings `Future`, making it easy to write asynchronous
 applications. But when a `Future` makes it into a return type,
@@ -79,11 +80,15 @@ fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
 parent. To do this, we need to use the *higher kinded types* Scala
-language feature. This provides the *type constructor*, which looks
-like `C[_]`, a way of saying that whatever goes here must take a type
-parameter but we don't care what that parameter is. In our case, we
-want to define `Terminal` for a type constructor `C[_]` allowing us to
-use types like `C[String]` and `C[Unit]` in our method signatures:
+language feature.
+
+A> This provides the *type constructor*, which looks like `C[_]`, a way
+A> of saying that whatever goes here must take a type parameter but we
+A> don't care what that parameter is.
+
+In our case, we want to define `Terminal` for a type constructor
+`C[_]` allowing us to use types like `C[String]` and `C[Unit]` in our
+method signatures:
 
 {lang="scala"}
 ~~~~~~~~
