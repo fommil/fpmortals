@@ -36,21 +36,22 @@ interop, powerful frameworks and a commercial ecosystem.
 
 ** Copyleft Notice
 
-This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]] for
-books: you can use this book as you like, you can redistribute this
-book and you can distribute your own version. That means you can print
-it, photocopy it, e-mail it, post it on social media, upload it to
+This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]]: you
+can use this book as you like, you can redistribute this book and you
+can distribute your own version. That means you can print it,
+photocopy it, e-mail it, post it on social media, upload it to
 websites, change it, remix it, delete bits, and draw all over it. You
-can even sell it.
+can even sell it, although you won't be making friends with the author
+if you do that.
 
 This book is *Copyleft*: if you change the book and distribute your
 own version, it must also pass on these freedoms to its recipients.
 
 This book uses the [[https://creativecommons.org/licenses/by-sa/4.0/legalcode][Creative Commons Attribution ShareAlike 4.0
-International]] (CC BY-SA 4.0) license.
+International]] (CC BY-SA 4.0) license. Attribution means you cannot
+claim that you wrote the original book.
 
-In addition, all code examples in this book are [[https://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] licensed
-and are not copyleft in their right.
+All code examples in this book are separately [[https://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] licensed.
 
 ** Thanks
 
@@ -59,7 +60,8 @@ degrees for their help with understanding the principles of FP, cats
 and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
-Ani Chakraborty for giving feedback on early drafts of this text.
+Ani Chakraborty and Rory Graves for giving feedback on early drafts of
+this text.
 
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
@@ -208,9 +210,75 @@ parent. To do this, we need to use the /higher kinded types/ Scala
 language feature.
 
 #+BEGIN_ASIDE
-This provides the /type constructor/, which looks like =C[_]=, a way
-of saying that whatever goes here must take a type parameter but we
-don't care what that parameter is.
+
+*Higher Kinded Types* allow us to use a /type constructor/ in our type
+parameters, which looks like =C[_]=. This is a way of saying that
+whatever goes here must take a type parameter, and we can use that =C=
+in our method signatures. For example:
+
+#+BEGIN_SRC scala
+trait Foo[C[_]] {
+  def wrap(s: Int): C[Int]
+}
+#+END_SRC
+
+The /kind/ of a type constructor is the number of type parameters that
+it takes to produce a type. For example =List[E]= takes one type
+parameter and produces a type, having kind
+
+#+BEGIN_SRC
+  * -> *
+#+END_SRC
+
+Whereas =Map[K, V]= takes two type parameters and has kind
+
+#+BEGIN_SRC
+  * -> * -> *
+#+END_SRC
+
+The reason why we use asterisks and don't just say "=List= has kind 2"
+or "=Map= has kind 3" is when we are dealing with higher kinded types,
+such as =Foo=, which takes a type constructor (denoted with brackets)
+and has kind
+
+#+BEGIN_SRC
+  (* -> *) -> *
+#+END_SRC
+
+We can implement =Foo= with =List= or =Option=, see how they are in
+the return types:
+
+#+BEGIN_SRC scala
+object OptionFoo extends Foo[Option] {
+  def wrap(s: Int): Option[Int] = Some(s)
+}
+object ListFoo extends Foo[List] {
+  def wrap(s: Int): List[Int] = List(s)
+}
+#+END_SRC
+
+Scala also allows us to use a =*->*->*= constructor where a =*->*=
+should go, which means we can implement =Foo= for something like
+=Either[String, _]= (which only has one hole). Unfortunately the
+syntax is a bit clunky and we have to create a type alias
+
+#+BEGIN_SRC scala
+type EitherString[T] = Either[String, T]
+object EitherFoo extends Foo[EitherString] {
+ def wrap(s: Int): Either[String, Int] = Right(s)
+}
+#+END_SRC
+
+We can use a type alias in the other direction too, to remove a layer.
+Using type substitution on the =Id= type alias feels like a trick:
+
+#+BEGIN_SRC scala
+type Id[T] = T
+#+END_SRC
+
+Convince yourself that =Id[Int]= is just =Int= before proceeding, by
+substituting =Int= into =T=.
+
 #+END_ASIDE
 
 In our case, we want to define =Terminal= for a type constructor
@@ -224,9 +292,9 @@ trait Terminal[C[_]] {
 }
 #+END_SRC
 
-By defining =Now[_]= to construct to /itself/ (a powerful trick that
-takes a moment to understand), we can implement a common interface for
-synchronous and asynchronous terminals:
+By defining =Now[_]= to construct to its parameter (just like =Id=),
+we can implement a common interface for synchronous and asynchronous
+terminals:
 
 #+BEGIN_SRC scala
 type Now[+X] = X

@@ -82,9 +82,80 @@ Let's try to solve the problem like Java 1.2 by introducing a common
 parent. To do this, we need to use the *higher kinded types* Scala
 language feature.
 
-A> This provides the *type constructor*, which looks like `C[_]`, a way
-A> of saying that whatever goes here must take a type parameter but we
-A> don't care what that parameter is.
+A> **Higher Kinded Types** allow us to use a *type constructor* in our type
+A> parameters, which looks like `C[_]`. This is a way of saying that
+A> whatever goes here must take a type parameter, and we can use that `C`
+A> in our method signatures. For example:
+A> 
+A> {lang="scala"}
+A> ~~~~~~~~
+A> trait Foo[C[_]] {
+A>   def wrap(s: Int): C[Int]
+A> }
+A> ~~~~~~~~
+A> 
+A> The *kind* of a type constructor is the number of type parameters that
+A> it takes to produce a type. For example `List[E]` takes one type
+A> parameter and produces a type, having kind
+A> 
+A> {lang="nil"}
+A> ~~~~~~~~
+A> * -> *
+A> ~~~~~~~~
+A> 
+A> Whereas `Map[K, V]` takes two type parameters and has kind
+A> 
+A> {lang="nil"}
+A> ~~~~~~~~
+A> * -> * -> *
+A> ~~~~~~~~
+A> 
+A> The reason why we use asterisks and don't just say "`List` has kind 2"
+A> or "`Map` has kind 3" is when we are dealing with higher kinded types,
+A> such as `Foo`, which takes a type constructor (denoted with brackets)
+A> and has kind
+A> 
+A> {lang="nil"}
+A> ~~~~~~~~
+A> (* -> *) -> *
+A> ~~~~~~~~
+A> 
+A> We can implement `Foo` with `List` or `Option`, see how they are in
+A> the return types:
+A> 
+A> {lang="scala"}
+A> ~~~~~~~~
+A> object OptionFoo extends Foo[Option] {
+A>   def wrap(s: Int): Option[Int] = Some(s)
+A> }
+A> object ListFoo extends Foo[List] {
+A>   def wrap(s: Int): List[Int] = List(s)
+A> }
+A> ~~~~~~~~
+A> 
+A> Scala also allows us to use a `*->*->*` constructor where a `*->*`
+A> should go, which means we can implement `Foo` for something like
+A> `Either[String, _]` (which only has one hole). Unfortunately the
+A> syntax is a bit clunky and we have to create a type alias
+A> 
+A> {lang="scala"}
+A> ~~~~~~~~
+A> type EitherString[T] = Either[String, T]
+A> object EitherFoo extends Foo[EitherString] {
+A>  def wrap(s: Int): Either[String, Int] = Right(s)
+A> }
+A> ~~~~~~~~
+A> 
+A> We can use a type alias in the other direction too, to remove a layer.
+A> Using type substitution on the `Id` type alias feels like a trick:
+A> 
+A> {lang="scala"}
+A> ~~~~~~~~
+A> type Id[T] = T
+A> ~~~~~~~~
+A> 
+A> Convince yourself that `Id[Int]` is just `Int` before proceeding, by
+A> substituting `Int` into `T`.
 
 In our case, we want to define `Terminal` for a type constructor
 `C[_]` allowing us to use types like `C[String]` and `C[Unit]` in our
@@ -98,9 +169,9 @@ trait Terminal[C[_]] {
 }
 ~~~~~~~~
 
-By defining `Now[_]` to construct to *itself* (a powerful trick that
-takes a moment to understand), we can implement a common interface for
-synchronous and asynchronous terminals:
+By defining `Now[_]` to construct to its parameter (just like `Id`),
+we can implement a common interface for synchronous and asynchronous
+terminals:
 
 {lang="scala"}
 ~~~~~~~~

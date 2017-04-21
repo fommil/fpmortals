@@ -24,21 +24,22 @@ interop, powerful frameworks and a commercial ecosystem.
 
 # Copyleft Notice
 
-This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html) for
-books: you can use this book as you like, you can redistribute this
-book and you can distribute your own version. That means you can print
-it, photocopy it, e-mail it, post it on social media, upload it to
+This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you
+can use this book as you like, you can redistribute this book and you
+can distribute your own version. That means you can print it,
+photocopy it, e-mail it, post it on social media, upload it to
 websites, change it, remix it, delete bits, and draw all over it. You
-can even sell it.
+can even sell it, although you won't be making friends with the author
+if you do that.
 
 This book is **Copyleft**: if you change the book and distribute your
 own version, it must also pass on these freedoms to its recipients.
 
 This book uses the [Creative Commons Attribution ShareAlike 4.0
-International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC BY-SA 4.0) license.
+International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC BY-SA 4.0) license. Attribution means you cannot
+claim that you wrote the original book.
 
-In addition, all code examples in this book are [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) licensed
-and are not copyleft in their right.
+All code examples in this book are separately [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) licensed.
 
 # Thanks
 
@@ -47,7 +48,8 @@ degrees for their help with understanding the principles of FP, cats
 and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
-Ani Chakraborty for giving feedback on early drafts of this text.
+Ani Chakraborty and Rory Graves for giving feedback on early drafts of
+this text.
 
 Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On
 Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50),
