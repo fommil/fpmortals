@@ -213,77 +213,61 @@ language feature.
 
 *Higher Kinded Types* allow us to use a /type constructor/ in our type
 parameters, which looks like =C[_]=. This is a way of saying that
-whatever goes here must take a type parameter, and we can use that =C=
-in our method signatures. For example:
+whatever =C= is, it must take a type parameter. For example:
 
 #+BEGIN_SRC scala
 trait Foo[C[_]] {
-  def wrap(s: Int): C[Int]
+  def wrap(i: Int): C[Int]
 }
 #+END_SRC
 
-The /kind/ of a type constructor is the number of type parameters that
-it takes to produce a type. For example =List[E]= takes one type
-parameter and produces a type, having kind
-
-#+BEGIN_SRC
-  * -> *
-#+END_SRC
-
-Whereas =Map[K, V]= takes two type parameters and has kind
-
-#+BEGIN_SRC
-  * -> * -> *
-#+END_SRC
-
-The reason why we use asterisks and don't just say "=List= has kind 2"
-or "=Map= has kind 3" is when we are dealing with higher kinded types,
-such as =Foo=, which takes a type constructor (denoted with brackets)
-and has kind
-
-#+BEGIN_SRC
-  (* -> *) -> *
-#+END_SRC
-
-We can implement =Foo= with =List= or =Option=, see how they are in
-the return types:
+A type constructor is syntax for a type that takes a type to
+constructs another type. =List= is a type constructor because it takes
+a type (e.g. =Int=), and constructs the type =List[Int]=. We can
+implement =Foo= using =List=:
 
 #+BEGIN_SRC scala
-object OptionFoo extends Foo[Option] {
-  def wrap(s: Int): Option[Int] = Some(s)
-}
-object ListFoo extends Foo[List] {
-  def wrap(s: Int): List[Int] = List(s)
+object FooList extends Foo[List] {
+  def wrap(i: Int): List[Int] = List(s)
 }
 #+END_SRC
 
-Scala also allows us to use a =*->*->*= constructor where a =*->*=
-should go, which means we can implement =Foo= for something like
-=Either[String, _]= (which only has one hole). Unfortunately the
-syntax is a bit clunky and we have to create a type alias
+We can also implement =Foo= for anything with a type parameter hole,
+e.g. =Either[String, _]=. Unfortunately it is a bit clunky and we have
+to create a type alias:
 
 #+BEGIN_SRC scala
 type EitherString[T] = Either[String, T]
-object EitherFoo extends Foo[EitherString] {
- def wrap(s: Int): Either[String, Int] = Right(s)
+object FooEitherString extends Foo[EitherString] {
+ def wrap(i: Int): Either[String, Int] = Right(s)
 }
 #+END_SRC
 
-We can use a type alias in the other direction too, to remove a layer.
-Using type substitution on the =Id= type alias feels like a trick:
+There is an interesting trick we can use when we want to ignore the
+type constructor. Let's define a type alias to be equal to its
+parameter:
 
 #+BEGIN_SRC scala
 type Id[T] = T
 #+END_SRC
 
-Convince yourself that =Id[Int]= is just =Int= before proceeding, by
-substituting =Int= into =T=.
+Type aliases don't define a new types, they just use substitution to
+let us have convenient syntax. Before proceeding, convince yourself
+that =Id[Int]= is the same thing as =Int=, by substituting =Int= into
+=T=. But =Id= is a valid type constructor, so we can use =Id= in an
+implementation of =Foo=:
+
+#+BEGIN_SRC scala
+object FooId extends Foo[Id] {
+  def wrap(i: Int): Int = s
+}
+#+END_SRC
 
 #+END_ASIDE
 
 In our case, we want to define =Terminal= for a type constructor
-=C[_]= allowing us to use types like =C[String]= and =C[Unit]= in our
-method signatures:
+=C[_]= allowing us to put =C[String]= and =C[Unit]= in our method
+signatures:
 
 #+BEGIN_SRC scala
 trait Terminal[C[_]] {
@@ -292,8 +276,8 @@ trait Terminal[C[_]] {
 }
 #+END_SRC
 
-By defining =Now[_]= to construct to its parameter (just like =Id=),
-we can implement a common interface for synchronous and asynchronous
+By defining =Now= to construct to its type parameter (like =Id=), we
+can implement a common interface for synchronous and asynchronous
 terminals:
 
 #+BEGIN_SRC scala
@@ -388,7 +372,7 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
 Our =Execution= has the same signature as a trait in the cats library
 called =Monad= (except =doAndThen= is =flatMap= and =wrap= is =pure=).
 We say that =C= is /monadic/ when there is an implicit =Monad[C]=
-available. In addition, our =Now= is exactly the same as cats' =Id=.
+available. In addition, cats has the =Id= type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write procedural code that abstracts over its execution
