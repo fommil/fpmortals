@@ -173,15 +173,11 @@ object TerminalAsync extends Terminal[Future] {
 You can think of `C` as a *Context* because we say "in the context of
 executing `Now`" or "in the `Future`".
 
-But we know nothing about `C` and if we are given a `C[String]` we
-can't get the `String`. However, even though `Now` and `Future` don't
-share a common parent, we can depend on a parameterised trait that
-will give us methods to call on `C`.
-
-What we need is a kind of execution environment that lets us call a
-method returning `C[T]` and then be able to do something with the `T`,
-including calling another method on `Terminal`. We also need a way of
-wrapping a value as a `C[?]`. This signature works well:
+But we know nothing about `C` and we can't do anything with a
+`C[String]`. What we need is a kind of execution environment that lets
+us call a method returning `C[T]` and then be able to do something
+with the `T`, including calling another method on `Terminal`. We also
+need a way of wrapping a value as a `C[_]`. This signature works well:
 
 {lang="scala"}
 ~~~~~~~~
@@ -204,12 +200,14 @@ def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
 ~~~~~~~~
 
 We can now share the `echo` implementation between synchronous and
-asynchronous codepaths! We only need to write an implementation for
-`Execution[Now]` and `Execution[Future]` once and we can reuse it
-forever, for any method like this. We can trivially write a mock
-implementation of `Terminal[Now]` and use it in a test for `echo`.
+asynchronous codepaths!
 
-But the code is horrible. Let's use the `implicit class` Scala
+We only need to write an implementation for `Execution[Now]` and
+`Execution[Future]` once and we can reuse it forever, for any method
+like `echo`. We can trivially write a mock implementation of
+`Terminal[Now]` and use it in our tests.
+
+But the code is horrible! Let's use the `implicit class` Scala
 language feature (aka "enriching" or "ops") to give `C` some nicer
 methods when there is an implicit `Execution` available. We'll call
 these methods `flatMap` and `map` for reasons that will become clearer
@@ -218,14 +216,16 @@ in a moment:
 {lang="scala"}
 ~~~~~~~~
 object Execution {
-  implicit class Ops[A, C[_]](m: C[A])(implicit e: Execution[C]) {
-    def flatMap[B](f: A => C[B]): C[B] = e.doAndThen(m)(f)
-    def map[B](f: A => B): C[B] = e.doAndThen(m)(f andThen e.wrap)
+  implicit class Ops[A, C[_]](val c: C[A]) extends AnyVal {
+    def flatMap[B](f: A => C[B])
+                  (implicit e: Execution[C]): C[B] = e.doAndThen(c)(f)
+    def     map[B](f: A => B)
+                  (implicit e: Execution[C]): C[B] = e.doAndThen(c)(f andThen e.wrap)
   }
 }
 ~~~~~~~~
 
-cleaning up `echo` a little bit
+which cleans up `echo` a little bit
 
 {lang="scala"}
 ~~~~~~~~
@@ -259,8 +259,8 @@ The takeaway is: if we write methods that operate on monadic types,
 then we can write procedural code that abstracts over its execution
 context. Here, we have shown an abstraction over synchronous and
 asynchronous execution but it can also be for the purpose of more
-rigorous error handling (where `C[_]` is `Either[Error, _]`) or
-recording / auditing of the session.
+rigorous error handling (where `C[_]` is `Either[Error, _]`), managing
+access to volatile state, performing I/O, or auditing of the session.
 
 ## Pure Functional Programming
 
@@ -275,13 +275,13 @@ about our code. For example, caching is easier to understand with
 determinism and purity, and input validation is easier to isolate with
 totality.
 
-The kinds of things that break these properties are *side effects*,
-e.g. accessing or changing mutable state (e.g. generating random
-numbers, maintaining a `var` in a class), communicating with external
-resources (e.g. files or network lookup), or throwing exceptions.
+The kinds of things that break these properties are *side effects*:
+accessing or changing mutable state (e.g. generating random numbers,
+maintaining a `var` in a class), communicating with external resources
+(e.g. files or network lookup), or throwing exceptions.
 
 But in Scala, we perform side effects all the time. A call to
-`println` will perform I/O and a call to `asString` on a `Http`
+`log.info` will perform I/O and a call to `asString` on a `Http`
 instance will speak to a web server. It's fair to say that typical
 Scala is **not** FP.
 
@@ -296,12 +296,13 @@ any interactions with a real console.
 Of course we cannot write an application devoid of interaction with
 the world. In FP we push the code that deals with side effects to the
 edges. That kind of code can use battle-tested libraries like NIO,
-Akka and Play.
+Akka and Play, isolated away from the core business logic.
 
 This book expands on the FP style introduced in this chapter. We're
 going to use the traits and classes defined in the *cats* and *fs2*
 libraries to implement streaming applications. We'll also use the
 *freestyle* and *simulacrum* developer tooling to eliminate
-boilerplate, allowing you to focus on writing pure business logic.
+boilerplate some of the boilerplate we've already seen in this
+chapter, allowing you to focus on writing pure business logic.
 
 
