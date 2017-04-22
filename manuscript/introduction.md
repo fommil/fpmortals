@@ -93,10 +93,10 @@ A>   def wrap(i: Int): C[Int]
 A> }
 A> ~~~~~~~~
 A> 
-A> A type constructor is syntax for a type that takes a type to
-A> constructs another type. `List` is a type constructor because it takes
-A> a type (e.g. `Int`), and constructs the type `List[Int]`. We can
-A> implement `Foo` using `List`:
+A> A type constructor is syntax for a type that takes a type to construct
+A> another type. `List` is a type constructor because it takes a type and
+A> constructs a type (`List -> Int -> List[Int]`). We can implement `Foo`
+A> using `List`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~

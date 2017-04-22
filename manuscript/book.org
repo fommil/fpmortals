@@ -221,10 +221,10 @@ trait Foo[C[_]] {
 }
 #+END_SRC
 
-A type constructor is syntax for a type that takes a type to
-constructs another type. =List= is a type constructor because it takes
-a type (e.g. =Int=), and constructs the type =List[Int]=. We can
-implement =Foo= using =List=:
+A type constructor is syntax for a type that takes a type to construct
+another type. =List= is a type constructor because it takes a type and
+constructs a type (=List -> Int -> List[Int]=). We can implement =Foo=
+using =List=:
 
 #+BEGIN_SRC scala
 object FooList extends Foo[List] {
