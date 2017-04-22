@@ -673,31 +673,30 @@ scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
 Left(sorry, no c)
 #+END_SRC
 
-For this reason, =Either= is the de-facto checked exception of Scala,
-letting =for= take care of the unhappy path.
-
-The behaviour of the unhappy path is entirely dependent on the
-container. Consider what happens if =a,b,c= are =Future= values and
-one of the calculations fail
+Consider what happens if =a,b,c= are =Future= values and one of the
+calculations fail
 
 #+BEGIN_SRC scala
 scala> import scala.concurrent._
 scala> import ExecutionContext.Implicits.global
-scala> val a = Future.successful(1)
-scala> val b = Future.failed(new Throwable)
-scala> val c = Future.successful(2)
-scala> val f = for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+scala> for {
+         i <- Future.failed[Int](new Throwable)
+         j <- Future { println("hello") ; 1 }
+       } yield (i + j)
 scala> Await.result(f, duration.Duration.Inf)
 
 java.lang.Throwable
-
 #+END_SRC
 
+The =Future= which prints to the terminal is never called because,
+like =Option= and =Either=, the =for= comprehension short circuits.
 
-
-
-
-
+Short circuiting for the unhappy path is a common and important theme:
+=for= comprehensions cannot express resource cleanup: there is no way
+to do =try= / =finally=. Cleanup needs to be a part of the =Monad= for
+the container that we're flat-mapping over. This is a good thing, it
+puts a clear ownership of responsibility for unexpected errors onto
+the =Monad=, not the business logic.
 
 *** TODO Keep it alive
 
