@@ -13,7 +13,7 @@ general purpose algorithms and was the bedrock of our codebases.
 
 But there was a problem, we had to perform runtime casting:
 
-{lang="java"}
+{lang="text"}
 ~~~~~~~~
 public String first(Collection collection) {
   return (String)(collection.get(0));
@@ -55,7 +55,7 @@ Let's say we want to interact with the user over the command line
 interface. We can `read` what the user types and we can `write` a
 message to them.
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 trait TerminalSync {
   def read(): String
@@ -86,7 +86,7 @@ A> **Higher Kinded Types** allow us to use a *type constructor* in our type
 A> parameters, which looks like `C[_]`. This is a way of saying that
 A> whatever `C` is, it must take a type parameter. For example:
 A> 
-A> {lang="scala"}
+A> {lang="text"}
 A> ~~~~~~~~
 A> trait Foo[C[_]] {
 A>   def wrap(i: Int): C[Int]
@@ -98,7 +98,7 @@ A> constructs another type. `List` is a type constructor because it takes
 A> a type (e.g. `Int`), and constructs the type `List[Int]`. We can
 A> implement `Foo` using `List`:
 A> 
-A> {lang="scala"}
+A> {lang="text"}
 A> ~~~~~~~~
 A> object FooList extends Foo[List] {
 A>   def wrap(i: Int): List[Int] = List(s)
@@ -109,7 +109,7 @@ A> We can also implement `Foo` for anything with a type parameter hole,
 A> e.g. `Either[String, _]`. Unfortunately it is a bit clunky and we have
 A> to create a type alias:
 A> 
-A> {lang="scala"}
+A> {lang="text"}
 A> ~~~~~~~~
 A> type EitherString[T] = Either[String, T]
 A> object FooEitherString extends Foo[EitherString] {
@@ -121,7 +121,7 @@ A> There is an interesting trick we can use when we want to ignore the
 A> type constructor. Let's define a type alias to be equal to its
 A> parameter:
 A> 
-A> {lang="scala"}
+A> {lang="text"}
 A> ~~~~~~~~
 A> type Id[T] = T
 A> ~~~~~~~~
@@ -132,7 +132,7 @@ A> that `Id[Int]` is the same thing as `Int`, by substituting `Int` into
 A> `T`. But `Id` is a valid type constructor, so we can use `Id` in an
 A> implementation of `Foo`:
 A> 
-A> {lang="scala"}
+A> {lang="text"}
 A> ~~~~~~~~
 A> object FooId extends Foo[Id] {
 A>   def wrap(i: Int): Int = s
@@ -143,7 +143,7 @@ In our case, we want to define `Terminal` for a type constructor
 `C[_]` allowing us to put `C[String]` and `C[Unit]` in our method
 signatures:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 trait Terminal[C[_]] {
   def read: C[String]
@@ -155,7 +155,7 @@ By defining `Now` to construct to its type parameter (like `Id`), we
 can implement a common interface for synchronous and asynchronous
 terminals:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 type Now[+X] = X
 
@@ -179,7 +179,7 @@ us call a method returning `C[T]` and then be able to do something
 with the `T`, including calling another method on `Terminal`. We also
 need a way of wrapping a value as a `C[_]`. This signature works well:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 trait Execution[C[_]] {
   def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
@@ -189,7 +189,7 @@ trait Execution[C[_]] {
 
 letting us write:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
   e.doAndThen(t.read) { in: String =>
@@ -213,7 +213,7 @@ methods when there is an implicit `Execution` available. We'll call
 these methods `flatMap` and `map` for reasons that will become clearer
 in a moment:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 object Execution {
   implicit class Ops[A, C[_]](val c: C[A]) extends AnyVal {
@@ -227,7 +227,7 @@ object Execution {
 
 which cleans up `echo` a little bit
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   t.read.flatMap { in: String =>
@@ -241,7 +241,7 @@ we can now reveal why we used `flatMap` as the method name: it lets us
 use a *for comprehension*, which is just syntax sugar over nested
 `flatMap` and `map`.
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   for {

@@ -70,7 +70,7 @@ If you'd like to set up a project that uses the libraries presented in
 this book, you will need to use a recent version of Scala with
 FP-specific features enabled (e.g. in `build.sbt`):
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 scalaVersion in ThisBuild := "2.12.1"
 scalacOptions in ThisBuild ++= Seq(
@@ -81,7 +81,7 @@ scalacOptions in ThisBuild ++= Seq(
 
 and add the following dependencies to your project's settings:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
@@ -101,7 +101,7 @@ In order to keep our snippets short, we will omit the `import`
 section. Unless told otherwise, assume that all snippets have the
 following imports:
 
-{lang="scala"}
+{lang="text"}
 ~~~~~~~~
 import cats._
 import cats.implicits._
