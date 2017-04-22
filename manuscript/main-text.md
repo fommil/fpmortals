@@ -10,11 +10,16 @@ potential.
 In this chapter, we're going to visit the principles of `for` and how
 cats can help us to write cleaner code with the standard library.
 
+## Syntax Sugar
+
 Scala's `for` is just a simple rewrite rule that doesn't have any
-contextual information. The easiest way to see what a `for`
-comprehension is doing is to use the `show` and `reify` feature in the
-REPL to print out what your code looks like after type inference
-(alternatively, invoke the compiler with the `-Xprint:typer` flag):
+contextual information. The compiler does the rewrite during parsing
+as *syntax sugar*, designed only to reduce verbosity in the language.
+
+The easiest way to see what a `for` comprehension is doing is to use
+the `show` and `reify` feature in the REPL to print out what code
+looks like after type inference (alternatively, invoke the compiler
+with the `-Xprint:typer` flag):
 
 {lang="text"}
 ~~~~~~~~
@@ -30,10 +35,10 @@ $read.a.flatMap(
       ((k) => i.$plus(j).$plus(k)))))))
 ~~~~~~~~
 
-There's a lot of noise due to additional desugarings that you can
-ignore (e.g. `+` is rewritten `$plus`). The basic rule of thumb is
-that every `<-` (generator) is a nested `flatMap` call, with the final
-generator being a `map`, containing the `yield`.
+There's a lot of noise due to additional sugarings that you can ignore
+(e.g. `+` is rewritten `$plus`). The basic rule of thumb is that every
+`<-` (generator) is a nested `flatMap` call, with the final generator
+being a `map`, containing the `yield`.
 
 For the remaining examples, we'll skip the `show` and `reify` for
 brevity when the REPL line is `reify>`, and also manually clean up the
@@ -57,14 +62,15 @@ a.flatMap {
       k => ij + k }}}
 ~~~~~~~~
 
-The compiler thinks it would be best to `map` over the `b` to
-introduce the `val ij` in a tuple that can be flat-mapped along with
-the `j`, then the final `map` for the code in the `yield`.
+A `map` over the `b` introduces the `ij` which is flat-mapped along
+with the `j`, then the final `map` for the code in the `yield`.
 
 A> `val` doesn't have to assign to a single value, it can be anything
-A> that works as a `case` in a pattern match. Be careful that you don't
-A> miss any cases or you'll get a runtime exception (a *totality*
-A> failure):
+A> that works as a `case` in a pattern match. The same is true for
+A> assignment in `for` comprehensions.
+A> 
+A> Be careful that you don't miss any cases or you'll get a runtime
+A> exception (a *totality* failure):
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -90,7 +96,6 @@ scala> for {
          initial = getDefault
          i <- a
        } yield initial + i
-
 <console>:1: error: '<-' expected but '=' found.
 ~~~~~~~~
 
@@ -108,8 +113,8 @@ scala> for {
        } yield initial + i
 ~~~~~~~~
 
-There is one more rewrite rule, it's possible to put `if` statements
-after a generator:
+It's possible to put `if` statements after a generator to call
+`withFilter`:
 
 {lang="text"}
 ~~~~~~~~
@@ -127,19 +132,93 @@ a.flatMap {
         k => i + j + k }}}
 ~~~~~~~~
 
-generating a call to `withFilter`.[^fn_filter]
+Older versions of scala called `filter`, but since `filter` in the
+collections library creates new collections, and memory churn,
+`withFilter` was more performant.
 
-## TODO Keep it alive
+Finally, if there is no `yield`, the compiler will use `foreach`
+instead of `flatMap`, which is only useful for side-effects, and
+therefore discouraged.
 
-<https://github.com/fommil/drone-dynamic-agents/issues/14>
+{lang="text"}
+~~~~~~~~
+reify> for { i <- a ; j <- b } println(s"$i $j")
 
-## TODO Unhappy path
+a.foreach { i => b.foreach { j => println(s"$i $j") } }
+~~~~~~~~
 
-The `yield` is only called when `i,j,k` are all defined. If any of
-`a,b,c` are `None`, the entire expression is `None`.
+The full set of methods that can be (optionally) used by a `for`
+comprehension do not share a common super type; each generated snippet
+is independently compiled. If there were a trait, it would roughly
+look like:
 
-A> How many times have you seen a function that takes `Option` parameters
-A> but actually requires them all to exist? I hate seeing this:
+{lang="text"}
+~~~~~~~~
+trait ForComprehendable[C[_]] {
+  def map[A, B](f: A => B): C[B]
+  def flatMap[A, B](f: A => C[B]): C[B]
+  def withFilter[A](p: A => Boolean): C[A]
+  def foreach[A](f: A => Unit): Unit
+}
+~~~~~~~~
+
+If an implicit `cats.FlatMap[T]` (or `cats.Monad[T]`) is available for
+your type `T`, you automatically get `map` and `flatMap` and can use
+your `T` in a `for` comprehension. `withFilter` and `foreach` are not
+concepts that are useful in functional programming, so we won't
+discuss them any further.
+
+A> Many developers are surprised that when they start a `Future` in a
+A> `for` comprehension, their calculations do not run in parallel:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A> import scala.concurrent._
+A> import ExecutionContext.Implicits.global
+A> 
+A> for {
+A>   i <- Future { expensiveCalc() }
+A>   j <- Future { anotherExpensiveCalc() }
+A> } yield (i + j)
+A> ~~~~~~~~
+A> 
+A> The is because the `flatMap` spawning `anotherExpensiveCalc` is only
+A> called **after** `expensiveCalc`. To ensure that two `Future`
+A> calculations begin in parallel, start them outside the `for`
+A> comprehension.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A> val a = Future { expensiveCalc() }
+A> val b = Future { anotherExpensiveCalc() }
+A> for { i <- a ; j <- b } yield (i + j)
+A> ~~~~~~~~
+A> 
+A> `for` comprehensions are fundamentally for defining procedural
+A> programs. We will show a far superior way of defining parallel
+A> computations in a later chapter.
+
+## Unhappy path
+
+So far we've only considered what the rewrite rules are, not what is
+happening in `map` and `flatMap`. Let's consider what happens when the
+container decides that it can't proceed any further.
+
+In the `Option` example, the `yield` is only called when `i,j,k` are
+all defined.
+
+{lang="text"}
+~~~~~~~~
+for {
+  i <- a
+  j <- b
+  k <- c
+} yield (i + j + k)
+~~~~~~~~
+
+A> How often have you seen a function that takes `Option` parameters but
+A> requires them all to exist? An alternative to throwing a runtime
+A> exception is to use a `for` comprehension:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -152,10 +231,49 @@ A>   number <- someNumber
 A> } yield s"$number ${name}s"
 A> ~~~~~~~~
 A> 
-A> Although this is better than throwing an exception, it is clunky and
-A> bad style. If a function really does require every input then it
-A> should make its requirement explicit, pushing the responsibility for
-A> dealing with optional parameters to its caller.
+A> but this is clunky and bad style. If a function requires every input
+A> then it should make this requirement explicit, pushing the
+A> responsibility of dealing with optional parameters to its caller ---
+A> don't use `for` unless you need to.
+
+If any of `a,b,c` are `None`, the entire expression is `None`. But if
+we use `Either`, then a `Left` will cause the `for` comprehension to
+short circuit, much better than `Option` for error reporting:
+
+{lang="text"}
+~~~~~~~~
+scala> val a = Right(1)
+scala> val b = Right(2)
+scala> val c: Either[String, Int] = Left("sorry, no c")
+scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+
+Left(sorry, no c)
+~~~~~~~~
+
+For this reason, `Either` is the de-facto checked exception of Scala,
+letting `for` take care of the unhappy path.
+
+The behaviour of the unhappy path is entirely dependent on the
+container. Consider what happens if `a,b,c` are `Future` values and
+one of the calculations fail
+
+{lang="text"}
+~~~~~~~~
+scala> import scala.concurrent._
+scala> import ExecutionContext.Implicits.global
+scala> val a = Future.successful(1)
+scala> val b = Future.failed(new Throwable)
+scala> val c = Future.successful(2)
+scala> val f = for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+scala> Await.result(f, duration.Duration.Inf)
+
+java.lang.Throwable
+
+~~~~~~~~
+
+## TODO Keep it alive
+
+<https://github.com/fommil/drone-dynamic-agents/issues/14>
 
 ## TODO Monad Transformers
 
@@ -273,7 +391,3 @@ Protect yourself from mistyping
 not sure what the relevance to this project would be yet.
 
 
-[^fn_filter]:  Older versions of scala
-called `filter`, but since `filter` in the collections library creates
-new collections, and unnecessary heap objects, `withFilter` was
-introduced for performance.

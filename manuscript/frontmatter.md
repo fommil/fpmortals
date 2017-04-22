@@ -72,7 +72,7 @@ FP-specific features enabled (e.g. in `build.sbt`):
 
 {lang="text"}
 ~~~~~~~~
-scalaVersion in ThisBuild := "2.12.1"
+scalaVersion in ThisBuild := "2.12.2"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-Ypartial-unification"

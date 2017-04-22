@@ -83,7 +83,7 @@ this book, you will need to use a recent version of Scala with
 FP-specific features enabled (e.g. in =build.sbt=):
 
 #+BEGIN_SRC scala
-scalaVersion in ThisBuild := "2.12.1"
+scalaVersion in ThisBuild := "2.12.2"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-Ypartial-unification"
@@ -329,10 +329,10 @@ like =echo=. We can trivially write a mock implementation of
 =Terminal[Now]= and use it in our tests.
 
 But the code is horrible! Let's use the =implicit class= Scala
-language feature (aka "enriching" or "ops") to give =C= some nicer
-methods when there is an implicit =Execution= available. We'll call
-these methods =flatMap= and =map= for reasons that will become clearer
-in a moment:
+language feature (aka "enriching", "ops" or "syntax") to give =C= some
+nicer methods when there is an implicit =Execution= available. We'll
+call these methods =flatMap= and =map= for reasons that will become
+clearer in a moment:
 
 #+BEGIN_SRC scala
 object Execution {
@@ -437,11 +437,16 @@ potential.
 In this chapter, we're going to visit the principles of =for= and how
 cats can help us to write cleaner code with the standard library.
 
+*** Syntax Sugar
+
 Scala's =for= is just a simple rewrite rule that doesn't have any
-contextual information. The easiest way to see what a =for=
-comprehension is doing is to use the =show= and =reify= feature in the
-REPL to print out what your code looks like after type inference
-(alternatively, invoke the compiler with the =-Xprint:typer= flag):
+contextual information. The compiler does the rewrite during parsing
+as /syntax sugar/, designed only to reduce verbosity in the language.
+
+The easiest way to see what a =for= comprehension is doing is to use
+the =show= and =reify= feature in the REPL to print out what code
+looks like after type inference (alternatively, invoke the compiler
+with the =-Xprint:typer= flag):
 
 #+BEGIN_SRC scala
 scala> import scala.reflect.runtime.universe._
@@ -456,10 +461,10 @@ $read.a.flatMap(
       ((k) => i.$plus(j).$plus(k)))))))
 #+END_SRC
 
-There's a lot of noise due to additional desugarings that you can
-ignore (e.g. =+= is rewritten =$plus=). The basic rule of thumb is
-that every =<-= (generator) is a nested =flatMap= call, with the final
-generator being a =map=, containing the =yield=.
+There's a lot of noise due to additional sugarings that you can ignore
+(e.g. =+= is rewritten =$plus=). The basic rule of thumb is that every
+=<-= (generator) is a nested =flatMap= call, with the final generator
+being a =map=, containing the =yield=.
 
 For the remaining examples, we'll skip the =show= and =reify= for
 brevity when the REPL line is =reify>=, and also manually clean up the
@@ -482,16 +487,17 @@ a.flatMap {
       k => ij + k }}}
 #+END_SRC
 
-The compiler thinks it would be best to =map= over the =b= to
-introduce the =val ij= in a tuple that can be flat-mapped along with
-the =j=, then the final =map= for the code in the =yield=.
+A =map= over the =b= introduces the =ij= which is flat-mapped along
+with the =j=, then the final =map= for the code in the =yield=.
 
 #+BEGIN_ASIDE
 
 =val= doesn't have to assign to a single value, it can be anything
-that works as a =case= in a pattern match. Be careful that you don't
-miss any cases or you'll get a runtime exception (a /totality/
-failure):
+that works as a =case= in a pattern match. The same is true for
+assignment in =for= comprehensions.
+
+Be careful that you don't miss any cases or you'll get a runtime
+exception (a /totality/ failure):
 
 #+BEGIN_SRC scala
 scala> val (first, second) = ("hello", "world")
@@ -516,7 +522,6 @@ scala> for {
          initial = getDefault
          i <- a
        } yield initial + i
-
 <console>:1: error: '<-' expected but '=' found.
 #+END_SRC
 
@@ -533,8 +538,8 @@ scala> for {
        } yield initial + i
 #+END_SRC
 
-There is one more rewrite rule, it's possible to put =if= statements
-after a generator:
+It's possible to put =if= statements after a generator to call
+=withFilter=:
 
 #+BEGIN_SRC scala
 reify> for {
@@ -551,24 +556,93 @@ a.flatMap {
         k => i + j + k }}}
 #+END_SRC
 
-generating a call to =withFilter=.[fn:filter: Older versions of scala
-called =filter=, but since =filter= in the collections library creates
-new collections, and unnecessary heap objects, =withFilter= was
-introduced for performance.]
+Older versions of scala called =filter=, but since =filter= in the
+collections library creates new collections, and memory churn,
+=withFilter= was more performant.
 
-*** TODO Keep it alive
+Finally, if there is no =yield=, the compiler will use =foreach=
+instead of =flatMap=, which is only useful for side-effects, and
+therefore discouraged.
 
-https://github.com/fommil/drone-dynamic-agents/issues/14
+#+BEGIN_SRC scala
+reify> for { i <- a ; j <- b } println(s"$i $j")
 
-*** TODO Unhappy path
+a.foreach { i => b.foreach { j => println(s"$i $j") } }
+#+END_SRC
 
-The =yield= is only called when =i,j,k= are all defined. If any of
-=a,b,c= are =None=, the entire expression is =None=.
+The full set of methods that can be (optionally) used by a =for=
+comprehension do not share a common super type; each generated snippet
+is independently compiled. If there were a trait, it would roughly
+look like:
+
+#+BEGIN_SRC scala
+trait ForComprehendable[C[_]] {
+  def map[A, B](f: A => B): C[B]
+  def flatMap[A, B](f: A => C[B]): C[B]
+  def withFilter[A](p: A => Boolean): C[A]
+  def foreach[A](f: A => Unit): Unit
+}
+#+END_SRC
+
+If an implicit =cats.FlatMap[T]= (or =cats.Monad[T]=) is available for
+your type =T=, you automatically get =map= and =flatMap= and can use
+your =T= in a =for= comprehension. =withFilter= and =foreach= are not
+concepts that are useful in functional programming, so we won't
+discuss them any further.
 
 #+BEGIN_ASIDE
 
-How many times have you seen a function that takes =Option= parameters
-but actually requires them all to exist? I hate seeing this:
+Many developers are surprised that when they start a =Future= in a
+=for= comprehension, their calculations do not run in parallel:
+
+#+BEGIN_SRC scala
+import scala.concurrent._
+import ExecutionContext.Implicits.global
+
+for {
+  i <- Future { expensiveCalc() }
+  j <- Future { anotherExpensiveCalc() }
+} yield (i + j)
+#+END_SRC
+
+The is because the =flatMap= spawning =anotherExpensiveCalc= is only
+called *after* =expensiveCalc=. To ensure that two =Future=
+calculations begin in parallel, start them outside the =for=
+comprehension.
+
+#+BEGIN_SRC scala
+val a = Future { expensiveCalc() }
+val b = Future { anotherExpensiveCalc() }
+for { i <- a ; j <- b } yield (i + j)
+#+END_SRC
+
+=for= comprehensions are fundamentally for defining procedural
+programs. We will show a far superior way of defining parallel
+computations in a later chapter.
+#+END_ASIDE
+
+*** Unhappy path
+
+So far we've only considered what the rewrite rules are, not what is
+happening in =map= and =flatMap=. Let's consider what happens when the
+container decides that it can't proceed any further.
+
+In the =Option= example, the =yield= is only called when =i,j,k= are
+all defined.
+
+#+BEGIN_SRC scala
+for {
+  i <- a
+  j <- b
+  k <- c
+} yield (i + j + k)
+#+END_SRC
+
+#+BEGIN_ASIDE
+
+How often have you seen a function that takes =Option= parameters but
+requires them all to exist? An alternative to throwing a runtime
+exception is to use a =for= comprehension:
 
 #+BEGIN_SRC scala
 def namedThings(
@@ -580,11 +654,54 @@ def namedThings(
 } yield s"$number ${name}s"
 #+END_SRC
 
-Although this is better than throwing an exception, it is clunky and
-bad style. If a function really does require every input then it
-should make its requirement explicit, pushing the responsibility for
-dealing with optional parameters to its caller.
+but this is clunky and bad style. If a function requires every input
+then it should make this requirement explicit, pushing the
+responsibility of dealing with optional parameters to its caller ---
+don't use =for= unless you need to.
 #+END_ASIDE
+
+If any of =a,b,c= are =None=, the entire expression is =None=. But if
+we use =Either=, then a =Left= will cause the =for= comprehension to
+short circuit, much better than =Option= for error reporting:
+
+#+BEGIN_SRC scala
+scala> val a = Right(1)
+scala> val b = Right(2)
+scala> val c: Either[String, Int] = Left("sorry, no c")
+scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+
+Left(sorry, no c)
+#+END_SRC
+
+For this reason, =Either= is the de-facto checked exception of Scala,
+letting =for= take care of the unhappy path.
+
+The behaviour of the unhappy path is entirely dependent on the
+container. Consider what happens if =a,b,c= are =Future= values and
+one of the calculations fail
+
+#+BEGIN_SRC scala
+scala> import scala.concurrent._
+scala> import ExecutionContext.Implicits.global
+scala> val a = Future.successful(1)
+scala> val b = Future.failed(new Throwable)
+scala> val c = Future.successful(2)
+scala> val f = for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+scala> Await.result(f, duration.Duration.Inf)
+
+java.lang.Throwable
+
+#+END_SRC
+
+
+
+
+
+
+
+*** TODO Keep it alive
+
+https://github.com/fommil/drone-dynamic-agents/issues/14
 
 
 *** TODO Monad Transformers

@@ -207,10 +207,10 @@ like `echo`. We can trivially write a mock implementation of
 `Terminal[Now]` and use it in our tests.
 
 But the code is horrible! Let's use the `implicit class` Scala
-language feature (aka "enriching" or "ops") to give `C` some nicer
-methods when there is an implicit `Execution` available. We'll call
-these methods `flatMap` and `map` for reasons that will become clearer
-in a moment:
+language feature (aka "enriching", "ops" or "syntax") to give `C` some
+nicer methods when there is an implicit `Execution` available. We'll
+call these methods `flatMap` and `map` for reasons that will become
+clearer in a moment:
 
 {lang="text"}
 ~~~~~~~~
