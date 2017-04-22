@@ -216,10 +216,10 @@ in a moment:
 ~~~~~~~~
 object Execution {
   implicit class Ops[A, C[_]](val c: C[A]) extends AnyVal {
-    def flatMap[B](f: A => C[B])
-                  (implicit e: Execution[C]): C[B] = e.doAndThen(c)(f)
-    def     map[B](f: A => B)
-                  (implicit e: Execution[C]): C[B] = e.doAndThen(c)(f andThen e.wrap)
+    def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
+          e.doAndThen(c)(f)
+    def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
+          e.doAndThen(c)(f andThen e.wrap)
   }
 }
 ~~~~~~~~
