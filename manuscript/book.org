@@ -592,8 +592,8 @@ discuss them any further.
 
 #+BEGIN_ASIDE
 
-Many developers are surprised that when they start a =Future= in a
-=for= comprehension, their calculations do not run in parallel:
+Many developers are surprised when they start =Future= calculations in
+a =for= comprehension, they do not run in parallel:
 
 #+BEGIN_SRC scala
 import scala.concurrent._
@@ -605,7 +605,7 @@ for {
 } yield (i + j)
 #+END_SRC
 
-The is because the =flatMap= spawning =anotherExpensiveCalc= is only
+This is because the =flatMap= spawning =anotherExpensiveCalc= is only
 called *after* =expensiveCalc=. To ensure that two =Future=
 calculations begin in parallel, start them outside the =for=
 comprehension.

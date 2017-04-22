@@ -168,8 +168,8 @@ your `T` in a `for` comprehension. `withFilter` and `foreach` are not
 concepts that are useful in functional programming, so we won't
 discuss them any further.
 
-A> Many developers are surprised that when they start a `Future` in a
-A> `for` comprehension, their calculations do not run in parallel:
+A> Many developers are surprised when they start `Future` calculations in
+A> a `for` comprehension, they do not run in parallel:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -182,7 +182,7 @@ A>   j <- Future { anotherExpensiveCalc() }
 A> } yield (i + j)
 A> ~~~~~~~~
 A> 
-A> The is because the `flatMap` spawning `anotherExpensiveCalc` is only
+A> This is because the `flatMap` spawning `anotherExpensiveCalc` is only
 A> called **after** `expensiveCalc`. To ensure that two `Future`
 A> calculations begin in parallel, start them outside the `for`
 A> comprehension.
