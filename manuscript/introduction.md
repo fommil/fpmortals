@@ -118,19 +118,18 @@ A> }
 A> ~~~~~~~~
 A> 
 A> There is an interesting trick we can use when we want to ignore the
-A> type constructor. Let's define a type alias to be equal to its
-A> parameter:
+A> type constructor. Recall that type aliases don't define any new types,
+A> they just use substitution so we can create convenient names. Let's
+A> define a type alias to be equal to its parameter:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
 A> type Id[T] = T
 A> ~~~~~~~~
 A> 
-A> Type aliases don't define a new types, they just use substitution to
-A> let us have convenient syntax. Before proceeding, convince yourself
-A> that `Id[Int]` is the same thing as `Int`, by substituting `Int` into
-A> `T`. But `Id` is a valid type constructor, so we can use `Id` in an
-A> implementation of `Foo`:
+A> Before proceeding, convince yourself that `Id[Int]` is the same thing
+A> as `Int`, by substituting `Int` into `T`. But `Id` is a valid type
+A> constructor, so we can use `Id` in an implementation of `Foo`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -157,7 +156,7 @@ terminals:
 
 {lang="text"}
 ~~~~~~~~
-type Now[+X] = X
+type Now[X] = X
 
 object TerminalSync extends Terminal[Now] {
   def read: String = ???

@@ -244,18 +244,17 @@ object FooEitherString extends Foo[EitherString] {
 #+END_SRC
 
 There is an interesting trick we can use when we want to ignore the
-type constructor. Let's define a type alias to be equal to its
-parameter:
+type constructor. Recall that type aliases don't define any new types,
+they just use substitution so we can create convenient names. Let's
+define a type alias to be equal to its parameter:
 
 #+BEGIN_SRC scala
 type Id[T] = T
 #+END_SRC
 
-Type aliases don't define a new types, they just use substitution to
-let us have convenient syntax. Before proceeding, convince yourself
-that =Id[Int]= is the same thing as =Int=, by substituting =Int= into
-=T=. But =Id= is a valid type constructor, so we can use =Id= in an
-implementation of =Foo=:
+Before proceeding, convince yourself that =Id[Int]= is the same thing
+as =Int=, by substituting =Int= into =T=. But =Id= is a valid type
+constructor, so we can use =Id= in an implementation of =Foo=:
 
 #+BEGIN_SRC scala
 object FooId extends Foo[Id] {
@@ -281,7 +280,7 @@ can implement a common interface for synchronous and asynchronous
 terminals:
 
 #+BEGIN_SRC scala
-type Now[+X] = X
+type Now[X] = X
 
 object TerminalSync extends Terminal[Now] {
   def read: String = ???
@@ -428,16 +427,167 @@ chapter, allowing you to focus on writing pure business logic.
   :PROPERTIES:
   :EXPORT_FILE_NAME: main-text.md
   :END:
-** TODO =for=
+** For Comprehensions
 
-We're going to be using these a lot. Need to be comfortable with it.
+Scala's =for= comprehension is heavily used in FP --- it is the ideal
+abstraction to write pure procedural code. But most Scala developers
+only use =for= to loop over collections and are not aware of its full
+potential.
 
-Include a lot of stuff from "For: what is it good for?"
+In this chapter, we're going to visit the principles of =for= and how
+cats can help us to write cleaner code with the standard library.
 
-*** RESEARCH Monad Transformers
+Scala's =for= is just a simple rewrite rule that doesn't have any
+contextual information. The easiest way to see what a =for=
+comprehension is doing is to use the =show= and =reify= feature in the
+REPL to print out what your code looks like after type inference
+(alternatively, invoke the compiler with the =-Xprint:typer= flag):
 
-Maybe too early? Let's say put it here if we need it for the
-interpreters, otherwise after Optics.
+#+BEGIN_SRC scala
+scala> import scala.reflect.runtime.universe._
+scala> val a, b, c = Option(1)
+scala> show { reify {
+         for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+       } }
+
+$read.a.flatMap(
+  ((i) => $read.b.flatMap(
+    ((j) => $read.c.map(
+      ((k) => i.$plus(j).$plus(k)))))))
+#+END_SRC
+
+There's a lot of noise due to additional desugarings that you can
+ignore (e.g. =+= is rewritten =$plus=). The basic rule of thumb is
+that every =<-= (generator) is a nested =flatMap= call, with the final
+generator being a =map=, containing the =yield=.
+
+For the remaining examples, we'll skip the =show= and =reify= for
+brevity when the REPL line is =reify>=, and also manually clean up the
+generated code so that it doesn't become a distraction.
+
+We can also assign values inline like =val ij = i + j= (the =val=
+keyword is not needed).
+
+#+BEGIN_SRC scala
+reify> for {
+         i <- a
+         j <- b
+         ij = i + j
+         k <- c
+       } yield (ij + k)
+
+a.flatMap {
+  i => b.map { j => (j, i + j) }.flatMap {
+    case (j, ij) => c.map {
+      k => ij + k }}}
+#+END_SRC
+
+The compiler thinks it would be best to =map= over the =b= to
+introduce the =val ij= in a tuple that can be flat-mapped along with
+the =j=, then the final =map= for the code in the =yield=.
+
+#+BEGIN_ASIDE
+
+=val= doesn't have to assign to a single value, it can be anything
+that works as a =case= in a pattern match. Be careful that you don't
+miss any cases or you'll get a runtime exception (a /totality/
+failure):
+
+#+BEGIN_SRC scala
+scala> val (first, second) = ("hello", "world")
+first: String = hello
+second: String = world
+
+scala> val list: List[Int] = ...
+scala> val head :: tail = list
+head: Int = 1
+tail: List[Int] = List(2, 3)
+
+// not safe to assume the list is non-empty
+scala> val a :: tail = list
+scala.MatchError: List()
+#+END_SRC
+#+END_ASIDE
+
+Unfortunately we [[https://github.com/typelevel/scala/issues/143][cannot assign a value before any generators]]:
+
+#+BEGIN_SRC scala
+scala> for {
+         initial = getDefault
+         i <- a
+       } yield initial + i
+
+<console>:1: error: '<-' expected but '=' found.
+#+END_SRC
+
+but we can workaround it by defining a =val= outside the =for= or wrap
+the initial assignment:
+
+#+BEGIN_SRC scala
+scala> val initial = getDefault
+       for { i <- a } yield initial + i
+
+scala> for {
+         initial <- Option(getDefault)
+         i <- a
+       } yield initial + i
+#+END_SRC
+
+There is one more rewrite rule, it's possible to put =if= statements
+after a generator:
+
+#+BEGIN_SRC scala
+reify> for {
+         i  <- a
+         j  <- b
+         if i > j
+         k  <- c
+       } yield (i + j + k)
+
+a.flatMap {
+  i => b.withFilter {
+    j => i > j }.flatMap {
+      j => c.map {
+        k => i + j + k }}}
+#+END_SRC
+
+generating a call to =withFilter=.[fn:filter: Older versions of scala
+called =filter=, but since =filter= in the collections library creates
+new collections, and unnecessary heap objects, =withFilter= was
+introduced for performance.]
+
+*** TODO Keep it alive
+
+https://github.com/fommil/drone-dynamic-agents/issues/14
+
+*** TODO Unhappy path
+
+The =yield= is only called when =i,j,k= are all defined. If any of
+=a,b,c= are =None=, the entire expression is =None=.
+
+#+BEGIN_ASIDE
+
+How many times have you seen a function that takes =Option= parameters
+but actually requires them all to exist? I hate seeing this:
+
+#+BEGIN_SRC scala
+def namedThings(
+  someName  : Option[String],
+  someNumber: Option[Int]
+): Option[String] = for {
+  name   <- someName
+  number <- someNumber
+} yield s"$number ${name}s"
+#+END_SRC
+
+Although this is better than throwing an exception, it is clunky and
+bad style. If a function really does require every input then it
+should make its requirement explicit, pushing the responsibility for
+dealing with optional parameters to its caller.
+#+END_ASIDE
+
+
+*** TODO Monad Transformers
 
 ** TODO Implicits
 
