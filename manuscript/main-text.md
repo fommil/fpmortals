@@ -236,9 +236,10 @@ A> then it should make this requirement explicit, pushing the
 A> responsibility of dealing with optional parameters to its caller ---
 A> don't use `for` unless you need to.
 
-If any of `a,b,c` are `None`, the entire expression is `None`. But if
-we use `Either`, then a `Left` will cause the `for` comprehension to
-short circuit, much better than `Option` for error reporting:
+If any of `a,b,c` are `None`, the comprehension short-circuits with
+`None` but it doesn't tell us what went wrong. If we use `Either`,
+then a `Left` will cause the `for` comprehension to short circuit with
+some extra information, much better than `Option` for error reporting:
 
 {lang="text"}
 ~~~~~~~~
@@ -250,8 +251,7 @@ scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
 Left(sorry, no c)
 ~~~~~~~~
 
-Consider what happens if `a,b,c` are `Future` values and one of the
-calculations fail
+And lastly, let's see what happens with `Future` that fails:
 
 {lang="text"}
 ~~~~~~~~
@@ -269,16 +269,35 @@ java.lang.Throwable
 The `Future` which prints to the terminal is never called because,
 like `Option` and `Either`, the `for` comprehension short circuits.
 
-Short circuiting for the unhappy path is a common and important theme:
+Short circuiting for the unhappy path is a common and important theme.
 `for` comprehensions cannot express resource cleanup: there is no way
 to do `try` / `finally`. Cleanup needs to be a part of the `Monad` for
 the container that we're flat-mapping over. This is a good thing, it
 puts a clear ownership of responsibility for unexpected errors onto
 the `Monad`, not the business logic.
 
-## TODO Keep it alive
+## TODO Limitations
 
-<https://github.com/fommil/drone-dynamic-agents/issues/14>
+This section will gather examples of things that are easy to do with
+typical scala code, but require some mental summersaults with monads,
+e.g.
+
+{lang="text"}
+~~~~~~~~
+val foo = sideEffectThingA
+if (foo.isDefined) foo
+else sideEffectThingB
+~~~~~~~~
+
+needs to be
+
+{lang="text"}
+~~~~~~~~
+for {
+  foo <- IO { sideEffectThingA }
+  res <- if (foo.isDefined) IO.pure(foo) else IO { sideEffectThingB }
+} yield res
+~~~~~~~~
 
 ## TODO Monad Transformers
 
