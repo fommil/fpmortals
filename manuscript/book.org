@@ -228,7 +228,7 @@ implement =Foo= using =List=:
 
 #+BEGIN_SRC scala
 object FooList extends Foo[List] {
-  def wrap(i: Int): List[Int] = List(s)
+  def wrap(i: Int): List[Int] = List(i)
 }
 #+END_SRC
 
@@ -239,14 +239,14 @@ to create a type alias:
 #+BEGIN_SRC scala
 type EitherString[T] = Either[String, T]
 object FooEitherString extends Foo[EitherString] {
- def wrap(i: Int): Either[String, Int] = Right(s)
+ def wrap(i: Int): Either[String, Int] = Right(i)
 }
 #+END_SRC
 
-There is an interesting trick we can use when we want to ignore the
-type constructor. Recall that type aliases don't define any new types,
-they just use substitution so we can create convenient names. Let's
-define a type alias to be equal to its parameter:
+There is a trick we can use when we want to ignore the type
+constructor. Recall that type aliases don't define any new types, they
+just use substitution for convenient names. Let's define a type alias
+to be equal to its parameter:
 
 #+BEGIN_SRC scala
 type Id[T] = T
@@ -258,28 +258,23 @@ constructor, so we can use =Id= in an implementation of =Foo=:
 
 #+BEGIN_SRC scala
 object FooId extends Foo[Id] {
-  def wrap(i: Int): Int = s
+  def wrap(i: Int): Int = i
 }
 #+END_SRC
 
 #+END_ASIDE
 
-In our case, we want to define =Terminal= for a type constructor
-=C[_]= allowing us to put =C[String]= and =C[Unit]= in our method
-signatures:
+We want to define =Terminal= for a type constructor =C[_]=. By
+defining =Now= to construct to its type parameter (like =Id=), we can
+implement a common interface for synchronous and asynchronous
+terminals:
 
 #+BEGIN_SRC scala
 trait Terminal[C[_]] {
   def read: C[String]
   def write(t: String): C[Unit]
 }
-#+END_SRC
 
-By defining =Now= to construct to its type parameter (like =Id=), we
-can implement a common interface for synchronous and asynchronous
-terminals:
-
-#+BEGIN_SRC scala
 type Now[X] = X
 
 object TerminalSync extends Terminal[Now] {
@@ -419,9 +414,9 @@ Akka and Play, isolated away from the core business logic.
 This book expands on the FP style introduced in this chapter. We're
 going to use the traits and classes defined in the /cats/ and /fs2/
 libraries to implement streaming applications. We'll also use the
-/freestyle/ and /simulacrum/ developer tooling to eliminate
-boilerplate some of the boilerplate we've already seen in this
-chapter, allowing you to focus on writing pure business logic.
+/freestyle/ and /simulacrum/ developer tooling to eliminate some of
+the boilerplate we've already seen in this chapter, allowing you to
+focus on writing pure business logic.
 
 * Main Text
   :PROPERTIES:
