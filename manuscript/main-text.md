@@ -276,28 +276,82 @@ the container that we're flat-mapping over. This is a good thing, it
 puts a clear ownership of responsibility for unexpected errors onto
 the `Monad`, not the business logic.
 
-## TODO Limitations
+## Gymnastics
 
-This section will gather examples of things that are easy to do with
-typical scala code, but require some mental summersaults with monads,
-e.g.
+Although it's easy to rewrite simple procedural code as a `for`
+comprehension, sometimes you'll want to do something that appears to
+require mental summersaults. This section collects some practical
+examples and how to deal with them.
+
+Let's say we are calling out to a method that returns an `Option` and
+if it's not successful we want to fallback to another method, like
+when we're using a cache:
 
 {lang="text"}
 ~~~~~~~~
-val foo = sideEffectThingA
-if (foo.isDefined) foo
-else sideEffectThingB
+def getFromReddis(s: String): Option[String] = ...
+def getFromSql(s: String): Option[String] = ...
+
+getFromReddis(key) orElse getFromSql(key)
 ~~~~~~~~
 
-needs to be
+But, if we call `reddis <- getFromReddis(key)` in a `for`, it will
+short-circuit when it is `None`. What we need to do is to wrap the
+result in *another* monadic thing. We'll use a `Future` to make a
+point
 
 {lang="text"}
 ~~~~~~~~
 for {
-  foo <- IO { sideEffectThingA }
-  res <- if (foo.isDefined) IO.pure(foo) else IO { sideEffectThingB }
+  cache <- Future { getFromReddis(key) }
+  res   <- cache match {
+             case Some(cached) => Future.successful(cached)
+             case None         => Future { getFromSql(key) }
+           }
 } yield res
 ~~~~~~~~
+
+The call to `Future.successful` is like the `Option` constructor
+because it just wraps a single value. Every Monad in cats has a method
+called `pure` on its companion, adding some consistency to this
+pattern.
+
+This `for` returns a `Future[Option[String]]` instead of the
+`Option[String]` that we started with, so we need to get out of the
+container by blocking the thread. If we had used `Option` instead of
+`Future`, we could use `flatten`. Every `Monad` has its own way of
+unwrapping its contents.
+
+In the next chapter we'll write an application and show that it is
+much easier if we let cats take care of the Monad, which will require
+changing how we define `getFromReddis` and `getFromSql` but letting
+us write
+
+{lang="text"}
+~~~~~~~~
+for {
+  cache <- getFromReddis(key)
+  res   <- cache match {
+             case Some(cached) => cached.pure
+             case None         => getFromSql(key)
+           }
+} yield res
+~~~~~~~~
+
+A> We could play code golf and write
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A> for {
+A>   cache <- getFromReddis(key)
+A>   res   <- cache.orElseM(getFromSql(key))
+A> } yield res
+A> ~~~~~~~~
+A> 
+A> by defining <https://github.com/typelevel/cats/issues/1625>
+
+If functional programming was like this all the time, it'd be a
+nightmare. Thankfully these tricky situations are the corner cases.
 
 ## TODO Monad Transformers
 
@@ -347,7 +401,7 @@ Might require a moment to explain `FreeApplicative` (I'd rather not get into det
 -   clean way to write logic and divide labour
 -   easier to write maintainable and testable code
 
-Three steps forward but one step back: performance.
+Three steps forward but two steps back: performance, IDE support.
 
 High level overview of what `@free` and `@module` is doing, and the
 concept of trampolining. For a detailed explanation of free style and
