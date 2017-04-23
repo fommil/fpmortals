@@ -94,9 +94,9 @@ A> }
 A> ~~~~~~~~
 A> 
 A> A type constructor is syntax for a type that takes a type to construct
-A> another type. `List` is a type constructor because it takes a type and
-A> constructs a type (`List -> Int -> List[Int]`). We can implement `Foo`
-A> using `List`:
+A> another type. `List` is a type constructor because it takes a type
+A> (e.g. `Int`) and constructs a type (`List -> Int -> List[Int]`). We
+A> can implement `Foo` using `List`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~

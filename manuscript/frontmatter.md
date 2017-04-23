@@ -28,16 +28,16 @@ This book is **Libre** and follows the philosophy of [Free Software](https://www
 can use this book as you like, you can redistribute this book and you
 can distribute your own version. That means you can print it,
 photocopy it, e-mail it, post it on social media, upload it to
-websites, change it, remix it, delete bits, and draw all over it. You
-can even sell it, although you won't be making friends with the author
-if you do that.
+websites, change it, translate it, remix it, delete bits, and draw all
+over it. You can even sell it, although you should agree a royalty
+share with the author or you'll not be getting an xmas card.
 
 This book is **Copyleft**: if you change the book and distribute your
-own version, it must also pass on these freedoms to its recipients.
+own version, you must also pass these freedoms to its recipients.
 
 This book uses the [Creative Commons Attribution ShareAlike 4.0
 International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC BY-SA 4.0) license. Attribution means you cannot
-claim that you wrote the original book.
+claim that you wrote the book.
 
 All code examples in this book are separately [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) licensed.
 
