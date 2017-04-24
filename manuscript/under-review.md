@@ -46,6 +46,8 @@ For the remaining examples, we'll skip the `show` and `reify` for
 brevity when the REPL line is `reify>`, and also manually clean up the
 generated code so that it doesn't become a distraction.
 
+### Assignment
+
 We can assign values inline like `val ij = i + j` (the `val` keyword
 is not needed).
 
@@ -71,9 +73,6 @@ A> `val` doesn't have to assign to a single value, it can be anything
 A> that works as a `case` in a pattern match. The same is true for
 A> assignment in `for` comprehensions.
 A> 
-A> Be careful that you don't miss any cases or you'll get a runtime
-A> exception (a *totality* failure):
-A> 
 A> {lang="text"}
 A> ~~~~~~~~
 A> scala> val (first, second) = ("hello", "world")
@@ -84,8 +83,13 @@ A> scala> val list: List[Int] = ...
 A> scala> val head :: tail = list
 A> head: Int = 1
 A> tail: List[Int] = List(2, 3)
+A> ~~~~~~~~
 A> 
-A> // not safe to assume the list is non-empty
+A> But be careful that you don't miss any cases or you'll get a runtime
+A> exception (a *totality* failure).
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
 A> scala> val a :: tail = list
 A> scala.MatchError: List()
 A> ~~~~~~~~
@@ -115,8 +119,10 @@ scala> for {
        } yield initial + i
 ~~~~~~~~
 
-It's possible to put `if` statements after a generator to call
-`withFilter`:
+### Filter
+
+It's possible to put `if` statements after a generator to filter
+values by a predicate
 
 {lang="text"}
 ~~~~~~~~
@@ -134,9 +140,12 @@ a.flatMap {
         k => i + j + k }}}
 ~~~~~~~~
 
-Older versions of scala called `filter`, but since `filter` in the
-collections library creates new collections, and excessive memory
-churn, `withFilter` was more performant.
+Older versions of scala called `filter`, but `Traversable.filter` (and
+all its implementations) creates new collections for every predicate
+which is inefficient, so `withFilter` was introduced as the more
+performant alternative.
+
+### For Each
 
 Finally, if there is no `yield`, the compiler will use `foreach`
 instead of `flatMap`, which is only useful for side-effects.
@@ -148,10 +157,11 @@ reify> for { i <- a ; j <- b } println(s"$i $j")
 a.foreach { i => b.foreach { j => println(s"$i $j") } }
 ~~~~~~~~
 
-The full set of methods that can be (optionally) used by a `for`
-comprehension do not share a common super type; each generated snippet
-is independently compiled. If there were a trait, it would roughly
-look like:
+### Summary
+
+The full set of methods in a `for` comprehension do not share a common
+super type; each generated snippet is independently compiled. If there
+were a trait, it would roughly look like:
 
 {lang="text"}
 ~~~~~~~~
@@ -167,16 +177,15 @@ If an implicit `cats.FlatMap[T]` is available for your type `T`, you
 automatically get `map` and `flatMap` and can use your `T` in a `for`
 comprehension. `cats.Monad` implements `cats.FlatMap`, so anything
 that is monoidic (i.e. has an implicit `Monad[T]`) can be used in a
-`for`. Please do not make the equivalence between `for` and `Monad`,
-just because something can be used in a `for` comprehension does not
-mean it is monoidic (e.g. `Future` is not monoidic). We'll learn the
-difference when we discuss *laws*.
+`for`. But just because something can be used in a `for` comprehension
+does not mean it is monoidic (e.g. `Future` is not monoidic). We'll
+learn the difference when we discuss *laws*.
 
 `withFilter` and `foreach` are not concepts that are useful in
 functional programming, so we won't discuss them any further.
 
-A> It surprises developers that inline `Future` calculations in a `for`
-A> comprehension do not run in parallel:
+A> It often surprises developers when inline `Future` calculations in a
+A> `for` comprehension do not run in parallel:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -209,7 +218,7 @@ A> computations in a later chapter.
 
 So far we've only considered what the rewrite rules are, not what is
 happening in `map` and `flatMap`. Let's consider what happens when the
-container decides that it can't proceed any further.
+`for` decides that it can't proceed any further.
 
 In the `Option` example, the `yield` is only called when `i,j,k` are
 all defined.
@@ -258,7 +267,7 @@ scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
 Left(sorry, no c)
 ~~~~~~~~
 
-And lastly, let's see what happens with `Future` that fails:
+And lastly, let's see what happens with a `Future` that fails:
 
 {lang="text"}
 ~~~~~~~~
@@ -273,15 +282,15 @@ scala> Await.result(f, duration.Duration.Inf)
 java.lang.Throwable
 ~~~~~~~~
 
-The `Future` which prints to the terminal is never called because,
-like `Option` and `Either`, the `for` comprehension short circuits.
+The `Future` that prints to the terminal is never called because, like
+`Option` and `Either`, the `for` comprehension short circuits.
 
 Short circuiting for the unhappy path is a common and important theme.
 `for` comprehensions cannot express resource cleanup: there is no way
-to do `try` / `finally`. Cleanup needs to be a part of the thing that
-we're flat-mapping over. This is good, in FP it puts a clear ownership
-of responsibility for dealing with unexpected errors onto the `Monad`,
-not the business logic.
+to do `try` / `finally`. Cleanup therefore needs to be a part of the
+thing that we're flat-mapping over. This is good, in FP it puts a
+clear ownership of responsibility for dealing with unexpected errors
+onto the `Monad`, not the business logic.
 
 ## Gymnastics
 
@@ -289,6 +298,8 @@ Although it's easy to rewrite simple procedural code as a `for`
 comprehension, sometimes you'll want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
+
+### Fallback
 
 Let's say we are calling out to a method that returns an `Option` and
 if it's not successful we want to fallback to another method, like
@@ -302,10 +313,18 @@ def getFromSql(s: String): Option[String] = ...
 getFromReddis(key) orElse getFromSql(key)
 ~~~~~~~~
 
-But, if we call `reddis <- getFromReddis(key)` in a `for`, it will
-short-circuit when it is `None`. What we need to do is to wrap the
-result in *another* for-comprehendable thing. We'll use a `Future` to
-make a point
+### FIXME: this example is weak and needs to have an M around the Option, otherwise why not just use orElse?
+
+Let's say we have to do this for an asynchronous version of the same
+API
+
+{lang="text"}
+~~~~~~~~
+def getFromReddis(s: String): Future[Option[String]]
+def getFromSql(s: String): Future[Option[String]]
+~~~~~~~~
+
+FIXME FIXME FIXME
 
 {lang="text"}
 ~~~~~~~~
@@ -324,9 +343,9 @@ method called `pure` on its companion, adding some consistency to this
 pattern.
 
 This `for` returns a `Future[Option[String]]` instead of the
-`Option[String]` that we started with, so we need to get out of the
-container by blocking the thread. If we had used `Option` instead of
-`Future`, we could use `flatten`.
+`Option[String]` that we started with, so we need to get the value out
+of the `Future` by blocking the thread. If we had used `Option`
+instead of `Future`, we could use `flatten`.
 
 In the next chapter we'll write an application and show that it is
 much easier if we define our methods to wrap everything in a monoidic
