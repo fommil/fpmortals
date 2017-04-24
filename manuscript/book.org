@@ -418,9 +418,9 @@ libraries to implement streaming applications. We'll also use the
 the boilerplate we've already seen in this chapter, allowing you to
 focus on writing pure business logic.
 
-* Main Text
+* Under Review                                                       :sample:
   :PROPERTIES:
-  :EXPORT_FILE_NAME: main-text.md
+  :EXPORT_FILE_NAME: under-review.md
   :END:
 ** For Comprehensions
 
@@ -780,6 +780,10 @@ nightmare. Thankfully these tricky situations are the corner cases.
 
 *** TODO Monad Transformers
 
+* Main Text
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: main-text.md
+  :END:
 ** TODO Implicits
 
 Perhaps need a refresher on how implicits work.
