@@ -352,8 +352,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A> for {
-A>   cache <- getFromReddis(key)
-A>   res   <- cache.orElseA(getFromSql(key))
+A>   res <- getFromReddis(key) orElseM getFromSql(key)
 A> } yield res
 A> ~~~~~~~~
 A> 

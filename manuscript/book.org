@@ -767,8 +767,7 @@ We could play code golf and write
 
 #+BEGIN_SRC scala
 for {
-  cache <- getFromReddis(key)
-  res   <- cache.orElseA(getFromSql(key))
+  res <- getFromReddis(key) orElseM getFromSql(key)
 } yield res
 #+END_SRC
 
