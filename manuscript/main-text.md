@@ -8,13 +8,15 @@ only use `for` to loop over collections and are not aware of its full
 potential.
 
 In this chapter, we're going to visit the principles of `for` and how
-cats can help us to write cleaner code with the standard library.
+cats can help us to write cleaner code with the standard library. This
+chapter doesn't try to write pure programs and the techniques can be
+immediately applied to a non-FP codebase.
 
 ## Syntax Sugar
 
 Scala's `for` is just a simple rewrite rule that doesn't have any
 contextual information. The compiler does the rewrite during parsing
-as *syntax sugar*, designed only to reduce verbosity in the language.
+as *syntax sugar*, designed to reduce verbosity of the language.
 
 The easiest way to see what a `for` comprehension is doing is to use
 the `show` and `reify` feature in the REPL to print out what code
@@ -44,8 +46,8 @@ For the remaining examples, we'll skip the `show` and `reify` for
 brevity when the REPL line is `reify>`, and also manually clean up the
 generated code so that it doesn't become a distraction.
 
-We can also assign values inline like `val ij = i + j` (the `val`
-keyword is not needed).
+We can assign values inline like `val ij = i + j` (the `val` keyword
+is not needed).
 
 {lang="text"}
 ~~~~~~~~
@@ -133,12 +135,11 @@ a.flatMap {
 ~~~~~~~~
 
 Older versions of scala called `filter`, but since `filter` in the
-collections library creates new collections, and memory churn,
-`withFilter` was more performant.
+collections library creates new collections, and excessive memory
+churn, `withFilter` was more performant.
 
 Finally, if there is no `yield`, the compiler will use `foreach`
-instead of `flatMap`, which is only useful for side-effects, and
-therefore discouraged.
+instead of `flatMap`, which is only useful for side-effects.
 
 {lang="text"}
 ~~~~~~~~
@@ -162,14 +163,20 @@ trait ForComprehendable[C[_]] {
 }
 ~~~~~~~~
 
-If an implicit `cats.FlatMap[T]` (or `cats.Monad[T]`) is available for
-your type `T`, you automatically get `map` and `flatMap` and can use
-your `T` in a `for` comprehension. `withFilter` and `foreach` are not
-concepts that are useful in functional programming, so we won't
-discuss them any further.
+If an implicit `cats.FlatMap[T]` is available for your type `T`, you
+automatically get `map` and `flatMap` and can use your `T` in a `for`
+comprehension. `cats.Monad` implements `cats.FlatMap`, so anything
+that is monoidic (i.e. has an implicit `Monad[T]`) can be used in a
+`for`. Please do not make the equivalence between `for` and `Monad`,
+just because something can be used in a `for` comprehension does not
+mean it is monoidic (e.g. `Future` is not monoidic). We'll learn the
+difference when we discuss *laws*.
 
-A> Many developers are surprised when they start `Future` calculations in
-A> a `for` comprehension, they do not run in parallel:
+`withFilter` and `foreach` are not concepts that are useful in
+functional programming, so we won't discuss them any further.
+
+A> It surprises developers that inline `Future` calculations in a `for`
+A> comprehension do not run in parallel:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -182,8 +189,8 @@ A>   j <- Future { anotherExpensiveCalc() }
 A> } yield (i + j)
 A> ~~~~~~~~
 A> 
-A> This is because the `flatMap` spawning `anotherExpensiveCalc` is only
-A> called **after** `expensiveCalc`. To ensure that two `Future`
+A> This is because the `flatMap` spawning `anotherExpensiveCalc` is
+A> strictly **after** `expensiveCalc`. To ensure that two `Future`
 A> calculations begin in parallel, start them outside the `for`
 A> comprehension.
 A> 
@@ -271,10 +278,10 @@ like `Option` and `Either`, the `for` comprehension short circuits.
 
 Short circuiting for the unhappy path is a common and important theme.
 `for` comprehensions cannot express resource cleanup: there is no way
-to do `try` / `finally`. Cleanup needs to be a part of the `Monad` for
-the container that we're flat-mapping over. This is a good thing, it
-puts a clear ownership of responsibility for unexpected errors onto
-the `Monad`, not the business logic.
+to do `try` / `finally`. Cleanup needs to be a part of the thing that
+we're flat-mapping over. This is good, in FP it puts a clear ownership
+of responsibility for dealing with unexpected errors onto the `Monad`,
+not the business logic.
 
 ## Gymnastics
 
@@ -297,8 +304,8 @@ getFromReddis(key) orElse getFromSql(key)
 
 But, if we call `reddis <- getFromReddis(key)` in a `for`, it will
 short-circuit when it is `None`. What we need to do is to wrap the
-result in *another* monadic thing. We'll use a `Future` to make a
-point
+result in *another* for-comprehendable thing. We'll use a `Future` to
+make a point
 
 {lang="text"}
 ~~~~~~~~
@@ -312,23 +319,25 @@ for {
 ~~~~~~~~
 
 The call to `Future.successful` is like the `Option` constructor
-because it just wraps a single value. Every Monad in cats has a method
-called `pure` on its companion, adding some consistency to this
+because it just wraps a single value. Every `Monad` in cats has a
+method called `pure` on its companion, adding some consistency to this
 pattern.
 
 This `for` returns a `Future[Option[String]]` instead of the
 `Option[String]` that we started with, so we need to get out of the
 container by blocking the thread. If we had used `Option` instead of
-`Future`, we could use `flatten`. Every `Monad` has its own way of
-unwrapping its contents.
+`Future`, we could use `flatten`.
 
 In the next chapter we'll write an application and show that it is
-much easier if we let cats take care of the Monad, which will require
-changing how we define `getFromReddis` and `getFromSql` but letting
-us write
+much easier if we define our methods to wrap everything in a monoidic
+container (just like in the introduction chapter), and let cats take
+care of everything
 
 {lang="text"}
 ~~~~~~~~
+def getFromReddis(s: String): M[Option[String]]
+def getFromSql(s: String): M[Option[String]]
+
 for {
   cache <- getFromReddis(key)
   res   <- cache match {
@@ -344,7 +353,7 @@ A> {lang="text"}
 A> ~~~~~~~~
 A> for {
 A>   cache <- getFromReddis(key)
-A>   res   <- cache.orElseM(getFromSql(key))
+A>   res   <- cache.orElseA(getFromSql(key))
 A> } yield res
 A> ~~~~~~~~
 A> 
@@ -425,6 +434,9 @@ Discourage hierarchies except for ADTs
 Foldable being imminently more interesting than the others.
 
 Traversable will need to be discussed, seems to come up a lot.
+
+Use (impure) example of merging two deep configuration ADTs (scala
+does not enforce purity so we can choose our own level)
 
 ## RESEARCH data types
 
