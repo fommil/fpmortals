@@ -53,7 +53,7 @@ a.flatMap {
 
 The rule of thumb is that every `<-` (called a *generator*) is a
 nested `flatMap` call, with the final generator a `map` containing the
-`yield`.
+`yield` body.
 
 ### Assignment
 
@@ -92,13 +92,17 @@ scala> for {
 ~~~~~~~~
 
 We can workaround the limitation by defining a `val` outside the `for`
-or wrap the initial assignment:
 
 {lang="text"}
 ~~~~~~~~
 scala> val initial = getDefault
-       for { i <- a } yield initial + i
+scala> for { i <- a } yield initial + i
+~~~~~~~~
 
+or wrap the initial assignment
+
+{lang="text"}
+~~~~~~~~
 scala> for {
          initial <- Option(getDefault)
          i <- a

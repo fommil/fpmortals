@@ -469,7 +469,7 @@ a.flatMap {
 
 The rule of thumb is that every =<-= (called a /generator/) is a
 nested =flatMap= call, with the final generator a =map= containing the
-=yield=.
+=yield= body.
 
 **** Assignment
 
@@ -506,12 +506,15 @@ scala> for {
 #+END_SRC
 
 We can workaround the limitation by defining a =val= outside the =for=
-or wrap the initial assignment:
 
 #+BEGIN_SRC scala
 scala> val initial = getDefault
-       for { i <- a } yield initial + i
+scala> for { i <- a } yield initial + i
+#+END_SRC
 
+or wrap the initial assignment
+
+#+BEGIN_SRC scala
 scala> for {
          initial <- Option(getDefault)
          i <- a
