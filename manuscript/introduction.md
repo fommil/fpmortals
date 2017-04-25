@@ -249,7 +249,7 @@ We say that `C` is *monadic* when there is an implicit `Monad[C]`
 available. In addition, cats has the `Id` type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
-then we can write procedural code that abstracts over its execution
+then we can write sequential code that abstracts over its execution
 context. Here, we have shown an abstraction over synchronous and
 asynchronous execution but it can also be for the purpose of more
 rigorous error handling (where `C[_]` is `Either[Error, _]`), managing

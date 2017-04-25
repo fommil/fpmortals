@@ -3,25 +3,24 @@
 # For Comprehensions
 
 Scala's `for` comprehension is heavily used in FP --- it is the ideal
-abstraction to write pure procedural code. But most Scala developers
-only use `for` to loop over collections and are not aware of its full
+abstraction for pure sequential code. But most Scala developers only
+use `for` to loop over collections and are not aware of its full
 potential.
 
-In this chapter, we're going to visit the principles of `for` and how
-cats can help us to write cleaner code with the standard library. This
-chapter doesn't try to write pure programs and the techniques can be
-immediately applied to a non-FP codebase.
+In this chapter, we're going to relearn the principles of `for` and
+how cats can help us to write cleaner code. This chapter doesn't try
+to write pure programs and the techniques can be immediately applied
+to a non-FP codebase.
 
 ## Syntax Sugar
 
-Scala's `for` is just a simple rewrite rule that doesn't have any
-contextual information. The compiler does the rewrite during parsing
-as *syntax sugar*, designed to reduce verbosity of the language.
+Scala's `for` is just a simple rewrite rule, also called *syntax
+sugar*, that doesn't have any contextual information.
 
 The easiest way to see what a `for` comprehension is doing is to use
 the `show` and `reify` feature in the REPL to print out what code
-looks like after type inference (alternatively, invoke the compiler
-with the `-Xprint:typer` flag):
+looks like after type inference. Alternatively, invoke the compiler
+with the `-Xprint:typer` flag.
 
 {lang="text"}
 ~~~~~~~~
@@ -37,19 +36,19 @@ $read.a.flatMap(
       ((k) => i.$plus(j).$plus(k)))))))
 ~~~~~~~~
 
-There's a lot of noise due to additional sugarings that you can ignore
-(e.g. `+` is rewritten `$plus`). The basic rule of thumb is that every
-`<-` (generator) is a nested `flatMap` call, with the final generator
-being a `map`, containing the `yield`.
+There is a lot of noise due to additional sugarings that you can
+ignore (e.g. `+` is rewritten `$plus`, infix removal, etc). The basic
+rule of thumb is that every `<-` *generator* is a nested `flatMap`
+call, with the final generator being a `map`, containing the `yield`.
 
 For the remaining examples, we'll skip the `show` and `reify` for
-brevity when the REPL line is `reify>`, and also manually clean up the
+brevity when the REPL line is `reify>`, and manually clean up the
 generated code so that it doesn't become a distraction.
 
 ### Assignment
 
-We can assign values inline like `val ij = i + j` (the `val` keyword
-is not needed).
+We can assign values inline like `ij = i + j` (a `val` keyword is not
+needed).
 
 {lang="text"}
 ~~~~~~~~
@@ -121,7 +120,7 @@ scala> for {
 
 ### Filter
 
-It's possible to put `if` statements after a generator to filter
+It is possible to put `if` statements after a generator to filter
 values by a predicate
 
 {lang="text"}
@@ -140,10 +139,9 @@ a.flatMap {
         k => i + j + k }}}
 ~~~~~~~~
 
-Older versions of scala called `filter`, but `Traversable.filter` (and
-all its implementations) creates new collections for every predicate
-which is inefficient, so `withFilter` was introduced as the more
-performant alternative.
+Older versions of scala used `filter`, but `Traversable.filter`
+creates new collections for every predicate, so `withFilter` was
+introduced as the more performant alternative.
 
 ### For Each
 
@@ -159,9 +157,9 @@ a.foreach { i => b.foreach { j => println(s"$i $j") } }
 
 ### Summary
 
-The full set of methods in a `for` comprehension do not share a common
-super type; each generated snippet is independently compiled. If there
-were a trait, it would roughly look like:
+The full set of methods supported by `for` comprehensions do not share
+a common super type; each generated snippet is independently compiled.
+If there were a trait, it would roughly look like:
 
 {lang="text"}
 ~~~~~~~~
@@ -173,13 +171,14 @@ trait ForComprehendable[C[_]] {
 }
 ~~~~~~~~
 
-If an implicit `cats.FlatMap[T]` is available for your type `T`, you
-automatically get `map` and `flatMap` and can use your `T` in a `for`
-comprehension. `cats.Monad` implements `cats.FlatMap`, so anything
-that is monoidic (i.e. has an implicit `Monad[T]`) can be used in a
-`for`. But just because something can be used in a `for` comprehension
-does not mean it is monoidic (e.g. `Future` is not monoidic). We'll
-learn the difference when we discuss *laws*.
+If an implicit `cats.FlatMap[T]` is available for `T`, then `map` and
+`flatMap` are available and `T` can be used in a `for` comprehension.
+
+`cats.Monad` implements `cats.FlatMap`, so anything that is monadic
+(i.e. has an implicit `Monad[T]`) can be used in a `for`. But just
+because something can be used as the container in a `for`
+comprehension does not mean it is monadic (e.g. `Future` is not
+monadic). We'll learn the difference when we discuss *laws*.
 
 `withFilter` and `foreach` are not concepts that are useful in
 functional programming, so we won't discuss them any further.
@@ -210,15 +209,15 @@ A> val b = Future { anotherExpensiveCalc() }
 A> for { i <- a ; j <- b } yield (i + j)
 A> ~~~~~~~~
 A> 
-A> `for` comprehensions are fundamentally for defining procedural
+A> `for` comprehensions are fundamentally for defining sequential
 A> programs. We will show a far superior way of defining parallel
 A> computations in a later chapter.
 
 ## Unhappy path
 
-So far we've only considered what the rewrite rules are, not what is
-happening in `map` and `flatMap`. Let's consider what happens when the
-`for` decides that it can't proceed any further.
+So far we've only look at the rewrite rules, not what is happening in
+`map` and `flatMap`. Let's consider what happens when the `for`
+container decides that it can't proceed any further.
 
 In the `Option` example, the `yield` is only called when `i,j,k` are
 all defined.
@@ -232,9 +231,13 @@ for {
 } yield (i + j + k)
 ~~~~~~~~
 
+If any of `a,b,c` are `None`, the comprehension short-circuits with
+`None` but it doesn't tell us what went wrong.
+
 A> How often have you seen a function that takes `Option` parameters but
 A> requires them all to exist? An alternative to throwing a runtime
-A> exception is to use a `for` comprehension:
+A> exception is to use a `for` comprehension, giving us totality (a
+A> return value for every input):
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -247,15 +250,14 @@ A>   number <- someNumber
 A> } yield s"$number ${name}s"
 A> ~~~~~~~~
 A> 
-A> but this is clunky and bad style. If a function requires every input
-A> then it should make this requirement explicit, pushing the
+A> but this is verbose, clunky and bad style. If a function requires
+A> every input then it should make its requirement explicit, pushing the
 A> responsibility of dealing with optional parameters to its caller ---
 A> don't use `for` unless you need to.
 
-If any of `a,b,c` are `None`, the comprehension short-circuits with
-`None` but it doesn't tell us what went wrong. If we use `Either`,
-then a `Left` will cause the `for` comprehension to short circuit with
-some extra information, much better than `Option` for error reporting:
+If we use `Either`, then a `Left` will cause the `for` comprehension
+to short circuit with extra information, much better than `Option` for
+error reporting:
 
 {lang="text"}
 ~~~~~~~~
@@ -287,15 +289,14 @@ The `Future` that prints to the terminal is never called because, like
 
 Short circuiting for the unhappy path is a common and important theme.
 `for` comprehensions cannot express resource cleanup: there is no way
-to do `try` / `finally`. Cleanup therefore needs to be a part of the
-thing that we're flat-mapping over. This is good, in FP it puts a
-clear ownership of responsibility for dealing with unexpected errors
-onto the `Monad`, not the business logic.
+to `try` / `finally`. This is good, in FP it puts a clear ownership of
+responsibility for unexpected error recovery and resource cleanup onto
+the `Monad`, not the business logic.
 
 ## Gymnastics
 
-Although it's easy to rewrite simple procedural code as a `for`
-comprehension, sometimes you'll want to do something that appears to
+Although it's easy to rewrite simple sequential code as a `for`
+comprehension, sometimes we'll want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
 
@@ -313,10 +314,7 @@ def getFromSql(s: String): Option[String] = ...
 getFromReddis(key) orElse getFromSql(key)
 ~~~~~~~~
 
-### FIXME: this example is weak and needs to have an M around the Option, otherwise why not just use orElse?
-
-Let's say we have to do this for an asynchronous version of the same
-API
+If we have to do this for an asynchronous version of the same API
 
 {lang="text"}
 ~~~~~~~~
@@ -324,61 +322,60 @@ def getFromReddis(s: String): Future[Option[String]]
 def getFromSql(s: String): Future[Option[String]]
 ~~~~~~~~
 
-FIXME FIXME FIXME
+then we have to be careful not to do extra work because
 
 {lang="text"}
 ~~~~~~~~
 for {
-  cache <- Future { getFromReddis(key) }
-  res   <- cache match {
-             case Some(cached) => Future.successful(cached)
-             case None         => Future { getFromSql(key) }
-           }
-} yield res
+  cache <- getFromReddis(key)
+  sql   <- getFromSql(key)
+} yield cache orElse sql
 ~~~~~~~~
 
-The call to `Future.successful` is like the `Option` constructor
-because it just wraps a single value. Every `Monad` in cats has a
-method called `pure` on its companion, adding some consistency to this
-pattern.
-
-This `for` returns a `Future[Option[String]]` instead of the
-`Option[String]` that we started with, so we need to get the value out
-of the `Future` by blocking the thread. If we had used `Option`
-instead of `Future`, we could use `flatten`.
-
-In the next chapter we'll write an application and show that it is
-much easier if we define our methods to wrap everything in a monoidic
-container (just like in the introduction chapter), and let cats take
-care of everything
+will run both queries. We can pattern match on the first result but
+the type is wrong
 
 {lang="text"}
 ~~~~~~~~
-def getFromReddis(s: String): M[Option[String]]
-def getFromSql(s: String): M[Option[String]]
-
 for {
   cache <- getFromReddis(key)
   res   <- cache match {
-             case Some(cached) => cached.pure
-             case None         => getFromSql(key)
+             case Some(_) => cache !!! wrong type !!!
+             case None    => getFromSql(key)
            }
 } yield res
 ~~~~~~~~
+
+We need to wrap the `cache` value as a `Future` again:
+
+{lang="text"}
+~~~~~~~~
+for {
+  cache <- getFromReddis(key)
+  res   <- cache match {
+             case Some(_) => Future.successful(cache)
+             case None    => getFromSql(key)
+           }
+} yield res
+~~~~~~~~
+
+The call to `Future.successful` is like the `Option` constructor and
+wraps / lifts / binds the value into the `for` container. Every
+`Monad` in cats has a method called `pure` on its companion, adding
+some consistency to this pattern.
+
+If functional programming was like this all the time, it'd be a
+nightmare. Thankfully these tricky situations are the corner cases.
 
 A> We could play code golf and write
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> for {
-A>   res <- getFromReddis(key) orElseM getFromSql(key)
-A> } yield res
+A> getFromReddis(key) orElseM getFromSql(key)
 A> ~~~~~~~~
 A> 
-A> by defining <https://github.com/typelevel/cats/issues/1625>
-
-If functional programming was like this all the time, it'd be a
-nightmare. Thankfully these tricky situations are the corner cases.
+A> by defining <https://github.com/typelevel/cats/issues/1625> but it can
+A> be a cognitive burden to remember all these monadic variants.
 
 ## TODO Monad Transformers
 
