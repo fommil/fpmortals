@@ -74,6 +74,8 @@ Traversable will need to be discussed, seems to come up a lot.
 Use (impure) example of merging two deep configuration ADTs (scala
 does not enforce purity so we can choose our own level)
 
+Not enough to implement, must also pass the laws
+
 ## RESEARCH data types
 
 Not really sure what to say here.

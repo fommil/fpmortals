@@ -612,13 +612,8 @@ trait ForComprehendable[C[_]] {
 #+END_SRC
 
 If an implicit =cats.FlatMap[T]= is available for =T=, then =map= and
-=flatMap= are available and =T= can be used in a =for= comprehension.
-
-=cats.Monad= implements =cats.FlatMap=, so anything that is monadic
-(i.e. has an implicit =Monad[T]=) can be used in a =for=. But just
-because something can be used as the container in a =for=
-comprehension does not mean it is monadic (e.g. =Future= is not
-monadic). We'll learn the difference when we discuss /laws/.
+=flatMap= are available and =T= can be the context (=C[_]=) of a =for=
+comprehension.
 
 =withFilter= and =foreach= are not concepts that are useful in
 functional programming, so we won't discuss them any further.
@@ -658,7 +653,7 @@ computations in a later chapter.
 
 So far we've only look at the rewrite rules, not what is happening in
 =map= and =flatMap=. Let's consider what happens when the =for=
-container decides that it can't proceed any further.
+context decides that it can't proceed any further.
 
 In the =Option= example, the =yield= is only called when =i,j,k= are
 all defined.
@@ -730,7 +725,7 @@ Short circuiting for the unhappy path is a common and important theme.
 =for= comprehensions cannot express resource cleanup: there is no way
 to =try= / =finally=. This is good, in FP it puts a clear ownership of
 responsibility for unexpected error recovery and resource cleanup onto
-the =Monad=, not the business logic.
+the context (which is usually a =Monad=), not the business logic.
 
 *** Gymnastics
 
@@ -739,15 +734,15 @@ comprehension, sometimes we'll want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
 
-**** Fallback
+**** Fallback Logic
 
 Let's say we are calling out to a method that returns an =Option= and
-if it's not successful we want to fallback to another method, like
-when we're using a cache:
+if it's not successful we want to fallback to another method (and so
+on and so on), like when we're using a cache:
 
 #+BEGIN_SRC scala
-def getFromReddis(s: String): Option[String] = ...
-def getFromSql(s: String): Option[String] = ...
+def getFromReddis(s: String): Option[String]
+def getFromSql(s: String): Option[String]
 
 getFromReddis(key) orElse getFromSql(key)
 #+END_SRC
@@ -781,7 +776,7 @@ for {
 } yield res
 #+END_SRC
 
-We need to wrap the =cache= value as a =Future= again:
+We need to wrap the =cache= value as a =Future=:
 
 #+BEGIN_SRC scala
 for {
@@ -793,27 +788,29 @@ for {
 } yield res
 #+END_SRC
 
-The call to =Future.successful= is like the =Option= constructor and
-wraps / lifts / binds the value into the =for= container. Every
-=Monad= in cats has a method called =pure= on its companion, adding
-some consistency to this pattern.
+This call to =Future.successful=, like an =Option= or =List=
+constructor, binds a value into the =for= context of a =Future=.
 
 If functional programming was like this all the time, it'd be a
 nightmare. Thankfully these tricky situations are the corner cases.
 
 #+BEGIN_ASIDE
 
-We could play code golf and write
+We could code golf it and write
 
 #+BEGIN_SRC scala
 getFromReddis(key) orElseM getFromSql(key)
 #+END_SRC
 
 by defining https://github.com/typelevel/cats/issues/1625 but it can
-be a cognitive burden to remember all these monadic variants.
+be a cognitive burden to remember all these helper methods. The level
+of verbosity of a codebase vs code reuse of trivial functions is a
+stylistic decision for each team.
 #+END_ASIDE
 
-*** TODO Monad Transformers
+*** TODO Incomprehensible
+
+**** TODO It didn't compile? Incomprehensible! aka Monad Transformers, mixing Future Option and maybe List
 
 * Main Text
   :PROPERTIES:
@@ -890,6 +887,8 @@ Traversable will need to be discussed, seems to come up a lot.
 
 Use (impure) example of merging two deep configuration ADTs (scala
 does not enforce purity so we can choose our own level)
+
+Not enough to implement, must also pass the laws
 
 *** RESEARCH data types
 
