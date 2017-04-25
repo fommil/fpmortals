@@ -450,6 +450,7 @@ scala> show { reify {
          for { i <- a ; j <- b ; k <- c } yield (i + j + k)
        } }
 
+res:
 $read.a.flatMap(
   ((i) => $read.b.flatMap(
     ((j) => $read.c.map(
@@ -496,32 +497,6 @@ a.flatMap {
 A =map= over the =b= introduces the =ij= which is flat-mapped along
 with the =j=, then the final =map= for the code in the =yield=.
 
-#+BEGIN_ASIDE
-
-=val= doesn't have to assign to a single value, it can be anything
-that works as a =case= in a pattern match. The same is true for
-assignment in =for= comprehensions.
-
-#+BEGIN_SRC scala
-scala> val (first, second) = ("hello", "world")
-first: String = hello
-second: String = world
-
-scala> val list: List[Int] = ...
-scala> val head :: tail = list
-head: Int = 1
-tail: List[Int] = List(2, 3)
-#+END_SRC
-
-But be careful that you don't miss any cases or you'll get a runtime
-exception (a /totality/ failure).
-
-#+BEGIN_SRC scala
-scala> val a :: tail = list
-scala.MatchError: List()
-#+END_SRC
-#+END_ASIDE
-
 Unfortunately we [[https://github.com/typelevel/scala/issues/143][cannot assign a value before any generators]]:
 
 #+BEGIN_SRC scala
@@ -544,6 +519,47 @@ scala> for {
          i <- a
        } yield initial + i
 #+END_SRC
+
+#+BEGIN_ASIDE
+
+=val= doesn't have to assign to a single value, it can be anything
+that works as a =case= in a pattern match.
+
+#+BEGIN_SRC scala
+scala> val (first, second) = ("hello", "world")
+first: String = hello
+second: String = world
+
+scala> val list: List[Int] = ...
+scala> val head :: tail = list
+head: Int = 1
+tail: List[Int] = List(2, 3)
+#+END_SRC
+
+The same is true for assignment in =for= comprehensions, including
+generators
+
+#+BEGIN_SRC scala
+scala> val maybe = Option(("hello", "world")) 
+scala> for {
+         entry <- maybe
+         (first, _) = entry
+       } yield first
+res: Some(hello)
+
+scala> for { (first, _) <- maybe } yield first
+res: Some(hello)
+
+#+END_SRC
+
+But be careful that you don't miss any cases or you'll get a runtime
+exception (a /totality/ failure).
+
+#+BEGIN_SRC scala
+scala> val a :: tail = list
+caught scala.MatchError: List()
+#+END_SRC
+#+END_ASIDE
 
 **** Filter
 
@@ -704,8 +720,7 @@ scala> for {
          j <- Future { println("hello") ; 1 }
        } yield (i + j)
 scala> Await.result(f, duration.Duration.Inf)
-
-java.lang.Throwable
+caught java.lang.Throwable
 #+END_SRC
 
 The =Future= that prints to the terminal is never called because, like

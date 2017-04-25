@@ -29,6 +29,7 @@ scala> show { reify {
          for { i <- a ; j <- b ; k <- c } yield (i + j + k)
        } }
 
+res:
 $read.a.flatMap(
   ((i) => $read.b.flatMap(
     ((j) => $read.c.map(
@@ -77,31 +78,6 @@ a.flatMap {
 A `map` over the `b` introduces the `ij` which is flat-mapped along
 with the `j`, then the final `map` for the code in the `yield`.
 
-A> `val` doesn't have to assign to a single value, it can be anything
-A> that works as a `case` in a pattern match. The same is true for
-A> assignment in `for` comprehensions.
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A> scala> val (first, second) = ("hello", "world")
-A> first: String = hello
-A> second: String = world
-A> 
-A> scala> val list: List[Int] = ...
-A> scala> val head :: tail = list
-A> head: Int = 1
-A> tail: List[Int] = List(2, 3)
-A> ~~~~~~~~
-A> 
-A> But be careful that you don't miss any cases or you'll get a runtime
-A> exception (a *totality* failure).
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A> scala> val a :: tail = list
-A> scala.MatchError: List()
-A> ~~~~~~~~
-
 Unfortunately we [cannot assign a value before any generators](https://github.com/typelevel/scala/issues/143):
 
 {lang="text"}
@@ -126,6 +102,47 @@ scala> for {
          i <- a
        } yield initial + i
 ~~~~~~~~
+
+A> `val` doesn't have to assign to a single value, it can be anything
+A> that works as a `case` in a pattern match.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A> scala> val (first, second) = ("hello", "world")
+A> first: String = hello
+A> second: String = world
+A> 
+A> scala> val list: List[Int] = ...
+A> scala> val head :: tail = list
+A> head: Int = 1
+A> tail: List[Int] = List(2, 3)
+A> ~~~~~~~~
+A> 
+A> The same is true for assignment in `for` comprehensions, including
+A> generators
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A> scala> val maybe = Option(("hello", "world")) 
+A> scala> for {
+A>          entry <- maybe
+A>          (first, _) = entry
+A>        } yield first
+A> res: Some(hello)
+A> 
+A> scala> for { (first, _) <- maybe } yield first
+A> res: Some(hello)
+A> 
+A> ~~~~~~~~
+A> 
+A> But be careful that you don't miss any cases or you'll get a runtime
+A> exception (a *totality* failure).
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A> scala> val a :: tail = list
+A> caught scala.MatchError: List()
+A> ~~~~~~~~
 
 ### Filter
 
@@ -289,8 +306,7 @@ scala> for {
          j <- Future { println("hello") ; 1 }
        } yield (i + j)
 scala> Await.result(f, duration.Duration.Inf)
-
-java.lang.Throwable
+caught java.lang.Throwable
 ~~~~~~~~
 
 The `Future` that prints to the terminal is never called because, like
