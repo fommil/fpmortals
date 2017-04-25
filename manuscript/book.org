@@ -439,10 +439,9 @@ to a non-FP codebase.
 Scala's =for= is just a simple rewrite rule, also called /syntax
 sugar/, that doesn't have any contextual information.
 
-The easiest way to see what a =for= comprehension is doing is to use
-the =show= and =reify= feature in the REPL to print out what code
-looks like after type inference. Alternatively, invoke the compiler
-with the =-Xprint:typer= flag.
+To see what a =for= comprehension is doing, we use the =show= and
+=reify= feature in the REPL to print out what code looks like after
+type inference.
 
 #+BEGIN_SRC scala
 scala> import scala.reflect.runtime.universe._
@@ -457,14 +456,23 @@ $read.a.flatMap(
       ((k) => i.$plus(j).$plus(k)))))))
 #+END_SRC
 
-There is a lot of noise due to additional sugarings that you can
-ignore (e.g. =+= is rewritten =$plus=, infix removal, etc). The basic
-rule of thumb is that every =<-= /generator/ is a nested =flatMap=
-call, with the final generator being a =map=, containing the =yield=.
+There is a lot of noise due to additional sugarings (e.g. =+= is
+rewritten =$plus=, etc). We'll skip the =show= and =reify= for brevity
+when the REPL line is =reify>=, and manually clean up the generated
+code so that it doesn't become a distraction.
 
-For the remaining examples, we'll skip the =show= and =reify= for
-brevity when the REPL line is =reify>=, and manually clean up the
-generated code so that it doesn't become a distraction.
+#+BEGIN_SRC scala
+reify> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+
+a.flatMap {
+  i => b.flatMap {
+    j => c.map {
+      k => i + j + k }}}
+#+END_SRC
+
+The rule of thumb is that every =<-= (called a /generator/) is a
+nested =flatMap= call, with the final generator a =map= containing the
+=yield=.
 
 **** Assignment
 
