@@ -78,7 +78,9 @@ a.flatMap {
 A `map` over the `b` introduces the `ij` which is flat-mapped along
 with the `j`, then the final `map` for the code in the `yield`.
 
-Unfortunately we [cannot assign a value before any generators](https://github.com/typelevel/scala/issues/143):
+Unfortunately we cannot assign before any generators. It has been
+requested as a language feature but has not been implemented:
+<https://github.com/scala/bug/issues/907>
 
 {lang="text"}
 ~~~~~~~~
@@ -89,8 +91,8 @@ scala> for {
 <console>:1: error: '<-' expected but '=' found.
 ~~~~~~~~
 
-but we can workaround it by defining a `val` outside the `for` or wrap
-the initial assignment:
+We can workaround the limitation by defining a `val` outside the `for`
+or wrap the initial assignment:
 
 {lang="text"}
 ~~~~~~~~
@@ -189,7 +191,7 @@ If there were a trait, it would roughly look like:
 
 {lang="text"}
 ~~~~~~~~
-trait ForComprehendable[C[_]] {
+trait ForComprehensible[C[_]] {
   def map[A, B](f: A => B): C[B]
   def flatMap[A, B](f: A => C[B]): C[B]
   def withFilter[A](p: A => Boolean): C[A]
@@ -197,12 +199,10 @@ trait ForComprehendable[C[_]] {
 }
 ~~~~~~~~
 
-If an implicit `cats.FlatMap[T]` is available for `T`, then `map` and
-`flatMap` are available and `T` can be the context (`C[_]`) of a `for`
-comprehension.
-
-`withFilter` and `foreach` are not concepts that are useful in
-functional programming, so we won't discuss them any further.
+If the context (`C[_]`) of a `for` comprehension doesn't provide its
+own `map` and `flatMap`, all is not lost. An implicit
+`cats.FlatMap[T]` will provide `map` and `flatMap` for `T` and it can
+be the context of a `for` comprehension.
 
 A> It often surprises developers when inline `Future` calculations in a
 A> `for` comprehension do not run in parallel:
@@ -311,7 +311,8 @@ Short circuiting for the unhappy path is a common and important theme.
 `for` comprehensions cannot express resource cleanup: there is no way
 to `try` / `finally`. This is good, in FP it puts a clear ownership of
 responsibility for unexpected error recovery and resource cleanup onto
-the context (which is usually a `Monad`), not the business logic.
+the context (which is usually a `Monad` as we'll see later), not the
+business logic.
 
 ## Gymnastics
 
