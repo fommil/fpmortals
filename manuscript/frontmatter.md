@@ -48,21 +48,17 @@ degrees for their help with understanding the principles of FP, cats
 and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
-Ani Chakraborty and Rory Graves for giving feedback on early drafts of
+Rory Graves and Ani Chakraborty for giving feedback on early drafts of
 this text.
 
 Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On
 Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50),
 John de Goes for [A Beginner Friendly Tour](http://degoes.net/articles/easy-monads).
 
-Those who helped explain concepts needed to write the example project
-[drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Paul Snively.
-
-The helpful souls on the [cats](https://gitter.im/typelevel/cats) chat room: Merlin Göttlinger, Edmund
-Noble, Rob Norris, Adelbert Chang, Kai(luo) Wang.
-
-The helpful souls on the [fs2](https://gitter.im/functional-streams-for-scala/fs2) chat room: Michael Pilquist, Adam
-Chlupacek, Pavel Chlupacek.
+The helpul souls who helped explain the concepts needed to write the
+example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund Noble,
+Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist, Adam
+Chlupacek, Pavel Chlupacek, Paul Snively.
 
 # Practicalities
 
