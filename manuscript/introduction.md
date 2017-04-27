@@ -89,7 +89,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A> trait Foo[C[_]] {
-A>   def wrap(i: Int): C[Int]
+A>   def create(i: Int): C[Int]
 A> }
 A> ~~~~~~~~
 A> 
@@ -101,7 +101,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A> object FooList extends Foo[List] {
-A>   def wrap(i: Int): List[Int] = List(i)
+A>   def create(i: Int): List[Int] = List(i)
 A> }
 A> ~~~~~~~~
 A> 
@@ -113,7 +113,7 @@ A> {lang="text"}
 A> ~~~~~~~~
 A> type EitherString[T] = Either[String, T]
 A> object FooEitherString extends Foo[EitherString] {
-A>  def wrap(i: Int): Either[String, Int] = Right(i)
+A>  def create(i: Int): Either[String, Int] = Right(i)
 A> }
 A> ~~~~~~~~
 A> 
@@ -134,7 +134,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A> object FooId extends Foo[Id] {
-A>   def wrap(i: Int): Int = i
+A>   def create(i: Int): Int = i
 A> }
 A> ~~~~~~~~
 
@@ -176,7 +176,7 @@ need a way of wrapping a value as a `C[_]`. This signature works well:
 ~~~~~~~~
 trait Execution[C[_]] {
   def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
-  def wrap[B](b: B): C[B]
+  def create[B](b: B): C[B]
 }
 ~~~~~~~~
 
@@ -187,7 +187,7 @@ letting us write:
 def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
   e.doAndThen(t.read) { in: String =>
     e.doAndThen(t.write(in)) { _: Unit =>
-      e.wrap(in)
+      e.create(in)
     }
   }
 ~~~~~~~~
@@ -213,7 +213,7 @@ object Execution {
     def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
           e.doAndThen(c)(f)
     def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
-          e.doAndThen(c)(f andThen e.wrap)
+          e.doAndThen(c)(f andThen e.create)
   }
 }
 
@@ -239,7 +239,7 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
 ~~~~~~~~
 
 Our `Execution` has the same signature as a trait in the cats library
-called `Monad` (except `doAndThen` is `flatMap` and `wrap` is `pure`).
+called `Monad` (except `doAndThen` is `flatMap` and `create` is `pure`).
 We say that `C` is *monadic* when there is an implicit `Monad[C]`
 available. In addition, cats has the `Id` type alias.
 

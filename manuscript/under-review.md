@@ -99,7 +99,7 @@ scala> val initial = getDefault
 scala> for { i <- a } yield initial + i
 ~~~~~~~~
 
-or wrap the initial assignment
+or create an `Option` out of the initial assignment
 
 {lang="text"}
 ~~~~~~~~
@@ -371,7 +371,7 @@ for {
 } yield res
 ~~~~~~~~
 
-We need to wrap the `cache` value as a `Future`:
+We need to create a `Future` from the `cache`
 
 {lang="text"}
 ~~~~~~~~
@@ -402,8 +402,68 @@ A> be a cognitive burden to remember all these helper methods. The level
 A> of verbosity of a codebase vs code reuse of trivial functions is a
 A> stylistic decision for each team.
 
-## TODO Incomprehensible
+## Incomprehensible
 
-### TODO It didn't compile? Incomprehensible! aka Monad Transformers, mixing Future Option and maybe List
+You may have noticed that the context we're comprehending over must
+stay the same: we can't mix contexts.
+
+{lang="text"}
+~~~~~~~~
+scala> def option: Option[Int] = ???
+scala> def future: Future[Int] = ???
+scala> for { 
+         a <- option
+         b <- future
+       } yield a * b
+<console>:23: error: type mismatch;
+ found   : scala.concurrent.Future[Int]
+ required: Option[?]
+         b <- future
+              ^
+~~~~~~~~
+
+Nothing can help us mix arbitrary contexts in a `for` comprehension,
+because the meaning is not well defined.
+
+But when we have nested contexts the intention is usually pretty
+obvious yet the compiler still doesn't accept our code.
+
+{lang="text"}
+~~~~~~~~
+scala> def getA: Future[Option[Int]] = ...
+scala> def getB: Future[Option[Int]] = ...
+scala> for { 
+         a <- getA
+         b <- getB
+       } yield a * b
+<console>:30: error: value * is not a member of Option[Int]
+       } yield a * b
+                 ^
+~~~~~~~~
+
+Here we want `for` to take care of the `Future` for us and let us
+write our code with what is inside.
+
+Cats helps for inner contexts that have a *Monad Transformer* and
+provides implementations for `Option`, `Future` and `Either`.
+
+We create an `OptionT` monad transformer for every inner `Option` and
+call `.value` to return to the original outer context. The outer
+context can be anything that normally works in a `for` comprehension,
+but it needs to stay the same throughout. Don't forget the import
+statements from the Practicalities chapter.
+
+{lang="text"}
+~~~~~~~~
+scala> val c = for { 
+         a <- OptionT(getA)
+         b <- OptionT(getB)
+       } yield a * b
+
+scala> c.value
+res: Future[Option[Int]] = Future(<not completed>)
+~~~~~~~~
+
+## TODO: more complex examples as per <https://www.youtube.com/watch?v=hGMndafDcc8>
 
 

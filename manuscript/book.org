@@ -65,7 +65,8 @@ this text.
 
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
-John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]].
+John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in
+Futures, how to unsuck them]].
 
 The helpul souls who helped explain the concepts needed to write the
 example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund Noble,
@@ -213,7 +214,7 @@ whatever =C= is, it must take a type parameter. For example:
 
 #+BEGIN_SRC scala
 trait Foo[C[_]] {
-  def wrap(i: Int): C[Int]
+  def create(i: Int): C[Int]
 }
 #+END_SRC
 
@@ -224,7 +225,7 @@ can implement =Foo= using =List=:
 
 #+BEGIN_SRC scala
 object FooList extends Foo[List] {
-  def wrap(i: Int): List[Int] = List(i)
+  def create(i: Int): List[Int] = List(i)
 }
 #+END_SRC
 
@@ -235,7 +236,7 @@ to create a type alias:
 #+BEGIN_SRC scala
 type EitherString[T] = Either[String, T]
 object FooEitherString extends Foo[EitherString] {
- def wrap(i: Int): Either[String, Int] = Right(i)
+ def create(i: Int): Either[String, Int] = Right(i)
 }
 #+END_SRC
 
@@ -254,7 +255,7 @@ constructor, so we can use =Id= in an implementation of =Foo=
 
 #+BEGIN_SRC scala
 object FooId extends Foo[Id] {
-  def wrap(i: Int): Int = i
+  def create(i: Int): Int = i
 }
 #+END_SRC
 
@@ -296,7 +297,7 @@ need a way of wrapping a value as a =C[_]=. This signature works well:
 #+BEGIN_SRC scala
 trait Execution[C[_]] {
   def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
-  def wrap[B](b: B): C[B]
+  def create[B](b: B): C[B]
 }
 #+END_SRC
 
@@ -306,7 +307,7 @@ letting us write:
 def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
   e.doAndThen(t.read) { in: String =>
     e.doAndThen(t.write(in)) { _: Unit =>
-      e.wrap(in)
+      e.create(in)
     }
   }
 #+END_SRC
@@ -331,7 +332,7 @@ object Execution {
     def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
           e.doAndThen(c)(f)
     def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
-          e.doAndThen(c)(f andThen e.wrap)
+          e.doAndThen(c)(f andThen e.create)
   }
 }
 
@@ -356,7 +357,7 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
 #+END_SRC
 
 Our =Execution= has the same signature as a trait in the cats library
-called =Monad= (except =doAndThen= is =flatMap= and =wrap= is =pure=).
+called =Monad= (except =doAndThen= is =flatMap= and =create= is =pure=).
 We say that =C= is /monadic/ when there is an implicit =Monad[C]=
 available. In addition, cats has the =Id= type alias.
 
@@ -508,7 +509,7 @@ scala> val initial = getDefault
 scala> for { i <- a } yield initial + i
 #+END_SRC
 
-or wrap the initial assignment
+or create an =Option= out of the initial assignment
 
 #+BEGIN_SRC scala
 scala> for {
@@ -772,7 +773,7 @@ for {
 } yield res
 #+END_SRC
 
-We need to wrap the =cache= value as a =Future=:
+We need to create a =Future= from the =cache=
 
 #+BEGIN_SRC scala
 for {
@@ -804,9 +805,66 @@ of verbosity of a codebase vs code reuse of trivial functions is a
 stylistic decision for each team.
 #+END_ASIDE
 
-*** TODO Incomprehensible
+*** Incomprehensible
 
-**** TODO It didn't compile? Incomprehensible! aka Monad Transformers, mixing Future Option and maybe List
+You may have noticed that the context we're comprehending over must
+stay the same: we can't mix contexts.
+
+#+BEGIN_SRC scala
+scala> def option: Option[Int] = ???
+scala> def future: Future[Int] = ???
+scala> for { 
+         a <- option
+         b <- future
+       } yield a * b
+<console>:23: error: type mismatch;
+ found   : scala.concurrent.Future[Int]
+ required: Option[?]
+         b <- future
+              ^
+#+END_SRC
+
+Nothing can help us mix arbitrary contexts in a =for= comprehension,
+because the meaning is not well defined.
+
+But when we have nested contexts the intention is usually pretty
+obvious yet the compiler still doesn't accept our code.
+
+#+BEGIN_SRC scala
+scala> def getA: Future[Option[Int]] = ...
+scala> def getB: Future[Option[Int]] = ...
+scala> for { 
+         a <- getA
+         b <- getB
+       } yield a * b
+<console>:30: error: value * is not a member of Option[Int]
+       } yield a * b
+                 ^
+#+END_SRC
+
+Here we want =for= to take care of the =Future= for us and let us
+write our code with what is inside.
+
+Cats helps for inner contexts that have a /Monad Transformer/ and
+provides implementations for =Option=, =Future= and =Either=.
+
+We create an =OptionT= monad transformer for every inner =Option= and
+call =.value= to return to the original outer context. The outer
+context can be anything that normally works in a =for= comprehension,
+but it needs to stay the same throughout. Don't forget the import
+statements from the Practicalities chapter.
+
+#+BEGIN_SRC scala
+scala> val c = for { 
+         a <- OptionT(getA)
+         b <- OptionT(getB)
+       } yield a * b
+
+scala> c.value
+res: Future[Option[Int]] = Future(<not completed>)
+#+END_SRC
+
+*** TODO: more complex examples as per https://www.youtube.com/watch?v=hGMndafDcc8
 
 * Main Text
   :PROPERTIES:
