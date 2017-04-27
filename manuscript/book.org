@@ -738,16 +738,16 @@ if it's not successful we want to fallback to another method (and so
 on and so on), like when we're using a cache:
 
 #+BEGIN_SRC scala
-def getFromReddis(s: String): Option[String]
+def getFromRedis(s: String): Option[String]
 def getFromSql(s: String): Option[String]
 
-getFromReddis(key) orElse getFromSql(key)
+getFromRedis(key) orElse getFromSql(key)
 #+END_SRC
 
 If we have to do this for an asynchronous version of the same API
 
 #+BEGIN_SRC scala
-def getFromReddis(s: String): Future[Option[String]]
+def getFromRedis(s: String): Future[Option[String]]
 def getFromSql(s: String): Future[Option[String]]
 #+END_SRC
 
@@ -755,7 +755,7 @@ then we have to be careful not to do extra work because
 
 #+BEGIN_SRC scala
 for {
-  cache <- getFromReddis(key)
+  cache <- getFromRedis(key)
   sql   <- getFromSql(key)
 } yield cache orElse sql
 #+END_SRC
@@ -765,7 +765,7 @@ the type is wrong
 
 #+BEGIN_SRC scala
 for {
-  cache <- getFromReddis(key)
+  cache <- getFromRedis(key)
   res   <- cache match {
              case Some(_) => cache !!! wrong type !!!
              case None    => getFromSql(key)
@@ -777,7 +777,7 @@ We need to create a =Future= from the =cache=
 
 #+BEGIN_SRC scala
 for {
-  cache <- getFromReddis(key)
+  cache <- getFromRedis(key)
   res   <- cache match {
              case Some(_) => Future.successful(cache)
              case None    => getFromSql(key)
@@ -796,7 +796,7 @@ nightmare. Thankfully these tricky situations are the corner cases.
 We could code golf it and write
 
 #+BEGIN_SRC scala
-getFromReddis(key) orElseM getFromSql(key)
+getFromRedis(key) orElseM getFromSql(key)
 #+END_SRC
 
 by defining https://github.com/typelevel/cats/issues/1625 but it can

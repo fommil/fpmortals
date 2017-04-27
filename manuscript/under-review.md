@@ -333,17 +333,17 @@ on and so on), like when we're using a cache:
 
 {lang="text"}
 ~~~~~~~~
-def getFromReddis(s: String): Option[String]
+def getFromRedis(s: String): Option[String]
 def getFromSql(s: String): Option[String]
 
-getFromReddis(key) orElse getFromSql(key)
+getFromRedis(key) orElse getFromSql(key)
 ~~~~~~~~
 
 If we have to do this for an asynchronous version of the same API
 
 {lang="text"}
 ~~~~~~~~
-def getFromReddis(s: String): Future[Option[String]]
+def getFromRedis(s: String): Future[Option[String]]
 def getFromSql(s: String): Future[Option[String]]
 ~~~~~~~~
 
@@ -352,7 +352,7 @@ then we have to be careful not to do extra work because
 {lang="text"}
 ~~~~~~~~
 for {
-  cache <- getFromReddis(key)
+  cache <- getFromRedis(key)
   sql   <- getFromSql(key)
 } yield cache orElse sql
 ~~~~~~~~
@@ -363,7 +363,7 @@ the type is wrong
 {lang="text"}
 ~~~~~~~~
 for {
-  cache <- getFromReddis(key)
+  cache <- getFromRedis(key)
   res   <- cache match {
              case Some(_) => cache !!! wrong type !!!
              case None    => getFromSql(key)
@@ -376,7 +376,7 @@ We need to create a `Future` from the `cache`
 {lang="text"}
 ~~~~~~~~
 for {
-  cache <- getFromReddis(key)
+  cache <- getFromRedis(key)
   res   <- cache match {
              case Some(_) => Future.successful(cache)
              case None    => getFromSql(key)
@@ -394,7 +394,7 @@ A> We could code golf it and write
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> getFromReddis(key) orElseM getFromSql(key)
+A> getFromRedis(key) orElseM getFromSql(key)
 A> ~~~~~~~~
 A> 
 A> by defining <https://github.com/typelevel/cats/issues/1625> but it can
