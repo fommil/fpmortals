@@ -409,14 +409,14 @@ stay the same: we can't mix contexts.
 
 {lang="text"}
 ~~~~~~~~
-scala> def option: Option[Int] = ???
-scala> def future: Future[Int] = ???
+scala> def option: Option[Int] = ...
+scala> def future: Future[Int] = ...
 scala> for { 
          a <- option
          b <- future
        } yield a * b
 <console>:23: error: type mismatch;
- found   : scala.concurrent.Future[Int]
+ found   : Future[Int]
  required: Option[?]
          b <- future
               ^
