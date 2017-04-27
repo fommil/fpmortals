@@ -249,8 +249,8 @@ type Id[T] = T
 #+END_SRC
 
 Before proceeding, convince yourself that =Id[Int]= is the same thing
-as =Int=, by substituting =Int= into =T=. But =Id= is a valid type
-constructor, so we can use =Id= in an implementation of =Foo=:
+as =Int=, by substituting =Int= into =T=. Since =Id= is a valid type
+constructor, so we can use =Id= in an implementation of =Foo=
 
 #+BEGIN_SRC scala
 object FooId extends Foo[Id] {
@@ -312,33 +312,29 @@ def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
 #+END_SRC
 
 We can now share the =echo= implementation between synchronous and
-asynchronous codepaths!
+asynchronous codepaths. We can write a mock implementation of
+=Terminal[Now]= and use it in our tests without any timeouts.
 
-We only need to write an implementation for =Execution[Now]= and
-=Execution[Future]= once and we can reuse it forever, for any method
-like =echo=. We can trivially write a mock implementation of
-=Terminal[Now]= and use it in our tests.
+Implementations of =Execution[Now]= and =Execution[Future]= are
+reusable by generic methods like =echo=. But the code for =echo= is
+horrible! Let's clean it up.
 
-But the code is horrible! Let's use the =implicit class= Scala
-language feature (aka "enriching", "ops" or "syntax") to give =C= some
-nicer methods when there is an implicit =Execution= available. We'll
-call these methods =flatMap= and =map= for reasons that will become
-clearer in a moment:
+The =implicit class= Scala language feature gives =C= some methods.
+We'll call these methods =flatMap= and =map= for reasons that will
+become clearer in a moment. Each method takes an =implicit
+Execution[C]=, but this is nothing more than the =flatMap= and =map=
+that you're used to on =Seq=, =Option= and =Future=
 
 #+BEGIN_SRC scala
 object Execution {
-  implicit class Ops[A, C[_]](val c: C[A]) extends AnyVal {
+  implicit class Ops[A, C[_]](c: C[A]) {
     def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
           e.doAndThen(c)(f)
     def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
           e.doAndThen(c)(f andThen e.wrap)
   }
 }
-#+END_SRC
 
-which cleans up =echo= a little bit
-
-#+BEGIN_SRC scala
 def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   t.read.flatMap { in: String =>
     t.write(in).map { _: Unit =>
@@ -347,7 +343,7 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   }
 #+END_SRC
 
-we can now reveal why we used =flatMap= as the method name: it lets us
+We can now reveal why we used =flatMap= as the method name: it lets us
 use a /for comprehension/, which is just syntax sugar over nested
 =flatMap= and =map=.
 
