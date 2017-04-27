@@ -384,8 +384,8 @@ for {
 } yield res
 ~~~~~~~~
 
-This call to `Future.successful`, like an `Option` or `List`
-constructor, binds a value into the `for` context of a `Future`.
+`Future.successful` creates a new `Future`, much like an `Option` or
+`List` constructor.
 
 If functional programming was like this all the time, it'd be a
 nightmare. Thankfully these tricky situations are the corner cases.
