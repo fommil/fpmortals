@@ -464,6 +464,6 @@ scala> c.value
 res: Future[Option[Int]] = Future(<not completed>)
 ~~~~~~~~
 
-## TODO: more complex examples as per <https://www.youtube.com/watch?v=hGMndafDcc8>
+## TODO: more complex examples as per `https://www.youtube.com/watch?v=hGMndafDcc8`
 
 
