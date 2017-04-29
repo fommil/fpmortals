@@ -13,18 +13,21 @@
 :END:
 {frontmatter}
 
-** Preface
+** About This Book
 
 This book is for Scala developers with an Object Oriented (OOP)
 background who wish to learn the *Functional Programming* (FP)
-paradigm.
+paradigm. We do not accept that the merits of FP are obvious.
+Therefore, this book justifies every concept with practical examples,
+in Scala.
 
-We do not believe that learning Haskell should be a prerequisite. We
-also do not accept that the merits of FP are obvious. Therefore, this
-book justifies every concept with practical examples, in Scala.
+This book is not aimed at Haskell developers. Such readers will be
+frustrated by the emphasis on Java analogies and will prefer the [[http://typelevel.org/cats/][cats
+documentation]].
 
 This book is designed to be read from cover to cover, in the order
-presented. A computer is not necessary to follow along.
+presented, with a rest between chapters. A computer is not necessary
+to follow along.
 
 If you would like hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exercises.org]]
 
