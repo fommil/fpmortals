@@ -976,9 +976,9 @@ types, so it's worth checking if one is available.
 Notably absent is =ListT= (or =TraversableT=) because it is difficult
 to create a well-behaved monad transformer for collections. It comes
 down to the unfortunate fact that grouping of the operations can
-unintentionally reorder =flatMap= calls. [[https://github.com/typelevel/cats/issues/977][cats ticket #977]] aims to
-implement =ListT=. Implementing a monad transformer is an advanced
-topic.
+unintentionally reorder =flatMap= calls.
+https://github.com/typelevel/cats/issues/977 aims to implement
+=ListT=. Implementing a monad transformer is an advanced topic.
 
 * Main Text
   :PROPERTIES:
