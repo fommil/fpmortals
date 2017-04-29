@@ -545,7 +545,7 @@ with `Future[T]` giving
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-If you don't like the methods being on the left, or the method
+If you don't like the lifting being on the left, or the method
 overloading, you can define a different DSL with explicit transformer
 creation on the right
 
