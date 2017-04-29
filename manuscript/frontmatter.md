@@ -73,7 +73,8 @@ FP-specific features enabled (e.g. in `build.sbt`):
   scalacOptions in ThisBuild ++= Seq(
     "-language:_",
     "-Ypartial-unification"
-  )~~~~~~~~
+  )
+~~~~~~~~
 
 and add the following dependencies to your project's settings:
 
@@ -90,7 +91,8 @@ and add the following dependencies to your project's settings:
   
   resolvers += Resolver.sonatypeRepo("snapshots")
   addCompilerPlugin("org.scalamacros" %  "paradise"  % "2.1.0" cross CrossVersion.full)
-  libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0-SNAPSHOT"~~~~~~~~
+  libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0-SNAPSHOT"
+~~~~~~~~
 
 In order to keep our snippets short, we will omit the `import`
 section. Unless told otherwise, assume that all snippets have the
@@ -102,6 +104,7 @@ following imports:
   import cats.implicits._
   import freestyle._
   import freestyle.implicits._
-  import fs2._~~~~~~~~
+  import fs2._
+~~~~~~~~
 
 

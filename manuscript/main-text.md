@@ -95,7 +95,8 @@ Maybe use this example? <https://gitter.im/typelevel/cats?at=5904a2e98bb56c2d11f
       y <- lift $ Option(2)
       z <- lift $ List(Some(3), Some(4))
     } yield x + y + z
-  prg: OptionT[List, Int] = OptionT(List(Some(6), Some(7)))~~~~~~~~
+  prg: OptionT[List, Int] = OptionT(List(Some(6), Some(7)))
+~~~~~~~~
 
 ## RESEARCH data types
 
