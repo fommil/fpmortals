@@ -170,9 +170,8 @@ Older versions of scala used `filter`, but `Traversable.filter`
 creates new collections for every predicate, so `withFilter` was
 introduced as the more performant alternative.
 
-You can accidentally trigger a `withFilter` if you think you're being
-helpful by providing type information: it's actually interpreted as a
-pattern match.
+We can accidentally trigger a `withFilter` by providing type
+information: it's actually interpreted as a pattern match.
 
 {lang="text"}
 ~~~~~~~~
