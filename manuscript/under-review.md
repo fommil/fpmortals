@@ -455,15 +455,14 @@ the compiler still doesn't accept our code.
 ~~~~~~~~
 
 Here we want `for` to take care of the outer `Future` and let us write
-our code on the inner `Option`.
+our code on the inner `Option`. Hiding the outer context is exactly
+what a *monad transformer* does, and cats provides implementations for
+`Option`, `Future` and `Either` named `OptionT`, `FutureT` and
+`EitherT` respectively.
 
-Cats helps for inner contexts that have a *Monad Transformer* and
-provides implementations for `Option`, `Future` and `Either`.
-
-We create an `OptionT` monad transformer when we call a
-`Future[Option[_]]` method, which changes the context of the `for`
-into `OptionT[Future, _]` with `flatMap` and `map` being over the
-inner `Option`, not the outer `Future`.
+We create an `OptionT` from each method call. This changes the context
+of the `for` into `OptionT[Future, _]`, with `flatMap` and `map`
+giving us the value of the `Option`.
 
 Don't forget the import statements from the Practicalities chapter.
 
