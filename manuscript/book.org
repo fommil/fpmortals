@@ -19,39 +19,36 @@ This book is for Scala developers with an Object Oriented (OOP)
 background who wish to learn the *Functional Programming* (FP)
 paradigm.
 
-Until now, Scala has lacked a practical introduction to FP. We do not
-believe that learning Haskell should be a prerequisite. We also do not
-accept that the merits of FP are obvious. Therefore, this book
-justifies every concept with practical examples, in Scala.
+We do not believe that learning Haskell should be a prerequisite. We
+also do not accept that the merits of FP are obvious. Therefore, this
+book justifies every concept with practical examples, in Scala.
 
-We recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as optional further reading. It is a
-textbook to learn the fundamentals and write your own FP library in
-Scala, serving a different purpose than this book.
+This book is designed to be read from cover to cover, in the order
+presented. A computer is not necessary to follow along.
 
-We also recommend [[http://haskellbook.com/][Haskell Programming from First Principles]] as
-optional further reading. FP innovation has traditionally been in
-Haskell because it is the academic standard. But Scala has gained much
-more traction in industry and brings with it features, stability,
-interop, powerful frameworks and a commercial ecosystem.
+If you would like hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exercises.org]]
+
+We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
+write an FP library in Scala from first principles.
 
 ** Copyleft Notice
 
 This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]]: you
 can use this book as you like, you can redistribute this book and you
 can distribute your own version. That means you can print it,
-photocopy it, e-mail it, post it on social media, upload it to
-websites, change it, translate it, remix it, delete bits, and draw all
-over it. You can even sell it, although you should agree a royalty
-share with the author or you'll not be getting an xmas card.
+photocopy it, e-mail it, upload it to websites, change it, translate
+it, remix it, delete bits, and draw all over it. You can even sell it,
+although you should agree a royalty share with the author or you'll
+not be getting an xmas card.
 
 This book is *Copyleft*: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
 
 This book uses the [[https://creativecommons.org/licenses/by-sa/4.0/legalcode][Creative Commons Attribution ShareAlike 4.0
-International]] (CC BY-SA 4.0) license. Attribution means you cannot
-claim that you wrote the book.
+International]] (CC BY-SA 4.0) license.
 
-All code examples in this book are separately [[https://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] licensed.
+All code samples in this book are separately [[https://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] licensed,
+which is Libre but not Copyleft.
 
 ** Thanks
 
