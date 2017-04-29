@@ -16,9 +16,9 @@ object drone {
   case class Backlog(items: Int) extends DroneResp
   case class Agents(items: Int) extends DroneResp
 
-  @free trait Drone[F[_]] {
-    def getBacklog: FreeS[F, Backlog]
-    def getAgents: FreeS[F, Agents]
+  @free trait Drone {
+    def getBacklog: FS[Backlog]
+    def getAgents: FS[Agents]
   }
 }
 
@@ -30,11 +30,11 @@ object machines {
   case class Managed(nodes: NonEmptyList[Node]) extends MachinesResp
   case class Alive(nodes: Map[Node, ZonedDateTime]) extends MachinesResp
 
-  @free trait Machines[F[_]] {
-    def getTime: FreeS[F, Time]
-    def getManaged: FreeS[F, Managed]
-    def getAlive: FreeS[F, Alive]
-    def start(node: Node): FreeS[F, Unit]
-    def stop(node: Node): FreeS[F, Unit]
+  @free trait Machines {
+    def getTime: FS[Time]
+    def getManaged: FS[Managed]
+    def getAlive: FS[Alive]
+    def start(node: Node): FS[Unit]
+    def stop(node: Node): FS[Unit]
   }
 }

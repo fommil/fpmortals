@@ -18,10 +18,10 @@ import http.encoding._
 object algebra {
   final case class Response[T](header: HttpResponseHeader, body: T)
 
-  @free trait JsonHttpClient[F[_]] {
-    def get[B: Decoder](uri: Uri, headers: List[HttpHeader] = Nil): FreeS[F, Response[B]]
+  @free trait JsonHttpClient {
+    def get[B: Decoder](uri: Uri, headers: List[HttpHeader] = Nil): FS[Response[B]]
 
     // using application/x-www-form-urlencoded
-    def postUrlencoded[A: UrlEncoded, B: Decoder](uri: Uri, payload: A, headers: List[HttpHeader] = Nil): FreeS[F, Response[B]]
+    def postUrlencoded[A: UrlEncoded, B: Decoder](uri: Uri, payload: A, headers: List[HttpHeader] = Nil): FS[Response[B]]
   }
 }

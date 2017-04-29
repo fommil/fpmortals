@@ -142,17 +142,17 @@ final case class RefreshToken(token: String)
 final case class BearerToken(token: String, expires: LocalDateTime)
 
 object algebra {
-  @free trait UserInteraction[F[_]] {
+  @free trait UserInteraction {
     /** returns the Uri that the local server is listening on */
-    def start: FreeS[F, Uri]
+    def start: FS[Uri]
     /** prompts the user to open this Uri, which will end up at the local server */
-    def open(uri: Uri): FreeS[F, Unit]
+    def open(uri: Uri): FS[Unit]
     /** wait for the user interaction to complete and recover the code */
-    def stop: FreeS[F, CodeToken]
+    def stop: FS[CodeToken]
   }
 
-  @free trait LocalClock[F[_]] {
-    def now: FreeS[F, LocalDateTime]
+  @free trait LocalClock {
+    def now: FS[LocalDateTime]
   }
 }
 
@@ -162,10 +162,10 @@ package logic {
   import http.client.algebra.JsonHttpClient
   import algebra._
 
-  @module trait Deps[F[_]] {
-    val user: UserInteraction[F]
-    val server: JsonHttpClient[F]
-    val clock: LocalClock[F]
+  @module trait Deps {
+    val user: UserInteraction
+    val server: JsonHttpClient
+    val clock: LocalClock
   }
 
   class OAuth2Client[F[_]](
@@ -180,7 +180,7 @@ package logic {
     import http.encoding.QueryEncoded.ops._
 
     // for use in one-shot apps requiring user interaction
-    def authenticate: FreeS[F, CodeToken] =
+    def authenticate =
       for {
         callback <- user.start
         params = AuthRequest(callback, config.scope, config.clientId)
@@ -188,7 +188,7 @@ package logic {
         code <- user.stop
       } yield code
 
-    def access(code: CodeToken): FreeS[F, (RefreshToken, BearerToken)] =
+    def access(code: CodeToken) =
       for {
         request <- FreeS.pure(AccessRequest(code.token, code.redirect_uri, config.clientId, config.clientSecret))
         response <- server.postUrlencoded[AccessRequest, AccessResponse](config.access, request)
@@ -199,7 +199,7 @@ package logic {
         bearer = BearerToken(msg.access_token, expires)
       } yield (refresh, bearer)
 
-    def bearer(refresh: RefreshToken): FreeS[F, BearerToken] =
+    def bearer(refresh: RefreshToken) =
       for {
         request <- FreeS.pure(RefreshRequest(config.clientSecret, refresh.token, config.clientId))
         response <- server.postUrlencoded[RefreshRequest, RefreshResponse](config.refresh, request)
