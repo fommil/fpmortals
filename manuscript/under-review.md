@@ -129,7 +129,7 @@ A> generators
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> scala> val maybe = Option(("hello", "world")) 
+A> scala> val maybe = Option(("hello", "world"))
 A> scala> for {
 A>          entry <- maybe
 A>          (first, _) = entry
@@ -173,7 +173,28 @@ a.flatMap {
 
 Older versions of scala used `filter`, but `Traversable.filter`
 creates new collections for every predicate, so `withFilter` was
-introduced as the more performant alternative.
+introduced as the more performant alternative. There was some compiler
+magic during the transition to support `withFilter` or `filter` but
+nowadays only `withFilter` works.
+
+You could also accidentally trigger a `withFilter` if you think you're
+being helpful by providing type information: it's actually interpreted
+as a pattern match.
+
+{lang="text"}
+~~~~~~~~
+reify> for { i: Int <- a } yield i
+
+a.withFilter {
+  case i: Int => true
+  case _      => false
+}.map { i => i }
+~~~~~~~~
+
+Like in assignment, a generator can use a pattern match on the left
+hand side. But unlike assignment (which throws `MatchError` on
+failure), generators are *filtered* and will not fail at runtime.
+However, there is an inefficient double application of the pattern.
 
 ### For Each
 
@@ -411,7 +432,7 @@ stay the same: we can't mix contexts.
 ~~~~~~~~
 scala> def option: Option[Int] = ...
 scala> def future: Future[Int] = ...
-scala> for { 
+scala> for {
          a <- option
          b <- future
        } yield a * b
@@ -425,14 +446,14 @@ scala> for {
 Nothing can help us mix arbitrary contexts in a `for` comprehension,
 because the meaning is not well defined.
 
-But when we have nested contexts the intention is usually pretty
-obvious yet the compiler still doesn't accept our code.
+But when we have nested contexts the intention is usually obvious yet
+the compiler still doesn't accept our code.
 
 {lang="text"}
 ~~~~~~~~
 scala> def getA: Future[Option[Int]] = ...
 scala> def getB: Future[Option[Int]] = ...
-scala> for { 
+scala> for {
          a <- getA
          b <- getB
        } yield a * b
@@ -441,29 +462,139 @@ scala> for {
                  ^
 ~~~~~~~~
 
-Here we want `for` to take care of the `Future` for us and let us
-write our code with what is inside.
+Here we want `for` to take care of the outer `Future` and let us write
+our code on the inner `Option`.
 
 Cats helps for inner contexts that have a *Monad Transformer* and
 provides implementations for `Option`, `Future` and `Either`.
 
-We create an `OptionT` monad transformer for every inner `Option` and
-call `.value` to return to the original outer context. The outer
-context can be anything that normally works in a `for` comprehension,
-but it needs to stay the same throughout. Don't forget the import
-statements from the Practicalities chapter.
+We create an `OptionT` monad transformer when we call a
+`Future[Option[_]]` method, which changes the context of the `for`
+into `OptionT[Future, _]` with `flatMap` and `map` being over the
+inner `Option`, not the outer `Future`.
+
+Don't forget the import statements from the Practicalities chapter.
 
 {lang="text"}
 ~~~~~~~~
-scala> val c = for { 
+scala> val result = for {
          a <- OptionT(getA)
          b <- OptionT(getB)
        } yield a * b
+result: OptionT[Future, Int] = OptionT(Future(<not completed>))
+~~~~~~~~
 
-scala> c.value
+The outer context can be anything that normally works in a `for`
+comprehension, but it needs to stay the same throughout. Call `.value`
+to return to it.
+
+{lang="text"}
+~~~~~~~~
+scala> result.value
 res: Future[Option[Int]] = Future(<not completed>)
 ~~~~~~~~
 
-## TODO: more complex examples
+The monad transformer also allows us to mix `Future[Option[_]]` calls
+with methods that just return plain `Future` via `OptionT.liftF`
+
+{lang="text"}
+~~~~~~~~
+scala> def getC: Future[Int] = ...
+scala> val result = for {
+         a <- OptionT(getA)
+         b <- OptionT(getB)
+         c <- OptionT.liftF(getC)
+       } yield a * b / c
+result: OptionT[Future, Int] = OptionT(Future(<not completed>))
+~~~~~~~~
+
+and we can mix with methods that return plain `Option` by wrapping
+them in `Future.successful` followed by `OptionT`
+
+{lang="text"}
+~~~~~~~~
+scala> def getD: Option[Int] = ...
+scala> val result = for {
+         a <- OptionT(getA)
+         b <- OptionT(getB)
+         c <- OptionT.liftF(getC)
+         d <- OptionT(Future.successful(getD))
+       } yield (a * b) / (c * d)
+result: OptionT[Future, Int] = OptionT(Future(<not completed>))
+~~~~~~~~
+
+It's gotten messy again, but it's still better than writing nested
+`flatMap` and `map`. A way to clean this up is to define a DSL that
+handles all the required conversions into `OptionT[Future, _]`
+
+{lang="text"}
+~~~~~~~~
+object Lift {
+  type C[T] = OptionT[Future, T]
+  def $[T](f: Future[T]): C[T] = OptionT.liftF(f)
+  def $[T](t: Option[T]): C[T] = OptionT(Future.successful(t))
+  def $[T](t: T): C[T]         = $(Some(t))
+}
+~~~~~~~~
+
+Unfortunately, due to runtime erasure we cannot also have a `$` method
+for `Future[Option[T]]` because the bytecode signature would clash
+with `Future[T]` giving
+`$(Lscala/concurrent/Future;)cats.data.OptionT`.
+
+{lang="text"}
+~~~~~~~~
+scala> val result = for {
+         a <- OptionT(getA)
+         b <- OptionT(getB)
+         c <- Lift $  getC
+         d <- Lift $  getD
+         e <- Lift $  10
+       } yield e * (a * b) / (c * d)
+result: OptionT[Future, Int] = OptionT(Future(<not completed>))
+~~~~~~~~
+
+If you don't like the methods being on the left, or the method
+overloading, you can define a different DSL with explicit transformer
+creation on the right
+
+{lang="text"}
+~~~~~~~~
+implicit class Ops[In](in: In) {
+  def |>[Out](f: In => Out): Out = f(in)
+}
+def liftFutureOption[T](f: Future[Option[T]]) = OptionT(f)
+def liftFuture[T](f: Future[T]) = OptionT.liftF(f)
+def liftOption[T](t: Option[T]) = OptionT(Future.successful(t))
+def lift[T](t: T)               = liftOption(Some(t))
+~~~~~~~~
+
+which has a clearer visual separation of the logic from the ugly
+transformations (they almost look like comments)
+
+{lang="text"}
+~~~~~~~~
+scala> val result = for {
+         a <- getA       |> liftFutureOption
+         b <- getB       |> liftFutureOption
+         c <- getC       |> liftFuture
+         d <- getD       |> liftOption
+         e <- 10         |> lift
+       } yield e * (a * b) / (c * d)
+result: OptionT[Future, Int] = OptionT(Future(<not completed>))
+~~~~~~~~
+
+This approach also works for `EitherT` and `FutureT` as the inner
+context, but their lifting methods are more complex as they require
+parameters to construct the `Left` and/or implicit `ExecutionContext`.
+cats provides monad transformers for a lot of its own types, so it's
+worth checking if one is available.
+
+Notably absent is `ListT` (or `TraversableT`) because it is difficult
+to create a well-behaved monad transformer for collections. It comes
+down to the unfortunate fact that grouping of the operations can
+unintentionally reorder `flatMap` calls. [cats ticket #977](https://github.com/typelevel/cats/issues/977) aims to
+implement `ListT`. Implementing a monad transformer is an advanced
+topic.
 
 

@@ -59,7 +59,7 @@ Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8).
 The helpul souls who helped explain the concepts needed to write the
 example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund Noble,
 Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist, Adam
-Chlupacek, Pavel Chlupacek, Paul Snively.
+Chlupacek, Pavel Chlupacek, Paul Snively, Daniel Spiewak.
 
 # Practicalities
 
