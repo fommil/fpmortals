@@ -23,18 +23,17 @@ type inference.
 
 {lang="text"}
 ~~~~~~~~
-scala> import scala.reflect.runtime.universe._
-scala> val a, b, c = Option(1)
-scala> show { reify {
-         for { i <- a ; j <- b ; k <- c } yield (i + j + k)
-       } }
-
-res:
-$read.a.flatMap(
-  ((i) => $read.b.flatMap(
-    ((j) => $read.c.map(
-      ((k) => i.$plus(j).$plus(k)))))))
-~~~~~~~~
+  scala> import scala.reflect.runtime.universe._
+  scala> val a, b, c = Option(1)
+  scala> show { reify {
+           for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+         } }
+  
+  res:
+  $read.a.flatMap(
+    ((i) => $read.b.flatMap(
+      ((j) => $read.c.map(
+        ((k) => i.$plus(j).$plus(k)))))))~~~~~~~~
 
 There is a lot of noise due to additional sugarings (e.g. `+` is
 rewritten `$plus`, etc). We'll skip the `show` and `reify` for brevity
@@ -43,13 +42,12 @@ code so that it doesn't become a distraction.
 
 {lang="text"}
 ~~~~~~~~
-reify> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
-
-a.flatMap {
-  i => b.flatMap {
-    j => c.map {
-      k => i + j + k }}}
-~~~~~~~~
+  reify> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+  
+  a.flatMap {
+    i => b.flatMap {
+      j => c.map {
+        k => i + j + k }}}~~~~~~~~
 
 The rule of thumb is that every `<-` (called a *generator*) is a
 nested `flatMap` call, with the final generator a `map` containing the
@@ -62,18 +60,17 @@ needed).
 
 {lang="text"}
 ~~~~~~~~
-reify> for {
-         i <- a
-         j <- b
-         ij = i + j
-         k <- c
-       } yield (ij + k)
-
-a.flatMap {
-  i => b.map { j => (j, i + j) }.flatMap {
-    case (j, ij) => c.map {
-      k => ij + k }}}
-~~~~~~~~
+  reify> for {
+           i <- a
+           j <- b
+           ij = i + j
+           k <- c
+         } yield (ij + k)
+  
+  a.flatMap {
+    i => b.map { j => (j, i + j) }.flatMap {
+      case (j, ij) => c.map {
+        k => ij + k }}}~~~~~~~~
 
 A `map` over the `b` introduces the `ij` which is flat-mapped along
 with the `j`, then the final `map` for the code in the `yield`.
@@ -84,66 +81,60 @@ requested as a language feature but has not been implemented:
 
 {lang="text"}
 ~~~~~~~~
-scala> for {
-         initial = getDefault
-         i <- a
-       } yield initial + i
-<console>:1: error: '<-' expected but '=' found.
-~~~~~~~~
+  scala> for {
+           initial = getDefault
+           i <- a
+         } yield initial + i
+  <console>:1: error: '<-' expected but '=' found.~~~~~~~~
 
 We can workaround the limitation by defining a `val` outside the `for`
 
 {lang="text"}
 ~~~~~~~~
-scala> val initial = getDefault
-scala> for { i <- a } yield initial + i
-~~~~~~~~
+  scala> val initial = getDefault
+  scala> for { i <- a } yield initial + i~~~~~~~~
 
 or create an `Option` out of the initial assignment
 
 {lang="text"}
 ~~~~~~~~
-scala> for {
-         initial <- Option(getDefault)
-         i <- a
-       } yield initial + i
-~~~~~~~~
+  scala> for {
+           initial <- Option(getDefault)
+           i <- a
+         } yield initial + i~~~~~~~~
 
 A> `val` doesn't have to assign to a single value, it can be anything
 A> that works as a `case` in a pattern match.
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> scala> val (first, second) = ("hello", "world")
-A> first: String = hello
-A> second: String = world
-A> 
-A> scala> val list: List[Int] = ...
-A> scala> val head :: tail = list
-A> head: Int = 1
-A> tail: List[Int] = List(2, 3)
-A> ~~~~~~~~
+A>   scala> val (first, second) = ("hello", "world")
+A>   first: String = hello
+A>   second: String = world
+A>   
+A>   scala> val list: List[Int] = ...
+A>   scala> val head :: tail = list
+A>   head: Int = 1
+A>   tail: List[Int] = List(2, 3)~~~~~~~~
 A> 
 A> The same is true for assignment in `for` comprehensions
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> scala> val maybe = Option(("hello", "world"))
-A> scala> for {
-A>          entry <- maybe
-A>          (first, _) = entry
-A>        } yield first
-A> res: Some(hello)
-A> ~~~~~~~~
+A>   scala> val maybe = Option(("hello", "world"))
+A>   scala> for {
+A>            entry <- maybe
+A>            (first, _) = entry
+A>          } yield first
+A>   res: Some(hello)~~~~~~~~
 A> 
 A> But be careful that you don't miss any cases or you'll get a runtime
 A> exception (a *totality* failure).
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> scala> val a :: tail = list
-A> caught scala.MatchError: List()
-A> ~~~~~~~~
+A>   scala> val a :: tail = list
+A>   caught scala.MatchError: List()~~~~~~~~
 
 ### Filter
 
@@ -152,19 +143,18 @@ values by a predicate
 
 {lang="text"}
 ~~~~~~~~
-reify> for {
-         i  <- a
-         j  <- b
-         if i > j
-         k  <- c
-       } yield (i + j + k)
-
-a.flatMap {
-  i => b.withFilter {
-    j => i > j }.flatMap {
-      j => c.map {
-        k => i + j + k }}}
-~~~~~~~~
+  reify> for {
+           i  <- a
+           j  <- b
+           if i > j
+           k  <- c
+         } yield (i + j + k)
+  
+  a.flatMap {
+    i => b.withFilter {
+      j => i > j }.flatMap {
+        j => c.map {
+          k => i + j + k }}}~~~~~~~~
 
 Older versions of scala used `filter`, but `Traversable.filter`
 creates new collections for every predicate, so `withFilter` was
@@ -176,13 +166,12 @@ pattern match.
 
 {lang="text"}
 ~~~~~~~~
-reify> for { i: Int <- a } yield i
-
-a.withFilter {
-  case i: Int => true
-  case _      => false
-}.map { i => i }
-~~~~~~~~
+  reify> for { i: Int <- a } yield i
+  
+  a.withFilter {
+    case i: Int => true
+    case _      => false
+  }.map { i => i }~~~~~~~~
 
 Like in assignment, a generator can use a pattern match on the left
 hand side. But unlike assignment (which throws `MatchError` on
@@ -196,10 +185,9 @@ instead of `flatMap`, which is only useful for side-effects.
 
 {lang="text"}
 ~~~~~~~~
-reify> for { i <- a ; j <- b } println(s"$i $j")
-
-a.foreach { i => b.foreach { j => println(s"$i $j") } }
-~~~~~~~~
+  reify> for { i <- a ; j <- b } println(s"$i $j")
+  
+  a.foreach { i => b.foreach { j => println(s"$i $j") } }~~~~~~~~
 
 ### Summary
 
@@ -209,13 +197,12 @@ If there were a trait, it would roughly look like:
 
 {lang="text"}
 ~~~~~~~~
-trait ForComprehensible[C[_]] {
-  def map[A, B](f: A => B): C[B]
-  def flatMap[A, B](f: A => C[B]): C[B]
-  def withFilter[A](p: A => Boolean): C[A]
-  def foreach[A](f: A => Unit): Unit
-}
-~~~~~~~~
+  trait ForComprehensible[C[_]] {
+    def map[A, B](f: A => B): C[B]
+    def flatMap[A, B](f: A => C[B]): C[B]
+    def withFilter[A](p: A => Boolean): C[A]
+    def foreach[A](f: A => Unit): Unit
+  }~~~~~~~~
 
 If the context (`C[_]`) of a `for` comprehension doesn't provide its
 own `map` and `flatMap`, all is not lost. An implicit
@@ -227,14 +214,13 @@ A> `for` comprehension do not run in parallel:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> import scala.concurrent._
-A> import ExecutionContext.Implicits.global
-A> 
-A> for {
-A>   i <- Future { expensiveCalc() }
-A>   j <- Future { anotherExpensiveCalc() }
-A> } yield (i + j)
-A> ~~~~~~~~
+A>   import scala.concurrent._
+A>   import ExecutionContext.Implicits.global
+A>   
+A>   for {
+A>     i <- Future { expensiveCalc() }
+A>     j <- Future { anotherExpensiveCalc() }
+A>   } yield (i + j)~~~~~~~~
 A> 
 A> This is because the `flatMap` spawning `anotherExpensiveCalc` is
 A> strictly **after** `expensiveCalc`. To ensure that two `Future`
@@ -243,10 +229,9 @@ A> comprehension.
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> val a = Future { expensiveCalc() }
-A> val b = Future { anotherExpensiveCalc() }
-A> for { i <- a ; j <- b } yield (i + j)
-A> ~~~~~~~~
+A>   val a = Future { expensiveCalc() }
+A>   val b = Future { anotherExpensiveCalc() }
+A>   for { i <- a ; j <- b } yield (i + j)~~~~~~~~
 A> 
 A> `for` comprehensions are fundamentally for defining sequential
 A> programs. We will show a far superior way of defining parallel
@@ -263,12 +248,11 @@ all defined.
 
 {lang="text"}
 ~~~~~~~~
-for {
-  i <- a
-  j <- b
-  k <- c
-} yield (i + j + k)
-~~~~~~~~
+  for {
+    i <- a
+    j <- b
+    k <- c
+  } yield (i + j + k)~~~~~~~~
 
 If any of `a,b,c` are `None`, the comprehension short-circuits with
 `None` but it doesn't tell us what went wrong.
@@ -280,14 +264,13 @@ A> return value for every input):
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> def namedThings(
-A>   someName  : Option[String],
-A>   someNumber: Option[Int]
-A> ): Option[String] = for {
-A>   name   <- someName
-A>   number <- someNumber
-A> } yield s"$number ${name}s"
-A> ~~~~~~~~
+A>   def namedThings(
+A>     someName  : Option[String],
+A>     someNumber: Option[Int]
+A>   ): Option[String] = for {
+A>     name   <- someName
+A>     number <- someNumber
+A>   } yield s"$number ${name}s"~~~~~~~~
 A> 
 A> but this is verbose, clunky and bad style. If a function requires
 A> every input then it should make its requirement explicit, pushing the
@@ -300,27 +283,25 @@ error reporting:
 
 {lang="text"}
 ~~~~~~~~
-scala> val a = Right(1)
-scala> val b = Right(2)
-scala> val c: Either[String, Int] = Left("sorry, no c")
-scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
-
-Left(sorry, no c)
-~~~~~~~~
+  scala> val a = Right(1)
+  scala> val b = Right(2)
+  scala> val c: Either[String, Int] = Left("sorry, no c")
+  scala> for { i <- a ; j <- b ; k <- c } yield (i + j + k)
+  
+  Left(sorry, no c)~~~~~~~~
 
 And lastly, let's see what happens with a `Future` that fails:
 
 {lang="text"}
 ~~~~~~~~
-scala> import scala.concurrent._
-scala> import ExecutionContext.Implicits.global
-scala> for {
-         i <- Future.failed[Int](new Throwable)
-         j <- Future { println("hello") ; 1 }
-       } yield (i + j)
-scala> Await.result(f, duration.Duration.Inf)
-caught java.lang.Throwable
-~~~~~~~~
+  scala> import scala.concurrent._
+  scala> import ExecutionContext.Implicits.global
+  scala> for {
+           i <- Future.failed[Int](new Throwable)
+           j <- Future { println("hello") ; 1 }
+         } yield (i + j)
+  scala> Await.result(f, duration.Duration.Inf)
+  caught java.lang.Throwable~~~~~~~~
 
 The `Future` that prints to the terminal is never called because, like
 `Option` and `Either`, the `for` comprehension short circuits.
@@ -347,56 +328,51 @@ on and so on), like when we're using a cache:
 
 {lang="text"}
 ~~~~~~~~
-def getFromRedis(s: String): Option[String]
-def getFromSql(s: String): Option[String]
-
-getFromRedis(key) orElse getFromSql(key)
-~~~~~~~~
+  def getFromRedis(s: String): Option[String]
+  def getFromSql(s: String): Option[String]
+  
+  getFromRedis(key) orElse getFromSql(key)~~~~~~~~
 
 If we have to do this for an asynchronous version of the same API
 
 {lang="text"}
 ~~~~~~~~
-def getFromRedis(s: String): Future[Option[String]]
-def getFromSql(s: String): Future[Option[String]]
-~~~~~~~~
+  def getFromRedis(s: String): Future[Option[String]]
+  def getFromSql(s: String): Future[Option[String]]~~~~~~~~
 
 then we have to be careful not to do extra work because
 
 {lang="text"}
 ~~~~~~~~
-for {
-  cache <- getFromRedis(key)
-  sql   <- getFromSql(key)
-} yield cache orElse sql
-~~~~~~~~
+  for {
+    cache <- getFromRedis(key)
+    sql   <- getFromSql(key)
+  } yield cache orElse sql~~~~~~~~
 
 will run both queries. We can pattern match on the first result but
 the type is wrong
 
 {lang="text"}
 ~~~~~~~~
-for {
-  cache <- getFromRedis(key)
-  res   <- cache match {
-             case Some(_) => cache !!! wrong type !!!
-             case None    => getFromSql(key)
-           }
-} yield res
-~~~~~~~~
+  for {
+    cache <- getFromRedis(key)
+    res   <- cache match {
+               case Some(_) => cache !!! wrong type !!!
+               case None    => getFromSql(key)
+             }
+  } yield res~~~~~~~~
 
 We need to create a `Future` from the `cache`
 
 {lang="text"}
 ~~~~~~~~
-for {
-  cache <- getFromRedis(key)
-  res   <- cache match {
-             case Some(_) => Future.successful(cache)
-             case None    => getFromSql(key)
-           }
-} yield res
-~~~~~~~~
+  for {
+    cache <- getFromRedis(key)
+    res   <- cache match {
+               case Some(_) => Future.successful(cache)
+               case None    => getFromSql(key)
+             }
+  } yield res~~~~~~~~
 
 `Future.successful` creates a new `Future`, much like an `Option` or
 `List` constructor.
@@ -408,8 +384,7 @@ A> We could code golf it and write
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> getFromRedis(key) orElseM getFromSql(key)
-A> ~~~~~~~~
+A>   getFromRedis(key) orElseM getFromSql(key)~~~~~~~~
 A> 
 A> by defining <https://github.com/typelevel/cats/issues/1625> but it can
 A> be a cognitive burden to remember all these helper methods. The level
@@ -423,18 +398,17 @@ stay the same: we can't mix contexts.
 
 {lang="text"}
 ~~~~~~~~
-scala> def option: Option[Int] = ...
-scala> def future: Future[Int] = ...
-scala> for {
-         a <- option
-         b <- future
-       } yield a * b
-<console>:23: error: type mismatch;
- found   : Future[Int]
- required: Option[?]
-         b <- future
-              ^
-~~~~~~~~
+  scala> def option: Option[Int] = ...
+  scala> def future: Future[Int] = ...
+  scala> for {
+           a <- option
+           b <- future
+         } yield a * b
+  <console>:23: error: type mismatch;
+   found   : Future[Int]
+   required: Option[?]
+           b <- future
+                ^~~~~~~~~
 
 Nothing can help us mix arbitrary contexts in a `for` comprehension,
 because the meaning is not well defined.
@@ -444,16 +418,15 @@ the compiler still doesn't accept our code.
 
 {lang="text"}
 ~~~~~~~~
-scala> def getA: Future[Option[Int]] = ...
-scala> def getB: Future[Option[Int]] = ...
-scala> for {
-         a <- getA
-         b <- getB
-       } yield a * b
-<console>:30: error: value * is not a member of Option[Int]
-       } yield a * b
-                 ^
-~~~~~~~~
+  scala> def getA: Future[Option[Int]] = ...
+  scala> def getB: Future[Option[Int]] = ...
+  scala> for {
+           a <- getA
+           b <- getB
+         } yield a * b
+  <console>:30: error: value * is not a member of Option[Int]
+         } yield a * b
+                   ^~~~~~~~~
 
 Here we want `for` to take care of the outer `Future` and let us write
 our code on the inner `Option`.
@@ -470,12 +443,11 @@ Don't forget the import statements from the Practicalities chapter.
 
 {lang="text"}
 ~~~~~~~~
-scala> val result = for {
-         a <- OptionT(getA)
-         b <- OptionT(getB)
-       } yield a * b
-result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-~~~~~~~~
+  scala> val result = for {
+           a <- OptionT(getA)
+           b <- OptionT(getB)
+         } yield a * b
+  result: OptionT[Future, Int] = OptionT(Future(<not completed>))~~~~~~~~
 
 The outer context can be anything that normally works in a `for`
 comprehension, but it needs to stay the same throughout. Call `.value`
@@ -483,38 +455,35 @@ to return to it.
 
 {lang="text"}
 ~~~~~~~~
-scala> result.value
-res: Future[Option[Int]] = Future(<not completed>)
-~~~~~~~~
+  scala> result.value
+  res: Future[Option[Int]] = Future(<not completed>)~~~~~~~~
 
 The monad transformer also allows us to mix `Future[Option[_]]` calls
 with methods that just return plain `Future` via `OptionT.liftF`
 
 {lang="text"}
 ~~~~~~~~
-scala> def getC: Future[Int] = ...
-scala> val result = for {
-         a <- OptionT(getA)
-         b <- OptionT(getB)
-         c <- OptionT.liftF(getC)
-       } yield a * b / c
-result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-~~~~~~~~
+  scala> def getC: Future[Int] = ...
+  scala> val result = for {
+           a <- OptionT(getA)
+           b <- OptionT(getB)
+           c <- OptionT.liftF(getC)
+         } yield a * b / c
+  result: OptionT[Future, Int] = OptionT(Future(<not completed>))~~~~~~~~
 
 and we can mix with methods that return plain `Option` by wrapping
 them in `Future.successful` followed by `OptionT`
 
 {lang="text"}
 ~~~~~~~~
-scala> def getD: Option[Int] = ...
-scala> val result = for {
-         a <- OptionT(getA)
-         b <- OptionT(getB)
-         c <- OptionT.liftF(getC)
-         d <- OptionT(Future.successful(getD))
-       } yield (a * b) / (c * d)
-result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-~~~~~~~~
+  scala> def getD: Option[Int] = ...
+  scala> val result = for {
+           a <- OptionT(getA)
+           b <- OptionT(getB)
+           c <- OptionT.liftF(getC)
+           d <- OptionT(Future.successful(getD))
+         } yield (a * b) / (c * d)
+  result: OptionT[Future, Int] = OptionT(Future(<not completed>))~~~~~~~~
 
 It's gotten messy again, but it's still better than writing nested
 `flatMap` and `map`. A way to clean this up is to define a DSL that
@@ -522,13 +491,12 @@ handles all the required conversions into `OptionT[Future, _]`
 
 {lang="text"}
 ~~~~~~~~
-object Lift {
-  type C[T] = OptionT[Future, T]
-  def $[T](f: Future[T]): C[T] = OptionT.liftF(f)
-  def $[T](t: Option[T]): C[T] = OptionT(Future.successful(t))
-  def $[T](t: T): C[T]         = $(Some(t))
-}
-~~~~~~~~
+  object Lift {
+    type C[T] = OptionT[Future, T]
+    def $[T](f: Future[T]): C[T] = OptionT.liftF(f)
+    def $[T](t: Option[T]): C[T] = OptionT(Future.successful(t))
+    def $[T](t: T): C[T]         = $(Some(t))
+  }~~~~~~~~
 
 Unfortunately, due to runtime erasure we cannot also have a `$` method
 for `Future[Option[T]]` because the bytecode signature would clash
@@ -537,15 +505,14 @@ with `Future[T]` giving
 
 {lang="text"}
 ~~~~~~~~
-scala> val result = for {
-         a <- OptionT(getA)
-         b <- OptionT(getB)
-         c <- Lift $  getC
-         d <- Lift $  getD
-         e <- Lift $  10
-       } yield e * (a * b) / (c * d)
-result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-~~~~~~~~
+  scala> val result = for {
+           a <- OptionT(getA)
+           b <- OptionT(getB)
+           c <- Lift $  getC
+           d <- Lift $  getD
+           e <- Lift $  10
+         } yield e * (a * b) / (c * d)
+  result: OptionT[Future, Int] = OptionT(Future(<not completed>))~~~~~~~~
 
 If you don't like the methods being on the left, or the method
 overloading, you can define a different DSL with explicit transformer
@@ -553,29 +520,27 @@ creation on the right
 
 {lang="text"}
 ~~~~~~~~
-implicit class Ops[In](in: In) {
-  def |>[Out](f: In => Out): Out = f(in)
-}
-def liftFutureOption[T](f: Future[Option[T]]) = OptionT(f)
-def liftFuture[T](f: Future[T]) = OptionT.liftF(f)
-def liftOption[T](t: Option[T]) = OptionT(Future.successful(t))
-def lift[T](t: T)               = liftOption(Some(t))
-~~~~~~~~
+  implicit class Ops[In](in: In) {
+    def |>[Out](f: In => Out): Out = f(in)
+  }
+  def liftFutureOption[T](f: Future[Option[T]]) = OptionT(f)
+  def liftFuture[T](f: Future[T]) = OptionT.liftF(f)
+  def liftOption[T](t: Option[T]) = OptionT(Future.successful(t))
+  def lift[T](t: T)               = liftOption(Some(t))~~~~~~~~
 
 which has a clearer visual separation of the logic from the ugly
 transformations (they almost look like comments)
 
 {lang="text"}
 ~~~~~~~~
-scala> val result = for {
-         a <- getA       |> liftFutureOption
-         b <- getB       |> liftFutureOption
-         c <- getC       |> liftFuture
-         d <- getD       |> liftOption
-         e <- 10         |> lift
-       } yield e * (a * b) / (c * d)
-result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-~~~~~~~~
+  scala> val result = for {
+           a <- getA       |> liftFutureOption
+           b <- getB       |> liftFutureOption
+           c <- getC       |> liftFuture
+           d <- getD       |> liftOption
+           e <- 10         |> lift
+         } yield e * (a * b) / (c * d)
+  result: OptionT[Future, Int] = OptionT(Future(<not completed>))~~~~~~~~
 
 This approach also works for `EitherT` and `FutureT` as the inner
 context, but their lifting methods are more complex as they require

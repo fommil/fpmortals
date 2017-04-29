@@ -69,30 +69,28 @@ FP-specific features enabled (e.g. in `build.sbt`):
 
 {lang="text"}
 ~~~~~~~~
-scalaVersion in ThisBuild := "2.12.2"
-scalacOptions in ThisBuild ++= Seq(
-  "-language:_",
-  "-Ypartial-unification"
-)
-~~~~~~~~
+  scalaVersion in ThisBuild := "2.12.2"
+  scalacOptions in ThisBuild ++= Seq(
+    "-language:_",
+    "-Ypartial-unification"
+  )~~~~~~~~
 
 and add the following dependencies to your project's settings:
 
 {lang="text"}
 ~~~~~~~~
-libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core",
-  "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser"
-).map(_ % "0.7.0") ++ Seq(
-  "org.typelevel" %% "cats"     % "0.9.0",
-  "com.spinoco"   %% "fs2-http" % "0.1.6"
-)
-
-resolvers += Resolver.sonatypeRepo("snapshots")
-addCompilerPlugin("org.scalamacros" %  "paradise"  % "2.1.0" cross CrossVersion.full)
-libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0-SNAPSHOT"
-~~~~~~~~
+  libraryDependencies ++= Seq(
+    "io.circe" %% "circe-core",
+    "io.circe" %% "circe-generic",
+    "io.circe" %% "circe-parser"
+  ).map(_ % "0.7.0") ++ Seq(
+    "org.typelevel" %% "cats"     % "0.9.0",
+    "com.spinoco"   %% "fs2-http" % "0.1.6"
+  )
+  
+  resolvers += Resolver.sonatypeRepo("snapshots")
+  addCompilerPlugin("org.scalamacros" %  "paradise"  % "2.1.0" cross CrossVersion.full)
+  libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0-SNAPSHOT"~~~~~~~~
 
 In order to keep our snippets short, we will omit the `import`
 section. Unless told otherwise, assume that all snippets have the
@@ -100,11 +98,10 @@ following imports:
 
 {lang="text"}
 ~~~~~~~~
-import cats._
-import cats.implicits._
-import freestyle._
-import freestyle.implicits._
-import fs2._
-~~~~~~~~
+  import cats._
+  import cats.implicits._
+  import freestyle._
+  import freestyle.implicits._
+  import fs2._~~~~~~~~
 
 

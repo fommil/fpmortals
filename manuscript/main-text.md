@@ -80,23 +80,22 @@ Maybe use this example? <https://gitter.im/typelevel/cats?at=5904a2e98bb56c2d11f
 
 {lang="text"}
 ~~~~~~~~
-@ class Lift[F[_]] {
-    def $[A](fa: F[Option[A]]): OptionT[F,A] = OptionT(fa)
-    def $[A](opt: Option[A])(implicit F: Applicative[F]): OptionT[F,A] = OptionT(F.pure(opt))
-    def $[A](a: A)(implicit F: Applicative[F]): OptionT[F,A] = OptionT(F.pure(Some(a)))
-  }
-defined class Lift
-@ def liftFrom[F[_]] = new Lift[F] {}
-defined function liftFrom
-@ val lift = liftFrom[List]
-lift: Lift[List] = $sess.cmd26$$anon$1@6cf3d7c8
-@ val prg = for {
-    x <- lift $ 1
-    y <- lift $ Option(2)
-    z <- lift $ List(Some(3), Some(4))
-  } yield x + y + z
-prg: OptionT[List, Int] = OptionT(List(Some(6), Some(7)))
-~~~~~~~~
+  @ class Lift[F[_]] {
+      def $[A](fa: F[Option[A]]): OptionT[F,A] = OptionT(fa)
+      def $[A](opt: Option[A])(implicit F: Applicative[F]): OptionT[F,A] = OptionT(F.pure(opt))
+      def $[A](a: A)(implicit F: Applicative[F]): OptionT[F,A] = OptionT(F.pure(Some(a)))
+    }
+  defined class Lift
+  @ def liftFrom[F[_]] = new Lift[F] {}
+  defined function liftFrom
+  @ val lift = liftFrom[List]
+  lift: Lift[List] = $sess.cmd26$$anon$1@6cf3d7c8
+  @ val prg = for {
+      x <- lift $ 1
+      y <- lift $ Option(2)
+      z <- lift $ List(Some(3), Some(4))
+    } yield x + y + z
+  prg: OptionT[List, Int] = OptionT(List(Some(6), Some(7)))~~~~~~~~
 
 ## RESEARCH data types
 

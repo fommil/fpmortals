@@ -15,10 +15,9 @@ But there was a problem, we had to perform runtime casting:
 
 {lang="text"}
 ~~~~~~~~
-public String first(Collection collection) {
-  return (String)(collection.get(0));
-}
-~~~~~~~~
+  public String first(Collection collection) {
+    return (String)(collection.get(0));
+  }~~~~~~~~
 
 In response, developers defined domain objects in their business logic
 that were effectively `CollectionOfThings`, and the Collection API
@@ -57,16 +56,15 @@ message to them.
 
 {lang="text"}
 ~~~~~~~~
-trait TerminalSync {
-  def read(): String
-  def write(t: String): Unit
-}
-
-trait TerminalAsync {
-  def read(): Future[String]
-  def write(t: String): Future[Unit]
-}
-~~~~~~~~
+  trait TerminalSync {
+    def read(): String
+    def write(t: String): Unit
+  }
+  
+  trait TerminalAsync {
+    def read(): Future[String]
+    def write(t: String): Future[Unit]
+  }~~~~~~~~
 
 But how do we write generic code that does something as simple as echo
 the user's input synchronously or asynchronously depending on our
@@ -88,10 +86,9 @@ A> whatever `C` is, it must take a type parameter. For example:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> trait Foo[C[_]] {
-A>   def create(i: Int): C[Int]
-A> }
-A> ~~~~~~~~
+A>   trait Foo[C[_]] {
+A>     def create(i: Int): C[Int]
+A>   }~~~~~~~~
 A> 
 A> A type constructor is syntax for a type that takes a type to construct
 A> another type. `List` is a type constructor because it takes a type
@@ -100,10 +97,9 @@ A> can implement `Foo` using `List`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> object FooList extends Foo[List] {
-A>   def create(i: Int): List[Int] = List(i)
-A> }
-A> ~~~~~~~~
+A>   object FooList extends Foo[List] {
+A>     def create(i: Int): List[Int] = List(i)
+A>   }~~~~~~~~
 A> 
 A> We can also implement `Foo` for anything with a type parameter hole,
 A> e.g. `Either[String, _]`. Unfortunately it is a bit clunky and we have
@@ -111,11 +107,10 @@ A> to create a type alias:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> type EitherString[T] = Either[String, T]
-A> object FooEitherString extends Foo[EitherString] {
-A>  def create(i: Int): Either[String, Int] = Right(i)
-A> }
-A> ~~~~~~~~
+A>   type EitherString[T] = Either[String, T]
+A>   object FooEitherString extends Foo[EitherString] {
+A>    def create(i: Int): Either[String, Int] = Right(i)
+A>   }~~~~~~~~
 A> 
 A> There is a trick we can use when we want to ignore the type
 A> constructor. Recall that type aliases don't define any new types, they
@@ -124,8 +119,7 @@ A> to be equal to its parameter:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> type Id[T] = T
-A> ~~~~~~~~
+A>   type Id[T] = T~~~~~~~~
 A> 
 A> Before proceeding, convince yourself that `Id[Int]` is the same thing
 A> as `Int`, by substituting `Int` into `T`. Since `Id` is a valid type
@@ -133,10 +127,9 @@ A> constructor, so we can use `Id` in an implementation of `Foo`
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A> object FooId extends Foo[Id] {
-A>   def create(i: Int): Int = i
-A> }
-A> ~~~~~~~~
+A>   object FooId extends Foo[Id] {
+A>     def create(i: Int): Int = i
+A>   }~~~~~~~~
 
 We want to define `Terminal` for a type constructor `C[_]`. By
 defining `Now` to construct to its type parameter (like `Id`), we can
@@ -145,23 +138,22 @@ terminals:
 
 {lang="text"}
 ~~~~~~~~
-trait Terminal[C[_]] {
-  def read: C[String]
-  def write(t: String): C[Unit]
-}
-
-type Now[X] = X
-
-object TerminalSync extends Terminal[Now] {
-  def read: String = ???
-  def write(t: String): Unit = ???
-}
-
-object TerminalAsync extends Terminal[Future] {
-  def read: Future[String] = ???
-  def write(t: String): Future[Unit] = ???
-}
-~~~~~~~~
+  trait Terminal[C[_]] {
+    def read: C[String]
+    def write(t: String): C[Unit]
+  }
+  
+  type Now[X] = X
+  
+  object TerminalSync extends Terminal[Now] {
+    def read: String = ???
+    def write(t: String): Unit = ???
+  }
+  
+  object TerminalAsync extends Terminal[Future] {
+    def read: Future[String] = ???
+    def write(t: String): Future[Unit] = ???
+  }~~~~~~~~
 
 You can think of `C` as a *Context* because we say "in the context of
 executing `Now`" or "in the `Future`".
@@ -174,23 +166,21 @@ need a way of wrapping a value as a `C[_]`. This signature works well:
 
 {lang="text"}
 ~~~~~~~~
-trait Execution[C[_]] {
-  def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
-  def create[B](b: B): C[B]
-}
-~~~~~~~~
+  trait Execution[C[_]] {
+    def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
+    def create[B](b: B): C[B]
+  }~~~~~~~~
 
 letting us write:
 
 {lang="text"}
 ~~~~~~~~
-def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
-  e.doAndThen(t.read) { in: String =>
-    e.doAndThen(t.write(in)) { _: Unit =>
-      e.create(in)
-    }
-  }
-~~~~~~~~
+  def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
+    e.doAndThen(t.read) { in: String =>
+      e.doAndThen(t.write(in)) { _: Unit =>
+        e.create(in)
+      }
+    }~~~~~~~~
 
 We can now share the `echo` implementation between synchronous and
 asynchronous codepaths. We can write a mock implementation of
@@ -208,22 +198,21 @@ that you're used to on `Seq`, `Option` and `Future`
 
 {lang="text"}
 ~~~~~~~~
-object Execution {
-  implicit class Ops[A, C[_]](c: C[A]) {
-    def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
-          e.doAndThen(c)(f)
-    def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
-          e.doAndThen(c)(f andThen e.create)
-  }
-}
-
-def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
-  t.read.flatMap { in: String =>
-    t.write(in).map { _: Unit =>
-      in
+  object Execution {
+    implicit class Ops[A, C[_]](c: C[A]) {
+      def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
+            e.doAndThen(c)(f)
+      def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
+            e.doAndThen(c)(f andThen e.create)
     }
   }
-~~~~~~~~
+  
+  def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
+    t.read.flatMap { in: String =>
+      t.write(in).map { _: Unit =>
+        in
+      }
+    }~~~~~~~~
 
 We can now reveal why we used `flatMap` as the method name: it lets us
 use a *for comprehension*, which is just syntax sugar over nested
@@ -231,12 +220,11 @@ use a *for comprehension*, which is just syntax sugar over nested
 
 {lang="text"}
 ~~~~~~~~
-def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
-  for {
-    in <- t.read
-     _ <- t.write(in)
-  } yield in
-~~~~~~~~
+  def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
+    for {
+      in <- t.read
+       _ <- t.write(in)
+    } yield in~~~~~~~~
 
 Our `Execution` has the same signature as a trait in the cats library
 called `Monad` (except `doAndThen` is `flatMap` and `create` is `pure`).
