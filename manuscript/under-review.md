@@ -521,16 +521,16 @@ handles all the required conversions into `OptionT[Future, _]`
 {lang="text"}
 ~~~~~~~~
   object Lift {
-    type C[T] = OptionT[Future, T]
-    def $[T](f: Future[T]): C[T] = OptionT.liftF(f)
-    def $[T](t: Option[T]): C[T] = OptionT(Future.successful(t))
-    def $[T](t: T): C[T]         = $(Some(t))
+    type C[A] = OptionT[Future, A]
+    def $[A](f: Future[A]): C[A] = OptionT.liftF(f)
+    def $[A](o: Option[A]): C[A] = OptionT(Future.successful(o))
+    def $[A](a: A): C[A]         = $(Some(a))
   }
 ~~~~~~~~
 
 Unfortunately, due to runtime erasure we cannot also have a `$` method
-for `Future[Option[T]]` because the bytecode signature would clash
-with `Future[T]` giving
+for `Future[Option[A]]` because the bytecode signature would clash
+with `Future[A]` giving
 `$(Lscala/concurrent/Future;)cats.data.OptionT`.
 
 {lang="text"}
@@ -554,10 +554,10 @@ creation on the right
   implicit class Ops[In](in: In) {
     def |>[Out](f: In => Out): Out = f(in)
   }
-  def liftFutureOption[T](f: Future[Option[T]]) = OptionT(f)
-  def liftFuture[T](f: Future[T]) = OptionT.liftF(f)
-  def liftOption[T](t: Option[T]) = OptionT(Future.successful(t))
-  def lift[T](t: T)               = liftOption(Some(t))
+  def liftFutureOption[A](f: Future[Option[A]]) = OptionT(f)
+  def liftFuture[A](f: Future[A]) = OptionT.liftF(f)
+  def liftOption[A](o: Option[A]) = OptionT(Future.successful(o))
+  def lift[A](a: A)               = liftOption(Some(a))
 ~~~~~~~~
 
 which has a clearer visual separation of the logic from the ugly
@@ -577,9 +577,9 @@ transformations (they almost look like comments)
 
 This approach also works for `EitherT` and `FutureT` as the inner
 context, but their lifting methods are more complex as they require
-parameters to construct the `Left` and an implicit `ExecutionContext`
-respectively. cats provides monad transformers for a lot of its own
-types, so it's worth checking if one is available.
+parameters to construct the `Left` and an implicit `ExecutionContext`.
+cats provides monad transformers for a lot of its own types, so it's
+worth checking if one is available.
 
 Notably absent is `ListT` (or `TraversableT`) because it is difficult
 to create a well-behaved monad transformer for collections. It comes
