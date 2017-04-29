@@ -124,8 +124,7 @@ A> head: Int = 1
 A> tail: List[Int] = List(2, 3)
 A> ~~~~~~~~
 A> 
-A> The same is true for assignment in `for` comprehensions, including
-A> generators
+A> The same is true for assignment in `for` comprehensions
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -135,10 +134,6 @@ A>          entry <- maybe
 A>          (first, _) = entry
 A>        } yield first
 A> res: Some(hello)
-A> 
-A> scala> for { (first, _) <- maybe } yield first
-A> res: Some(hello)
-A> 
 A> ~~~~~~~~
 A> 
 A> But be careful that you don't miss any cases or you'll get a runtime
@@ -173,13 +168,11 @@ a.flatMap {
 
 Older versions of scala used `filter`, but `Traversable.filter`
 creates new collections for every predicate, so `withFilter` was
-introduced as the more performant alternative. There was some compiler
-magic during the transition to support `withFilter` or `filter` but
-nowadays only `withFilter` works.
+introduced as the more performant alternative.
 
-You could also accidentally trigger a `withFilter` if you think you're
-being helpful by providing type information: it's actually interpreted
-as a pattern match.
+You can accidentally trigger a `withFilter` if you think you're being
+helpful by providing type information: it's actually interpreted as a
+pattern match.
 
 {lang="text"}
 ~~~~~~~~
@@ -586,9 +579,9 @@ result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 
 This approach also works for `EitherT` and `FutureT` as the inner
 context, but their lifting methods are more complex as they require
-parameters to construct the `Left` and/or implicit `ExecutionContext`.
-cats provides monad transformers for a lot of its own types, so it's
-worth checking if one is available.
+parameters to construct the `Left` and an implicit `ExecutionContext`
+respectively. cats provides monad transformers for a lot of its own
+types, so it's worth checking if one is available.
 
 Notably absent is `ListT` (or `TraversableT`) because it is difficult
 to create a well-behaved monad transformer for collections. It comes
