@@ -10,7 +10,7 @@ Therefore, this book justifies every concept with practical examples,
 in Scala.
 
 This book is not aimed at Haskell developers. Such readers will be
-frustrated by the emphasis on Java analogies and will prefer the [cats
+frustrated by the Java analogies and will prefer the [cats
 documentation](http://typelevel.org/cats/).
 
 This book is designed to be read from cover to cover, in the order
