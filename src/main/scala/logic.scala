@@ -48,12 +48,12 @@ final case class DynAgents[F[_]](implicit D: Deps[F]) {
 
   c.start(null).flatMap { _ => null }
 
-  def initial =
+  def initial: FreeS[F, WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
       case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
     }
 
-  def update(world: WorldView) = for {
+  def update(world: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
     update = snap.copy(
       // ignore unresponsive pending actions
@@ -61,7 +61,7 @@ final case class DynAgents[F[_]](implicit D: Deps[F]) {
     )
   } yield update
 
-  def act(world: WorldView) = world match {
+  def act(world: WorldView): FreeS[F, WorldView] = world match {
     case NeedsAgent(node) =>
       for {
         _ <- c.start(node)
