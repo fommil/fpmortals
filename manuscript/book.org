@@ -418,14 +418,12 @@ focus on writing pure business logic.
 ** For Comprehensions
 
 Scala's =for= comprehension is heavily used in FP --- it is the ideal
-abstraction for pure sequential code. But most Scala developers only
-use =for= to loop over collections and are not aware of its full
-potential.
+abstraction for sequential programs that interact with the world.
+Since we'll be using it a lot, we're going to relearn the principles
+of =for= and how cats can help us to write cleaner code.
 
-In this chapter, we're going to relearn the principles of =for= and
-how cats can help us to write cleaner code. This chapter doesn't try
-to write pure programs and the techniques can be immediately applied
-to a non-FP codebase.
+This chapter doesn't try to write pure programs and the techniques are
+applicable to non-FP codebases.
 
 *** Syntax Sugar
 
@@ -883,6 +881,10 @@ scala> result.value
 res: Future[Option[Int]] = Future(<not completed>)
 #+END_SRC
 
+Alternatively, =OptionT[Future, Int]= has =getOrElse= and =getOrElseF=
+methods, taking an =Int= or =Future[Int]= respectively, and returning
+a =Future[Int]=.
+
 The monad transformer also allows us to mix =Future[Option[_]]= calls
 with methods that just return plain =Future= via =OptionT.liftF=
 
@@ -910,38 +912,9 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-It's gotten messy again, but it's still better than writing nested
-=flatMap= and =map=. A way to clean this up is to define a DSL that
-handles all the required conversions into =OptionT[Future, _]=
-
-#+BEGIN_SRC scala
-object Lift {
-  type C[A] = OptionT[Future, A]
-  def $[A](f: Future[A]): C[A] = OptionT.liftF(f)
-  def $[A](o: Option[A]): C[A] = OptionT(Future.successful(o))
-  def $[A](a: A): C[A]         = $(Some(a))
-}
-#+END_SRC
-
-Unfortunately, due to runtime erasure we cannot also have a =$= method
-for =Future[Option[A]]= because the bytecode signature would clash
-with =Future[A]= giving
-=$(Lscala/concurrent/Future;)cats.data.OptionT=.
-
-#+BEGIN_SRC scala
-scala> val result = for {
-         a <- OptionT(getA)
-         b <- OptionT(getB)
-         c <- Lift $  getC
-         d <- Lift $  getD
-         e <- Lift $  10
-       } yield e * (a * b) / (c * d)
-result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-#+END_SRC
-
-If you don't like the lifting being on the left, or the method
-overloading, you can define a different DSL with explicit transformer
-creation on the right
+It's gotten messy again, but it's better than writing nested =flatMap=
+and =map= by hand. We can clean this up with a DSL that handles all
+the required conversions into =OptionT[Future, _]=
 
 #+BEGIN_SRC scala
 implicit class Ops[In](in: In) {
@@ -953,8 +926,7 @@ def liftOption[A](o: Option[A]) = OptionT(Future.successful(o))
 def lift[A](a: A)               = liftOption(Some(a))
 #+END_SRC
 
-which has a clearer visual separation of the logic from the ugly
-transformations (they almost look like comments)
+which has a visual separation of the logic from transformation
 
 #+BEGIN_SRC scala
 scala> val result = for {
@@ -980,14 +952,6 @@ unintentionally reorder =flatMap= calls.
 https://github.com/typelevel/cats/issues/977 aims to implement
 =ListT=. Implementing a monad transformer is an advanced topic.
 
-* Main Text
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: main-text.md
-  :END:
-** TODO Implicits
-
-Perhaps need a refresher on how implicits work.
-
 ** TODO Example
 
 Just the high level concepts. Ask the reader to suspend their belief
@@ -1000,8 +964,6 @@ tests without a real implementation.
 An architect's dream: you can focus on algebras, business logic and
 functional requirements, and delegate the implementations to your
 teams.
-
-** TODO Pure business logic
 
 (the cross-over from previous section is not yet clear)
 
@@ -1017,6 +979,14 @@ Everything can now be mocked, and we can write tests just of the
 business logic.
 
 Include some thoughts from [[http://degoes.net/articles/easy-monads][Beginner Friendly Tour]]
+
+* Main Text
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: main-text.md
+  :END:
+** TODO Implicits
+
+Perhaps need a refresher on how implicits work.
 
 ** RESEARCH Parallel work
 

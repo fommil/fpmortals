@@ -514,40 +514,9 @@ them in `Future.successful` followed by `OptionT`
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-It's gotten messy again, but it's still better than writing nested
-`flatMap` and `map`. A way to clean this up is to define a DSL that
-handles all the required conversions into `OptionT[Future, _]`
-
-{lang="text"}
-~~~~~~~~
-  object Lift {
-    type C[A] = OptionT[Future, A]
-    def $[A](f: Future[A]): C[A] = OptionT.liftF(f)
-    def $[A](o: Option[A]): C[A] = OptionT(Future.successful(o))
-    def $[A](a: A): C[A]         = $(Some(a))
-  }
-~~~~~~~~
-
-Unfortunately, due to runtime erasure we cannot also have a `$` method
-for `Future[Option[A]]` because the bytecode signature would clash
-with `Future[A]` giving
-`$(Lscala/concurrent/Future;)cats.data.OptionT`.
-
-{lang="text"}
-~~~~~~~~
-  scala> val result = for {
-           a <- OptionT(getA)
-           b <- OptionT(getB)
-           c <- Lift $  getC
-           d <- Lift $  getD
-           e <- Lift $  10
-         } yield e * (a * b) / (c * d)
-  result: OptionT[Future, Int] = OptionT(Future(<not completed>))
-~~~~~~~~
-
-If you don't like the lifting being on the left, or the method
-overloading, you can define a different DSL with explicit transformer
-creation on the right
+It's gotten messy again, but it's better than writing nested `flatMap`
+and `map` by hand. We can clean this up with a DSL that handles all
+the required conversions into `OptionT[Future, _]`
 
 {lang="text"}
 ~~~~~~~~
@@ -560,8 +529,7 @@ creation on the right
   def lift[A](a: A)               = liftOption(Some(a))
 ~~~~~~~~
 
-which has a clearer visual separation of the logic from the ugly
-transformations (they almost look like comments)
+which has a visual separation of the logic from transformation
 
 {lang="text"}
 ~~~~~~~~
