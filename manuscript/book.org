@@ -60,8 +60,8 @@ degrees for their help with understanding the principles of FP, cats
 and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
-Rory Graves, Dale Wijnand and Ani Chakraborty for giving feedback on
-early drafts of this text.
+Rory Graves, Dale Wijnand, Ani Chakraborty, Simon Souter, Sakib
+Hadziavdic, for giving feedback on early drafts of this text.
 
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
@@ -100,9 +100,10 @@ libraryDependencies ++= Seq(
   "com.spinoco"   %% "fs2-http" % "0.1.6"
 )
 
-resolvers += Resolver.sonatypeRepo("snapshots")
-addCompilerPlugin("org.scalamacros" %  "paradise"  % "2.1.0" cross CrossVersion.full)
-libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0-SNAPSHOT"
+addCompilerPlugin(
+  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+)
+libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0"
 #+END_SRC
 
 In order to keep our snippets short, we will omit the =import=
@@ -953,7 +954,73 @@ unintentionally reorder =flatMap= calls.
 https://github.com/typelevel/cats/issues/977 aims to implement
 =ListT=. Implementing a monad transformer is an advanced topic.
 
-** TODO Example
+** Business Logic
+
+In this chapter we'll define the business logic for a purely
+functional application that we'll continue to improve throughout the
+book.
+
+Our application is going to listen to a [[https://github.com/drone/drone][drone]] Continuous Integration
+server, and spawn up worker agents using [[https://cloud.google.com/container-engine/][Google Container Engine]] (GKE)
+to meet the demand in the work queue. An automated, scalable,
+high-performance compute-farm on a shoestring budget.
+
+*** TODO an architecture diagram of the communications and a better description of the spec
+
+In FP, an /algebra/ takes the place of an =interface= in Spring Java.
+This is the clean layer where you should define all the interactions
+of your system, potentially building it up from wireframe drawings on
+a whiteboard.
+
+The =@freestyle.free= annotation is a macro that generates boilerplate
+for us. The details of the boilerplate are not important right now,
+but we will explain as required and go into gruelling detail in the
+Appendix. =@free= requires that all methods return an =FS[_]=, which
+we can replace with =Id= or =Future=, just like in the Introduction.
+
+#+BEGIN_SRC scala
+package algebra
+
+import java.time.ZonedDateTime
+import java.util.UUID
+
+import cats.data.NonEmptyList
+import freestyle._
+
+object drone {
+  @free trait Drone {
+    def getBacklog: FS[Int]
+    def getAgents: FS[Int]
+  }
+}
+
+object machines {
+  case class Node(id: String)
+
+  @free trait Machines {
+    def getTime: FS[ZonedDateTime]
+    def getManaged: FS[NonEmptyList[Node]]
+    def getAlive: FS[Map[Node, ZonedDateTime]]
+    def start(node: Node): FS[Unit]
+    def stop(node: Node): FS[Unit]
+  }
+}
+#+END_SRC
+
+We've used the =NonEmptyList=, provided by cats, which is just a
+wrapper around the standard library =List= cons(tructor), =::=. If we
+are as specific as possible in our return types, we don't need to
+handle cases that never existed in the first place. Now we don't need
+to check for empty lists in the business logic.
+
+Something that is not obvious when reading code is how you got there.
+Many of the method calls of these services might seem a little
+strange. ... FIXME something about how working out the algebra
+requires iteration with the business logic.
+
+
+
+
 
 Just the high level concepts. Ask the reader to suspend their belief
 of =@free= and we'll explain what it's doing later, plus the algebraic

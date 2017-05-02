@@ -48,8 +48,8 @@ degrees for their help with understanding the principles of FP, cats
 and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
 The Tower meetups.
 
-Rory Graves, Dale Wijnand and Ani Chakraborty for giving feedback on
-early drafts of this text.
+Rory Graves, Dale Wijnand, Ani Chakraborty, Simon Souter, Sakib
+Hadziavdic, for giving feedback on early drafts of this text.
 
 Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On
 Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50),
@@ -90,9 +90,10 @@ and add the following dependencies to your project's settings:
     "com.spinoco"   %% "fs2-http" % "0.1.6"
   )
   
-  resolvers += Resolver.sonatypeRepo("snapshots")
-  addCompilerPlugin("org.scalamacros" %  "paradise"  % "2.1.0" cross CrossVersion.full)
-  libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0-SNAPSHOT"
+  addCompilerPlugin(
+    "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+  )
+  libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0"
 ~~~~~~~~
 
 In order to keep our snippets short, we will omit the `import`

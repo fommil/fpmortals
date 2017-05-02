@@ -3,14 +3,12 @@
 # For Comprehensions
 
 Scala's `for` comprehension is heavily used in FP --- it is the ideal
-abstraction for pure sequential code. But most Scala developers only
-use `for` to loop over collections and are not aware of its full
-potential.
+abstraction for sequential programs that interact with the world.
+Since we'll be using it a lot, we're going to relearn the principles
+of `for` and how cats can help us to write cleaner code.
 
-In this chapter, we're going to relearn the principles of `for` and
-how cats can help us to write cleaner code. This chapter doesn't try
-to write pure programs and the techniques can be immediately applied
-to a non-FP codebase.
+This chapter doesn't try to write pure programs and the techniques are
+applicable to non-FP codebases.
 
 ## Syntax Sugar
 
@@ -485,6 +483,10 @@ to return to it.
   res: Future[Option[Int]] = Future(<not completed>)
 ~~~~~~~~
 
+Alternatively, `OptionT[Future, Int]` has `getOrElse` and `getOrElseF`
+methods, taking an `Int` or `Future[Int]` respectively, and returning
+a `Future[Int]`.
+
 The monad transformer also allows us to mix `Future[Option[_]]` calls
 with methods that just return plain `Future` via `OptionT.liftF`
 
@@ -556,7 +558,70 @@ unintentionally reorder `flatMap` calls.
 <https://github.com/typelevel/cats/issues/977> aims to implement
 `ListT`. Implementing a monad transformer is an advanced topic.
 
-# TODO Example
+# Business Logic
+
+In this chapter we'll define the business logic for a purely
+functional application that we'll continue to improve throughout the
+book.
+
+Our application is going to listen to a [drone](https://github.com/drone/drone) Continuous Integration
+server, and spawn up worker agents using [Google Container Engine](https://cloud.google.com/container-engine/) (GKE)
+to meet the demand in the work queue. An automated, scalable,
+high-performance compute-farm on a shoestring budget.
+
+## TODO an architecture diagram of the communications and a better description of the spec
+
+In FP, an *algebra* takes the place of an `interface` in Spring Java.
+This is the clean layer where you should define all the interactions
+of your system, potentially building it up from wireframe drawings on
+a whiteboard.
+
+The `@freestyle.free` annotation is a macro that generates boilerplate
+for us. The details of the boilerplate are not important right now,
+but we will explain as required and go into gruelling detail in the
+Appendix. `@free` requires that all methods return an `FS[_]`, which
+we can replace with `Id` or `Future`, just like in the Introduction.
+
+{lang="text"}
+~~~~~~~~
+  package algebra
+  
+  import java.time.ZonedDateTime
+  import java.util.UUID
+  
+  import cats.data.NonEmptyList
+  import freestyle._
+  
+  object drone {
+    @free trait Drone {
+      def getBacklog: FS[Int]
+      def getAgents: FS[Int]
+    }
+  }
+  
+  object machines {
+    case class Node(id: String)
+  
+    @free trait Machines {
+      def getTime: FS[ZonedDateTime]
+      def getManaged: FS[NonEmptyList[Node]]
+      def getAlive: FS[Map[Node, ZonedDateTime]]
+      def start(node: Node): FS[Unit]
+      def stop(node: Node): FS[Unit]
+    }
+  }
+~~~~~~~~
+
+We've used the `NonEmptyList`, provided by cats, which is just a
+wrapper around the standard library `List` cons(tructor), `::`. If we
+are as specific as possible in our return types, we don't need to
+handle cases that never existed in the first place. Now we don't need
+to check for empty lists in the business logic.
+
+Something that is not obvious when reading code is how you got there.
+Many of the method calls of these services might seem a little
+strange. ... FIXME something about how working out the algebra
+requires iteration with the business logic.
 
 Just the high level concepts. Ask the reader to suspend their belief
 of `@free` and we'll explain what it's doing later, plus the algebraic
