@@ -556,4 +556,32 @@ unintentionally reorder `flatMap` calls.
 <https://github.com/typelevel/cats/issues/977> aims to implement
 `ListT`. Implementing a monad transformer is an advanced topic.
 
+# TODO Example
+
+Just the high level concepts. Ask the reader to suspend their belief
+of `@free` and we'll explain what it's doing later, plus the algebraic
+mixing.
+
+And an `Id` based test to show that we can really write business logic
+tests without a real implementation.
+
+An architect's dream: you can focus on algebras, business logic and
+functional requirements, and delegate the implementations to your
+teams.
+
+(the cross-over from previous section is not yet clear)
+
+We can define things that are like Java =interface=s, but with the
+container and its implementation abstracted away, called an Algebra.
+
+We can write all our business logic solely by combining these
+algebras. If you ever want to call some code that can throw an
+exception or speaks to the outside world, wrap it in an algebra so it
+can be abstracted.
+
+Everything can now be mocked, and we can write tests just of the
+business logic.
+
+Include some thoughts from [Beginner Friendly Tour](http://degoes.net/articles/easy-monads)
+
 
