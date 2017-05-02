@@ -44,6 +44,9 @@ scalacOptions ++= Seq(
   "-Ypredef", "_"
 )
 
+// false positives with sysdef
+scalacOptions -= "-Ywarn-unused-import"
+
 // http://frees.io/docs/
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 libraryDependencies += "com.47deg" %% "freestyle" % "0.1.0"
