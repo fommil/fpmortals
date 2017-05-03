@@ -564,12 +564,26 @@ In this chapter we'll define the business logic for a purely
 functional application that we'll continue to improve throughout the
 book.
 
-Our application is going to listen to a [drone](https://github.com/drone/drone) Continuous Integration
+## Architecture
+
+Our application is going to listen to a [Drone](https://github.com/drone/drone) Continuous Integration
 server, and spawn up worker agents using [Google Container Engine](https://cloud.google.com/container-engine/) (GKE)
 to meet the demand in the work queue. An automated, scalable,
 high-performance compute-farm on a shoestring budget.
 
-## TODO an architecture diagram of the communications and a better description of the spec
+![](images/architecture.png)
+
+Drone receives work from github pull requests, and then farms the work
+out to its list of agents. Our apps needs to be able to ask drone how
+many items are in the *backlog* and how many *agents* are subscribed
+to do work.
+
+Google can spawn *nodes*, which can each host multipe drone agents.
+When an agent starts up, it registers itself with drone and drone
+takes care of the lifecycle (including keep-alive calls to detect
+agents that are removed).
+
+There is no API to talk directly to an *agent*.
 
 In FP, an *algebra* takes the place of an `interface` in Spring Java.
 This is the clean layer where you should define all the interactions
