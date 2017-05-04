@@ -62,6 +62,14 @@ Maybe use this example? <https://gitter.im/typelevel/cats?at=5904a2e98bb56c2d11f
   prg: OptionT[List, Int] = OptionT(List(Some(6), Some(7)))
 ~~~~~~~~
 
+The most important methods on `Monad` are
+
+-   `pure(a: A)` creates a new program from a value
+-   `map[B](f: A => B)` translates the result of running a previous
+    program
+-   `flatMap[B](f: A => FreeS[F, B])` creates a new program from the
+    result of running a previous program
+
 ## RESEARCH data types
 
 Not really sure what to say here.

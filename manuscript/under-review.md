@@ -644,9 +644,9 @@ we can replace with `Id` or `Future`, just like in the Introduction.
     case class Node(id: String)
   
     @free trait Machines {
-      def getTime: FS[ZonedDateTime]
+      def getTime: FS[ZonedDateTime] // current time
       def getManaged: FS[NonEmptyList[Node]]
-      def getAlive: FS[Map[Node, ZonedDateTime]]
+      def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start time
       def start(node: Node): FS[Unit]
       def stop(node: Node): FS[Unit]
     }
@@ -668,6 +668,102 @@ A> case the only course of action would be to signal an error, breaking
 A> totality and causing a side effect.
 
 ## TODO Logic
+
+Now we write the business logic that defines the app's behaviour,
+considering only the happy path. Starting with imports and a
+`WorldView` class that holds a snapshot of our knowledge of the world.
+If we were designing this application in Akka, `WorldView` would
+probably be in a `var` in an `Actor`.
+
+`WorldView` aggregates the return values from the algebra, and adds a
+*pending* field to capture that we can make requests to GKE that have
+not yet resulted in an observable change.
+
+{lang="text"}
+~~~~~~~~
+  package logic
+  
+  import java.time.ZonedDateTime
+  import java.time.temporal.ChronoUnit
+  import scala.concurrent.duration._
+  import cats.data.NonEmptyList
+  import cats.implicits._
+  import freestyle._
+  import algebra.drone._
+  import algebra.machines._
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  final case class WorldView(
+    backlog: Int,
+    agents: Int,
+    managed: NonEmptyList[Node],
+    alive: Map[Node, ZonedDateTime],
+    pending: Map[Node, ZonedDateTime],
+    time: ZonedDateTime
+  )
+~~~~~~~~
+
+We use the freestyle `@module` boilerplate generator and declare all
+the algebras that our business logic depends on. Then we create a
+`class` to hold our business logic, taking the `Deps` module as an
+implicit parameter. We're just doing dependency injection, it should
+be a familiar pattern if you've ever used Spring. `@module` has
+generated the type `F` for us, which is a combination of all the types
+in `Drone` and `Machines`.
+
+{lang="text"}
+~~~~~~~~
+  @module trait Deps {
+    val d: Drone
+    val c: Machines
+  }
+  
+  final case class DynAgents[F[_]](implicit D: Deps[F]) {
+    import D._
+~~~~~~~~
+
+Our business logic will run in an infinite loop, in pseudocode
+
+{lang="text"}
+~~~~~~~~
+  state = initial()
+  loop {
+    state = update(state)
+    state = act(state)
+  }
+~~~~~~~~
+
+Which means we must write three functions: `initial`, `update` and
+`act`.
+
+`@free` and `@module` together expand `FS[A]` into `FreeS[F, A]` which
+is an implementation of `Monad[A]` for our (algebraic) dependencies
+`F`.
+
+As we discovered in the Introduction, a `Monad` is the description of
+a program, interpreted by an execution context that we provide later.
+We write our sequential side-effecting code in a `for` comprehension.
+
+Starting with `initial`, we call all external services and aggregate
+their results into a `WorldView`. We default the `pending` field to an
+empty `Map`.
+
+{lang="text"}
+~~~~~~~~
+  def initial: FreeS[F, WorldView] = for {
+    w  <- d.getBacklog
+    a  <- d.getAgents
+    av <- c.getManaged
+    ac <- c.getAlive
+    t  <- c.getTime
+  } yield WorldView(w, a, av, ac, Map.empty, t)
+~~~~~~~~
+
+### TODO update
+
+### TODO act
 
 ## TODO Unit Tests
 
