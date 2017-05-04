@@ -746,6 +746,8 @@ As we discovered in the Introduction, a `Monad` is the description of
 a program, interpreted by an execution context that we provide later.
 We write our sequential side-effecting code in a `for` comprehension.
 
+### initial
+
 Starting with `initial`, we call all external services and aggregate
 their results into a `WorldView`. We default the `pending` field to an
 empty `Map`.
@@ -761,7 +763,44 @@ empty `Map`.
   } yield WorldView(w, a, av, ac, Map.empty, t)
 ~~~~~~~~
 
-### TODO update
+### update
+
+We need a (pure) convenience function to calculate the time difference
+between two `ZonedDateTime` instances as a `FiniteDuration`.
+
+{lang="text"}
+~~~~~~~~
+  def diff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+    ChronoUnit.MINUTES.between(from, to).minutes
+~~~~~~~~
+
+Now we can write `update` to call out to `initial`, polling everything
+again to get the latest view of the world. This is inefficient, we'll
+rewrite this code to be reactive to incoming messages in a later
+chapter.
+
+We want to preserve the previous world-view's `pending` field, so we
+copy it over. However, if a pending action is taking longer than 10
+minutes to do anything, we assume that it failed and just forget that
+we ever asked to do it. We'll recover fine if it ever does become
+visible, because we will notice that we have too many (or not enough)
+agents and correct.
+
+Note that we're using a generator (`flatMap`) when we call an element
+of the algebra, but we can use assignment for pure functions like
+`copy` and `diff`.
+
+{lang="text"}
+~~~~~~~~
+  def update(world: WorldView): FreeS[F, WorldView] = for {
+    snap <- initial
+    update = snap.copy(
+      pending = world.pending.filterNot {
+        case (n, started) => diff(started, snap.time) >= 10.minutes
+      }
+    )
+  } yield update
+~~~~~~~~
 
 ### TODO act
 
