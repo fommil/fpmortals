@@ -9,31 +9,19 @@ import cats.data.NonEmptyList
 import freestyle._
 
 object drone {
-  // responses form a sealed family to make it easier to switch
-  // between procedural / streaming uses of the API.
-
-  sealed trait DroneResp
-  case class Backlog(items: Int) extends DroneResp
-  case class Agents(items: Int) extends DroneResp
-
   @free trait Drone {
-    def getBacklog: FS[Backlog]
-    def getAgents: FS[Agents]
+    def getBacklog: FS[Int]
+    def getAgents: FS[Int]
   }
 }
 
 object machines {
-  case class Node(id: UUID)
-
-  sealed trait MachinesResp
-  case class Time(time: ZonedDateTime) extends MachinesResp
-  case class Managed(nodes: NonEmptyList[Node]) extends MachinesResp
-  case class Alive(nodes: Map[Node, ZonedDateTime]) extends MachinesResp
+  case class Node(id: String)
 
   @free trait Machines {
-    def getTime: FS[Time]
-    def getManaged: FS[Managed]
-    def getAlive: FS[Alive]
+    def getTime: FS[ZonedDateTime]
+    def getManaged: FS[NonEmptyList[Node]]
+    def getAlive: FS[Map[Node, ZonedDateTime]]
     def start(node: Node): FS[Unit]
     def stop(node: Node): FS[Unit]
   }

@@ -3,12 +3,15 @@
 package interpreters.gcefs
 
 import java.nio.channels.AsynchronousChannelGroup
+import java.time.ZonedDateTime
 import java.util.concurrent.Executors
 
+import cats.data._
 import fs2._
-import _root_.io.circe._
-import _root_.io.circe.generic.auto._
-import _root_.io.circe.fs2._
+import _root_.io.circe
+import circe._
+import circe.generic.auto._
+import circe.fs2._
 import spinoco.fs2.http
 import spinoco.fs2.http._
 import spinoco.protocol.http._
@@ -33,9 +36,9 @@ object Resources {
 // https://cloud.google.com/container-engine/docs/
 // https://cloud.google.com/container-engine/reference/rest/
 final class GceFs2Machine extends Machines.Handler[Task] {
-  def getTime: Task[Time] = ???
-  def getManaged: Task[Managed] = ???
-  def getAlive: Task[Alive] = ???
+  def getTime: Task[ZonedDateTime] = ???
+  def getManaged: Task[NonEmptyList[Node]] = ???
+  def getAlive: Task[Map[Node, ZonedDateTime]] = ???
   def start(node: Node): Task[Unit] = ???
   def stop(node: Node): Task[Unit] = ???
 }

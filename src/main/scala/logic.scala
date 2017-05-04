@@ -46,11 +46,9 @@ final case class WorldView(
 final case class DynAgents[F[_]](implicit D: Deps[F]) {
   import D._
 
-  c.start(null).flatMap { _ => null }
-
   def initial: FreeS[F, WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
-      case (w, a, av, ac, t) => WorldView(w.items, a.items, av.nodes, ac.nodes, Map.empty, t.time)
+      case (w, a, av, ac, t) => WorldView(w, a, av, ac, Map.empty, t)
     }
 
   def update(world: WorldView): FreeS[F, WorldView] = for {
