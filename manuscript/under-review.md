@@ -558,37 +558,67 @@ unintentionally reorder `flatMap` calls.
 <https://github.com/typelevel/cats/issues/977> aims to implement
 `ListT`. Implementing a monad transformer is an advanced topic.
 
-# Business Logic
+# Application Design
 
-In this chapter we'll define the business logic for a purely
-functional application that we'll continue to improve throughout the
-book.
+In this chapter we will write the business logic and tests for a
+purely functional server application.
 
-## Architecture
+## Specification
 
-Our application is going to listen to a [Drone](https://github.com/drone/drone) Continuous Integration
-server, and spawn up worker agents using [Google Container Engine](https://cloud.google.com/container-engine/) (GKE)
-to meet the demand in the work queue. An automated, scalable,
-high-performance compute-farm on a shoestring budget.
+Our application will manage a just-in-time build farm on a shoestring
+budget. It will listen to a [Drone](https://github.com/drone/drone) Continuous Integration server, and
+spawn worker agents using [Google Container Engine](https://cloud.google.com/container-engine/) (GKE) to meet the
+demand of the work queue.
 
 ![](images/architecture.png)
 
-Drone receives work from github pull requests, and then farms the work
-out to its list of agents. Our apps needs to be able to ask drone how
-many items are in the *backlog* and how many *agents* are subscribed
-to do work.
+Drone receives work when a contributor submits a github pull request
+to a managed project. Drone assigns the work to one of its agents,
+each processing one job at a time.
 
-Google can spawn *nodes*, which can each host multipe drone agents.
-When an agent starts up, it registers itself with drone and drone
-takes care of the lifecycle (including keep-alive calls to detect
-agents that are removed).
+The goal of our app is to ensure that there are enough agents to
+complete the work, with a cap on the number of agents, whilst
+minimising the total cost. Our app needs to know the number of items
+in the *backlog* and the number of available *agents*.
 
-There is no API to talk directly to an *agent*.
+Google can spawn *nodes*, each can host multiple drone agents. When an
+agent starts up, it registers itself with drone and drone takes care
+of the lifecycle (including keep-alive calls to detect removed
+agents).
 
-In FP, an *algebra* takes the place of an `interface` in Spring Java.
-This is the clean layer where you should define all the interactions
-of your system, potentially building it up from wireframe drawings on
-a whiteboard.
+GKE charges a fee per minute of uptime of each node.
+
+A complication is that GKE's fee is rounded up to the nearest hour for
+each node. We cannot simply spawn a new node for each item in the work
+queue and then tear it down, we need to re-use nodes and retain them
+until the 59th minute to get the most value for our money.
+
+Our apps needs to be able to start and stop nodes, as well as check
+their status (e.g. uptimes, list of inactive nodes) and to know what
+time GKE believes it to be.
+
+In addition, there is no API to talk directly to an *agent* so we do
+not know if any individual agent is performing any work for the drone
+server. If we accidentally stop an agent whilst it is performing work,
+it is inconvenient and requires a human to restart the job.
+
+The failure mode should always be to take the least costly option.
+
+Both Drone and GKE have a JSON over REST API with OAuth 2.0
+authentication.
+
+## Defining Boundaries with Algebras
+
+Let's codify the architecture diagram from the previous section.
+
+In FP, an *algebra* takes the place of an `interface` in Spring Java,
+or the set of valid messages for an Actor in Akka. This is the layer
+where we define all side-effecting interactions of our system.
+
+We only define operations that we use in our business logic, avoiding
+implementation detail. In reality, there is tight iteration between
+writing the logic and the algebra: it is just the right level of
+abstraction to design a system.
 
 The `@freestyle.free` annotation is a macro that generates boilerplate
 for us. The details of the boilerplate are not important right now,
@@ -601,8 +631,6 @@ we can replace with `Id` or `Future`, just like in the Introduction.
   package algebra
   
   import java.time.ZonedDateTime
-  import java.util.UUID
-  
   import cats.data.NonEmptyList
   import freestyle._
   
@@ -626,41 +654,30 @@ we can replace with `Id` or `Future`, just like in the Introduction.
   }
 ~~~~~~~~
 
-We've used the `NonEmptyList`, provided by cats, which is just a
-wrapper around the standard library `List` cons(tructor), `::`. If we
-are as specific as possible in our return types, we don't need to
-handle cases that never existed in the first place. Now we don't need
-to check for empty lists in the business logic.
+We've used `cats.data.NonEmptyList`, a wrapper around the standard
+library's `List`, otherwise everything should be familiar.
 
-Something that is not obvious when reading code is how you got there.
-Many of the method calls of these services might seem a little
-strange. ... FIXME something about how working out the algebra
-requires iteration with the business logic.
+A> It is good practice in FP to encode constraints in parameters **and**
+A> return types --- it means we never need to handle situations that are
+A> impossible. However, this often conflicts with the *Effective Java*
+A> wisdom of unconstrained parameters and specific return types.
+A> 
+A> Although we agree that parameters should be as general as possible, we
+A> do not agree that a function should take `Traversable` unless it can
+A> handle empty collections. If it is not possible to handle the empty
+A> case the only course of action would be to signal an error, breaking
+A> totality and causing a side effect.
 
-Just the high level concepts. Ask the reader to suspend their belief
-of `@free` and we'll explain what it's doing later, plus the algebraic
-mixing.
+## TODO Logic
 
-And an `Id` based test to show that we can really write business logic
-tests without a real implementation.
+## TODO Unit Tests
 
 An architect's dream: you can focus on algebras, business logic and
 functional requirements, and delegate the implementations to your
 teams.
 
-(the cross-over from previous section is not yet clear)
+## TODO Parallel
 
-We can define things that are like Java =interface=s, but with the
-container and its implementation abstracted away, called an Algebra.
-
-We can write all our business logic solely by combining these
-algebras. If you ever want to call some code that can throw an
-exception or speaks to the outside world, wrap it in an algebra so it
-can be abstracted.
-
-Everything can now be mocked, and we can write tests just of the
-business logic.
-
-Include some thoughts from [Beginner Friendly Tour](http://degoes.net/articles/easy-monads)
+## TODO Implementing OAuth 2.0
 
 

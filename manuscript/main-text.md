@@ -4,12 +4,6 @@
 
 Perhaps need a refresher on how implicits work.
 
-# RESEARCH Parallel work
-
-Generating the initial state and <https://github.com/fommil/drone-dynamic-agents/issues/6>
-
-Might require a moment to explain `FreeApplicative` (I'd rather not get into details yet).
-
 # TODO Reality Check
 
 -   solved initial abstraction problem
