@@ -3,7 +3,6 @@
 package algebra
 
 import java.time.ZonedDateTime
-import java.util.UUID
 
 import cats.data.NonEmptyList
 import freestyle._

@@ -17,8 +17,8 @@ import algebra.machines._
 import logic._
 
 object Data {
-  val node1 = Node(UUID.fromString("1243d1af-828f-4ba3-9fc0-a19d86852b5a"))
-  val node2 = Node(UUID.fromString("550c4943-229e-47b0-b6be-3d686c5f013f"))
+  val node1 = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+  val node2 = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, List(node2))
 
   val time1 = ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
@@ -35,16 +35,16 @@ final case class StaticInterpreters(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
-    def getBacklog: Backlog = Backlog(state.backlog)
-    def getAgents: Agents = Agents(state.agents)
+    def getBacklog: Int = state.backlog
+    def getAgents: Int = state.agents
   }
 
   implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
-    def getAlive: Alive = Alive(state.alive)
-    def getManaged: Managed = Managed(state.managed)
-    def getTime: Time = Time(state.time)
-    def start(node: Node): Unit = started += 1
-    def stop(node: Node): Unit = stopped += 1
+    def getAlive: Map[Node, ZonedDateTime] = state.alive
+    def getManaged: NonEmptyList[Node] = state.managed
+    def getTime: ZonedDateTime = state.time
+    def start(node: Node): Unit = { started += 1 }
+    def stop(node: Node): Unit = { stopped += 1 }
   }
 
   val program = DynAgents[Deps.Op]
