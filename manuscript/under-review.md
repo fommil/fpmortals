@@ -587,12 +587,10 @@ agent starts up, it registers itself with drone and drone takes care
 of the lifecycle (including keep-alive calls to detect removed
 agents).
 
-GKE charges a fee per minute of uptime of each node.
-
-A complication is that GKE's fee is rounded up to the nearest hour for
-each node. We cannot simply spawn a new node for each item in the work
-queue and then tear it down, we need to re-use nodes and retain them
-until the 59th minute to get the most value for our money.
+GKE charges a fee per minute of uptime, rounded up to the nearest hour
+for each node. One does not simply spawn a new node for each job in
+the work queue, we must re-use nodes and retain them until their 59th
+minute to get the most value for money.
 
 Our apps needs to be able to start and stop nodes, as well as check
 their status (e.g. uptimes, list of inactive nodes) and to know what
