@@ -570,11 +570,12 @@ budget. It will listen to a [Drone](https://github.com/drone/drone) Continuous I
 spawn worker agents using [Google Container Engine](https://cloud.google.com/container-engine/) (GKE) to meet the
 demand of the work queue.
 
+{width=60%}
 ![](images/architecture.png)
 
 Drone receives work when a contributor submits a github pull request
-to a managed project. Drone assigns the work to one of its agents,
-each processing one job at a time.
+to a managed project. Drone assigns the work to its agents, each
+processing one job at a time.
 
 The goal of our app is to ensure that there are enough agents to
 complete the work, with a cap on the number of agents, whilst

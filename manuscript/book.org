@@ -993,8 +993,8 @@ demand of the work queue.
 [[file:images/architecture.png]]
 
 Drone receives work when a contributor submits a github pull request
-to a managed project. Drone assigns the work to one of its agents,
-each processing one job at a time.
+to a managed project. Drone assigns the work to its agents, each
+processing one job at a time.
 
 The goal of our app is to ensure that there are enough agents to
 complete the work, with a cap on the number of agents, whilst
