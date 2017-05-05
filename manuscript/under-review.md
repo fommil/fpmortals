@@ -606,7 +606,7 @@ The failure mode should always be to take the least costly option.
 Both Drone and GKE have a JSON over REST API with OAuth 2.0
 authentication.
 
-## Defining Boundaries with Algebras
+## Interfaces / Algebras
 
 Let's codify the architecture diagram from the previous section.
 
@@ -619,11 +619,14 @@ implementation detail. In reality, there is tight iteration between
 writing the logic and the algebra: it is just the right level of
 abstraction to design a system.
 
-The `@freestyle.free` annotation is a macro that generates boilerplate
-for us. The details of the boilerplate are not important right now,
-but we will explain as required and go into gruelling detail in the
-Appendix. `@free` requires that all methods return an `FS[_]`, which
-we can replace with `Id` or `Future`, just like in the Introduction.
+The `@freestyle.free` annotation is a macro that generates
+boilerplate. The details of the boilerplate are not important right
+now, we will explain as required and go into gruelling detail in the
+Appendix.
+
+`@free` requires that all methods return `FS[A]`, which we will
+replace with `Id[A]` or `Future[A]` when we implement them, just like
+in the Introduction.
 
 {lang="text"}
 ~~~~~~~~
@@ -646,7 +649,7 @@ we can replace with `Id` or `Future`, just like in the Introduction.
     @free trait Machines {
       def getTime: FS[ZonedDateTime] // current time
       def getManaged: FS[NonEmptyList[Node]]
-      def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start time
+      def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start zdt
       def start(node: Node): FS[Unit]
       def stop(node: Node): FS[Unit]
     }
@@ -667,17 +670,12 @@ A> handle empty collections. If it is not possible to handle the empty
 A> case the only course of action would be to signal an error, breaking
 A> totality and causing a side effect.
 
-## TODO Logic
+## Business Logic
 
 Now we write the business logic that defines the app's behaviour,
-considering only the happy path. Starting with imports and a
-`WorldView` class that holds a snapshot of our knowledge of the world.
-If we were designing this application in Akka, `WorldView` would
-probably be in a `var` in an `Actor`.
+considering only the happy path.
 
-`WorldView` aggregates the return values from the algebra, and adds a
-*pending* field to capture that we can make requests to GKE that have
-not yet resulted in an observable change.
+First, the imports
 
 {lang="text"}
 ~~~~~~~~
@@ -693,6 +691,13 @@ not yet resulted in an observable change.
   import algebra.machines._
 ~~~~~~~~
 
+and a `WorldView` class that holds a snapshot of our knowledge of the
+world. If we were designing this application in Akka, `WorldView`
+would probably be a `var` in an `Actor`.
+
+`WorldView` aggregates the return values of all the methods in the
+algebras, and adds a *pending* field to track unfulfilled requests.
+
 {lang="text"}
 ~~~~~~~~
   final case class WorldView(
@@ -700,7 +705,7 @@ not yet resulted in an observable change.
     agents: Int,
     managed: NonEmptyList[Node],
     alive: Map[Node, ZonedDateTime],
-    pending: Map[Node, ZonedDateTime],
+    pending: Map[Node, ZonedDateTime], // requested at zdt
     time: ZonedDateTime
   )
 ~~~~~~~~
@@ -710,8 +715,7 @@ the algebras that our business logic depends on. Then we create a
 `class` to hold our business logic, taking the `Deps` module as an
 implicit parameter. We're just doing dependency injection, it should
 be a familiar pattern if you've ever used Spring. `@module` has
-generated the type `F` for us, which is a combination of all the types
-in `Drone` and `Machines`.
+generated the type `F` for us, combining the algebras.
 
 {lang="text"}
 ~~~~~~~~
@@ -724,7 +728,7 @@ in `Drone` and `Machines`.
     import D._
 ~~~~~~~~
 
-Our business logic will run in an infinite loop, in pseudocode
+Our business logic will run in an infinite loop (pseudocode)
 
 {lang="text"}
 ~~~~~~~~
@@ -736,21 +740,22 @@ Our business logic will run in an infinite loop, in pseudocode
 ~~~~~~~~
 
 Which means we must write three functions: `initial`, `update` and
-`act`.
+`act`, all returning a `WorldView`.
 
-`@free` and `@module` together expand `FS[A]` into `FreeS[F, A]` which
-is an implementation of `Monad[A]` for our (algebraic) dependencies
-`F`.
+`@free` and `@module` together expand type declarations like `FS[A]`
+into `FreeS[F, A]`. When we return a `WorldView`, it must be a
+`FreeS[F, WorldView]`.
 
-As we discovered in the Introduction, a `Monad` is the description of
-a program, interpreted by an execution context that we provide later.
-We write our sequential side-effecting code in a `for` comprehension.
+`FreeS[F, A]` is *monoidic*, meaning that an implementation of
+`Monad[A]` is available for the operations in our combined algebras,
+`F`. As we discovered in the Introduction, a `Monad` is the
+description of a program, interpreted by an execution context at
+runtime.
 
 ### initial
 
-Starting with `initial`, we call all external services and aggregate
-their results into a `WorldView`. We default the `pending` field to an
-empty `Map`.
+In `initial` we call all external services and aggregate their results
+into a `WorldView`. We default the `pending` field to an empty `Map`.
 
 {lang="text"}
 ~~~~~~~~
@@ -765,8 +770,8 @@ empty `Map`.
 
 ### update
 
-We need a (pure) convenience function to calculate the time difference
-between two `ZonedDateTime` instances as a `FiniteDuration`.
+We will need a convenience function to calculate the time difference
+between two `ZonedDateTime` instances
 
 {lang="text"}
 ~~~~~~~~
@@ -774,21 +779,15 @@ between two `ZonedDateTime` instances as a `FiniteDuration`.
     ChronoUnit.MINUTES.between(from, to).minutes
 ~~~~~~~~
 
-Now we can write `update` to call out to `initial`, polling everything
-again to get the latest view of the world. This is inefficient, we'll
-rewrite this code to be reactive to incoming messages in a later
-chapter.
+`update` calls `initial` to refresh our world view, but preserves
+`pending` actions.
 
-We want to preserve the previous world-view's `pending` field, so we
-copy it over. However, if a pending action is taking longer than 10
-minutes to do anything, we assume that it failed and just forget that
-we ever asked to do it. We'll recover fine if it ever does become
-visible, because we will notice that we have too many (or not enough)
-agents and correct.
+If a pending action is taking longer than 10 minutes to do anything,
+we assume that it failed and just forget that we ever asked to do it.
 
-Note that we're using a generator (`flatMap`) when we call an element
-of the algebra, but we can use assignment for pure functions like
-`copy` and `diff`.
+Note that we're using a generator (`flatMap`) when we call a method
+from an algebra, but we can use assignment for pure functions like
+`copy` and `diff`. The compiler keeps us right.
 
 {lang="text"}
 ~~~~~~~~
