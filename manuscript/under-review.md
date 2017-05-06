@@ -2,10 +2,10 @@
 
 # For Comprehensions
 
-Scala's `for` comprehension is heavily used in FP --- it is the ideal
-abstraction for sequential programs that interact with the world.
-Since we'll be using it a lot, we're going to relearn the principles
-of `for` and how cats can help us to write cleaner code.
+Scala's `for` comprehension is the ideal FP abstraction for sequential
+programs that interact with the world. Since we'll be using it a lot,
+we're going to relearn the principles of `for` and how cats can help
+us to write cleaner code.
 
 This chapter doesn't try to write pure programs and the techniques are
 applicable to non-FP codebases.
@@ -178,7 +178,7 @@ information: it's actually interpreted as a pattern match.
   a.withFilter {
     case i: Int => true
     case _      => false
-  }.map { i => i }
+  }.map { case i: Int => i }
 ~~~~~~~~
 
 Like in assignment, a generator can use a pattern match on the left
@@ -215,9 +215,9 @@ If there were a trait, it would roughly look like:
 ~~~~~~~~
 
 If the context (`C[_]`) of a `for` comprehension doesn't provide its
-own `map` and `flatMap`, all is not lost. An implicit
-`cats.FlatMap[T]` will provide `map` and `flatMap` for `T` and it can
-be the context of a `for` comprehension.
+own `map` and `flatMap`, all is not lost. If an implicit
+`cats.FlatMap[T]` is available for `T`, it will provide `map` and
+`flatMap`.
 
 A> It often surprises developers when inline `Future` calculations in a
 A> `for` comprehension do not run in parallel:
@@ -251,8 +251,8 @@ A> computations in a later chapter.
 
 ## Unhappy path
 
-So far we've only look at the rewrite rules, not what is happening in
-`map` and `flatMap`. Let's consider what happens when the `for`
+So far we've only looked at the rewrite rules, not what is happening
+in `map` and `flatMap`. Let's consider what happens when the `for`
 context decides that it can't proceed any further.
 
 In the `Option` example, the `yield` is only called when `i,j,k` are
@@ -290,6 +290,11 @@ A> but this is verbose, clunky and bad style. If a function requires
 A> every input then it should make its requirement explicit, pushing the
 A> responsibility of dealing with optional parameters to its caller ---
 A> don't use `for` unless you need to.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   def namedThings(name: String, num: Int) = s"$num ${name}s"
+A> ~~~~~~~~
 
 If we use `Either`, then a `Left` will cause the `for` comprehension
 to short circuit with extra information, much better than `Option` for
@@ -413,6 +418,80 @@ A> be a cognitive burden to remember all these helper methods. The level
 A> of verbosity of a codebase vs code reuse of trivial functions is a
 A> stylistic decision for each team.
 
+### Early Exit
+
+Let's say we have some condition that should exit early.
+
+If we want to exit early and flag it as an error we just use the
+context's shortcut, e.g. synchronous code that throws an exception
+
+{lang="text"}
+~~~~~~~~
+  def getA: Int = ...
+  
+  val a = getA
+  require(a > 0, s"$a must be positive"))
+  a * 10
+~~~~~~~~
+
+can be rewritten as async
+
+{lang="text"}
+~~~~~~~~
+  def getA: Future[Int] = ...
+  def error(msg: String): Future[Nothing] =
+    Future.fail(new RuntimeException(msg))
+  
+  for {
+    a <- getA
+    b <- if (a <= 0) error(s"$a must be positive")
+         else Future.successful(a)
+  } b * 10
+~~~~~~~~
+
+But if we want to exit early with a successful return value, we have
+to use a nested `for` comprehension. e.g.
+
+{lang="text"}
+~~~~~~~~
+  def getA: Int = ...
+  def getB: Int = ...
+  
+  val a = getA
+  if (a <= 0) 0
+  else a * getB
+~~~~~~~~
+
+is rewritten asynchronously as
+
+{lang="text"}
+~~~~~~~~
+  def getA: Future[Int] = ...
+  def getB: Future[Int] = ...
+  
+  for {
+    a <- getA
+    c <- if (a <= 0) Future.successful(0)
+         else for { b <- getB } yield a * b
+  } yield c
+~~~~~~~~
+
+1.  TODO rewrite using .pure
+
+    A> <https://gitter.im/typelevel/cats?at=590dd4cac89bb14b5ad77e83>
+    A> 
+    A> {lang="text"}
+    A> ~~~~~~~~
+    A>   def getA: Future[Int] = ...
+    A>   def getB: Future[Int] = ...
+    A>   
+    A>   for {
+    A>     a <- getA
+    A>     c <- if (a <= 0) 0.pure
+    A>          else for { b <- getB } yield a * b
+    A>   } yield c
+    A> ~~~~~~~~
+
 ## Incomprehensible
 
 You may have noticed that the context we're comprehending over must
@@ -452,15 +531,17 @@ the compiler still doesn't accept our code.
                    ^
 ~~~~~~~~
 
-Here we want `for` to take care of the outer `Future` and let us write
+Here we want `for` to take care of the outer context and let us write
 our code on the inner `Option`. Hiding the outer context is exactly
 what a *monad transformer* does, and cats provides implementations for
 `Option`, `Future` and `Either` named `OptionT`, `FutureT` and
 `EitherT` respectively.
 
+The outer context can be anything that normally works in a `for`
+comprehension, but it needs to stay the same throughout.
+
 We create an `OptionT` from each method call. This changes the context
-of the `for` into `OptionT[Future, _]`, with `flatMap` and `map`
-giving us the value of the `Option`.
+of the `for` from `Future[Option, _]` to `OptionT[Future, _]`.
 
 Don't forget the import statements from the Practicalities chapter.
 
@@ -473,9 +554,7 @@ Don't forget the import statements from the Practicalities chapter.
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-The outer context can be anything that normally works in a `for`
-comprehension, but it needs to stay the same throughout. Call `.value`
-to return to it.
+Call `.value` to return to the original context
 
 {lang="text"}
 ~~~~~~~~

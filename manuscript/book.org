@@ -15,7 +15,7 @@
 
 ** About This Book
 
-This book is for Scala developers with an Object Oriented (OOP)
+This book is for Scala developers with a Java Object Oriented
 background who wish to learn the *Functional Programming* (FP)
 paradigm. We do not accept that the merits of FP are obvious.
 Therefore, this book justifies every concept with practical examples,
@@ -37,12 +37,12 @@ write an FP library in Scala from first principles.
 ** Copyleft Notice
 
 This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]]: you
-can use this book as you like, you can redistribute this book and you
-can distribute your own version. That means you can print it,
-photocopy it, e-mail it, upload it to websites, change it, translate
-it, remix it, delete bits, and draw all over it. You can even sell it,
-although you should agree a royalty share with the author or you'll
-not be getting an xmas card.
+can use this book as you like, the [[https://github.com/fommil/fp-scala-mortals][source is available]], you can
+redistribute this book and you can distribute your own version. That
+means you can print it, photocopy it, e-mail it, upload it to
+websites, change it, translate it, remix it, delete bits, and draw all
+over it. You can even sell it, although you should agree a royalty
+share with the author or you'll not be getting an xmas card.
 
 This book is *Copyleft*: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -69,10 +69,10 @@ John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly T
 Futures, how to unsuck them]], Kelley Robinson for [[https://www.youtube.com/watch?v=U0lK0hnbc4U][Why the Free Monad
 isn't Free]].
 
-The helpul souls who helped explain the concepts needed to write the
-example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund Noble,
-Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist, Adam
-Chlupacek, Pavel Chlupacek, Paul Snively, Daniel Spiewak.
+The helpul souls who patiently explained the concepts needed to write
+the example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund
+Noble, Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist,
+Adam Chlupacek, Pavel Chlupacek, Paul Snively, Daniel Spiewak.
 
 ** Practicalities
 
@@ -220,10 +220,9 @@ trait Foo[C[_]] {
 }
 #+END_SRC
 
-A type constructor is syntax for a type that takes a type to construct
-another type. =List= is a type constructor because it takes a type
-(e.g. =Int=) and constructs a type (=List -> Int -> List[Int]=). We
-can implement =Foo= using =List=:
+=List= is a type constructor because it takes a type (e.g. =Int=) and
+constructs a type (=List -> Int -> List[Int]=). We can implement =Foo=
+using =List=:
 
 #+BEGIN_SRC scala
 object FooList extends Foo[List] {
@@ -252,8 +251,8 @@ type Id[T] = T
 #+END_SRC
 
 Before proceeding, convince yourself that =Id[Int]= is the same thing
-as =Int=, by substituting =Int= into =T=. Since =Id= is a valid type
-constructor, so we can use =Id= in an implementation of =Foo=
+as =Int=, by substituting =Int= into =T=. Because =Id= is a valid type
+constructor we can use =Id= in an implementation of =Foo=
 
 #+BEGIN_SRC scala
 object FooId extends Foo[Id] {
@@ -319,8 +318,9 @@ asynchronous codepaths. We can write a mock implementation of
 =Terminal[Now]= and use it in our tests without any timeouts.
 
 Implementations of =Execution[Now]= and =Execution[Future]= are
-reusable by generic methods like =echo=. But the code for =echo= is
-horrible! Let's clean it up.
+reusable by generic methods like =echo=.
+
+But the code for =echo= is horrible! Let's clean it up.
 
 The =implicit class= Scala language feature gives =C= some methods.
 We'll call these methods =flatMap= and =map= for reasons that will
@@ -419,10 +419,10 @@ focus on writing pure business logic.
   :END:
 ** For Comprehensions
 
-Scala's =for= comprehension is heavily used in FP --- it is the ideal
-abstraction for sequential programs that interact with the world.
-Since we'll be using it a lot, we're going to relearn the principles
-of =for= and how cats can help us to write cleaner code.
+Scala's =for= comprehension is the ideal FP abstraction for sequential
+programs that interact with the world. Since we'll be using it a lot,
+we're going to relearn the principles of =for= and how cats can help
+us to write cleaner code.
 
 This chapter doesn't try to write pure programs and the techniques are
 applicable to non-FP codebases.
@@ -587,7 +587,7 @@ reify> for { i: Int <- a } yield i
 a.withFilter {
   case i: Int => true
   case _      => false
-}.map { i => i }
+}.map { case i: Int => i }
 #+END_SRC
 
 Like in assignment, a generator can use a pattern match on the left
@@ -622,9 +622,9 @@ trait ForComprehensible[C[_]] {
 #+END_SRC
 
 If the context (=C[_]=) of a =for= comprehension doesn't provide its
-own =map= and =flatMap=, all is not lost. An implicit
-=cats.FlatMap[T]= will provide =map= and =flatMap= for =T= and it can
-be the context of a =for= comprehension.
+own =map= and =flatMap=, all is not lost. If an implicit
+=cats.FlatMap[T]= is available for =T=, it will provide =map= and
+=flatMap=.
 
 #+BEGIN_ASIDE
 
@@ -659,8 +659,8 @@ computations in a later chapter.
 
 *** Unhappy path
 
-So far we've only look at the rewrite rules, not what is happening in
-=map= and =flatMap=. Let's consider what happens when the =for=
+So far we've only looked at the rewrite rules, not what is happening
+in =map= and =flatMap=. Let's consider what happens when the =for=
 context decides that it can't proceed any further.
 
 In the =Option= example, the =yield= is only called when =i,j,k= are
@@ -698,6 +698,10 @@ but this is verbose, clunky and bad style. If a function requires
 every input then it should make its requirement explicit, pushing the
 responsibility of dealing with optional parameters to its caller ---
 don't use =for= unless you need to.
+
+#+BEGIN_SRC scala
+def namedThings(name: String, num: Int) = s"$num ${name}s"
+#+END_SRC
 #+END_ASIDE
 
 If we use =Either=, then a =Left= will cause the =for= comprehension
@@ -817,6 +821,78 @@ of verbosity of a codebase vs code reuse of trivial functions is a
 stylistic decision for each team.
 #+END_ASIDE
 
+**** Early Exit
+
+Let's say we have some condition that should exit early.
+
+If we want to exit early and flag it as an error we just use the
+context's shortcut, e.g. synchronous code that throws an exception
+
+#+BEGIN_SRC scala
+  def getA: Int = ...
+
+  val a = getA
+  require(a > 0, s"$a must be positive"))
+  a * 10
+#+END_SRC
+
+can be rewritten as async
+
+#+BEGIN_SRC scala
+  def getA: Future[Int] = ...
+  def error(msg: String): Future[Nothing] =
+    Future.fail(new RuntimeException(msg))
+
+  for {
+    a <- getA
+    b <- if (a <= 0) error(s"$a must be positive")
+         else Future.successful(a)
+  } b * 10
+#+END_SRC
+
+But if we want to exit early with a successful return value, we have
+to use a nested =for= comprehension. e.g.
+
+#+BEGIN_SRC scala
+  def getA: Int = ...
+  def getB: Int = ...
+
+  val a = getA
+  if (a <= 0) 0
+  else a * getB
+#+END_SRC
+
+is rewritten asynchronously as
+
+#+BEGIN_SRC scala
+  def getA: Future[Int] = ...
+  def getB: Future[Int] = ...
+
+  for {
+    a <- getA
+    c <- if (a <= 0) Future.successful(0)
+         else for { b <- getB } yield a * b
+  } yield c
+#+END_SRC
+
+***** TODO rewrite using .pure
+
+#+BEGIN_ASIDE
+
+https://gitter.im/typelevel/cats?at=590dd4cac89bb14b5ad77e83
+
+#+BEGIN_SRC scala
+  def getA: Future[Int] = ...
+  def getB: Future[Int] = ...
+
+  for {
+    a <- getA
+    c <- if (a <= 0) 0.pure
+         else for { b <- getB } yield a * b
+  } yield c
+#+END_SRC
+#+END_ASIDE
+
 *** Incomprehensible
 
 You may have noticed that the context we're comprehending over must
@@ -854,15 +930,17 @@ scala> for {
                  ^
 #+END_SRC
 
-Here we want =for= to take care of the outer =Future= and let us write
+Here we want =for= to take care of the outer context and let us write
 our code on the inner =Option=. Hiding the outer context is exactly
 what a /monad transformer/ does, and cats provides implementations for
 =Option=, =Future= and =Either= named =OptionT=, =FutureT= and
 =EitherT= respectively.
 
+The outer context can be anything that normally works in a =for=
+comprehension, but it needs to stay the same throughout.
+
 We create an =OptionT= from each method call. This changes the context
-of the =for= into =OptionT[Future, _]=, with =flatMap= and =map=
-giving us the value of the =Option=.
+of the =for= from =Future[Option, _]= to =OptionT[Future, _]=.
 
 Don't forget the import statements from the Practicalities chapter.
 
@@ -874,9 +952,7 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-The outer context can be anything that normally works in a =for=
-comprehension, but it needs to stay the same throughout. Call =.value=
-to return to it.
+Call =.value= to return to the original context
 
 #+BEGIN_SRC scala
 scala> result.value

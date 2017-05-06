@@ -93,10 +93,9 @@ A>     def create(i: Int): C[Int]
 A>   }
 A> ~~~~~~~~
 A> 
-A> A type constructor is syntax for a type that takes a type to construct
-A> another type. `List` is a type constructor because it takes a type
-A> (e.g. `Int`) and constructs a type (`List -> Int -> List[Int]`). We
-A> can implement `Foo` using `List`:
+A> `List` is a type constructor because it takes a type (e.g. `Int`) and
+A> constructs a type (`List -> Int -> List[Int]`). We can implement `Foo`
+A> using `List`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -128,8 +127,8 @@ A>   type Id[T] = T
 A> ~~~~~~~~
 A> 
 A> Before proceeding, convince yourself that `Id[Int]` is the same thing
-A> as `Int`, by substituting `Int` into `T`. Since `Id` is a valid type
-A> constructor, so we can use `Id` in an implementation of `Foo`
+A> as `Int`, by substituting `Int` into `T`. Because `Id` is a valid type
+A> constructor we can use `Id` in an implementation of `Foo`
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -197,8 +196,9 @@ asynchronous codepaths. We can write a mock implementation of
 `Terminal[Now]` and use it in our tests without any timeouts.
 
 Implementations of `Execution[Now]` and `Execution[Future]` are
-reusable by generic methods like `echo`. But the code for `echo` is
-horrible! Let's clean it up.
+reusable by generic methods like `echo`.
+
+But the code for `echo` is horrible! Let's clean it up.
 
 The `implicit class` Scala language feature gives `C` some methods.
 We'll call these methods `flatMap` and `map` for reasons that will

@@ -3,7 +3,7 @@
 
 # About This Book
 
-This book is for Scala developers with an Object Oriented (OOP)
+This book is for Scala developers with a Java Object Oriented
 background who wish to learn the **Functional Programming** (FP)
 paradigm. We do not accept that the merits of FP are obvious.
 Therefore, this book justifies every concept with practical examples,
@@ -25,12 +25,12 @@ write an FP library in Scala from first principles.
 # Copyleft Notice
 
 This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you
-can use this book as you like, you can redistribute this book and you
-can distribute your own version. That means you can print it,
-photocopy it, e-mail it, upload it to websites, change it, translate
-it, remix it, delete bits, and draw all over it. You can even sell it,
-although you should agree a royalty share with the author or you'll
-not be getting an xmas card.
+can use this book as you like, the [source is available](https://github.com/fommil/fp-scala-mortals), you can
+redistribute this book and you can distribute your own version. That
+means you can print it, photocopy it, e-mail it, upload it to
+websites, change it, translate it, remix it, delete bits, and draw all
+over it. You can even sell it, although you should agree a royalty
+share with the author or you'll not be getting an xmas card.
 
 This book is **Copyleft**: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -57,10 +57,10 @@ John de Goes for [A Beginner Friendly Tour](http://degoes.net/articles/easy-mona
 Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8), Kelley Robinson for [Why the Free Monad
 isn't Free](https://www.youtube.com/watch?v=U0lK0hnbc4U).
 
-The helpul souls who helped explain the concepts needed to write the
-example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund Noble,
-Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist, Adam
-Chlupacek, Pavel Chlupacek, Paul Snively, Daniel Spiewak.
+The helpul souls who patiently explained the concepts needed to write
+the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund
+Noble, Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist,
+Adam Chlupacek, Pavel Chlupacek, Paul Snively, Daniel Spiewak.
 
 # Practicalities
 
