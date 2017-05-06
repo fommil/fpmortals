@@ -476,13 +476,14 @@ is rewritten asynchronously as
   } yield c
 ~~~~~~~~
 
-A> If there is an implicit `Monad[T]` available for `T` (i.e. `T` is
-A> monadic as discussed in the introduction) then cats lets us create a
-A> `T` from a value with `.pure[T]`.
+A> If there is an implicit `Monad[T[_]]` for `T` (i.e. `T` is monadic)
+A> then cats lets us create a `T[V]` from a value `v:V` by calling
+A> `v.pure[T]`.
 A> 
-A> There is a `Monad[Future]` and `.pure[Future]` just calls
-A> `Future.successful` which - apart from being slightly shorter to
-A> type - is good practice because it is a general concept.
+A> Cats provides `Monad[Future]` and `.pure[Future]` simply calling
+A> `Future.successful`. Apart from `pure` being slightly shorter to type,
+A> it is good practice to use it because it is a general concept that
+A> works for all monadic contexts.
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -582,7 +583,7 @@ with methods that just return plain `Future` via `OptionT.liftF`
 ~~~~~~~~
 
 and we can mix with methods that return plain `Option` by wrapping
-them in `Future.successful` followed by `OptionT`
+them in `Future.successful` (`.pure[Future]`) followed by `OptionT`
 
 {lang="text"}
 ~~~~~~~~
@@ -591,7 +592,7 @@ them in `Future.successful` followed by `OptionT`
            a <- OptionT(getA)
            b <- OptionT(getB)
            c <- OptionT.liftF(getC)
-           d <- OptionT(Future.successful(getD))
+           d <- OptionT(getD.pure[Future])
          } yield (a * b) / (c * d)
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
@@ -607,7 +608,7 @@ the required conversions into `OptionT[Future, _]`
   }
   def liftFutureOption[A](f: Future[Option[A]]) = OptionT(f)
   def liftFuture[A](f: Future[A]) = OptionT.liftF(f)
-  def liftOption[A](o: Option[A]) = OptionT(Future.successful(o))
+  def liftOption[A](o: Option[A]) = OptionT(o.pure[Future])
   def lift[A](a: A)               = liftOption(Some(a))
 ~~~~~~~~
 

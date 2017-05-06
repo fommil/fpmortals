@@ -877,13 +877,14 @@ is rewritten asynchronously as
 
 #+BEGIN_ASIDE
 
-If there is an implicit =Monad[T]= available for =T= (i.e. =T= is
-monadic as discussed in the introduction) then cats lets us create a
-=T= from a value with =.pure[T]=.
+If there is an implicit =Monad[T[_]]= for =T= (i.e. =T= is monadic)
+then cats lets us create a =T[V]= from a value =v:V= by calling
+=v.pure[T]=.
 
-There is a =Monad[Future]= and =.pure[Future]= just calls
-=Future.successful= which - apart from being slightly shorter to
-type - is good practice because it is a general concept.
+Cats provides =Monad[Future]= and =.pure[Future]= simply calling
+=Future.successful=. Apart from =pure= being slightly shorter to type,
+it is good practice to use it because it is a general concept that
+works for all monadic contexts.
 
 #+BEGIN_SRC scala
   for {
@@ -978,7 +979,7 @@ result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
 and we can mix with methods that return plain =Option= by wrapping
-them in =Future.successful= followed by =OptionT=
+them in =Future.successful= (=.pure[Future]=) followed by =OptionT=
 
 #+BEGIN_SRC scala
 scala> def getD: Option[Int] = ...
@@ -986,7 +987,7 @@ scala> val result = for {
          a <- OptionT(getA)
          b <- OptionT(getB)
          c <- OptionT.liftF(getC)
-         d <- OptionT(Future.successful(getD))
+         d <- OptionT(getD.pure[Future])
        } yield (a * b) / (c * d)
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
@@ -1001,7 +1002,7 @@ implicit class Ops[In](in: In) {
 }
 def liftFutureOption[A](f: Future[Option[A]]) = OptionT(f)
 def liftFuture[A](f: Future[A]) = OptionT.liftF(f)
-def liftOption[A](o: Option[A]) = OptionT(Future.successful(o))
+def liftOption[A](o: Option[A]) = OptionT(o.pure[Future])
 def lift[A](a: A)               = liftOption(Some(a))
 #+END_SRC
 
