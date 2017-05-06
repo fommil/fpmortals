@@ -96,14 +96,14 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % "0.7.0") ++ Seq(
-  "org.typelevel" %% "cats"     % "0.9.0",
-  "com.spinoco"   %% "fs2-http" % "0.1.6"
+  "org.typelevel" %% "cats"      % "0.9.0",
+  "com.47deg"     %% "freestyle" % "0.1.0",
+  "com.spinoco"   %% "fs2-http"  % "0.1.6"
 )
 
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
 )
-libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0"
 #+END_SRC
 
 In order to keep our snippets short, we will omit the =import=
@@ -875,19 +875,20 @@ is rewritten asynchronously as
   } yield c
 #+END_SRC
 
-***** TODO rewrite using .pure
-
 #+BEGIN_ASIDE
 
-https://gitter.im/typelevel/cats?at=590dd4cac89bb14b5ad77e83
+If there is an implicit =Monad[T]= available for =T= (i.e. =T= is
+monadic as discussed in the introduction) then cats lets us create a
+=T= from a value with =.pure[T]=.
+
+There is a =Monad[Future]= and =.pure[Future]= just calls
+=Future.successful= which - apart from being slightly shorter to
+type - is good practice because it is a general concept.
 
 #+BEGIN_SRC scala
-  def getA: Future[Int] = ...
-  def getB: Future[Int] = ...
-
   for {
     a <- getA
-    c <- if (a <= 0) 0.pure
+    c <- if (a <= 0) 0.pure[Future]
          else for { b <- getB } yield a * b
   } yield c
 #+END_SRC
@@ -1238,7 +1239,7 @@ Which means we must write three functions: =initial=, =update= and
 into =FreeS[F, A]=. When we return a =WorldView=, it must be a
 =FreeS[F, WorldView]=.
 
-=FreeS[F, A]= is /monoidic/, meaning that an implementation of
+=FreeS[F, A]= is /monadic/, meaning that an implementation of
 =Monad[A]= is available for the operations in our combined algebras,
 =F=. As we discovered in the Introduction, a =Monad= is the
 description of a program, interpreted by an execution context at

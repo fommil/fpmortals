@@ -476,21 +476,22 @@ is rewritten asynchronously as
   } yield c
 ~~~~~~~~
 
-1.  TODO rewrite using .pure
-
-    A> <https://gitter.im/typelevel/cats?at=590dd4cac89bb14b5ad77e83>
-    A> 
-    A> {lang="text"}
-    A> ~~~~~~~~
-    A>   def getA: Future[Int] = ...
-    A>   def getB: Future[Int] = ...
-    A>   
-    A>   for {
-    A>     a <- getA
-    A>     c <- if (a <= 0) 0.pure
-    A>          else for { b <- getB } yield a * b
-    A>   } yield c
-    A> ~~~~~~~~
+A> If there is an implicit `Monad[T]` available for `T` (i.e. `T` is
+A> monadic as discussed in the introduction) then cats lets us create a
+A> `T` from a value with `.pure[T]`.
+A> 
+A> There is a `Monad[Future]` and `.pure[Future]` just calls
+A> `Future.successful` which - apart from being slightly shorter to
+A> type - is good practice because it is a general concept.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   for {
+A>     a <- getA
+A>     c <- if (a <= 0) 0.pure[Future]
+A>          else for { b <- getB } yield a * b
+A>   } yield c
+A> ~~~~~~~~
 
 ## Incomprehensible
 
@@ -825,7 +826,7 @@ Which means we must write three functions: `initial`, `update` and
 into `FreeS[F, A]`. When we return a `WorldView`, it must be a
 `FreeS[F, WorldView]`.
 
-`FreeS[F, A]` is *monoidic*, meaning that an implementation of
+`FreeS[F, A]` is *monadic*, meaning that an implementation of
 `Monad[A]` is available for the operations in our combined algebras,
 `F`. As we discovered in the Introduction, a `Monad` is the
 description of a program, interpreted by an execution context at

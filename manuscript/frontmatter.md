@@ -86,14 +86,14 @@ and add the following dependencies to your project's settings:
     "io.circe" %% "circe-generic",
     "io.circe" %% "circe-parser"
   ).map(_ % "0.7.0") ++ Seq(
-    "org.typelevel" %% "cats"     % "0.9.0",
-    "com.spinoco"   %% "fs2-http" % "0.1.6"
+    "org.typelevel" %% "cats"      % "0.9.0",
+    "com.47deg"     %% "freestyle" % "0.1.0",
+    "com.spinoco"   %% "fs2-http"  % "0.1.6"
   )
   
   addCompilerPlugin(
     "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
   )
-  libraryDependencies += "com.47deg"  %% "freestyle" % "0.1.0"
 ~~~~~~~~
 
 In order to keep our snippets short, we will omit the `import`
