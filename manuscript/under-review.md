@@ -430,7 +430,7 @@ context's shortcut, e.g. synchronous code that throws an exception
   def getA: Int = ...
   
   val a = getA
-  require(a > 0, s"$a must be positive"))
+  require(a > 0, s"$a must be positive")
   a * 10
 ~~~~~~~~
 
@@ -446,7 +446,7 @@ can be rewritten as async
     a <- getA
     b <- if (a <= 0) error(s"$a must be positive")
          else Future.successful(a)
-  } b * 10
+  } yield b * 10
 ~~~~~~~~
 
 But if we want to exit early with a successful return value, we have
