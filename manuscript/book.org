@@ -825,8 +825,8 @@ stylistic decision for each team.
 
 Let's say we have some condition that should exit early.
 
-If we want to exit early and flag it as an error we just use the
-context's shortcut, e.g. synchronous code that throws an exception
+If we want to exit early as an error we can use the context's
+shortcut, e.g. synchronous code that throws an exception
 
 #+BEGIN_SRC scala
   def getA: Int = ...
@@ -851,7 +851,7 @@ can be rewritten as async
 #+END_SRC
 
 But if we want to exit early with a successful return value, we have
-to use a nested =for= comprehension. e.g.
+to use a nested =for= comprehension, e.g.
 
 #+BEGIN_SRC scala
   def getA: Int = ...
@@ -877,14 +877,14 @@ is rewritten asynchronously as
 
 #+BEGIN_ASIDE
 
-If there is an implicit =Monad[T[_]]= for =T= (i.e. =T= is monadic)
-then cats lets us create a =T[V]= from a value =v:V= by calling
-=v.pure[T]=.
+If there is an implicit =Monad[T]= for =T[_]= (i.e. =T= is monadic)
+then cats lets us create a =T[A]= from a value =a:A= by calling
+=a.pure[T]=.
 
-Cats provides =Monad[Future]= and =.pure[Future]= simply calling
-=Future.successful=. Apart from =pure= being slightly shorter to type,
-it is good practice to use it because it is a general concept that
-works for all monadic contexts.
+Cats provides =Monad[Future]= and =.pure[Future]= simply calls
+=Future.successful=. Besides =pure= being slightly shorter to type, it
+is a general concept that works beyond =Future=, and is therefore
+recommended.
 
 #+BEGIN_SRC scala
   for {
@@ -897,8 +897,8 @@ works for all monadic contexts.
 
 *** Incomprehensible
 
-You may have noticed that the context we're comprehending over must
-stay the same: we can't mix contexts.
+The context we're comprehending over must stay the same: we can't mix
+contexts.
 
 #+BEGIN_SRC scala
 scala> def option: Option[Int] = ...
@@ -914,7 +914,7 @@ scala> for {
               ^
 #+END_SRC
 
-Nothing can help us mix arbitrary contexts in a =for= comprehension,
+Nothing can help us mix arbitrary contexts in a =for= comprehension
 because the meaning is not well defined.
 
 But when we have nested contexts the intention is usually obvious yet
@@ -942,9 +942,7 @@ The outer context can be anything that normally works in a =for=
 comprehension, but it needs to stay the same throughout.
 
 We create an =OptionT= from each method call. This changes the context
-of the =for= from =Future[Option, _]= to =OptionT[Future, _]=.
-
-Don't forget the import statements from the Practicalities chapter.
+of the =for= from =Future[Option[_]]= to =OptionT[Future, _]=.
 
 #+BEGIN_SRC scala
 scala> val result = for {
@@ -954,7 +952,7 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-Call =.value= to return to the original context
+=.value= returns us to the original context
 
 #+BEGIN_SRC scala
 scala> result.value
@@ -962,8 +960,8 @@ res: Future[Option[Int]] = Future(<not completed>)
 #+END_SRC
 
 Alternatively, =OptionT[Future, Int]= has =getOrElse= and =getOrElseF=
-methods, taking an =Int= or =Future[Int]= respectively, and returning
-a =Future[Int]=.
+methods, taking =Int= and =Future[Int]= respectively, returning a
+=Future[Int]=.
 
 The monad transformer also allows us to mix =Future[Option[_]]= calls
 with methods that just return plain =Future= via =OptionT.liftF=
@@ -992,9 +990,9 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-It's gotten messy again, but it's better than writing nested =flatMap=
-and =map= by hand. We can clean this up with a DSL that handles all
-the required conversions into =OptionT[Future, _]=
+It is messy again, but it's better than writing nested =flatMap= and
+=map= by hand. We can clean it up with a DSL that handles all the
+required conversions into =OptionT[Future, _]=
 
 #+BEGIN_SRC scala
 implicit class Ops[In](in: In) {
@@ -1006,7 +1004,7 @@ def liftOption[A](o: Option[A]) = OptionT(o.pure[Future])
 def lift[A](a: A)               = liftOption(Some(a))
 #+END_SRC
 
-which has a visual separation of the logic from transformation
+which visually separates the logic from the transformers
 
 #+BEGIN_SRC scala
 scala> val result = for {
@@ -1019,11 +1017,10 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-This approach also works for =EitherT= and =FutureT= as the inner
-context, but their lifting methods are more complex as they require
-parameters to construct the =Left= and an implicit =ExecutionContext=.
-cats provides monad transformers for a lot of its own types, so it's
-worth checking if one is available.
+This approach also works for =EitherT= or =FutureT= as the inner
+context, but their lifting methods are more complex and require
+parameters. cats provides monad transformers for a lot of its own
+types, so it's worth checking if one is available.
 
 Notably absent is =ListT= (or =TraversableT=) because it is difficult
 to create a well-behaved monad transformer for collections. It comes
@@ -1108,22 +1105,18 @@ authentication.
 Let's codify the architecture diagram from the previous section.
 
 In FP, an /algebra/ takes the place of an =interface= in Spring Java,
-or the set of valid messages for an Actor in Akka. This is the layer
+or the set of valid messages for an =Actor= in Akka. This is the layer
 where we define all side-effecting interactions of our system.
 
-We only define operations that we use in our business logic, avoiding
-implementation detail. In reality, there is tight iteration between
-writing the logic and the algebra: it is just the right level of
-abstraction to design a system.
+There is tight iteration between writing the logic and the algebra: it
+is a good level of abstraction to design a system.
 
-The =@freestyle.free= annotation is a macro that generates
-boilerplate. The details of the boilerplate are not important right
-now, we will explain as required and go into gruelling detail in the
-Appendix.
+=@freestyle.free= is a macro annotation that generates boilerplate.
+The details of the boilerplate are not important right now, we will
+explain as required and go into gruelling detail in the Appendix.
 
-=@free= requires that all methods return =FS[A]=, which we will
-replace with =Id[A]= or =Future[A]= when we implement them, just like
-in the Introduction.
+=@free= requires that all methods return =FS[A]=, expanded into
+something useful in a moment.
 
 #+BEGIN_SRC scala
 package algebra
@@ -1143,7 +1136,7 @@ object machines {
   case class Node(id: String)
 
   @free trait Machines {
-    def getTime: FS[ZonedDateTime] // current time
+    def getTime: FS[ZonedDateTime]
     def getManaged: FS[NonEmptyList[Node]]
     def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start zdt
     def start(node: Node): FS[Unit]
@@ -1162,10 +1155,11 @@ impossible. However, this often conflicts with the /Effective Java/
 wisdom of unconstrained parameters and specific return types.
 
 Although we agree that parameters should be as general as possible, we
-do not agree that a function should take =Traversable= unless it can
-handle empty collections. If it is not possible to handle the empty
-case the only course of action would be to signal an error, breaking
-totality and causing a side effect.
+do not agree that a function should take =Seq= unless it can handle
+empty =Seq=, otherwise the only course of action would be to
+exception, breaking totality and causing a side effect. We prefer
+=NonEmptyList=, not because it is a =List=, but because of its
+non-empty property.
 #+END_ASIDE
 
 *** Business Logic
@@ -1206,19 +1200,23 @@ final case class WorldView(
 )
 #+END_SRC
 
-We use the freestyle =@module= boilerplate generator and declare all
-the algebras that our business logic depends on. Then we create a
-=class= to hold our business logic, taking the =Deps= module as an
-implicit parameter. We're just doing dependency injection, it should
-be a familiar pattern if you've ever used Spring. =@module= has
-generated the type =F= for us, combining the algebras.
+=@freestyle.module= generates boilerplate for dependency injection, it
+should be a familiar pattern if you've ever used Spring's =@Autowired=
 
 #+BEGIN_SRC scala
 @module trait Deps {
   val d: Drone
   val c: Machines
 }
+#+END_SRC
 
+Then we create a =class= to hold our business logic, taking the =Deps=
+module as an implicit parameter. Note that =Deps= takes a type
+parameter, =F=, generated by =@module=. =F= is a verbose type that
+represents the combination of all the algebras inside =Deps=, roughly
+=Either[Drone[_], Machines[_]]=.
+
+#+BEGIN_SRC scala
 final case class DynAgents[F[_]](implicit D: Deps[F]) {
   import D._
 #+END_SRC
@@ -1236,15 +1234,11 @@ loop {
 Which means we must write three functions: =initial=, =update= and
 =act=, all returning a =WorldView=.
 
-=@free= and =@module= together expand type declarations like =FS[A]=
-into =FreeS[F, A]=. When we return a =WorldView=, it must be a
-=FreeS[F, WorldView]=.
-
-=FreeS[F, A]= is /monadic/, meaning that an implementation of
-=Monad[A]= is available for the operations in our combined algebras,
-=F=. As we discovered in the Introduction, a =Monad= is the
-description of a program, interpreted by an execution context at
-runtime.
+Freestyle has created all the implicit machinery in the background
+that converts our =FS[A]= methods into =FreeS[F, A]=, which is
+/monadic/ and can be used as the context of a =for= comprehension.
+Where we want to return =WorldView= in the pseudo business logic, we
+return =FreeS[F, WorldView]= in the real code.
 
 **** initial
 
@@ -1253,12 +1247,12 @@ into a =WorldView=. We default the =pending= field to an empty =Map=.
 
 #+BEGIN_SRC scala
   def initial: FreeS[F, WorldView] = for {
-    w  <- d.getBacklog
-    a  <- d.getAgents
-    av <- c.getManaged
-    ac <- c.getAlive
-    t  <- c.getTime
-  } yield WorldView(w, a, av, ac, Map.empty, t)
+    db <- d.getBacklog
+    da <- d.getAgents
+    cm <- c.getManaged
+    ca <- c.getAlive
+    ct <- c.getTime
+  } yield WorldView(db, da, cm, ca, Map.empty, ct)
 #+END_SRC
 
 **** update
@@ -1302,8 +1296,13 @@ teams.
 
 *** TODO Parallel
 
+# type FS[A] = FreeS.Par[F, A] // applicative, where F is synthetic and added by the macro
+# type FreeS.Par[F, A] = FreeApplicative[F, A]
+# type FreeS[F, A] = Free[FreeApplicative[F, ?], A] //monad
+
 *** TODO Implementing OAuth 2.0
 
+*** TODO Free Monad
 * Main Text
   :PROPERTIES:
   :EXPORT_FILE_NAME: main-text.md

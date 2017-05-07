@@ -422,8 +422,8 @@ A> stylistic decision for each team.
 
 Let's say we have some condition that should exit early.
 
-If we want to exit early and flag it as an error we just use the
-context's shortcut, e.g. synchronous code that throws an exception
+If we want to exit early as an error we can use the context's
+shortcut, e.g. synchronous code that throws an exception
 
 {lang="text"}
 ~~~~~~~~
@@ -450,7 +450,7 @@ can be rewritten as async
 ~~~~~~~~
 
 But if we want to exit early with a successful return value, we have
-to use a nested `for` comprehension. e.g.
+to use a nested `for` comprehension, e.g.
 
 {lang="text"}
 ~~~~~~~~
@@ -476,14 +476,14 @@ is rewritten asynchronously as
   } yield c
 ~~~~~~~~
 
-A> If there is an implicit `Monad[T[_]]` for `T` (i.e. `T` is monadic)
-A> then cats lets us create a `T[V]` from a value `v:V` by calling
-A> `v.pure[T]`.
+A> If there is an implicit `Monad[T]` for `T[_]` (i.e. `T` is monadic)
+A> then cats lets us create a `T[A]` from a value `a:A` by calling
+A> `a.pure[T]`.
 A> 
-A> Cats provides `Monad[Future]` and `.pure[Future]` simply calling
-A> `Future.successful`. Apart from `pure` being slightly shorter to type,
-A> it is good practice to use it because it is a general concept that
-A> works for all monadic contexts.
+A> Cats provides `Monad[Future]` and `.pure[Future]` simply calls
+A> `Future.successful`. Besides `pure` being slightly shorter to type, it
+A> is a general concept that works beyond `Future`, and is therefore
+A> recommended.
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -496,8 +496,8 @@ A> ~~~~~~~~
 
 ## Incomprehensible
 
-You may have noticed that the context we're comprehending over must
-stay the same: we can't mix contexts.
+The context we're comprehending over must stay the same: we can't mix
+contexts.
 
 {lang="text"}
 ~~~~~~~~
@@ -514,7 +514,7 @@ stay the same: we can't mix contexts.
                 ^
 ~~~~~~~~
 
-Nothing can help us mix arbitrary contexts in a `for` comprehension,
+Nothing can help us mix arbitrary contexts in a `for` comprehension
 because the meaning is not well defined.
 
 But when we have nested contexts the intention is usually obvious yet
@@ -543,9 +543,7 @@ The outer context can be anything that normally works in a `for`
 comprehension, but it needs to stay the same throughout.
 
 We create an `OptionT` from each method call. This changes the context
-of the `for` from `Future[Option, _]` to `OptionT[Future, _]`.
-
-Don't forget the import statements from the Practicalities chapter.
+of the `for` from `Future[Option[_]]` to `OptionT[Future, _]`.
 
 {lang="text"}
 ~~~~~~~~
@@ -556,7 +554,7 @@ Don't forget the import statements from the Practicalities chapter.
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-Call `.value` to return to the original context
+`.value` returns us to the original context
 
 {lang="text"}
 ~~~~~~~~
@@ -565,8 +563,8 @@ Call `.value` to return to the original context
 ~~~~~~~~
 
 Alternatively, `OptionT[Future, Int]` has `getOrElse` and `getOrElseF`
-methods, taking an `Int` or `Future[Int]` respectively, and returning
-a `Future[Int]`.
+methods, taking `Int` and `Future[Int]` respectively, returning a
+`Future[Int]`.
 
 The monad transformer also allows us to mix `Future[Option[_]]` calls
 with methods that just return plain `Future` via `OptionT.liftF`
@@ -597,9 +595,9 @@ them in `Future.successful` (`.pure[Future]`) followed by `OptionT`
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-It's gotten messy again, but it's better than writing nested `flatMap`
-and `map` by hand. We can clean this up with a DSL that handles all
-the required conversions into `OptionT[Future, _]`
+It is messy again, but it's better than writing nested `flatMap` and
+`map` by hand. We can clean it up with a DSL that handles all the
+required conversions into `OptionT[Future, _]`
 
 {lang="text"}
 ~~~~~~~~
@@ -612,7 +610,7 @@ the required conversions into `OptionT[Future, _]`
   def lift[A](a: A)               = liftOption(Some(a))
 ~~~~~~~~
 
-which has a visual separation of the logic from transformation
+which visually separates the logic from the transformers
 
 {lang="text"}
 ~~~~~~~~
@@ -626,11 +624,10 @@ which has a visual separation of the logic from transformation
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-This approach also works for `EitherT` and `FutureT` as the inner
-context, but their lifting methods are more complex as they require
-parameters to construct the `Left` and an implicit `ExecutionContext`.
-cats provides monad transformers for a lot of its own types, so it's
-worth checking if one is available.
+This approach also works for `EitherT` or `FutureT` as the inner
+context, but their lifting methods are more complex and require
+parameters. cats provides monad transformers for a lot of its own
+types, so it's worth checking if one is available.
 
 Notably absent is `ListT` (or `TraversableT`) because it is difficult
 to create a well-behaved monad transformer for collections. It comes
@@ -692,22 +689,18 @@ authentication.
 Let's codify the architecture diagram from the previous section.
 
 In FP, an *algebra* takes the place of an `interface` in Spring Java,
-or the set of valid messages for an Actor in Akka. This is the layer
+or the set of valid messages for an `Actor` in Akka. This is the layer
 where we define all side-effecting interactions of our system.
 
-We only define operations that we use in our business logic, avoiding
-implementation detail. In reality, there is tight iteration between
-writing the logic and the algebra: it is just the right level of
-abstraction to design a system.
+There is tight iteration between writing the logic and the algebra: it
+is a good level of abstraction to design a system.
 
-The `@freestyle.free` annotation is a macro that generates
-boilerplate. The details of the boilerplate are not important right
-now, we will explain as required and go into gruelling detail in the
-Appendix.
+`@freestyle.free` is a macro annotation that generates boilerplate.
+The details of the boilerplate are not important right now, we will
+explain as required and go into gruelling detail in the Appendix.
 
-`@free` requires that all methods return `FS[A]`, which we will
-replace with `Id[A]` or `Future[A]` when we implement them, just like
-in the Introduction.
+`@free` requires that all methods return `FS[A]`, expanded into
+something useful in a moment.
 
 {lang="text"}
 ~~~~~~~~
@@ -728,7 +721,7 @@ in the Introduction.
     case class Node(id: String)
   
     @free trait Machines {
-      def getTime: FS[ZonedDateTime] // current time
+      def getTime: FS[ZonedDateTime]
       def getManaged: FS[NonEmptyList[Node]]
       def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start zdt
       def start(node: Node): FS[Unit]
@@ -746,10 +739,11 @@ A> impossible. However, this often conflicts with the *Effective Java*
 A> wisdom of unconstrained parameters and specific return types.
 A> 
 A> Although we agree that parameters should be as general as possible, we
-A> do not agree that a function should take `Traversable` unless it can
-A> handle empty collections. If it is not possible to handle the empty
-A> case the only course of action would be to signal an error, breaking
-A> totality and causing a side effect.
+A> do not agree that a function should take `Seq` unless it can handle
+A> empty `Seq`, otherwise the only course of action would be to
+A> exception, breaking totality and causing a side effect. We prefer
+A> `NonEmptyList`, not because it is a `List`, but because of its
+A> non-empty property.
 
 ## Business Logic
 
@@ -791,12 +785,8 @@ algebras, and adds a *pending* field to track unfulfilled requests.
   )
 ~~~~~~~~
 
-We use the freestyle `@module` boilerplate generator and declare all
-the algebras that our business logic depends on. Then we create a
-`class` to hold our business logic, taking the `Deps` module as an
-implicit parameter. We're just doing dependency injection, it should
-be a familiar pattern if you've ever used Spring. `@module` has
-generated the type `F` for us, combining the algebras.
+`@freestyle.module` generates boilerplate for dependency injection, it
+should be a familiar pattern if you've ever used Spring's `@Autowired`
 
 {lang="text"}
 ~~~~~~~~
@@ -804,7 +794,16 @@ generated the type `F` for us, combining the algebras.
     val d: Drone
     val c: Machines
   }
-  
+~~~~~~~~
+
+Then we create a `class` to hold our business logic, taking the `Deps`
+module as an implicit parameter. Note that `Deps` takes a type
+parameter, `F`, generated by `@module`. `F` is a verbose type that
+represents the combination of all the algebras inside `Deps`, roughly
+`Either[Drone[_], Machines[_]]`.
+
+{lang="text"}
+~~~~~~~~
   final case class DynAgents[F[_]](implicit D: Deps[F]) {
     import D._
 ~~~~~~~~
@@ -823,15 +822,11 @@ Our business logic will run in an infinite loop (pseudocode)
 Which means we must write three functions: `initial`, `update` and
 `act`, all returning a `WorldView`.
 
-`@free` and `@module` together expand type declarations like `FS[A]`
-into `FreeS[F, A]`. When we return a `WorldView`, it must be a
-`FreeS[F, WorldView]`.
-
-`FreeS[F, A]` is *monadic*, meaning that an implementation of
-`Monad[A]` is available for the operations in our combined algebras,
-`F`. As we discovered in the Introduction, a `Monad` is the
-description of a program, interpreted by an execution context at
-runtime.
+Freestyle has created all the implicit machinery in the background
+that converts our `FS[A]` methods into `FreeS[F, A]`, which is
+*monadic* and can be used as the context of a `for` comprehension.
+Where we want to return `WorldView` in the pseudo business logic, we
+return `FreeS[F, WorldView]` in the real code.
 
 ### initial
 
@@ -841,12 +836,12 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
 {lang="text"}
 ~~~~~~~~
   def initial: FreeS[F, WorldView] = for {
-    w  <- d.getBacklog
-    a  <- d.getAgents
-    av <- c.getManaged
-    ac <- c.getAlive
-    t  <- c.getTime
-  } yield WorldView(w, a, av, ac, Map.empty, t)
+    db <- d.getBacklog
+    da <- d.getAgents
+    cm <- c.getManaged
+    ca <- c.getAlive
+    ct <- c.getTime
+  } yield WorldView(db, da, cm, ca, Map.empty, ct)
 ~~~~~~~~
 
 ### update
@@ -893,5 +888,7 @@ teams.
 ## TODO Parallel
 
 ## TODO Implementing OAuth 2.0
+
+## TODO Free Monad
 
 
