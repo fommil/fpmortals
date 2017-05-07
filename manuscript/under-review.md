@@ -824,7 +824,9 @@ Which means we must write three functions: `initial`, `update` and
 
 Freestyle has created all the implicit machinery in the background
 that converts our `FS[A]` methods into `FreeS[F, A]`, which is
-*monadic* and can be used as the context of a `for` comprehension.
+*monadic* and can be the context of a `for` comprehension. In the
+Introduction, we learnt the benefits of this abstraction pattern.
+
 Where we want to return `WorldView` in the pseudo business logic, we
 return `FreeS[F, WorldView]` in the real code.
 
@@ -846,24 +848,12 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
 
 ### update
 
-We will need a convenience function to calculate the time difference
-between two `ZonedDateTime` instances
-
-{lang="text"}
-~~~~~~~~
-  def diff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
-    ChronoUnit.MINUTES.between(from, to).minutes
-~~~~~~~~
-
-`update` calls `initial` to refresh our world view, but preserves
-`pending` actions.
+`update` should call `initial` to refresh our world view, but preserve
+known `pending` actions.
 
 If a pending action is taking longer than 10 minutes to do anything,
-we assume that it failed and just forget that we ever asked to do it.
-
-Note that we're using a generator (`flatMap`) when we call a method
-from an algebra, but we can use assignment for pure functions like
-`copy` and `diff`. The compiler keeps us right.
+we assume that it failed and just forget that we ever asked to do it
+(introduce `diff` to make it easier to read).
 
 {lang="text"}
 ~~~~~~~~
@@ -875,7 +865,14 @@ from an algebra, but we can use assignment for pure functions like
       }
     )
   } yield update
+  
+  def diff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+    ChronoUnit.MINUTES.between(from, to).minutes
 ~~~~~~~~
+
+Note that we're using a generator when we call a method from an
+algebra (`flatMap`), but we use assignment for pure functions like
+`copy` and `diff` (`map`). The compiler keeps us right.
 
 ### TODO act
 
