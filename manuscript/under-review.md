@@ -821,10 +821,10 @@ Our business logic will run in an infinite loop (pseudocode)
 Which means we must write three functions: `initial`, `update` and
 `act`, all returning a `WorldView`.
 
-Freestyle has created all the implicit machinery in the background
-that converts our `FS[A]` methods into `FreeS[F, A]`, which is
-*monadic* and can be the context of a `for` comprehension. In the
-Introduction, we learnt the benefits of this abstraction pattern.
+Freestyle has created implicit machinery to seemlessly treat our
+`FS[A]` methods as `FreeS[F, A]`, which is *monadic* and can be the
+context of a `for` comprehension. In the Introduction, we learnt the
+benefits of this abstraction pattern.
 
 Where we want to return `WorldView` in the pseudo business logic, we
 return `FreeS[F, WorldView]` in the real code.
