@@ -43,7 +43,7 @@ final case class WorldView(
   val c: Machines
 }
 
-final case class DynAgents[F[_]](implicit D: Deps[F]) {
+final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
   import D._
 
   def initial: FreeS[F, WorldView] =
