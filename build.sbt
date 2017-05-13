@@ -1,6 +1,6 @@
 inThisBuild(
   Seq(
-    scalaVersion := "2.12.1",
+    scalaVersion := "2.12.2-bin-typelevel-4",
     scalaOrganization := "org.typelevel",
     sonatypeGithub := ("fommil", "drone-dynamic-agents"),
     licenses := Seq(Apache2)
@@ -46,6 +46,7 @@ scalacOptions ++= Seq(
 
 // false positives with sysdef
 scalacOptions -= "-Ywarn-unused-import"
+scalacOptions += "-Ywarn-unused:implicits,-imports,-locals,-params,-patvars,-privates"
 
 // http://frees.io/docs/
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
