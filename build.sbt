@@ -31,9 +31,16 @@ scalacOptions ++= Seq(
   "-Yno-predef"
 )
 
-// false positives with sysdef
-scalacOptions -= "-Ywarn-unused-import"
 scalacOptions += "-Ywarn-unused:implicits,imports,locals,params,patvars,privates"
+
+wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
+  Wart.FinalCaseClass,
+  Wart.ExplicitImplicitTypes
+)
+wartremoverWarnings in (Compile, compile) -= Wart.Any // https://github.com/frees-io/freestyle/issues/313
+wartremoverWarnings in (Compile, compile) -= Wart.FinalCaseClass // https://github.com/frees-io/freestyle/issues/314
+wartremoverWarnings in (Compile, compile) -= Wart.ExplicitImplicitTypes // https://github.com/frees-io/freestyle/issues/314
+wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
 
 // http://frees.io/docs/
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)

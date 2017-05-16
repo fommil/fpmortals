@@ -19,7 +19,7 @@ object drone {
 }
 
 object machines {
-  case class Node(id: String)
+  final case class Node(id: String)
 
   @free trait Machines {
     def getTime: FS[ZonedDateTime]

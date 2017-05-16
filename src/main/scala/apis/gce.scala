@@ -8,7 +8,7 @@ import scala.{Boolean, Int}
 import scala.collection.immutable.{Map, Seq}
 
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
-case class NodeConfig(
+final case class NodeConfig(
   machineType: String,
   diskSizeGb: Int,
   oauthScopes: Seq[String],
@@ -22,7 +22,7 @@ case class NodeConfig(
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#MasterAuth
-case class MasterAuth(
+final case class MasterAuth(
   username: String,
   password: String,
   clusterCaCertificate: String,
@@ -31,28 +31,28 @@ case class MasterAuth(
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#AddonsConfig
-case class HttpLoadBalancing(disabled: Boolean)
-case class HorizontalPodAutoscaling(disabled: Boolean)
-case class AddonsConfig(
+final case class HttpLoadBalancing(disabled: Boolean)
+final case class HorizontalPodAutoscaling(disabled: Boolean)
+final case class AddonsConfig(
   httpLoadBalancing: HttpLoadBalancing,
   horizontalPodAutoscaling: HorizontalPodAutoscaling
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters.nodePools#NodePool
-case class NodePoolAutoscaling(
+final case class NodePoolAutoscaling(
   enabled: Boolean,
   minNodeCount: Int,
   maxNodeCount: Int
 )
-case class AutoUpgradeOptions(
+final case class AutoUpgradeOptions(
   autoUpgradeStartTime: String,
   description: String
 )
-case class NodeManagement(
+final case class NodeManagement(
   autoUpgrade: Boolean,
   upgradeOptions: AutoUpgradeOptions
 )
-case class NodePool(
+final case class NodePool(
   name: String,
   config: NodeConfig,
   initialNodeCount: Int,
@@ -75,7 +75,7 @@ case object STOPPING extends Status
 case object ERROR extends Status
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#Cluster
-case class Cluster(
+final case class Cluster(
   name: String,
   description: String,
   initialNodeCount: Int,

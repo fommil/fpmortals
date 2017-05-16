@@ -54,7 +54,7 @@ final class DroneFs2(config: DroneConfig) extends Drone.Handler[Task] {
     clientTask.flatMap { client =>
       client.request(backlogRequest).flatMap { resp =>
         resp.body.chunks.through(byteParser).through(decoder[Task, Int])
-      }.runLast.map(_.get)
+      }.runLast.map(_.get) // FIXME .get
     }
   }
 

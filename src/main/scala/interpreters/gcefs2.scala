@@ -63,7 +63,7 @@ final class GceFs2(config: GceConfig) {
     clientTask.flatMap { client =>
       client.request(request).flatMap { resp =>
         resp.body.chunks.through(byteParser andThen decoder[Task, G])
-      }.runLast.map(_.get)
+      }.runLast.map(_.get) // FIXME .get
     }
   }
 

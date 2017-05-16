@@ -39,7 +39,7 @@ class UrlEncodedSpec extends FlatSpec {
     uri.urlEncoded should be("http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar")
   }
 
-  it should "encode case classes" in {
+  it should "encode final case classes" in {
     Foo("http://foo", 10L, "%").urlEncoded should be("apple=http%3A%2F%2Ffoo&bananas=10&pears=%25")
   }
 
