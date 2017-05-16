@@ -2,6 +2,12 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package http.encoding
 
+import java.lang.String
+
+import scala.Long
+import scala.collection.immutable.Seq
+import scala.Predef.ArrowAssoc
+
 import org.scalatest._
 import org.scalatest.Matchers._
 import UrlEncoded.ops._

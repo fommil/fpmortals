@@ -2,6 +2,10 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package io.circe
 
+import java.lang.String
+
+import scala.{Byte, Either, Left, Right}
+
 import _root_.fs2.{Chunk, Pipe, Stream}
 import _root_.jawn.{AsyncParser, ParseException}
 import io.circe.jawn.CirceSupportParser

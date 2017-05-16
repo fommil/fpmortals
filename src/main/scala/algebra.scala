@@ -2,7 +2,11 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package algebra
 
+import java.lang.String
 import java.time.ZonedDateTime
+
+import scala.{Int, Unit}
+import scala.collection.immutable.Map
 
 import cats.data.NonEmptyList
 import freestyle._

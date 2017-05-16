@@ -2,6 +2,12 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package http.encoding
 
+import java.lang.String
+
+import scala.{Long, Symbol, StringContext}
+import scala.collection.immutable.{Nil, Seq}
+import scala.Predef.ArrowAssoc
+
 import shapeless.{:: => #:, _}
 import shapeless.labelled._
 import java.net.{URLEncoder, URLDecoder}

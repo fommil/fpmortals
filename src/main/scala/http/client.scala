@@ -9,6 +9,8 @@ package http
  */
 package client
 
+import scala.collection.immutable.{List, Nil}
+
 import io.circe.Decoder
 import freestyle._
 import spinoco.protocol.http._

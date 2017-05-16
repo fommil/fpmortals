@@ -2,8 +2,14 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package tests
 
+import java.lang.String
 import java.time.ZonedDateTime
-import java.util.UUID
+
+import scala.Any
+import scala.{Int, Unit, StringContext}
+import scala.collection.immutable.{List, Map}
+
+import scala.Predef.ArrowAssoc
 
 import cats._
 import cats.data.NonEmptyList

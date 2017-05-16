@@ -106,8 +106,12 @@ package http.oauth2
  */
 package client
 
-import freestyle._
+import java.lang.String
 import java.time.LocalDateTime
+
+import scala.{Long, Unit}
+
+import freestyle._
 import spinoco.protocol.http.Uri
 
 /** Defines fixed information about a server's OAuth 2.0 service. */

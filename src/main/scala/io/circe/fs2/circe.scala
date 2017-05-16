@@ -5,6 +5,8 @@ package io.circe.fs2
 // Copyright (C) 2017 n4to4
 // WORKAROUND until released: https://github.com/circe/circe/pull/554
 
+import scala.{Either, Left, Right, Unit}
+
 import _root_.fs2.{Chunk, Handle, Pipe, Pull, Stream}
 import _root_.jawn.{AsyncParser, ParseException}
 import io.circe.{Json, ParsingFailure}

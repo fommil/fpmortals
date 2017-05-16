@@ -2,6 +2,11 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package apis.gce
 
+import java.lang.String
+
+import scala.{Boolean, Int}
+import scala.collection.immutable.{Map, Seq}
+
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
 case class NodeConfig(
   machineType: String,

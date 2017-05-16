@@ -5,7 +5,10 @@ package logic
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
+import scala.{Int, None, Option}
+import scala.collection.immutable.Map
 import scala.concurrent.duration._
+import scala.Predef.ArrowAssoc
 
 import cats.data.NonEmptyList
 import cats.implicits._

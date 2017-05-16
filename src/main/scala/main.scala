@@ -2,8 +2,11 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package drone
 
+import java.lang.String
+import scala.{Array, Unit}
+
 object Main {
-  def main(args: scala.Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
 
   }
 }
