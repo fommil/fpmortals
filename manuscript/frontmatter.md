@@ -84,10 +84,11 @@ and add the following dependencies to your project's settings:
   libraryDependencies ++= Seq(
     "io.circe" %% "circe-core",
     "io.circe" %% "circe-generic",
-    "io.circe" %% "circe-parser"
-  ).map(_ % "0.7.0") ++ Seq(
+    "io.circe" %% "circe-parser",
+    "io.circe" %% "circe-fs2"
+  ).map(_ % "0.8.0") ++ Seq(
     "org.typelevel" %% "cats"      % "0.9.0",
-    "com.47deg"     %% "freestyle" % "0.1.0",
+    "io.frees"      %% "freestyle" % "0.1.1",
     "com.spinoco"   %% "fs2-http"  % "0.1.6"
   )
   
