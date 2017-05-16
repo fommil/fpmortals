@@ -33,8 +33,9 @@ scalacOptions ++= Seq(
 
 // false positives with sysdef
 scalacOptions -= "-Ywarn-unused-import"
-scalacOptions += "-Ywarn-unused:implicits,-imports,-locals,-params,-patvars,-privates"
+scalacOptions += "-Ywarn-unused:implicits,imports,locals,params,patvars,privates"
 
 // http://frees.io/docs/
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
-libraryDependencies += "io.frees" %% "freestyle" % "0.1.1"
+resolvers += Resolver.sonatypeRepo("snapshots")
+libraryDependencies += "io.frees" %% "freestyle" % "0.1.2-SNAPSHOT"

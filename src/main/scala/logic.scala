@@ -58,7 +58,7 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
     snap <- initial
     update = snap.copy(
       // ignore unresponsive pending actions
-      pending = world.pending.filterNot { case (n, started) => diff(started, snap.time) >= 10.minutes }
+      pending = world.pending.filterNot { case (_, started) => diff(started, snap.time) >= 10.minutes }
     )
   } yield update
 
