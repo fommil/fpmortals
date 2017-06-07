@@ -109,7 +109,7 @@ package client
 import java.lang.String
 import java.time.LocalDateTime
 
-import scala.{Long, Unit}
+import scala.{Long, Unit, StringContext}
 
 import freestyle._
 import spinoco.protocol.http.Uri

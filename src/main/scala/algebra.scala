@@ -5,7 +5,7 @@ package algebra
 import java.lang.String
 import java.time.ZonedDateTime
 
-import scala.{Int, Unit}
+import scala.{Int, Unit, StringContext}
 import scala.collection.immutable.Map
 
 import cats.data.NonEmptyList

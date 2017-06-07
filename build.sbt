@@ -40,9 +40,10 @@ wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
 wartremoverWarnings in (Compile, compile) -= Wart.Any // https://github.com/frees-io/freestyle/issues/313
 wartremoverWarnings in (Compile, compile) -= Wart.FinalCaseClass // https://github.com/frees-io/freestyle/issues/314
 wartremoverWarnings in (Compile, compile) -= Wart.ExplicitImplicitTypes // https://github.com/frees-io/freestyle/issues/314
+wartremoverWarnings in (Compile, compile) -= Wart.StringPlusAny // https://github.com/frees-io/freestyle/issues/314
+wartremoverWarnings in (Compile, compile) -= Wart.Throw // https://github.com/frees-io/freestyle/issues/314
 wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
 
 // http://frees.io/docs/
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
-resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "io.frees" %% "freestyle" % "0.1.2-SNAPSHOT"
+libraryDependencies += "io.frees" %% "freestyle" % "0.2.0"

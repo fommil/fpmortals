@@ -9,6 +9,7 @@ package http
  */
 package client
 
+import scala.StringContext
 import scala.collection.immutable.{List, Nil}
 
 import io.circe.Decoder
