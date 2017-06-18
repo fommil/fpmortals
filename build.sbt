@@ -21,8 +21,6 @@ scalacOptions ++= Seq(
   "-explaintypes",
   "-Ywarn-value-discard",
   "-Ywarn-numeric-widen",
-  "-language:higherKinds",
-  "-language:implicitConversions",
   "-Ypartial-unification",
   "-Xlog-free-terms",
   "-Xlog-free-types",

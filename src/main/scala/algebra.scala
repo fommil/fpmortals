@@ -7,6 +7,7 @@ import java.time.ZonedDateTime
 
 import scala.{Int, Unit, StringContext}
 import scala.collection.immutable.Map
+import scala.language.higherKinds
 
 import cats.data.NonEmptyList
 import freestyle._

@@ -110,6 +110,7 @@ import java.lang.String
 import java.time.LocalDateTime
 
 import scala.{Long, Unit, StringContext}
+import scala.language.higherKinds
 
 import freestyle._
 import spinoco.protocol.http.Uri

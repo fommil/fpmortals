@@ -8,6 +8,7 @@ import java.time.temporal.ChronoUnit
 import scala.{Int, None, Option}
 import scala.collection.immutable.Map
 import scala.concurrent.duration._
+import scala.language.higherKinds
 import scala.Predef.ArrowAssoc
 
 import cats.data.NonEmptyList

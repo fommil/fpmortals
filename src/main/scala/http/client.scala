@@ -11,6 +11,7 @@ package client
 
 import scala.StringContext
 import scala.collection.immutable.{List, Nil}
+import scala.language.higherKinds
 
 import io.circe.Decoder
 import freestyle._

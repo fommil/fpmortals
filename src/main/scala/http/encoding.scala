@@ -7,6 +7,7 @@ import java.lang.String
 import scala.{Long, Symbol, StringContext}
 import scala.collection.immutable.{Nil, Seq}
 import scala.Predef.ArrowAssoc
+import scala.language.implicitConversions
 
 import shapeless.{:: => #:, _}
 import shapeless.labelled._
