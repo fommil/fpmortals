@@ -850,28 +850,31 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
 `update` should call `initial` to refresh our world view, but preserve
 known `pending` actions.
 
+If a node has changed state, we remove it from `pending`.
+
 If a pending action is taking longer than 10 minutes to do anything,
-we assume that it failed and just forget that we ever asked to do it
-(introduce `diff` to make it easier to read).
+we assume that it failed and forget that we ever asked to do it.
 
 {lang="text"}
 ~~~~~~~~
   def update(world: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    update = snap.copy(
-      pending = world.pending.filterNot {
-        case (n, started) => diff(started, snap.time) >= 10.minutes
-      }
-    )
+    changed = (world.alive.keySet union snap.alive.keySet) --
+      (world.alive.keySet intersect snap.alive.keySet)
+    pending = (world.pending -- changed).filterNot {
+      case (_, started) => timediff(started, snap.time) >= 10.minutes
+    }
+    update = snap.copy(pending = pending)
   } yield update
   
-  def diff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+  def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 ~~~~~~~~
 
 Note that we're using a generator when we call a method from an
 algebra (`flatMap`), but we use assignment for pure functions like
-`copy` and `diff` (`map`). The compiler keeps us right.
+`union`, `intersect`, `copy` and `timediff` (`map`). The compiler
+keeps us right.
 
 ### TODO act
 
