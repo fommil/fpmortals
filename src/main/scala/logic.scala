@@ -57,10 +57,12 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
 
   def update(world: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    update = snap.copy(
-      // ignore unresponsive pending actions
-      pending = world.pending.filterNot { case (_, started) => diff(started, snap.time) >= 10.minutes }
-    )
+    changed = (world.alive.keySet union snap.alive.keySet) --
+      (world.alive.keySet intersect snap.alive.keySet)
+    pending = (world.pending -- changed).filterNot {
+      case (_, started) => timediff(started, snap.time) >= 10.minutes
+    }
+    update = snap.copy(pending = pending)
   } yield update
 
   def act(world: WorldView): FreeS[F, WorldView] = world match {
@@ -81,7 +83,8 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
     case _ => FreeS.pure(world)
   }
 
-  def diff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration = ChronoUnit.MINUTES.between(from, to).minutes
+  def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+    ChronoUnit.MINUTES.between(from, to).minutes
 
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
@@ -104,8 +107,8 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
     def unapply(world: WorldView): Option[NonEmptyList[Node]] = world match {
       case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
         val stale = (alive -- pending.keys).collect {
-          case (n, started) if backlog == 0 && diff(started, time).toMinutes % 60 >= 58 => n
-          case (n, started) if diff(started, time) >= 5.hours                           => n
+          case (n, started) if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 => n
+          case (n, started) if timediff(started, time) >= 5.hours                           => n
         }.toList
         NonEmptyList.fromList(stale)
 

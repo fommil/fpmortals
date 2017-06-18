@@ -156,6 +156,18 @@ class LogicSpec extends FlatSpec {
     interpreters.started shouldBe 0
   }
 
+  it should "remove changed nodes from pending" in {
+    val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
+    val interpreters = StaticInterpreters(world)
+    import interpreters._
+
+    val initial = world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
+    program.update(initial).interpret[Id] shouldBe world // i.e. pending is gone
+
+    interpreters.stopped shouldBe 0
+    interpreters.started shouldBe 0
+  }
+
   it should "ignore unresponsive pending actions during update" in {
     val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
     val interpreters = StaticInterpreters(world)
