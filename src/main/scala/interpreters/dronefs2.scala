@@ -2,9 +2,9 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package interpreters.dronefs2
 
-import java.lang.String
+import java.lang.{String, SuppressWarnings}
 
-import scala.Int
+import scala.{Array, Int}
 import scala.Predef.???
 
 import fs2._
@@ -50,11 +50,12 @@ final class DroneFs2(config: DroneConfig) extends Drone.Handler[Task] {
     HttpRequest.get[Task](Uri.https(config.host, "/api/builds"))
       .withHeader(Authorization(OAuth2BearerToken(config.token)))
 
+  @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
   def getBacklog: Task[Int] = {
     clientTask.flatMap { client =>
       client.request(backlogRequest).flatMap { resp =>
         resp.body.chunks.through(byteParser).through(decoder[Task, Int])
-      }.runLast.map(_.get) // FIXME .get
+      }.runLast.map(_.get)
     }
   }
 

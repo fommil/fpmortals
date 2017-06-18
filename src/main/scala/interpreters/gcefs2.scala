@@ -2,12 +2,12 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package interpreters.gcefs
 
-import java.lang.String
+import java.lang.{String, SuppressWarnings}
 import java.nio.channels.AsynchronousChannelGroup
 import java.time.ZonedDateTime
 import java.util.concurrent.Executors
 
-import scala.{StringContext, Unit}
+import scala.{Array, StringContext, Unit}
 import scala.collection.immutable.Map
 import scala.Predef.???
 
@@ -55,6 +55,7 @@ final class GceFs2(config: GceConfig) {
   private val clientTask: Task[HttpClient[Task]] = http.client()
 
   // TODO: abstract out the OAuth with an algebra
+  @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
   private def get[G: Decoder](path: String): Task[G] = {
     val request = HttpRequest.get[Task](
       Uri.https("container.googleapis.com", path)
@@ -63,7 +64,7 @@ final class GceFs2(config: GceConfig) {
     clientTask.flatMap { client =>
       client.request(request).flatMap { resp =>
         resp.body.chunks.through(byteParser andThen decoder[Task, G])
-      }.runLast.map(_.get) // FIXME .get
+      }.runLast.map(_.get)
     }
   }
 
