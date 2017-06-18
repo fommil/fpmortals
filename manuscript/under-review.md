@@ -1148,20 +1148,83 @@ Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
 protecting internal state with concurrency locks.
 
-## TODO Free Monad
+## Free Monad
 
-## TODO Reality Check
+What we've been doing in this chapter is using the *free monad*,
+`cats.free.Free`, to build up the definition of our program as a data
+structure and then we interpret it. Freestyle calls it `FreeS`, which
+is just a type alias to `Free` plus some type information to make
+parallelisation easier.
 
--   solved initial abstraction problem
--   clean way to write logic and divide labour
--   easier to write maintainable and testable code
+The reason why we use `Free` instead of just implementing `cats.Monad`
+directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
+running on the JVM. Every nested call to `map` or `flatMap` adds to
+the stack, eventually resulting in a `StackOverflowError`.
 
-Three steps forward but two steps back: performance, IDE support.
+`Free` is a `sealed trait` that roughly looks like:
 
-Lack of Scala enforcement.
+{lang="text"}
+~~~~~~~~
+  sealed trait Free[S[_], A] {
+    def pure(a: A): Free[S, A] = Pure(a)
+    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
+    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
+  }
+  
+  case class Pure[S[_], A](a: A) extends Free[S, A]
+  case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  case class FlatMapped[S[_], B, C](c: Free[S, C],
+                                    f: C => Free[S, B]) extends Free[S, B]
+~~~~~~~~
 
-High level overview of what `@free` and `@module` is doing, and the
-concept of trampolining. For a detailed explanation of free style and
-the cats free monad implementation, see the appendix.
+Its definition of `pure` / `map` / `flatMap` do not do any work, they
+just build up data structures that live on the heap. Work is delayed
+until Free is *interpreted*. This technique of using heap objects to
+eliminate stack growth is known as *trampolining*.
+
+When we use the `@free` annotation, a `sealed trait` data structure is
+generated for each of our algebras, with a `case class` per method,
+allowing trampolining. When we write a handler, Freestyle is
+converting pattern matches over heap objects into method calls. The
+appendix goes into gruelling detail about what Freestyle is generating
+for us.
+
+### Why is it called Free?
+
+`Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
+the name. However, from a practical point of view, there needs to be a
+`Monad[S]` (or bizarro `Comonad[S]`) in order to interpret it --- so
+it's more like an interest-only mortgage where you still have to buy
+the house at the end.
+
+## Reality Check
+
+In this chapter we've encountered some of the real practical benefits
+of FP when designing and testing applications.
+
+However, even if we look past the initial learning curve of FP, there
+are still some practical challenges that remain:
+
+1.  trampolining has a performance impact due to increased memory
+    churn. It is for this reason that FP is not applicable where the
+    developer efficiency vs runtime performance tradeoff is heavily
+    biased towards performance.
+2.  there is not always IDE support for the language features, macros
+    or compiler plugins that are used in FP.
+3.  implementation details, as we have seen with `for` syntax sugar,
+    `Free` and `@free`, can introduce a significant mental overhead and
+    become a blocker to progress.
+4.  the distinction between pure and side-effecting code is not
+    enforced by the scala compiler, it exists only with developer
+    discipline. It is possible for rogue developers to ruin an
+    otherwise pure codebase.
+
+As with any new technology, there are rough edges that will be fixed
+with time. Most of the problems are because there is a lack of
+commercially-funded tooling in FP scala.
+
+We hope that the FP Scala community continues to grow, and perhaps you
+now feel inspired to get involved and address some of the tooling
+challenges.
 
 
