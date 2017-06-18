@@ -259,9 +259,8 @@ FP functions have three key properties:
 -   **Purity** the only effect is the computation of a return value.
 
 Together, these properties give us an unprecedented ability to reason
-about our code. For example, caching is easier to understand with
-determinism and purity, and input validation is easier to isolate with
-totality.
+about our code. Caching is easier to understand with determinism and
+purity, and input validation is easier to isolate with totality.
 
 The kinds of things that break these properties are *side effects*:
 accessing or changing mutable state (e.g. generating random numbers,
@@ -278,8 +277,8 @@ of `echo`. Anything that depends on state or external resources is
 provided as an explicit input: our functions are deterministic and
 pure. We not only get to abstract over execution environment, but we
 also get to dramatically improve the repeatability - and performance -
-of our tests. For example, we are free to implement `Terminal` without
-any interactions with a real console.
+of our tests. We are free to implement `Terminal` without any
+interactions with a real console.
 
 Of course we cannot write an application devoid of interaction with
 the world. In FP we push the code that deals with side effects to the

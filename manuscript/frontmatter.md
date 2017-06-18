@@ -29,8 +29,8 @@ can use this book as you like, the [source is available](https://github.com/fomm
 redistribute this book and you can distribute your own version. That
 means you can print it, photocopy it, e-mail it, upload it to
 websites, change it, translate it, remix it, delete bits, and draw all
-over it. You can even sell it, although you should agree a royalty
-share with the author or you'll not be getting an xmas card.
+over it. You can even sell it, although morally you should offer a
+royalty share with the author.
 
 This book is **Copyleft**: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -59,8 +59,9 @@ isn't Free](https://www.youtube.com/watch?v=U0lK0hnbc4U).
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund
-Noble, Rob Norris, Adelbert Chang, Kai(luo) Wang, Michael Pilquist,
-Adam Chlupacek, Pavel Chlupacek, Paul Snively, Daniel Spiewak.
+Noble, Vincent Marquez, Rob Norris, Adelbert Chang, Kai(luo) Wang,
+Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
+Daniel Spiewak.
 
 # Practicalities
 

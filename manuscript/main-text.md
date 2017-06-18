@@ -1,24 +1,8 @@
 
 
-# TODO Implicits
+# TODO ADTs and Typeclasses
 
-Perhaps need a refresher on how implicits work.
-
-# TODO Reality Check
-
--   solved initial abstraction problem
--   clean way to write logic and divide labour
--   easier to write maintainable and testable code
-
-Three steps forward but two steps back: performance, IDE support.
-
-High level overview of what `@free` and `@module` is doing, and the
-concept of trampolining. For a detailed explanation of free style and
-the cats free monad implementation, see the appendix.
-
-## RESEARCH perf numbers
-
-# TODO Typeclasses
+refresher on implicits
 
 look into the oauth / google / drone algebras as examples.
 
@@ -26,8 +10,6 @@ how cats uses typeclasses, e.g. to provide the `flatMap` on the free
 monad and `|+|` on applicatives.
 
 Discourage hierarchies except for ADTs
-
-# TODO Cats
 
 ## RESEARCH typeclasses
 
@@ -74,15 +56,9 @@ The most important methods on `Monad` are
 
 Not really sure what to say here.
 
-# TODO Spotting patterns, refactoring
+# TODO FS2
 
-Note that some of our algebras are actually common things and can be
-rewritten: reader / writer / state / error / indexed monad. It's ok
-that this is a step you can do later.
-
-These are called Effects.
-
-# CODE FS2 Streams
+Task, Stream
 
 The basics, and covering the Effect, which can be our free monad.
 
@@ -95,11 +71,31 @@ for a perf test?
 Rewrite our business logic to be streaming, convert our GET api into a
 `Stream` by polling.
 
-# TODO interpreters
+# TODO Implementing the Application
 
-Show that although interpreters can be as messy as you like, you can
-continue to write them as a pure core with side effects pushed to the
-outside.
+Pad out the application implementation with everything we've learnt.
+
+## TODO Spotting patterns, refactoring
+
+Note that some of our algebras are actually common things and can be
+rewritten: reader / writer / state / error / indexed monad. It's ok
+that this is a step you can do later.
+
+## TODO Reality Check
+
+-   solved initial abstraction problem
+-   clean way to write logic and divide labour
+-   easier to write maintainable and testable code
+
+Three steps forward but two steps back: performance, IDE support.
+
+Lack of Scala enforcement.
+
+High level overview of what `@free` and `@module` is doing, and the
+concept of trampolining. For a detailed explanation of free style and
+the cats free monad implementation, see the appendix.
+
+### RESEARCH perf numbers
 
 # TODO type refinement
 

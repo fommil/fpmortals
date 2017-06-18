@@ -679,6 +679,10 @@ not know if any individual agent is performing any work for the drone
 server. If we accidentally stop an agent whilst it is performing work,
 it is inconvenient and requires a human to restart the job.
 
+Contributors can manually add agents to the farm, so counting agents
+and nodes is not equivalent. We don't need to supply any nodes if
+there are agents available.
+
 The failure mode should always be to take the least costly option.
 
 Both Drone and GKE have a JSON over REST API with OAuth 2.0
@@ -692,8 +696,8 @@ In FP, an *algebra* takes the place of an `interface` in Spring Java,
 or the set of valid messages for an `Actor` in Akka. This is the layer
 where we define all side-effecting interactions of our system.
 
-There is tight iteration between writing the logic and the algebra: it
-is a good level of abstraction to design a system.
+There is tight iteration between writing the business logic and the
+algebra: it is a good level of abstraction to design a system.
 
 `@freestyle.free` is a macro annotation that generates boilerplate.
 The details of the boilerplate are not important right now, we will
@@ -857,11 +861,11 @@ we assume that it failed and forget that we ever asked to do it.
 
 {lang="text"}
 ~~~~~~~~
-  def update(world: WorldView): FreeS[F, WorldView] = for {
+  def update(old: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    changed = (world.alive.keySet union snap.alive.keySet) --
-      (world.alive.keySet intersect snap.alive.keySet)
-    pending = (world.pending -- changed).filterNot {
+    changed = (old.alive.keySet union snap.alive.keySet) --
+              (old.alive.keySet intersect snap.alive.keySet)
+    pending = (old.pending -- changed).filterNot {
       case (_, started) => timediff(started, snap.time) >= 10.minutes
     }
     update = snap.copy(pending = pending)
@@ -879,20 +883,21 @@ keeps us right.
 ### act
 
 The `act` method is slightly more complex, so we'll split it into two
-sections for clarity: detection of when an action needs to be taken,
+parts for clarity: detection of when an action needs to be taken,
 followed by taking action. We write the scenario detectors as
 extractors for `WorldView`.
 
 We need to add agents to the farm if there is a backlog of work, we
-have no nodes alive, and there is no pending action to bring up a
-node. We return a candidate node that we would like to start:
+have no agents, we have no nodes alive, and there are no pending
+actions. We return a candidate node that we would like to start:
 
 {lang="text"}
 ~~~~~~~~
   private object NeedsAgent {
     def unapply(world: WorldView): Option[Node] = world match {
       case WorldView(backlog, 0, managed, alive, pending, _)
-           if backlog > 0 && alive.isEmpty && pending.isEmpty => Option(managed.head)
+           if backlog > 0 && alive.isEmpty && pending.isEmpty
+             => Option(managed.head)
       case _ => None
     }
   }
@@ -960,15 +965,142 @@ The `M` is for monadic and you will find more of these *lifted*
 methods that behave as one would expect, taking monadic values in
 place of values.
 
-## TODO Unit Tests
+## Unit Tests
 
-An architect's dream: you can focus on algebras, business logic and
-functional requirements, and delegate the implementations to your
-teams.
+The FP approach to writing applications is a designer's dream: you can
+delegate writing the implementations of algebras to your team members
+while focusing on making your business logic meet the requirements.
+
+Our application is highly dependent on timing and third party
+webservices. If this was a traditional OOP application, we'd create
+mocks for all the method calls, or test actors for the outgoing
+mailboxes. FP mocking is equivalent to providing an alternative
+implementation of dependency algebras. The algebras already isolate
+the parts of the system that need to be mocked --- everything else is
+pure.
+
+We'll start with some test data
+
+{lang="text"}
+~~~~~~~~
+  object Data {
+    val node1 = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+    val node2 = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
+    val managed = NonEmptyList(node1, List(node2))
+  
+    val time1 = ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
+    val time2 = ZonedDateTime.parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
+    val time3 = ZonedDateTime.parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
+    val time4 = ZonedDateTime.parse("2017-03-03T23:07:00.000+01:00[Europe/London]") // +5 hours
+  
+    val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
+  }
+  import Data._
+~~~~~~~~
+
+Then our "mock" implementation of the algebras, which simply play back
+a fixed `WorldView`. We've isolated the state of our system, so we can
+feel easy using `var` to store the state.
+
+{lang="text"}
+~~~~~~~~
+  final case class StaticHandlers(state: WorldView) {
+    var started, stopped: Int = 0
+  
+    implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
+      def getBacklog: Int = state.backlog
+      def getAgents: Int = state.agents
+    }
+  
+    implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
+      def getAlive: Map[Node, ZonedDateTime] = state.alive
+      def getManaged: NonEmptyList[Node] = state.managed
+      def getTime: ZonedDateTime = state.time
+      def start(node: Node): Unit = { started += 1 }
+      def stop(node: Node): Unit = { stopped += 1 }
+    }
+  
+    val program = DynAgents[Deps.Op]
+  }
+~~~~~~~~
+
+When we write a unit test (here as `FlatSpec`), we create an instance
+of `StaticHandlers` and then import all of its members.
+
+`FreeS` has a method `interpret`, requiring implicit handlers for its
+dependencies. Our implicit `drone` and `machines` both use the `Id`
+execution context and therefore interpreting this program with them
+returns an `Id[WorldView]` that we can assert on.
+
+In this trivial case we just check that the `initial` method returns
+the same value that we use in the static handlers:
+
+{lang="text"}
+~~~~~~~~
+  "Business Logic" should "generate an initial world view" in {
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
+  
+    program.initial.interpret[Id] shouldBe needsAgents
+  }
+~~~~~~~~
+
+We can create more advanced tests of the `update` and `act` methods,
+helping us flush out bugs and refine the requirements:
+
+{lang="text"}
+~~~~~~~~
+  it should "remove changed nodes from pending" in {
+    val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
+    val handlers = StaticHandlers(world)
+    import handlers._
+  
+    val old = world.copy(alive = Map.empty,
+                         pending = Map(node1 -> time2),
+                         time = time2)
+    program.update(old).interpret[Id] shouldBe world
+  }
+  
+  it should "request agents when needed" in {
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
+  
+    val expected = needsAgents.copy(
+      pending = Map(node1 -> time1)
+    )
+  
+    program.act(needsAgents).interpret[Id] shouldBe expected
+  
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 1
+  }
+~~~~~~~~
+
+It would be boring to go through the full test suite. Convince
+yourself with a thought experiment that the following tests are easy
+to implement using the same approach:
+
+-   request agents when needed
+-   not request agents when pending
+-   don't shut down agents if nodes are too young
+-   shut down agents when there is no backlog and nodes will shortly incur new costs
+-   not shut down agents if there are pending actions
+-   shut down agents when there is no backlog if they are too old
+-   shut down agents, even if they are potentially doing work, if they are too old
+-   remove changed nodes from pending
+-   ignore unresponsive pending actions during update
+
+All of these tests are synchronous and isolated to the test runner's
+thread (which could be running tests in parallel). If we'd designed
+our test suite in Akka, our tests would be subject to arbitrary
+timeouts and failures would be hidden in logfiles.
+
+The productivity boost of simple tests for business logic cannot be
+overstated. Consider that 90% of an application developer's time
+interacting with the customer is in refining, updating and fixing
+these business rules. Everything else is implementation detail.
 
 ## TODO Parallel
-
-## TODO Implementing OAuth 2.0
 
 ## TODO Free Monad
 
