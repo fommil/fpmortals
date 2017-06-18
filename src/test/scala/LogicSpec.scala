@@ -37,7 +37,7 @@ object Data {
 }
 import Data._
 
-final case class StaticInterpreters(state: WorldView) {
+final case class StaticHandlers(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
@@ -59,15 +59,15 @@ final case class StaticInterpreters(state: WorldView) {
 class LogicSpec extends FlatSpec {
 
   "Business Logic" should "generate an initial world view" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     program.initial.interpret[Id] shouldBe needsAgents
   }
 
   it should "request agents when needed" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val expected = needsAgents.copy(
       pending = Map(node1 -> time1)
@@ -75,13 +75,13 @@ class LogicSpec extends FlatSpec {
 
     program.act(needsAgents).interpret[Id] shouldBe expected
 
-    interpreters.stopped shouldBe 0
-    interpreters.started shouldBe 1
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 1
   }
 
   it should "not request agents when pending" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val pending = needsAgents.copy(
       pending = Map(node1 -> time1)
@@ -89,96 +89,96 @@ class LogicSpec extends FlatSpec {
 
     program.act(pending).interpret[Id] shouldBe pending
 
-    interpreters.stopped shouldBe 0
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 0
   }
 
   it should "don't shut down agents if nodes are too young" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
 
     program.act(world).interpret[Id] shouldBe world
 
-    interpreters.stopped shouldBe 0
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 0
   }
 
   it should "shut down agents when there is no backlog and nodes will shortly incur new costs" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
     val expected = world.copy(pending = Map(node1 -> time3))
 
     program.act(world).interpret[Id] shouldBe expected
 
-    interpreters.stopped shouldBe 1
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 1
+    handlers.started shouldBe 0
   }
 
   it should "not shut down agents if there are pending actions" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
 
     program.act(world).interpret[Id] shouldBe world
 
-    interpreters.stopped shouldBe 0
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 0
   }
 
   it should "shut down agents when there is no backlog if they are too old" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
     program.act(world).interpret[Id] shouldBe expected
 
-    interpreters.stopped shouldBe 1
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 1
+    handlers.started shouldBe 0
   }
 
   it should "shut down agents, even if they are potentially doing work, if they are too old" in {
-    val interpreters = StaticInterpreters(needsAgents)
-    import interpreters._
+    val handlers = StaticHandlers(needsAgents)
+    import handlers._
 
     val world = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
     program.act(world).interpret[Id] shouldBe expected
 
-    interpreters.stopped shouldBe 1
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 1
+    handlers.started shouldBe 0
   }
 
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val interpreters = StaticInterpreters(world)
-    import interpreters._
+    val handlers = StaticHandlers(world)
+    import handlers._
 
     val initial = world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
     program.update(initial).interpret[Id] shouldBe world // i.e. pending is gone
 
-    interpreters.stopped shouldBe 0
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 0
   }
 
   it should "ignore unresponsive pending actions during update" in {
     val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
-    val interpreters = StaticInterpreters(world)
-    import interpreters._
+    val handlers = StaticHandlers(world)
+    import handlers._
 
     val initial = world.copy(time = time1)
     val expected = world.copy(pending = Map.empty)
 
     program.update(initial).interpret[Id] shouldBe expected
 
-    interpreters.stopped shouldBe 0
-    interpreters.started shouldBe 0
+    handlers.stopped shouldBe 0
+    handlers.started shouldBe 0
   }
 }

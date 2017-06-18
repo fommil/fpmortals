@@ -55,11 +55,11 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
       case (w, a, av, ac, t) => WorldView(w, a, av, ac, Map.empty, t)
     }
 
-  def update(world: WorldView): FreeS[F, WorldView] = for {
+  def update(old: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    changed = (world.alive.keySet union snap.alive.keySet) --
-      (world.alive.keySet intersect snap.alive.keySet)
-    pending = (world.pending -- changed).filterNot {
+    changed = (old.alive.keySet union snap.alive.keySet) --
+      (old.alive.keySet intersect snap.alive.keySet)
+    pending = (old.pending -- changed).filterNot {
       case (_, started) => timediff(started, snap.time) >= 10.minutes
     }
     update = snap.copy(pending = pending)
@@ -89,7 +89,7 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
     def unapply(world: WorldView): Option[Node] = world match {
-      case WorldView(w, 0, NonEmptyList(start, _), alive, pending, _) if w > 0 && alive.isEmpty && pending.isEmpty => Option(start)
+      case WorldView(backlog, 0, managed, alive, pending, _) if backlog > 0 && alive.isEmpty && pending.isEmpty => Option(managed.head)
       case _ => None
     }
   }
