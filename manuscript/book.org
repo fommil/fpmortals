@@ -1235,9 +1235,9 @@ Which means we must write three functions: =initial=, =update= and
 =act=, all returning a =WorldView=.
 
 Freestyle has created implicit machinery to seemlessly treat our
-=FS[A]= methods as =FreeS[F, A]=, which is /monadic/ and can be the
-context of a =for= comprehension. In the Introduction, we learnt the
-benefits of this abstraction pattern.
+=FS[A]= methods as =FreeS[F, A]=, which is /monadic/ (i.e. has an
+implicit =Monad=) and can be the context of a =for= comprehension. In
+the Introduction, we learnt the benefits of this abstraction pattern.
 
 Where we want to return =WorldView= in the pseudo business logic, we
 return =FreeS[F, WorldView]= in the real code.
@@ -1287,7 +1287,86 @@ algebra (=flatMap=), but we use assignment for pure functions like
 =union=, =intersect=, =copy= and =timediff= (=map=). The compiler
 keeps us right.
 
-**** TODO act
+**** act
+
+The =act= method is slightly more complex, so we'll split it into two
+sections for clarity: detection of when an action needs to be taken,
+followed by taking action. We write the scenario detectors as
+extractors for =WorldView=.
+
+We need to add agents to the farm if there is a backlog of work, we
+have no nodes alive, and there is no pending action to bring up a
+node. We return a candidate node that we would like to start:
+
+#+BEGIN_SRC scala
+  private object NeedsAgent {
+    def unapply(world: WorldView): Option[Node] = world match {
+      case WorldView(backlog, 0, managed, alive, pending, _)
+           if backlog > 0 && alive.isEmpty && pending.isEmpty => Option(managed.head)
+      case _ => None
+    }
+  }
+#+END_SRC
+
+If there is no backlog, we should stop all nodes that have become
+stale (they are not doing any work). However, since Google charge per
+hour we only shut down machines in their 58th+ minute to get the most
+out of our money. We return the non-empty list of nodes to stop.
+
+As a financial safety net, all nodes should have a maximum lifetime of
+5 hours.
+
+#+BEGIN_SRC scala
+  private object Stale {
+    def unapply(world: WorldView): Option[NonEmptyList[Node]] = world match {
+      case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
+        val stale = (alive -- pending.keys).collect {
+          case (n, started)
+               if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 => n
+          case (n, started)
+               if timediff(started, time) >= 5.hours                           => n
+        }.toList
+        NonEmptyList.fromList(stale)
+
+      case _ => None
+    }
+  }
+#+END_SRC
+
+Now that we have detected the scenarios that can occur, we can write
+the =act= method. When we schedule a node to be started or stopped, we
+add it to =pending= noting the time that we scheduled the action.
+
+#+BEGIN_SRC scala
+  def act(world: WorldView): FreeS[F, WorldView] = world match {
+    case NeedsAgent(node) =>
+      for {
+        _ <- c.start(node)
+        update = world.copy(pending = Map(node -> world.time))
+      } yield update
+
+    case Stale(nodes) =>
+      nodes.foldM(world) { (world, n) =>
+        for {
+          _ <- c.stop(n)
+          update = world.copy(pending = world.pending + (n -> world.time))
+        } yield update
+      }
+
+    case _ => FreeS.pure(world)
+  }
+#+END_SRC
+
+Recall from Chapter 2 that =.pure= creates the for comprehension's
+(monadic) context from a value.
+
+=foldM= is like =foldLeft= over =nodes=, but each iteration of the
+fold may return a monadic value. In our case, each iteration of the
+fold returns =FreeS[F, WorldView]=.
+
+The =M= is for monadic and you will find more of these /lifted/
+methods that behave as one would expect, taking monadic values in
+place of values.
 
 *** TODO Unit Tests
 
