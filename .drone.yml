@@ -11,12 +11,13 @@ pipeline:
           echo "Please remove TODO or FIXME. Create an issue at GitHub instead." ;
           exit 1 ;
         fi
-      - sbt ++$SCALA_VERSION ";createHeaders ;test:createHeaders ;test:compile ;doc";
+      - sbt ++$SCALA_VERSION ";scalariformFormat ;test:scalariformFormat ;createHeaders ;test:createHeaders";
         if $(! git diff --exit-code --quiet) ; then
           echo "Code formatting does not meet the project's standards:" ;
           git --no-pager diff ;
           exit 1 ;
         fi
+      - sbt ++$SCALA_VERSION ";test:compile ;doc";
       - if [ -n "$DRONE_PULL_REQUEST" ] ; then sbt ++$SCALA_VERSION "testOnly -- -l IgnoreOnDrone" ; fi
 
 matrix:
