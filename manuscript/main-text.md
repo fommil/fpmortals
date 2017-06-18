@@ -81,20 +81,6 @@ Note that some of our algebras are actually common things and can be
 rewritten: reader / writer / state / error / indexed monad. It's ok
 that this is a step you can do later.
 
-## TODO Reality Check
-
--   solved initial abstraction problem
--   clean way to write logic and divide labour
--   easier to write maintainable and testable code
-
-Three steps forward but two steps back: performance, IDE support.
-
-Lack of Scala enforcement.
-
-High level overview of what `@free` and `@module` is doing, and the
-concept of trampolining. For a detailed explanation of free style and
-the cats free monad implementation, see the appendix.
-
 ### RESEARCH perf numbers
 
 # TODO type refinement

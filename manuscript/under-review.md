@@ -1100,8 +1100,68 @@ overstated. Consider that 90% of an application developer's time
 interacting with the customer is in refining, updating and fixing
 these business rules. Everything else is implementation detail.
 
-## TODO Parallel
+## Parallel
+
+The application that we have designed runs each of its algebraic
+methods sequentially. But there are some obvious places where work can
+be performed in parallel. In our definition of `initial` we could ask
+for all the information we need at the same time instead of one query
+at a time.
+
+As opposed to `flatMap` for sequential operations, cats uses
+*Cartesian* syntax for parallel operations:
+
+{lang="text"}
+~~~~~~~~
+  d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime
+~~~~~~~~
+
+If each of the parallel operations returns a value in the same monadic
+context, then the Cartesian product has a `map` method that will
+provide all of the results as a tuple. Rewriting `update` to take
+advantage of this:
+
+{lang="text"}
+~~~~~~~~
+  def initial: FreeS[F, WorldView] =
+    (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
+      case (db, da, cm, ca, ct) => WorldView(db, da, cm, ca, Map.empty, ct)
+    }
+~~~~~~~~
+
+Mapping over a Cartesian works for more than just monadic contexts, we
+can do this for any `T` that has an implicit `cats.Applicative[T]`.
+The reason it works for monadic contexts is because `Monad` extends
+`Applicative`, so we get one for free.
+
+### TODO act
+
+`act` can be parallelised too but is more complex and I don't know how
+yet, see [issue 6](https://github.com/fommil/drone-dynamic-agents/issues/6) if you are able to help.
+
+Marking something as suitable for parallel execution does not
+guarantee that it will be executed in parallel: that is the
+responsibility of the handler. Not to state the obvious: parallel
+execution is supported by `Future`, but not `Id`.
+
+Of course, we need to be careful when implementing handlers such that
+they can perform operations safely in parallel, perhaps requiring
+protecting internal state with concurrency locks.
 
 ## TODO Free Monad
+
+## TODO Reality Check
+
+-   solved initial abstraction problem
+-   clean way to write logic and divide labour
+-   easier to write maintainable and testable code
+
+Three steps forward but two steps back: performance, IDE support.
+
+Lack of Scala enforcement.
+
+High level overview of what `@free` and `@module` is doing, and the
+concept of trampolining. For a detailed explanation of free style and
+the cats free monad implementation, see the appendix.
 
 
