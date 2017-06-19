@@ -1087,7 +1087,7 @@ for each node. One does not simply spawn a new node for each job in
 the work queue, we must re-use nodes and retain them until their 59th
 minute to get the most value for money.
 
-Our apps needs to be able to start and stop nodes, as well as check
+Our app needs to be able to start and stop nodes, as well as check
 their status (e.g. uptimes, list of inactive nodes) and to know what
 time GKE believes it to be.
 
@@ -1144,8 +1144,8 @@ object machines {
     def getTime: FS[ZonedDateTime]
     def getManaged: FS[NonEmptyList[Node]]
     def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start zdt
-    def start(node: Node): FS[Unit]
-    def stop(node: Node): FS[Unit]
+    def start(node: Node): FS[Node]
+    def stop(node: Node): FS[Node]
   }
 }
 #+END_SRC
@@ -1205,8 +1205,10 @@ final case class WorldView(
 )
 #+END_SRC
 
-=@freestyle.module= generates boilerplate for dependency injection, it
-should be a familiar pattern if you've ever used Spring's =@Autowired=
+=@freestyle.module= generates boilerplate for dependency injection. We
+create a trait containing a =val= for each =@free= or =@module=
+dependency that we wish to have access to. Declaring dependencies this
+way should be a familiar if you've ever used Spring's =@Autowired=
 
 #+BEGIN_SRC scala
 @module trait Deps {
@@ -1215,36 +1217,39 @@ should be a familiar pattern if you've ever used Spring's =@Autowired=
 }
 #+END_SRC
 
-Then we create a =class= to hold our business logic, taking the =Deps=
-module as an implicit parameter. Note that =Deps= takes a type
-parameter, =F=, a verbose type that represents the combination of all
-the algebras inside =Deps=, roughly =Either[Drone[_], Machines[_]]=.
+Then we create a =class= to hold our business logic, taking the
+injected =Deps= as an implicit parameter.
+
+[fn: =F= is hidden in Freestyle 0.3 so this paragraph will disappear]
+The =F= type parameter has been generated for us by =@module= and is a
+combination of all the dependency algebras. For convenience sake, we
+create a type alias =FS= so we don't have to refer to it anywhere else
+in the file:
 
 #+BEGIN_SRC scala
-final case class DynAgents[F[_]](implicit D: Deps[F]) {
+class DynAgents[F[_]](implicit D: Deps[F]) {
   import D._
+  type FS[A] = FreeS[F, A]
 #+END_SRC
 
 Our business logic will run in an infinite loop (pseudocode)
 
-#+BEGIN_SRC scala
+#+BEGIN_SRC python
 state = initial()
-loop {
+while True:
   state = update(state)
   state = act(state)
-}
 #+END_SRC
 
 Which means we must write three functions: =initial=, =update= and
 =act=, all returning a =WorldView=.
 
-Freestyle has created implicit machinery to seemlessly treat our
-=FS[A]= methods as =FreeS[F, A]=, which is /monadic/ (i.e. has an
-implicit =Monad=) and can be the context of a =for= comprehension. In
-the Introduction, we learnt the benefits of this abstraction pattern.
+=FS[A]= is /monadic/ (i.e. has an implicit =Monad=) and can be the
+context of a =for= comprehension. In the Introduction, we learnt the
+benefits of this abstraction pattern.
 
 Where we want to return =WorldView= in the pseudo business logic, we
-return =FreeS[F, WorldView]= in the real code.
+return =FS[WorldView]= in the real code.
 
 **** initial
 
@@ -1252,7 +1257,7 @@ In =initial= we call all external services and aggregate their results
 into a =WorldView=. We default the =pending= field to an empty =Map=.
 
 #+BEGIN_SRC scala
-  def initial: FreeS[F, WorldView] = for {
+  def initial: FS[WorldView] = for {
     db <- d.getBacklog
     da <- d.getAgents
     cm <- c.getManaged
@@ -1272,7 +1277,7 @@ If a pending action is taking longer than 10 minutes to do anything,
 we assume that it failed and forget that we ever asked to do it.
 
 #+BEGIN_SRC scala
-  def update(old: WorldView): FreeS[F, WorldView] = for {
+  def update(old: WorldView): FS[WorldView] = for {
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
@@ -1345,7 +1350,7 @@ the =act= method. When we schedule a node to be started or stopped, we
 add it to =pending= noting the time that we scheduled the action.
 
 #+BEGIN_SRC scala
-  def act(world: WorldView): FreeS[F, WorldView] = world match {
+  def act(world: WorldView): FS[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
         _ <- c.start(node)
@@ -1369,9 +1374,9 @@ Recall from Chapter 2 that =.pure= creates the for comprehension's
 
 =foldM= is like =foldLeft= over =nodes=, but each iteration of the
 fold may return a monadic value. In our case, each iteration of the
-fold returns =FreeS[F, WorldView]=.
+fold returns =FS[WorldView]=.
 
-The =M= is for monadic and you will find more of these /lifted/
+The =M= is for Monadic and you will find more of these /lifted/
 methods that behave as one would expect, taking monadic values in
 place of values.
 
@@ -1397,13 +1402,11 @@ object Data {
   val node2 = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, List(node2))
 
-  val time1 = ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
-  // +52 mins
-  val time2 = ZonedDateTime.parse("2017-03-03T18:59:00.000+01:00[Europe/London]")
-  // +59 mins
-  val time3 = ZonedDateTime.parse("2017-03-03T19:06:00.000+01:00[Europe/London]")
-  // +5 hours
-  val time4 = ZonedDateTime.parse("2017-03-03T23:07:00.000+01:00[Europe/London]")
+  import ZonedDateTime.parse
+  val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
+  val time2 = parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
+  val time3 = parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
+  val time4 = parse("2017-03-03T23:07:00.000+01:00[Europe/London]") // +5 hours
 
   val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 }
@@ -1415,7 +1418,7 @@ a fixed =WorldView=. We've isolated the state of our system, so we can
 feel easy using =var= to store the state.
 
 #+BEGIN_SRC scala
-final case class StaticHandlers(state: WorldView) {
+class StaticHandlers(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
@@ -1431,14 +1434,14 @@ final case class StaticHandlers(state: WorldView) {
     def stop(node: Node): Unit = { stopped += 1 }
   }
 
-  val program = DynAgents[Deps.Op]
+  val program = new DynAgents[Deps.Op]
 }
 #+END_SRC
 
 When we write a unit test (here as =FlatSpec=), we create an instance
 of =StaticHandlers= and then import all of its members.
 
-=FreeS= has a method =interpret=, requiring implicit handlers for its
+=FS= has a method =interpret=, requiring implicit handlers for its
 dependencies. Our implicit =drone= and =machines= both use the =Id=
 execution context and therefore interpreting this program with them
 returns an =Id[WorldView]= that we can assert on.
@@ -1448,7 +1451,7 @@ the same value that we use in the static handlers:
 
 #+BEGIN_SRC scala
   "Business Logic" should "generate an initial world view" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     program.initial.interpret[Id] shouldBe needsAgents
@@ -1461,7 +1464,7 @@ helping us flush out bugs and refine the requirements:
 #+BEGIN_SRC scala
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = StaticHandlers(world)
+    val handlers = new StaticHandlers(world)
     import handlers._
 
     val old = world.copy(alive = Map.empty,
@@ -1471,7 +1474,7 @@ helping us flush out bugs and refine the requirements:
   }
 
   it should "request agents when needed" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val expected = needsAgents.copy(
@@ -1489,7 +1492,6 @@ It would be boring to go through the full test suite. Convince
 yourself with a thought experiment that the following tests are easy
 to implement using the same approach:
 
-- request agents when needed
 - not request agents when pending
 - don't shut down agents if nodes are too young
 - shut down agents when there is no backlog and nodes will shortly incur new costs
@@ -1513,43 +1515,71 @@ these business rules. Everything else is implementation detail.
 
 The application that we have designed runs each of its algebraic
 methods sequentially. But there are some obvious places where work can
-be performed in parallel. In our definition of =initial= we could ask
-for all the information we need at the same time instead of one query
-at a time.
+be performed in parallel.
+
+**** initial
+
+In our definition of =initial= we could ask for all the information we
+need at the same time instead of one query at a time.
 
 As opposed to =flatMap= for sequential operations, cats uses
-/Cartesian/ syntax for parallel operations:
+=Cartesian= syntax for parallel operations:
 
 #+BEGIN_SRC scala
 d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime
 #+END_SRC
 
 If each of the parallel operations returns a value in the same monadic
-context, then the Cartesian product has a =map= method that will
+context, then the =Cartesian= product has a =map= method that will
 provide all of the results as a tuple. Rewriting =update= to take
 advantage of this:
 
 #+BEGIN_SRC scala
-def initial: FreeS[F, WorldView] =
+def initial: FS[WorldView] =
   (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
     case (db, da, cm, ca, ct) => WorldView(db, da, cm, ca, Map.empty, ct)
   }
 #+END_SRC
 
-Mapping over a Cartesian works for more than just monadic contexts, we
-can do this for any =T= that has an implicit =cats.Applicative[T]=.
-The reason it works for monadic contexts is because =Monad= extends
-=Applicative=, so we get one for free.
+**** act
 
-**** TODO act
+In the current logic for =act=, we are stopping each node
+sequentially, waiting for the result, and then proceeding. But we
+could stop all the nodes in parallel and then update our view of the
+world.
 
-=act= can be parallelised too but is more complex and I don't know how
-yet, see [[https://github.com/fommil/drone-dynamic-agents/issues/6][issue 6]] if you are able to help.
+A disadvantage of doing it this way is that any failures will cause us
+to short-circuit before updating the =pending= field. But that's a
+reasonable tradeoff since our =update= will gracefully handle the case
+where a =node= is shut down unexpectedly.
+
+We need a method that operates on =NonEmptyList= that allows us to
+=map= each element into an =FS[Node]=, returning an
+=FS[NonEmptyList[Node]]=. The method is called =traverse=, and when we
+=flatMap= over it we get a =NonEmptyList[Node]= that we can deal with
+in a simple way:
+
+#+BEGIN_SRC scala
+      for {
+        stopped <- nodes.traverse(c.stop)
+        updates = stopped.map(_ -> world.time).toList.toMap
+        update = world.copy(pending = world.pending ++ updates)
+      } yield update
+#+END_SRC
+
+Arguably, this is easier to understand than the sequential version.
+
+**** Parallel Interpretation
 
 Marking something as suitable for parallel execution does not
 guarantee that it will be executed in parallel: that is the
 responsibility of the handler. Not to state the obvious: parallel
 execution is supported by =Future=, but not =Id=.
+
+It is also not enough to implement a =Future= handler, it is necessary
+to import =freestyle.NonDeterminism._= to ensure that the =Future=
+interpreter knows it is allowed to perform actions in a
+non-deterministic order.
 
 Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
@@ -1559,9 +1589,8 @@ protecting internal state with concurrency locks.
 
 What we've been doing in this chapter is using the /free monad/,
 =cats.free.Free=, to build up the definition of our program as a data
-structure and then we interpret it. Freestyle calls it =FreeS=, which
-is just a type alias to =Free= plus some type information to make
-parallelisation easier.
+structure and then we interpret it. Freestyle calls it =FS=, which is
+just a type alias to =Free=, hiding an irrelevant type parameter.
 
 The reason why we use =Free= instead of just implementing =cats.Monad=
 directly (e.g. for =Id= or =Future=) is an unfortunate consequence of
@@ -1590,7 +1619,7 @@ eliminate stack growth is known as /trampolining/.
 
 When we use the =@free= annotation, a =sealed trait= data structure is
 generated for each of our algebras, with a =case class= per method,
-allowing trampolining. When we write a handler, Freestyle is
+allowing trampolining. When we write a =Handler=, Freestyle is
 converting pattern matches over heap objects into method calls. The
 appendix goes into gruelling detail about what Freestyle is generating
 for us.
@@ -1599,39 +1628,46 @@ for us.
 
 =Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
 the name. However, from a practical point of view, there needs to be a
-=Monad[S]= (or bizarro =Comonad[S]=) in order to interpret it --- so
-it's more like an interest-only mortgage where you still have to buy
-the house at the end.
+=Monad[S]= in order to interpret it --- so it's more like an interest
+only mortgage where you still have to buy the house at the end.
 
 *** Reality Check
 
-In this chapter we've encountered some of the real practical benefits
-of FP when designing and testing applications.
+In this chapter we've experienced some of the practical benefits of FP
+when designing and testing applications:
 
-However, even if we look past the initial learning curve of FP, there
-are still some practical challenges that remain:
+1. clean separation of components
+2. isolated, fast and reproducible tests of business logic
+3. easy parallelisation
+
+However, even if we look past the learning curve of FP, there are
+still some real challenges that remain:
 
 1. trampolining has a performance impact due to increased memory
-   churn. It is for this reason that FP is not applicable where the
-   developer efficiency vs runtime performance tradeoff is heavily
-   biased towards performance.
-2. there is not always IDE support for the language features, macros
-   or compiler plugins that are used in FP.
-3. implementation details, as we have seen with =for= syntax sugar,
-   =Free= and =@free=, can introduce a significant mental overhead and
-   become a blocker to progress.
-4. the distinction between pure and side-effecting code is not
-   enforced by the scala compiler, it exists only with developer
-   discipline. It is possible for rogue developers to ruin an
-   otherwise pure codebase.
+   churn. FP is not applicable where the developer efficiency vs
+   runtime performance tradeoff is heavily biased towards performance.
+2. there is not always IDE support for the advanced language features,
+   macros or compiler plugins.
+3. implementation details, as we have seen with =for= syntax sugar and
+   =Free=, and will see more examples later for =implicit= derivation,
+   can introduce mental overhead and become a blocker when they don't
+   work.
+4. the distinction between pure / side-effecting code, or stack-safe /
+   stack-unsafe, is not enforced by the scala compiler. This requires
+   developer discipline.
 
 As with any new technology, there are rough edges that will be fixed
 with time. Most of the problems are because there is a lack of
-commercially-funded tooling in FP scala.
+commercially-funded tooling in FP scala. If you see the benefit of FP,
+you can help out by getting involved.
 
-We hope that the FP Scala community continues to grow, and perhaps you
-now feel inspired to get involved and address some of the tooling
-challenges.
+In the following chapters we are going to learn some of the vast
+library of functionality provided by the ecosystem, how it is
+organised and how you can find what you need (e.g. how did we know to
+use =foldM= or =traverse= when we implemented =act=?). This will allow
+us to complete the implementation of our application by building
+additional layers of =@module=, use better alternatives to =Future=,
+and remove redundancy that we've accidentally introduced.
 
 * Main Text
   :PROPERTIES:
@@ -1650,6 +1686,8 @@ Discourage hierarchies except for ADTs
 
 *** RESEARCH typeclasses
 
+Cheat sheet http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf
+
 Foldable being imminently more interesting than the others.
 
 Traversable will need to be discussed, seems to come up a lot.
@@ -1660,25 +1698,6 @@ does not enforce purity so we can choose our own level)
 Not enough to implement, must also pass the laws
 
 Maybe use this example? https://gitter.im/typelevel/cats?at=5904a2e98bb56c2d11f53979
-
-#+BEGIN_SRC scala
-@ class Lift[F[_]] {
-    def $[A](fa: F[Option[A]]): OptionT[F,A] = OptionT(fa)
-    def $[A](opt: Option[A])(implicit F: Applicative[F]): OptionT[F,A] = OptionT(F.pure(opt))
-    def $[A](a: A)(implicit F: Applicative[F]): OptionT[F,A] = OptionT(F.pure(Some(a)))
-  }
-defined class Lift
-@ def liftFrom[F[_]] = new Lift[F] {}
-defined function liftFrom
-@ val lift = liftFrom[List]
-lift: Lift[List] = $sess.cmd26$$anon$1@6cf3d7c8
-@ val prg = for {
-    x <- lift $ 1
-    y <- lift $ Option(2)
-    z <- lift $ List(Some(3), Some(4))
-  } yield x + y + z
-prg: OptionT[List, Int] = OptionT(List(Some(6), Some(7)))
-#+END_SRC
 
 The most important methods on =Monad= are
 
