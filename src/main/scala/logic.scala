@@ -6,7 +6,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 import scala.{Int, None, Option}
-import scala.collection.immutable.Map
+import scala.collection.immutable.{Map, Set}
 import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.Predef.ArrowAssoc
@@ -52,18 +52,20 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
 
   def initial: FreeS[F, WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
-      case (w, a, av, ac, t) => WorldView(w, a, av, ac, Map.empty, t)
+      case (db, da, cm, ca, ct) => WorldView(db, da, cm, ca, Map.empty, ct)
     }
 
   def update(old: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    changed = (old.alive.keySet union snap.alive.keySet) --
-      (old.alive.keySet intersect snap.alive.keySet)
+    changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
       case (_, started) => timediff(started, snap.time) >= 10.minutes
     }
     update = snap.copy(pending = pending)
   } yield update
+
+  def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
+    (a union b) -- (a intersect b)
 
   def act(world: WorldView): FreeS[F, WorldView] = world match {
     case NeedsAgent(node) =>
