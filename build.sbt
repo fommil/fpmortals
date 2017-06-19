@@ -42,8 +42,7 @@ wartremoverWarnings in (Compile, compile) -= Wart.ExplicitImplicitTypes // https
 wartremoverWarnings in (Compile, compile) -= Wart.StringPlusAny // https://github.com/frees-io/freestyle/issues/314
 wartremoverWarnings in (Compile, compile) -= Wart.Throw // https://github.com/frees-io/freestyle/issues/314
 wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
-wartremoverWarnings in (Compile, compile) -= Wart.AsInstanceOf // Freestyle optimizes handlers with JVM switch statements that requires `asInstanceOf`.
 
 // http://frees.io/docs/
-addCompilerPlugin("org.scalameta" % "paradise" % "3.0.0-M9" cross CrossVersion.patch)
-libraryDependencies += "io.frees" %% "freestyle" % "0.3.0"
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
+libraryDependencies += "io.frees" %% "freestyle" % "0.2.0"

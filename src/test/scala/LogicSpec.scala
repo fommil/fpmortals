@@ -53,7 +53,7 @@ final case class StaticHandlers(state: WorldView) {
     def stop(node: Node): Unit = { stopped += 1 }
   }
 
-  val program = DynAgents[DynAgents.Op]
+  val program = DynAgents[Deps.Op]
 }
 
 class LogicSpec extends FlatSpec {

@@ -9,7 +9,7 @@ package http
  */
 package client
 
-import scala.{StringContext, AnyRef, Any}
+import scala.StringContext
 import scala.collection.immutable.{List, Nil}
 import scala.language.higherKinds
 
@@ -17,14 +17,15 @@ import io.circe.Decoder
 import freestyle._
 import spinoco.protocol.http._
 import spinoco.protocol.http.header._
+import http.encoding._
 
 object algebra {
-  final case class Response[T: Decoder](header: HttpResponseHeader, body: T)
+  final case class Response[T](header: HttpResponseHeader, body: T)
 
   @free trait JsonHttpClient {
-    def get[B](uri: Uri, headers: List[HttpHeader] = Nil): FS[Response[B]]
+    def get[B: Decoder](uri: Uri, headers: List[HttpHeader] = Nil): FS[Response[B]]
 
     // using application/x-www-form-urlencoded
-    def postUrlencoded[A, B](uri: Uri, payload: A, headers: List[HttpHeader] = Nil): FS[Response[B]]
+    def postUrlencoded[A: UrlEncoded, B: Decoder](uri: Uri, payload: A, headers: List[HttpHeader] = Nil): FS[Response[B]]
   }
 }

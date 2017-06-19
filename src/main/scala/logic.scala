@@ -42,38 +42,45 @@ final case class WorldView(
   time: ZonedDateTime
 )
 
-@module trait DynAgents {
+@module trait Deps {
   val d: Drone
   val c: Machines
+}
 
-  def initial: FS[WorldView] =
+final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
+  import D._
+
+  def initial: FreeS[F, WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
       case (w, a, av, ac, t) => WorldView(w, a, av, ac, Map.empty, t)
     }
 
-  def update(old: WorldView): FS[WorldView] = initial.map { snap =>
-    val changed = (old.alive.keySet union snap.alive.keySet) --
+  def update(old: WorldView): FreeS[F, WorldView] = for {
+    snap <- initial
+    changed = (old.alive.keySet union snap.alive.keySet) --
       (old.alive.keySet intersect snap.alive.keySet)
-    val pending = (old.pending -- changed).filterNot {
+    pending = (old.pending -- changed).filterNot {
       case (_, started) => timediff(started, snap.time) >= 10.minutes
     }
-    snap.copy(pending = pending)
-  }
+    update = snap.copy(pending = pending)
+  } yield update
 
-  def act(world: WorldView): FS.Seq[WorldView] = world match {
-    case NeedsAgent(node) => c.start(node).map { _ =>
-      world.copy(pending = Map(node -> world.time))
-    }
+  def act(world: WorldView): FreeS[F, WorldView] = world match {
+    case NeedsAgent(node) =>
+      for {
+        _ <- c.start(node)
+        update = world.copy(pending = Map(node -> world.time))
+      } yield update
 
     case Stale(nodes) =>
-      for {
-        _ <- nodes.traverse(c.stop)
-        worldView <- nodes.foldM[FS.Seq, WorldView](world) { (world, n) =>
-          world.copy(pending = world.pending + (n -> world.time)).pure[FS]
-        }
-      } yield worldView
+      nodes.foldM(world) { (world, n) =>
+        for {
+          _ <- c.stop(n)
+          update = world.copy(pending = world.pending + (n -> world.time))
+        } yield update
+      }
 
-    case _ => world.pure[FS]
+    case _ => FreeS.pure(world)
   }
 
   def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
@@ -108,5 +115,5 @@ final case class WorldView(
       case _ => None
     }
   }
-}
 
+}
