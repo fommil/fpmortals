@@ -42,45 +42,38 @@ final case class WorldView(
   time: ZonedDateTime
 )
 
-@module trait Deps {
+@module trait DynAgents {
   val d: Drone
   val c: Machines
-}
 
-final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
-  import D._
-
-  def initial: FreeS[F, WorldView] =
+  def initial: FS[WorldView] =
     (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
       case (w, a, av, ac, t) => WorldView(w, a, av, ac, Map.empty, t)
     }
 
-  def update(old: WorldView): FreeS[F, WorldView] = for {
-    snap <- initial
-    changed = (old.alive.keySet union snap.alive.keySet) --
+  def update(old: WorldView): FS[WorldView] = initial.map { snap =>
+    val changed = (old.alive.keySet union snap.alive.keySet) --
       (old.alive.keySet intersect snap.alive.keySet)
-    pending = (old.pending -- changed).filterNot {
+    val pending = (old.pending -- changed).filterNot {
       case (_, started) => timediff(started, snap.time) >= 10.minutes
     }
-    update = snap.copy(pending = pending)
-  } yield update
+    snap.copy(pending = pending)
+  }
 
-  def act(world: WorldView): FreeS[F, WorldView] = world match {
-    case NeedsAgent(node) =>
-      for {
-        _ <- c.start(node)
-        update = world.copy(pending = Map(node -> world.time))
-      } yield update
+  def act(world: WorldView): FS.Seq[WorldView] = world match {
+    case NeedsAgent(node) => c.start(node).map { _ =>
+      world.copy(pending = Map(node -> world.time))
+    }
 
     case Stale(nodes) =>
-      nodes.foldM(world) { (world, n) =>
-        for {
-          _ <- c.stop(n)
-          update = world.copy(pending = world.pending + (n -> world.time))
-        } yield update
-      }
+      for {
+        _ <- nodes.traverse(c.stop)
+        worldView <- nodes.foldM[FS.Seq, WorldView](world) { (world, n) =>
+          world.copy(pending = world.pending + (n -> world.time)).pure[FS]
+        }
+      } yield worldView
 
-    case _ => FreeS.pure(world)
+    case _ => world.pure[FS]
   }
 
   def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
@@ -115,5 +108,5 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
       case _ => None
     }
   }
-
 }
+

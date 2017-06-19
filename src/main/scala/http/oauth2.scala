@@ -109,7 +109,7 @@ package client
 import java.lang.String
 import java.time.LocalDateTime
 
-import scala.{Long, Unit, StringContext}
+import scala.{Long, Unit, StringContext, AnyRef}
 import scala.language.higherKinds
 
 import freestyle._
@@ -181,7 +181,6 @@ package logic {
   ) {
     import D._
     import api._
-    import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
 
     // for use in one-shot apps requiring user interaction
