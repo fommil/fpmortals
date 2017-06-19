@@ -1274,13 +1274,15 @@ we assume that it failed and forget that we ever asked to do it.
 #+BEGIN_SRC scala
   def update(old: WorldView): FreeS[F, WorldView] = for {
     snap <- initial
-    changed = (old.alive.keySet union snap.alive.keySet) --
-              (old.alive.keySet intersect snap.alive.keySet)
+    changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
       case (_, started) => timediff(started, snap.time) >= 10.minutes
     }
     update = snap.copy(pending = pending)
   } yield update
+
+  def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
+    (a union b) -- (a intersect b)
 
   def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
@@ -1396,9 +1398,12 @@ object Data {
   val managed = NonEmptyList(node1, List(node2))
 
   val time1 = ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
-  val time2 = ZonedDateTime.parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
-  val time3 = ZonedDateTime.parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
-  val time4 = ZonedDateTime.parse("2017-03-03T23:07:00.000+01:00[Europe/London]") // +5 hours
+  // +52 mins
+  val time2 = ZonedDateTime.parse("2017-03-03T18:59:00.000+01:00[Europe/London]")
+  // +59 mins
+  val time3 = ZonedDateTime.parse("2017-03-03T19:06:00.000+01:00[Europe/London]")
+  // +5 hours
+  val time4 = ZonedDateTime.parse("2017-03-03T23:07:00.000+01:00[Europe/London]")
 
   val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 }
