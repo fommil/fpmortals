@@ -792,8 +792,10 @@ algebras, and adds a *pending* field to track unfulfilled requests.
 Now we are ready to write our business logic, but we need to indicate
 that we depend on `Drone` and `Machines`.
 
-We create a *module* trait to contain our business logic. The
-`@freestyle.module` macro annotation generates boilerplate for
+We create a *module* to contain our main business logic. A module is
+pure and depends only on other modules, algebras and pure functions.
+
+The `@freestyle.module` macro annotation generates boilerplate for
 dependency injection, we leave an unassigned `val` for each `@free` or
 `@module` dependency that we need to use. Declaring dependencies this
 way should be familiar if you've ever used Spring's `@Autowired`
