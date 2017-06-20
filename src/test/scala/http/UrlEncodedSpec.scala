@@ -27,20 +27,25 @@ class UrlEncodedSpec extends FlatSpec {
 
   it should "encode stringy maps" in {
     val stringy = Seq(
-      "apple" -> "http://foo",
+      "apple"   -> "http://foo",
       "bananas" -> "10",
-      "pears" -> "%"
+      "pears"   -> "%"
     )
     stringy.urlEncoded should be("apple=http%3A%2F%2Ffoo&bananas=10&pears=%25")
   }
 
   it should "encode Uris" in {
-    val uri = Uri.parse("http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar").toOption.get
-    uri.urlEncoded should be("http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar")
+    val uri =
+      Uri.parse("http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar").toOption.get
+    uri.urlEncoded should be(
+      "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar"
+    )
   }
 
   it should "encode final case classes" in {
-    Foo("http://foo", 10L, "%").urlEncoded should be("apple=http%3A%2F%2Ffoo&bananas=10&pears=%25")
+    Foo("http://foo", 10L, "%").urlEncoded should be(
+      "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25"
+    )
   }
 
 }

@@ -2,12 +2,12 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package interpreters.gcefs
 
-import java.lang.{String, SuppressWarnings}
+import java.lang.{ String, SuppressWarnings }
 import java.nio.channels.AsynchronousChannelGroup
 import java.time.ZonedDateTime
 import java.util.concurrent.Executors
 
-import scala.{Array, StringContext}
+import scala.{ Array, StringContext }
 import scala.collection.immutable.Map
 import scala.Predef.???
 
@@ -32,7 +32,7 @@ final case class GceConfig(
 
 // TODO: take what we need as implicits
 object Resources {
-  val ES = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
+  val ES         = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
   implicit val S = Strategy.fromExecutor(ES)
   //implicit val Sch = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(4, Strategy.daemonThreadFactory("S")))
   implicit val AG = AsynchronousChannelGroup.withThreadPool(ES)
@@ -41,11 +41,11 @@ object Resources {
 // https://cloud.google.com/container-engine/docs/
 // https://cloud.google.com/container-engine/reference/rest/
 final class GceFs2Machine extends Machines.Handler[Task] {
-  def getTime: Task[ZonedDateTime] = ???
-  def getManaged: Task[NonEmptyList[Node]] = ???
+  def getTime: Task[ZonedDateTime]             = ???
+  def getManaged: Task[NonEmptyList[Node]]     = ???
   def getAlive: Task[Map[Node, ZonedDateTime]] = ???
-  def start(node: Node): Task[Node] = ???
-  def stop(node: Node): Task[Node] = ???
+  def start(node: Node): Task[Node]            = ???
+  def stop(node: Node): Task[Node]             = ???
 }
 
 final class GceFs2(config: GceConfig) {
@@ -62,15 +62,20 @@ final class GceFs2(config: GceConfig) {
     ) //.withHeader(Authorization(OAuth2BearerToken(config.token)))
 
     clientTask.flatMap { client =>
-      client.request(request).flatMap { resp =>
-        resp.body.chunks.through(byteParser andThen decoder[Task, G])
-      }.runLast.map(_.get)
+      client
+        .request(request)
+        .flatMap { resp =>
+          resp.body.chunks.through(byteParser andThen decoder[Task, G])
+        }
+        .runLast
+        .map(_.get)
     }
   }
 
   // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters/get
   def getCluster: Task[Cluster] =
-    get[Cluster](s"/v1/projects/${config.projectId}/zones/${config.zone}/clusters/${config.clusterId}")
+    get[Cluster](
+      s"/v1/projects/${config.projectId}/zones/${config.zone}/clusters/${config.clusterId}"
+    )
 
 }
-

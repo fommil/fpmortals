@@ -6,8 +6,8 @@ import java.lang.String
 import java.time.ZonedDateTime
 
 import scala.Any
-import scala.{Int, StringContext}
-import scala.collection.immutable.{List, Map}
+import scala.{ Int, StringContext }
+import scala.collection.immutable.{ List, Map }
 
 import scala.Predef.ArrowAssoc
 
@@ -23,14 +23,21 @@ import algebra.machines._
 import logic._
 
 object Data {
-  val node1 = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
-  val node2 = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
+  val node1   = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+  val node2   = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, List(node2))
 
-  val time1 = ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
-  val time2 = ZonedDateTime.parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
-  val time3 = ZonedDateTime.parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
-  val time4 = ZonedDateTime.parse("2017-03-03T23:07:00.000+01:00[Europe/London]") // +5 hours
+  val time1 =
+    ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
+  val time2 = ZonedDateTime.parse(
+    "2017-03-03T18:59:00.000+01:00[Europe/London]"
+  ) // +52 mins
+  val time3 = ZonedDateTime.parse(
+    "2017-03-03T19:06:00.000+01:00[Europe/London]"
+  ) // +59 mins
+  val time4 = ZonedDateTime.parse(
+    "2017-03-03T23:07:00.000+01:00[Europe/London]"
+  ) // +5 hours
 
   val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 
@@ -42,15 +49,15 @@ final class StaticHandlers(state: WorldView) {
 
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
     def getBacklog: Int = state.backlog
-    def getAgents: Int = state.agents
+    def getAgents: Int  = state.agents
   }
 
   implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
     def getAlive: Map[Node, ZonedDateTime] = state.alive
-    def getManaged: NonEmptyList[Node] = state.managed
-    def getTime: ZonedDateTime = state.time
-    def start(node: Node): Node = { started += 1; node }
-    def stop(node: Node): Node = { stopped += 1; node }
+    def getManaged: NonEmptyList[Node]     = state.managed
+    def getTime: ZonedDateTime             = state.time
+    def start(node: Node): Node            = { started += 1; node }
+    def stop(node: Node): Node             = { stopped += 1; node }
   }
 
   val program = new DynAgents[Deps.Op]
@@ -109,7 +116,7 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
+    val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
     val expected = world.copy(pending = Map(node1 -> time3))
 
     program.act(world).interpret[Id] shouldBe expected
@@ -122,7 +129,8 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    val world = WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
+    val world =
+      WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
 
     program.act(world).interpret[Id] shouldBe world
 
@@ -134,7 +142,7 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
+    val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
     program.act(world).interpret[Id] shouldBe expected
@@ -147,7 +155,7 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    val world = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
+    val world    = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
     program.act(world).interpret[Id] shouldBe expected
@@ -157,23 +165,27 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "remove changed nodes from pending" in {
-    val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
+    val world    = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
     val handlers = new StaticHandlers(world)
     import handlers._
 
-    val initial = world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
-    program.update(initial).interpret[Id] shouldBe world // i.e. pending is gone
+    val initial = world.copy(alive = Map.empty,
+                             pending = Map(node1 -> time2),
+                             time = time2)
+    program
+      .update(initial)
+      .interpret[Id] shouldBe world // i.e. pending is gone
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0
   }
 
   it should "ignore unresponsive pending actions during update" in {
-    val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
+    val world    = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
     val handlers = new StaticHandlers(world)
     import handlers._
 
-    val initial = world.copy(time = time1)
+    val initial  = world.copy(time = time1)
     val expected = world.copy(pending = Map.empty)
 
     program.update(initial).interpret[Id] shouldBe expected

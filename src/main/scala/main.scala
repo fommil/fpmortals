@@ -3,10 +3,8 @@
 package drone
 
 import java.lang.String
-import scala.{Array, Unit}
+import scala.{ Array, Unit }
 
 object Main {
-  def main(args: Array[String]): Unit = {
-
-  }
+  def main(args: Array[String]): Unit = {}
 }

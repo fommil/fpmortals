@@ -109,7 +109,7 @@ package client
 import java.lang.String
 import java.time.LocalDateTime
 
-import scala.{Long, Unit, StringContext}
+import scala.{ Long, StringContext, Unit }
 import scala.language.higherKinds
 
 import freestyle._
@@ -148,10 +148,13 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 
 object algebra {
   @free trait UserInteraction {
+
     /** returns the Uri that the local server is listening on */
     def start: FS[Uri]
+
     /** prompts the user to open this Uri, which will end up at the local server */
     def open(uri: Uri): FS[Unit]
+
     /** wait for the user interaction to complete and recover the code */
     def stop: FS[CodeToken]
   }
@@ -188,30 +191,47 @@ package logic {
     def authenticate =
       for {
         callback <- user.start
-        params = AuthRequest(callback, config.scope, config.clientId)
-        _ <- user.open(config.auth.withQuery(params.queryEncoded))
-        code <- user.stop
+        params   = AuthRequest(callback, config.scope, config.clientId)
+        _        <- user.open(config.auth.withQuery(params.queryEncoded))
+        code     <- user.stop
       } yield code
 
     def access(code: CodeToken) =
       for {
-        request <- FreeS.pure(AccessRequest(code.token, code.redirect_uri, config.clientId, config.clientSecret))
-        response <- server.postUrlencoded[AccessRequest, AccessResponse](config.access, request)
-        time <- clock.now
-        msg = response.body
+        request <- FreeS.pure(
+                    AccessRequest(code.token,
+                                  code.redirect_uri,
+                                  config.clientId,
+                                  config.clientSecret)
+                  )
+        response <- server
+                     .postUrlencoded[AccessRequest, AccessResponse](
+                       config.access,
+                       request
+                     )
+        time    <- clock.now
+        msg     = response.body
         expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
         refresh = RefreshToken(msg.refresh_token)
-        bearer = BearerToken(msg.access_token, expires)
+        bearer  = BearerToken(msg.access_token, expires)
       } yield (refresh, bearer)
 
     def bearer(refresh: RefreshToken) =
       for {
-        request <- FreeS.pure(RefreshRequest(config.clientSecret, refresh.token, config.clientId))
-        response <- server.postUrlencoded[RefreshRequest, RefreshResponse](config.refresh, request)
-        time <- clock.now
-        msg = response.body
+        request <- FreeS.pure(
+                    RefreshRequest(config.clientSecret,
+                                   refresh.token,
+                                   config.clientId)
+                  )
+        response <- server
+                     .postUrlencoded[RefreshRequest, RefreshResponse](
+                       config.refresh,
+                       request
+                     )
+        time    <- clock.now
+        msg     = response.body
         expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
-        bearer = BearerToken(msg.access_token, expires)
+        bearer  = BearerToken(msg.access_token, expires)
       } yield bearer
   }
 }

@@ -4,8 +4,8 @@ package apis.gce
 
 import java.lang.String
 
-import scala.{Boolean, Int}
-import scala.collection.immutable.{Map, Seq}
+import scala.{ Boolean, Int }
+import scala.collection.immutable.{ Map, Seq }
 
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
 final case class NodeConfig(
@@ -68,11 +68,11 @@ final case class NodePool(
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#Status
 sealed trait Status
 case object STATUS_UNSPECIFIED extends Status
-case object PROVISIONING extends Status
-case object RUNNING extends Status
-case object RECONCILING extends Status
-case object STOPPING extends Status
-case object ERROR extends Status
+case object PROVISIONING       extends Status
+case object RUNNING            extends Status
+case object RECONCILING        extends Status
+case object STOPPING           extends Status
+case object ERROR              extends Status
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#Cluster
 final case class Cluster(

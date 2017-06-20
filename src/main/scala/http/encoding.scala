@@ -4,14 +4,14 @@ package http.encoding
 
 import java.lang.String
 
-import scala.{Long, Symbol, StringContext}
-import scala.collection.immutable.{Nil, Seq}
+import scala.{ Long, StringContext, Symbol }
+import scala.collection.immutable.{ Nil, Seq }
 import scala.Predef.ArrowAssoc
 import scala.language.implicitConversions
 
-import shapeless.{:: => #:, _}
+import shapeless.{ :: => #:, _ }
 import shapeless.labelled._
-import java.net.{URLEncoder, URLDecoder}
+import java.net.{ URLDecoder, URLEncoder }
 import simulacrum.typeclass
 import spinoco.protocol.http.Uri
 import spinoco.protocol.http.Uri.Query
@@ -34,23 +34,24 @@ object UrlEncoded {
   }
 
   // useful impls
-  implicit object UrlEncodedStringySeq extends UrlEncoded[Seq[(String, String)]] {
-    override def urlEncoded(m: Seq[(String, String)]): String = {
+  implicit object UrlEncodedStringySeq
+      extends UrlEncoded[Seq[(String, String)]] {
+    override def urlEncoded(m: Seq[(String, String)]): String =
       m.map {
-        case (k, v) => s"${UrlEncodedString.urlEncoded(k)}=${UrlEncodedString.urlEncoded(v)}"
+        case (k, v) =>
+          s"${UrlEncodedString.urlEncoded(k)}=${UrlEncodedString.urlEncoded(v)}"
       }.mkString("&")
-    }
   }
   implicit object UrlEncodedUri extends UrlEncoded[Uri] {
     override def urlEncoded(u: Uri): String = {
       // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
       //             (which would also let us remove UrlEncodedStringySeq)
       val scheme = u.scheme.toString
-      val host = s"${u.host.host}"
-      val port = u.host.port.fold("")(p => s":$p")
-      val path = u.path.stringify
-      val query = UrlEncodedStringySeq.urlEncoded(u.query.params)
-      val uri = s"$scheme://$host$port$path?$query"
+      val host   = s"${u.host.host}"
+      val port   = u.host.port.fold("")(p => s":$p")
+      val path   = u.path.stringify
+      val query  = UrlEncodedStringySeq.urlEncoded(u.query.params)
+      val uri    = s"$scheme://$host$port$path?$query"
       UrlEncodedString.urlEncoded(uri)
     }
   }
@@ -66,12 +67,14 @@ object UrlEncoded {
     t: UrlEncoded[Remaining]
   ): UrlEncoded[FieldType[Key, Value] #: Remaining] =
     new UrlEncoded[FieldType[Key, Value] #: Remaining] {
-      override def urlEncoded(hlist: FieldType[Key, Value] #: Remaining): String = {
+      override def urlEncoded(
+        hlist: FieldType[Key, Value] #: Remaining
+      ): String = {
         val rest = {
           val rest = t.urlEncoded(hlist.tail)
           if (rest.isEmpty) "" else s"&$rest"
         }
-        val key = UrlEncodedString.urlEncoded(k.value.name)
+        val key   = UrlEncodedString.urlEncoded(k.value.name)
         val value = h.urlEncoded(hlist.head)
         s"$key=$value$rest"
       }
@@ -98,10 +101,13 @@ object QueryEncoded {
     t: QueryEncoded[Remaining]
   ): QueryEncoded[FieldType[Key, Value] #: Remaining] =
     new QueryEncoded[FieldType[Key, Value] #: Remaining] {
-      override def queryEncoded(hlist: FieldType[Key, Value] #: Remaining): Query = {
+      override def queryEncoded(
+        hlist: FieldType[Key, Value] #: Remaining
+      ): Query = {
         val first = {
           val decodedKey = key.value.name
-          val decodedValue = URLDecoder.decode(h.urlEncoded(hlist.head), "UTF-8")
+          val decodedValue =
+            URLDecoder.decode(h.urlEncoded(hlist.head), "UTF-8")
           decodedKey -> decodedValue
         }
 

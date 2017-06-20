@@ -2,9 +2,9 @@
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package interpreters.dronefs2
 
-import java.lang.{String, SuppressWarnings}
+import java.lang.{ String, SuppressWarnings }
 
-import scala.{Array, Int}
+import scala.{ Array, Int }
 import scala.Predef.???
 
 import fs2._
@@ -27,7 +27,7 @@ import java.util.concurrent.Executors
 
 // TODO: take what we need as implicits
 object Resources {
-  val ES = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
+  val ES         = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
   implicit val S = Strategy.fromExecutor(ES)
   //implicit val Sch = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(4, Strategy.daemonThreadFactory("S")))
   implicit val AG = AsynchronousChannelGroup.withThreadPool(ES)
@@ -47,17 +47,21 @@ final class DroneFs2(config: DroneConfig) extends Drone.Handler[Task] {
 
   // FIXME: we don't read Backlog off the wire, we read a custom format and then convert into Backlog
   private val backlogRequest =
-    HttpRequest.get[Task](Uri.https(config.host, "/api/builds"))
+    HttpRequest
+      .get[Task](Uri.https(config.host, "/api/builds"))
       .withHeader(Authorization(OAuth2BearerToken(config.token)))
 
   @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-  def getBacklog: Task[Int] = {
+  def getBacklog: Task[Int] =
     clientTask.flatMap { client =>
-      client.request(backlogRequest).flatMap { resp =>
-        resp.body.chunks.through(byteParser).through(decoder[Task, Int])
-      }.runLast.map(_.get)
+      client
+        .request(backlogRequest)
+        .flatMap { resp =>
+          resp.body.chunks.through(byteParser).through(decoder[Task, Int])
+        }
+        .runLast
+        .map(_.get)
     }
-  }
 
   def getAgents: Task[Int] = ???
 
