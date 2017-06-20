@@ -36,18 +36,14 @@ wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
   Wart.FinalCaseClass,
   Wart.ExplicitImplicitTypes
 )
-wartremoverWarnings in (Compile, compile) -= Wart.Any                   // https://github.com/frees-io/freestyle/issues/313
-wartremoverWarnings in (Compile, compile) -= Wart.FinalCaseClass        // https://github.com/frees-io/freestyle/issues/314
-wartremoverWarnings in (Compile, compile) -= Wart.ExplicitImplicitTypes // https://github.com/frees-io/freestyle/issues/314
-wartremoverWarnings in (Compile, compile) -= Wart.StringPlusAny         // https://github.com/frees-io/freestyle/issues/314
-wartremoverWarnings in (Compile, compile) -= Wart.Throw                 // https://github.com/frees-io/freestyle/issues/314
-wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments      // not sure I agree with this one...
+wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
 
 // http://frees.io/docs/
+resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin(
-  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch
+  "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
 )
-libraryDependencies += "io.frees" %% "freestyle" % "0.2.0"
+libraryDependencies += "io.frees" %% "freestyle" % "0.3.1-SNAPSHOT"
 
 scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := file("project/scalafmt.conf")

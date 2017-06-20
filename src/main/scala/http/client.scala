@@ -9,7 +9,6 @@ package http
  */
 package client
 
-import scala.StringContext
 import scala.collection.immutable.{ List, Nil }
 import scala.language.higherKinds
 
@@ -23,14 +22,18 @@ object algebra {
   final case class Response[T](header: HttpResponseHeader, body: T)
 
   @free trait JsonHttpClient {
-    def get[B: Decoder](uri: Uri,
-                        headers: List[HttpHeader] = Nil): FS[Response[B]]
+    def get[B](
+      uri: Uri,
+      headers: List[HttpHeader] = Nil
+    )(
+      implicit decoder: Decoder[B]
+    ): FS[Response[B]]
 
     // using application/x-www-form-urlencoded
-    def postUrlencoded[A: UrlEncoded, B: Decoder](
+    def postUrlencoded[A, B](
       uri: Uri,
       payload: A,
       headers: List[HttpHeader] = Nil
-    ): FS[Response[B]]
+    )(implicit encoder: UrlEncoded[A], decoder: Decoder[B]): FS[Response[B]]
   }
 }

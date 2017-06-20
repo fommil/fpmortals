@@ -109,7 +109,7 @@ package client
 import java.lang.String
 import java.time.LocalDateTime
 
-import scala.{ Long, StringContext, Unit }
+import scala.{ Long, Unit }
 import scala.language.higherKinds
 
 import freestyle._
@@ -186,9 +186,10 @@ package logic {
     import api._
     import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
+    type FS[A] = FreeS[F, A]
 
     // for use in one-shot apps requiring user interaction
-    def authenticate =
+    def authenticate: FS[CodeToken] =
       for {
         callback <- user.start
         params   = AuthRequest(callback, config.scope, config.clientId)
@@ -196,7 +197,7 @@ package logic {
         code     <- user.stop
       } yield code
 
-    def access(code: CodeToken) =
+    def access(code: CodeToken): FS[(RefreshToken, BearerToken)] =
       for {
         request <- FreeS.pure(
                     AccessRequest(code.token,
@@ -216,7 +217,7 @@ package logic {
         bearer  = BearerToken(msg.access_token, expires)
       } yield (refresh, bearer)
 
-    def bearer(refresh: RefreshToken) =
+    def bearer(refresh: RefreshToken): FS[BearerToken] =
       for {
         request <- FreeS.pure(
                     RefreshRequest(config.clientSecret,
