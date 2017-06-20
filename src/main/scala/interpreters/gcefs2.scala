@@ -73,7 +73,6 @@ final class GceFs2(config: GceConfig) {
   }
 
   // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters/get
-  @SuppressWarnings(Array("org.wartremover.warts.Any")) // I have no idea why
   def getCluster: Task[Cluster] =
     get[Cluster](
       s"/v1/projects/${config.projectId}/zones/${config.zone}/clusters/${config.clusterId}"

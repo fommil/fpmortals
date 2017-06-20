@@ -83,7 +83,7 @@ final class DynAgents[F[_]]()(implicit D: Deps[F]) {
         update  = world.copy(pending = world.pending ++ updates)
       } yield update
 
-    case _ => FreeS.pure(world)
+    case _ => world.pure[FS]
   }
 
   private def timediff(from: ZonedDateTime,

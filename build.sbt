@@ -37,6 +37,7 @@ wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
   Wart.ExplicitImplicitTypes
 )
 wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
+wartremoverWarnings in (Compile, compile) -= Wart.Any              // too many cats false positives
 
 // http://frees.io/docs/
 resolvers += Resolver.sonatypeRepo("snapshots")
