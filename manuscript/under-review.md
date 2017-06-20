@@ -958,7 +958,7 @@ add it to `pending` noting the time that we scheduled the action.
         } yield update
       }
   
-    case _ => FreeS.pure(world)
+    case _ => world.pure[FS]
   }
 ~~~~~~~~
 
