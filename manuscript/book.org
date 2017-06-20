@@ -1269,15 +1269,22 @@ into a =WorldView=. We default the =pending= field to an empty =Map=.
   } yield WorldView(db, da, mm, ma, Map.empty, mt)
 #+END_SRC
 
+Recall from Chapter 1 that =flatMap= (i.e. when we use the =<-=
+generator) allows us to operate on a value that is computed at
+runtime. When we return an =FS= we are returning another program to be
+interpreted at runtime, that we can then =flatMap=. This is how we
+safely chain together sequential side-effecting code, whilst being
+able to provide a pure implementation for tests. FP could be described
+as Extreme Mocking.
+
 **** update
 
-=update= should call =initial= to refresh our world view, but preserve
+=update= should call =initial= to refresh our world view, preserving
 known =pending= actions.
 
-If a node has changed state, we remove it from =pending=.
-
-If a pending action is taking longer than 10 minutes to do anything,
-we assume that it failed and forget that we ever asked to do it.
+If a node has changed state, we remove it from =pending= and if a
+pending action is taking longer than 10 minutes to do anything, we
+assume that it failed and forget that we asked to do it.
 
 #+BEGIN_SRC scala
   def update(old: WorldView): FS[WorldView] = for {
@@ -1289,17 +1296,19 @@ we assume that it failed and forget that we ever asked to do it.
     update = snap.copy(pending = pending)
   } yield update
 
-  def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
+  private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
 
-  def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+  private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 #+END_SRC
 
-Note that we're using a generator when we call a method from an
-algebra (=flatMap=), but we use assignment for pure functions like
-=union=, =intersect=, =copy= and =timediff= (=map=). The compiler
-keeps us right.
+Note that we use assignment for pure functions like =symdiff=,
+=timediff= and =copy=. Pure functions don't need test mocks, they have
+explicit inputs and outputs, so you could move all pure code into
+standalone methods on a stateless =object=, testable in isolation.
+We're happy testing only the public methods, preferring that our
+business logic is easy to read.
 
 **** act
 
@@ -1649,7 +1658,7 @@ In this chapter we've experienced some of the practical benefits of FP
 when designing and testing applications:
 
 1. clean separation of components
-2. isolated, fast and reproducible tests of business logic
+2. isolated, fast and reproducible tests of business logic: extreme mocking
 3. easy parallelisation
 
 However, even if we look past the learning curve of FP, there are
