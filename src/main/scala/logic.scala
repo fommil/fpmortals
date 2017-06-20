@@ -44,18 +44,19 @@ final case class WorldView(
 
 @module trait Deps {
   val d: Drone
-  val c: Machines
+  val m: Machines
 }
 
-final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
+final class DynAgents[F[_]]()(implicit D: Deps[F]) {
   import D._
+  type FS[A] = FreeS[F, A]
 
-  def initial: FreeS[F, WorldView] =
-    (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
-      case (db, da, cm, ca, ct) => WorldView(db, da, cm, ca, Map.empty, ct)
+  def initial: FS[WorldView] =
+    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).map {
+      case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 
-  def update(old: WorldView): FreeS[F, WorldView] = for {
+  def update(old: WorldView): FS[WorldView] = for {
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
@@ -64,28 +65,27 @@ final case class DynAgents[F[_]]()(implicit D: Deps[F]) {
     update = snap.copy(pending = pending)
   } yield update
 
-  def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
+  private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
 
-  def act(world: WorldView): FreeS[F, WorldView] = world match {
+  def act(world: WorldView): FS[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
-        _ <- c.start(node)
+        _ <- m.start(node)
         update = world.copy(pending = Map(node -> world.time))
       } yield update
 
     case Stale(nodes) =>
-      nodes.foldM(world) { (world, n) =>
-        for {
-          _ <- c.stop(n)
-          update = world.copy(pending = world.pending + (n -> world.time))
-        } yield update
-      }
+      for {
+        stopped <- nodes.traverse(m.stop)
+        updates = stopped.map(_ -> world.time).toList.toMap
+        update = world.copy(pending = world.pending ++ updates)
+      } yield update
 
     case _ => FreeS.pure(world)
   }
 
-  def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+  private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 
   // with a backlog, but no agents or pending nodes, start a node

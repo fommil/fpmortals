@@ -6,7 +6,7 @@ import java.lang.String
 import java.time.ZonedDateTime
 
 import scala.Any
-import scala.{Int, Unit, StringContext}
+import scala.{Int, StringContext}
 import scala.collection.immutable.{List, Map}
 
 import scala.Predef.ArrowAssoc
@@ -37,7 +37,7 @@ object Data {
 }
 import Data._
 
-final case class StaticHandlers(state: WorldView) {
+final class StaticHandlers(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
@@ -49,24 +49,24 @@ final case class StaticHandlers(state: WorldView) {
     def getAlive: Map[Node, ZonedDateTime] = state.alive
     def getManaged: NonEmptyList[Node] = state.managed
     def getTime: ZonedDateTime = state.time
-    def start(node: Node): Unit = { started += 1 }
-    def stop(node: Node): Unit = { stopped += 1 }
+    def start(node: Node): Node = { started += 1; node }
+    def stop(node: Node): Node = { stopped += 1; node }
   }
 
-  val program = DynAgents[Deps.Op]
+  val program = new DynAgents[Deps.Op]
 }
 
-class LogicSpec extends FlatSpec {
+final class LogicSpec extends FlatSpec {
 
   "Business Logic" should "generate an initial world view" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     program.initial.interpret[Id] shouldBe needsAgents
   }
 
   it should "request agents when needed" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val expected = needsAgents.copy(
@@ -80,7 +80,7 @@ class LogicSpec extends FlatSpec {
   }
 
   it should "not request agents when pending" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val pending = needsAgents.copy(
@@ -94,7 +94,7 @@ class LogicSpec extends FlatSpec {
   }
 
   it should "don't shut down agents if nodes are too young" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
@@ -106,7 +106,7 @@ class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents when there is no backlog and nodes will shortly incur new costs" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
@@ -119,7 +119,7 @@ class LogicSpec extends FlatSpec {
   }
 
   it should "not shut down agents if there are pending actions" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
@@ -131,7 +131,7 @@ class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents when there is no backlog if they are too old" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
@@ -144,7 +144,7 @@ class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents, even if they are potentially doing work, if they are too old" in {
-    val handlers = StaticHandlers(needsAgents)
+    val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
     val world = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
@@ -158,7 +158,7 @@ class LogicSpec extends FlatSpec {
 
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = StaticHandlers(world)
+    val handlers = new StaticHandlers(world)
     import handlers._
 
     val initial = world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
@@ -170,7 +170,7 @@ class LogicSpec extends FlatSpec {
 
   it should "ignore unresponsive pending actions during update" in {
     val world = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
-    val handlers = StaticHandlers(world)
+    val handlers = new StaticHandlers(world)
     import handlers._
 
     val initial = world.copy(time = time1)

@@ -5,7 +5,7 @@ package algebra
 import java.lang.String
 import java.time.ZonedDateTime
 
-import scala.{Int, Unit, StringContext}
+import scala.{Int, StringContext}
 import scala.collection.immutable.Map
 import scala.language.higherKinds
 
@@ -26,7 +26,7 @@ object machines {
     def getTime: FS[ZonedDateTime]
     def getManaged: FS[NonEmptyList[Node]]
     def getAlive: FS[Map[Node, ZonedDateTime]]
-    def start(node: Node): FS[Unit]
-    def stop(node: Node): FS[Unit]
+    def start(node: Node): FS[Node]
+    def stop(node: Node): FS[Node]
   }
 }

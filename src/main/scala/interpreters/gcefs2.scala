@@ -7,7 +7,7 @@ import java.nio.channels.AsynchronousChannelGroup
 import java.time.ZonedDateTime
 import java.util.concurrent.Executors
 
-import scala.{Array, StringContext, Unit}
+import scala.{Array, StringContext}
 import scala.collection.immutable.Map
 import scala.Predef.???
 
@@ -44,8 +44,8 @@ final class GceFs2Machine extends Machines.Handler[Task] {
   def getTime: Task[ZonedDateTime] = ???
   def getManaged: Task[NonEmptyList[Node]] = ???
   def getAlive: Task[Map[Node, ZonedDateTime]] = ???
-  def start(node: Node): Task[Unit] = ???
-  def stop(node: Node): Task[Unit] = ???
+  def start(node: Node): Task[Node] = ???
+  def stop(node: Node): Task[Node] = ???
 }
 
 final class GceFs2(config: GceConfig) {
