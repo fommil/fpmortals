@@ -793,28 +793,17 @@ Now we are ready to write our business logic, but we need to indicate
 that we depend on `Drone` and `Machines`.
 
 The `@freestyle.module` macro annotation generates boilerplate for
-dependency injection. We create a trait containing a `val` for each
-`@free` or `@module` dependency that we wish to have access to.
-Declaring dependencies this way should be a familiar if you've ever
-used Spring's `@Autowired`
+dependency injection. We create a trait to contain our business logic,
+and leave an unassigned `val` for each `@free` or `@module` dependency
+that we wish to have access to. Declaring dependencies this way should
+be a familiar if you've ever used Spring's `@Autowired`
 
 {lang="text"}
 ~~~~~~~~
-  @module trait Deps {
+  // FIXME: https://github.com/frees-io/freestyle/issues/369
+  @module trait DynAgents {
     val d: Drone
     val m: Machines
-  }
-~~~~~~~~
-
-Then we create a `class` to hold our business logic, taking the
-injected `Deps` as an implicit parameter.
-
-{lang="text"}
-~~~~~~~~
-  // FIXME: this becomes simpler in freestyle 0.3
-  class DynAgents[F[_]](implicit D: Deps[F]) {
-    import D._
-    type FS[A] = FreeS[F, A]
 ~~~~~~~~
 
 We now have access to the algebra of `Drone` and `Machines` as `d` and

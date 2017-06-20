@@ -82,19 +82,19 @@ and add the following dependencies to your project's settings:
 
 {lang="text"}
 ~~~~~~~~
+  val circeVersion = "0.8.0"
   libraryDependencies ++= Seq(
-    "io.circe" %% "circe-core",
-    "io.circe" %% "circe-generic",
-    "io.circe" %% "circe-parser",
-    "io.circe" %% "circe-fs2"
-  ).map(_ % "0.8.0") ++ Seq(
-    "org.typelevel" %% "cats"      % "0.9.0",
-    "io.frees"      %% "freestyle" % "0.1.1",
-    "com.spinoco"   %% "fs2-http"  % "0.1.6"
+    "io.circe"      %% "circe-core"    % circeVersion,
+    "io.circe"      %% "circe-generic" % circeVersion,
+    "io.circe"      %% "circe-parser"  % circeVersion,
+    "io.circe"      %% "circe-fs2"     % circeVersion,
+    "org.typelevel" %% "cats"          % "0.9.0",
+    "com.spinoco"   %% "fs2-http"      % "0.1.6",
+    "io.frees"      %% "freestyle"     % "0.3.1"
   )
   
   addCompilerPlugin(
-    "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+    "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
   )
 ~~~~~~~~
 

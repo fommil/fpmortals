@@ -92,19 +92,20 @@ scalacOptions in ThisBuild ++= Seq(
 and add the following dependencies to your project's settings:
 
 #+BEGIN_SRC scala
+
+val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core",
-  "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser",
-  "io.circe" %% "circe-fs2"
-).map(_ % "0.8.0") ++ Seq(
-  "org.typelevel" %% "cats"      % "0.9.0",
-  "io.frees"      %% "freestyle" % "0.1.1",
-  "com.spinoco"   %% "fs2-http"  % "0.1.6"
+  "io.circe"      %% "circe-core"    % circeVersion,
+  "io.circe"      %% "circe-generic" % circeVersion,
+  "io.circe"      %% "circe-parser"  % circeVersion,
+  "io.circe"      %% "circe-fs2"     % circeVersion,
+  "org.typelevel" %% "cats"          % "0.9.0",
+  "com.spinoco"   %% "fs2-http"      % "0.1.6",
+  "io.frees"      %% "freestyle"     % "0.3.1"
 )
 
 addCompilerPlugin(
-  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+  "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
 )
 #+END_SRC
 
@@ -1218,26 +1219,17 @@ Now we are ready to write our business logic, but we need to indicate
 that we depend on =Drone= and =Machines=.
 
 The =@freestyle.module= macro annotation generates boilerplate for
-dependency injection. We create a trait containing a =val= for each
-=@free= or =@module= dependency that we wish to have access to.
-Declaring dependencies this way should be a familiar if you've ever
-used Spring's =@Autowired=
+dependency injection. We create a trait to contain our business logic,
+and leave an unassigned =val= for each =@free= or =@module= dependency
+that we wish to have access to. Declaring dependencies this way should
+be a familiar if you've ever used Spring's =@Autowired=
 
 #+BEGIN_SRC scala
-@module trait Deps {
+// FIXME: https://github.com/frees-io/freestyle/issues/369
+@module trait DynAgents {
   val d: Drone
   val m: Machines
-}
-#+END_SRC
 
-Then we create a =class= to hold our business logic, taking the
-injected =Deps= as an implicit parameter.
-
-#+BEGIN_SRC scala
-// FIXME: this becomes simpler in freestyle 0.3
-class DynAgents[F[_]](implicit D: Deps[F]) {
-  import D._
-  type FS[A] = FreeS[F, A]
 #+END_SRC
 
 We now have access to the algebra of =Drone= and =Machines= as =d= and
