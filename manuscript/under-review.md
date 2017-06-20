@@ -789,10 +789,14 @@ algebras, and adds a *pending* field to track unfulfilled requests.
   )
 ~~~~~~~~
 
-`@freestyle.module` generates boilerplate for dependency injection. We
-create a trait containing a `val` for each `@free` or `@module`
-dependency that we wish to have access to. Declaring dependencies this
-way should be a familiar if you've ever used Spring's `@Autowired`
+Now we are ready to write our business logic, but we need to indicate
+that we depend on `Drone` and `Machines`.
+
+The `@freestyle.module` macro annotation generates boilerplate for
+dependency injection. We create a trait containing a `val` for each
+`@free` or `@module` dependency that we wish to have access to.
+Declaring dependencies this way should be a familiar if you've ever
+used Spring's `@Autowired`
 
 {lang="text"}
 ~~~~~~~~
@@ -805,21 +809,18 @@ way should be a familiar if you've ever used Spring's `@Autowired`
 Then we create a `class` to hold our business logic, taking the
 injected `Deps` as an implicit parameter.
 
-[fn: `F` is hidden in Freestyle 0.3 so this paragraph will disappear]
-The `F` type parameter has been generated for us by `@module` and is a
-combination of all the dependency algebras. For convenience sake, we
-create a type alias `FS` so we don't have to refer to it anywhere else
-in the file:
-
 {lang="text"}
 ~~~~~~~~
+  // FIXME: this becomes simpler in freestyle 0.3
   class DynAgents[F[_]](implicit D: Deps[F]) {
     import D._
     type FS[A] = FreeS[F, A]
 ~~~~~~~~
 
-By importing `Deps` it means we can access the algebra of `Drone` and
-`Machines` as `d` and `m`, respectively. e.g. `m.start(node)`
+We now have access the algebra of `Drone` and `Machines` as `d` and
+`m`, respectively, with methods returning `FS`, which is *monadic*
+(i.e. has an implicit `Monad`) and can be the context of a `for`
+comprehension.
 
 Our business logic will run in an infinite loop (pseudocode)
 
@@ -831,15 +832,8 @@ Our business logic will run in an infinite loop (pseudocode)
     state = act(state)
 ~~~~~~~~
 
-Which means we must write three functions: `initial`, `update` and
-`act`, all returning a `WorldView`.
-
-`FS[A]` is *monadic* (i.e. has an implicit `Monad`) and can be the
-context of a `for` comprehension. In the Introduction, we learnt the
-benefits of this abstraction pattern.
-
-Where we want to return `WorldView` in the pseudo business logic, we
-return `FS[WorldView]` in the real code.
+We must write three functions: `initial`, `update` and `act`, all
+returning an `FS[WorldView]`.
 
 ### initial
 
