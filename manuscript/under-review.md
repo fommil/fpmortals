@@ -692,9 +692,9 @@ authentication.
 
 Let's codify the architecture diagram from the previous section.
 
-In FP, an *algebra* takes the place of an `interface` in Spring Java,
-or the set of valid messages for an `Actor` in Akka. This is the layer
-where we define all side-effecting interactions of our system.
+In FP, an *algebra* takes the place of an `interface` in Java, or the
+set of valid messages for an `Actor` in Akka. This is the layer where
+we define all side-effecting interactions of our system.
 
 There is tight iteration between writing the business logic and the
 algebra: it is a good level of abstraction to design a system.
@@ -751,8 +751,8 @@ A> non-empty property.
 
 ## Business Logic
 
-Now we write the business logic that defines the app's behaviour,
-considering only the happy path.
+Now we write the business logic that defines the application's
+behaviour, considering only the happy path.
 
 First, the imports
 
@@ -770,9 +770,9 @@ First, the imports
   import algebra.machines._
 ~~~~~~~~
 
-and a `WorldView` class that holds a snapshot of our knowledge of the
+We need a `WorldView` class to hold a snapshot of our knowledge of the
 world. If we were designing this application in Akka, `WorldView`
-would probably be a `var` in an `Actor`.
+would probably be a stateful `var` in an `Actor`.
 
 `WorldView` aggregates the return values of all the methods in the
 algebras, and adds a *pending* field to track unfulfilled requests.
@@ -798,7 +798,7 @@ way should be a familiar if you've ever used Spring's `@Autowired`
 ~~~~~~~~
   @module trait Deps {
     val d: Drone
-    val c: Machines
+    val m: Machines
   }
 ~~~~~~~~
 
@@ -817,6 +817,9 @@ in the file:
     import D._
     type FS[A] = FreeS[F, A]
 ~~~~~~~~
+
+By importing `Deps` it means we can access the algebra of `Drone` and
+`Machines` as `d` and `m`, respectively. e.g. `m.start(node)`
 
 Our business logic will run in an infinite loop (pseudocode)
 
@@ -848,10 +851,10 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
   def initial: FS[WorldView] = for {
     db <- d.getBacklog
     da <- d.getAgents
-    cm <- c.getManaged
-    ca <- c.getAlive
-    ct <- c.getTime
-  } yield WorldView(db, da, cm, ca, Map.empty, ct)
+    mm <- m.getManaged
+    ma <- m.getAlive
+    mt <- m.getTime
+  } yield WorldView(db, da, mm, ma, Map.empty, mt)
 ~~~~~~~~
 
 ### update
@@ -891,8 +894,14 @@ keeps us right.
 
 The `act` method is slightly more complex, so we'll split it into two
 parts for clarity: detection of when an action needs to be taken,
-followed by taking action. We write the scenario detectors as
-extractors for `WorldView`.
+followed by taking action. This simplification means that we can only
+perform one action per invocation, but that is reasonable because we
+can control the invocations and may choose to re-run `act` until no
+further action is taken.
+
+We write the scenario detectors as extractors for `WorldView`, which
+is nothing more than an expressive way of writing `if` / `else`
+conditions.
 
 We need to add agents to the farm if there is a backlog of work, we
 have no agents, we have no nodes alive, and there are no pending
@@ -945,14 +954,14 @@ add it to `pending` noting the time that we scheduled the action.
   def act(world: WorldView): FS[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
-        _ <- c.start(node)
+        _ <- m.start(node)
         update = world.copy(pending = Map(node -> world.time))
       } yield update
   
     case Stale(nodes) =>
       nodes.foldM(world) { (world, n) =>
         for {
-          _ <- c.stop(n)
+          _ <- m.stop(n)
           update = world.copy(pending = world.pending + (n -> world.time))
         } yield update
       }
@@ -961,8 +970,9 @@ add it to `pending` noting the time that we scheduled the action.
   }
 ~~~~~~~~
 
-Recall from Chapter 2 that `.pure` creates the for comprehension's
-(monadic) context from a value.
+Because `NeedsAgent` and `Stale` do not cover all possible situations,
+we need a catch-all `case _` to do nothing. Recall from Chapter 2 that
+`.pure` creates the `for`'s (monadic) context from a value.
 
 `foldM` is like `foldLeft` over `nodes`, but each iteration of the
 fold may return a monadic value. In our case, each iteration of the
@@ -1024,8 +1034,8 @@ feel easy using `var` to store the state.
       def getAlive: Map[Node, ZonedDateTime] = state.alive
       def getManaged: NonEmptyList[Node] = state.managed
       def getTime: ZonedDateTime = state.time
-      def start(node: Node): Unit = { started += 1 }
-      def stop(node: Node): Unit = { stopped += 1 }
+      def start(node: Node): Node = { started += 1 ; node }
+      def stop(node: Node): Node = { stopped += 1 ; node }
     }
   
     val program = new DynAgents[Deps.Op]
@@ -1094,7 +1104,6 @@ to implement using the same approach:
 -   not shut down agents if there are pending actions
 -   shut down agents when there is no backlog if they are too old
 -   shut down agents, even if they are potentially doing work, if they are too old
--   remove changed nodes from pending
 -   ignore unresponsive pending actions during update
 
 All of these tests are synchronous and isolated to the test runner's
@@ -1123,7 +1132,7 @@ As opposed to `flatMap` for sequential operations, cats uses
 
 {lang="text"}
 ~~~~~~~~
-  d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime
+  d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime
 ~~~~~~~~
 
 If each of the parallel operations returns a value in the same monadic
@@ -1134,8 +1143,8 @@ advantage of this:
 {lang="text"}
 ~~~~~~~~
   def initial: FS[WorldView] =
-    (d.getBacklog |@| d.getAgents |@| c.getManaged |@| c.getAlive |@| c.getTime).map {
-      case (db, da, cm, ca, ct) => WorldView(db, da, cm, ca, Map.empty, ct)
+    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).map {
+      case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 ~~~~~~~~
 
@@ -1160,7 +1169,7 @@ in a simple way:
 {lang="text"}
 ~~~~~~~~
   for {
-    stopped <- nodes.traverse(c.stop)
+    stopped <- nodes.traverse(m.stop)
     updates = stopped.map(_ -> world.time).toList.toMap
     update = world.copy(pending = world.pending ++ updates)
   } yield update
@@ -1176,9 +1185,15 @@ responsibility of the handler. Not to state the obvious: parallel
 execution is supported by `Future`, but not `Id`.
 
 It is also not enough to implement a `Future` handler, it is necessary
-to import `freestyle.NonDeterminism._` to ensure that the `Future`
-interpreter knows it is allowed to perform actions in a
-non-deterministic order.
+to
+
+{lang="text"}
+~~~~~~~~
+  import freestyle.NonDeterminism._
+~~~~~~~~
+
+when running the `interpret` method to ensure that the `Future`
+interpreter knows it can perform actions in a non-deterministic order.
 
 Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
@@ -1220,9 +1235,7 @@ eliminate stack growth is known as *trampolining*.
 When we use the `@free` annotation, a `sealed trait` data structure is
 generated for each of our algebras, with a `case class` per method,
 allowing trampolining. When we write a `Handler`, Freestyle is
-converting pattern matches over heap objects into method calls. The
-appendix goes into gruelling detail about what Freestyle is generating
-for us.
+converting pattern matches over heap objects into method calls.
 
 ### Why is it called Free?
 
