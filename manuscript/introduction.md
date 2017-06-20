@@ -104,22 +104,32 @@ A>     def create(i: Int): List[Int] = List(i)
 A>   }
 A> ~~~~~~~~
 A> 
-A> We can also implement `Foo` for anything with a type parameter hole,
-A> e.g. `Either[String, _]`. Unfortunately it is a bit clunky and we have
-A> to create a type alias:
+A> We can implement `Foo` for anything with a type parameter hole, e.g.
+A> `Either[String, _]`. Unfortunately it is a bit clunky and we have to
+A> create a type alias to trick the compiler into accepting it:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
 A>   type EitherString[T] = Either[String, T]
+A> ~~~~~~~~
+A> 
+A> Type aliases don't define new types, they just use substitution and
+A> don't provide extra type safety. The compiler substitutes
+A> `EitherString[T]` with `Either[String, T]` everywhere. This technique
+A> can be used to trick the compiler into accepting types with one hole
+A> when it would otherwise think there are two, like when we implement
+A> `Foo` with `EitherString`:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
 A>   object FooEitherString extends Foo[EitherString] {
 A>    def create(i: Int): Either[String, Int] = Right(i)
 A>   }
 A> ~~~~~~~~
 A> 
-A> There is a trick we can use when we want to ignore the type
-A> constructor. Recall that type aliases don't define any new types, they
-A> just use substitution for convenient names. Let's define a type alias
-A> to be equal to its parameter:
+A> Finally, there is this one weird trick we can use when we want to
+A> ignore the type constructor. Let's define a type alias to be equal to
+A> its parameter:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~

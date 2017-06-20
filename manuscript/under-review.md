@@ -772,7 +772,7 @@ First, the imports
 
 We need a `WorldView` class to hold a snapshot of our knowledge of the
 world. If we were designing this application in Akka, `WorldView`
-would probably be a stateful `var` in an `Actor`.
+would probably be a `var` in a stateful `Actor`.
 
 `WorldView` aggregates the return values of all the methods in the
 algebras, and adds a *pending* field to track unfulfilled requests.
@@ -817,7 +817,7 @@ injected `Deps` as an implicit parameter.
     type FS[A] = FreeS[F, A]
 ~~~~~~~~
 
-We now have access the algebra of `Drone` and `Machines` as `d` and
+We now have access to the algebra of `Drone` and `Machines` as `d` and
 `m`, respectively, with methods returning `FS`, which is *monadic*
 (i.e. has an implicit `Monad`) and can be the context of a `for`
 comprehension.
@@ -1045,8 +1045,9 @@ feel easy using `var` to store the state.
   }
 ~~~~~~~~
 
-When we write a unit test (here as `FlatSpec`), we create an instance
-of `StaticHandlers` and then import all of its members.
+When we write a unit test (here using `FlatSpec` from scalatest), we
+create an instance of `StaticHandlers` and then import all of its
+members.
 
 `FS` has a method `interpret`, requiring implicit handlers for its
 dependencies. Our implicit `drone` and `machines` both use the `Id`

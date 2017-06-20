@@ -232,21 +232,30 @@ object FooList extends Foo[List] {
 }
 #+END_SRC
 
-We can also implement =Foo= for anything with a type parameter hole,
-e.g. =Either[String, _]=. Unfortunately it is a bit clunky and we have
-to create a type alias:
+We can implement =Foo= for anything with a type parameter hole, e.g.
+=Either[String, _]=. Unfortunately it is a bit clunky and we have to
+create a type alias to trick the compiler into accepting it:
 
 #+BEGIN_SRC scala
 type EitherString[T] = Either[String, T]
+#+END_SRC
+
+Type aliases don't define new types, they just use substitution and
+don't provide extra type safety. The compiler substitutes
+=EitherString[T]= with =Either[String, T]= everywhere. This technique
+can be used to trick the compiler into accepting types with one hole
+when it would otherwise think there are two, like when we implement
+=Foo= with =EitherString=:
+
+#+BEGIN_SRC scala
 object FooEitherString extends Foo[EitherString] {
  def create(i: Int): Either[String, Int] = Right(i)
 }
 #+END_SRC
 
-There is a trick we can use when we want to ignore the type
-constructor. Recall that type aliases don't define any new types, they
-just use substitution for convenient names. Let's define a type alias
-to be equal to its parameter:
+Finally, there is this one weird trick we can use when we want to
+ignore the type constructor. Let's define a type alias to be equal to
+its parameter:
 
 #+BEGIN_SRC scala
 type Id[T] = T
@@ -1189,7 +1198,7 @@ import algebra.machines._
 
 We need a =WorldView= class to hold a snapshot of our knowledge of the
 world. If we were designing this application in Akka, =WorldView=
-would probably be a stateful =var= in an =Actor=.
+would probably be a =var= in a stateful =Actor=.
 
 =WorldView= aggregates the return values of all the methods in the
 algebras, and adds a /pending/ field to track unfulfilled requests.
@@ -1231,7 +1240,7 @@ class DynAgents[F[_]](implicit D: Deps[F]) {
   type FS[A] = FreeS[F, A]
 #+END_SRC
 
-We now have access the algebra of =Drone= and =Machines= as =d= and
+We now have access to the algebra of =Drone= and =Machines= as =d= and
 =m=, respectively, with methods returning =FS=, which is /monadic/
 (i.e. has an implicit =Monad=) and can be the context of a =for=
 comprehension.
@@ -1451,8 +1460,9 @@ class StaticHandlers(state: WorldView) {
 }
 #+END_SRC
 
-When we write a unit test (here as =FlatSpec=), we create an instance
-of =StaticHandlers= and then import all of its members.
+When we write a unit test (here using =FlatSpec= from scalatest), we
+create an instance of =StaticHandlers= and then import all of its
+members.
 
 =FS= has a method =interpret=, requiring implicit handlers for its
 dependencies. Our implicit =drone= and =machines= both use the =Id=
