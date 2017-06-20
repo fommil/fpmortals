@@ -792,11 +792,11 @@ algebras, and adds a *pending* field to track unfulfilled requests.
 Now we are ready to write our business logic, but we need to indicate
 that we depend on `Drone` and `Machines`.
 
-The `@freestyle.module` macro annotation generates boilerplate for
-dependency injection. We create a trait to contain our business logic,
-and leave an unassigned `val` for each `@free` or `@module` dependency
-that we wish to have access to. Declaring dependencies this way should
-be a familiar if you've ever used Spring's `@Autowired`
+We create a *module* trait to contain our business logic. The
+`@freestyle.module` macro annotation generates boilerplate for
+dependency injection, we leave an unassigned `val` for each `@free` or
+`@module` dependency that we need to use. Declaring dependencies this
+way should be familiar if you've ever used Spring's `@Autowired`
 
 {lang="text"}
 ~~~~~~~~
@@ -1008,9 +1008,13 @@ We'll start with some test data
   import Data._
 ~~~~~~~~
 
-Then our "mock" implementation of the algebras, which simply play back
-a fixed `WorldView`. We've isolated the state of our system, so we can
-feel easy using `var` to store the state.
+We implement algebras by creating *handlers* that extend from the
+`.Handler` that `@free` generates for us. We don't extend `Drone` and
+`Machines` directly.
+
+Our "mock" implementations simply play back a fixed `WorldView`. We've
+isolated the state of our system, so we can use `var` to store the
+state (but this is not threadsafe).
 
 {lang="text"}
 ~~~~~~~~
@@ -1030,7 +1034,7 @@ feel easy using `var` to store the state.
       def stop(node: Node): Node = { stopped += 1 ; node }
     }
   
-    val program = new DynAgents[Deps.Op]
+    val program = DynAgents[DynAgents.Op]
   }
 ~~~~~~~~
 
@@ -1038,10 +1042,10 @@ When we write a unit test (here using `FlatSpec` from scalatest), we
 create an instance of `StaticHandlers` and then import all of its
 members.
 
-`FS` has a method `interpret`, requiring implicit handlers for its
-dependencies. Our implicit `drone` and `machines` both use the `Id`
-execution context and therefore interpreting this program with them
-returns an `Id[WorldView]` that we can assert on.
+`FS` has a method `interpret`, requiring implicit handlers for all of
+its dependencies. Our implicit `drone` and `machines` both use the
+`Id` execution context and therefore interpreting this program with
+them returns an `Id[WorldView]` that we can assert on.
 
 In this trivial case we just check that the `initial` method returns
 the same value that we use in the static handlers:
