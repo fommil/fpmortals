@@ -1236,7 +1236,7 @@ generated for each of our algebras, with a `case class` per method,
 allowing trampolining. When we write a `Handler`, Freestyle is
 converting pattern matches over heap objects into method calls.
 
-### Why is it called Free?
+### Free as in Monad
 
 `Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
 the name. However, from a practical point of view, there needs to be a
