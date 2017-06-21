@@ -1296,5 +1296,7 @@ and remove redundancy that we've accidentally introduced.
 4.  Test handlers can mock out the side-effecting parts of the system
     with trivial implementations, enabling a high level of test
     coverage for the business logic.
+5.  algebraic methods can be performed in parallel by taking their
+    `Cartesian` product or traversing sequences, caveat emptor.
 
 

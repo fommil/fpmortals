@@ -7,30 +7,7 @@
 #+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
 #+OPTIONS: toc:nil
 
-* Sample
-:PROPERTIES:
-:EXPORT_FILE_NAME: sample.md
-:END:
-
-** Giving Feedback
-
-You are reading the Sample. Please help raise awareness of this book
-by retweeting [[https://twitter.com/fommil/status/855877100296953862][the announcement]] and buying it when it becomes available
-for purchase.
-
-If you would like to give feedback on this book, thank you! I ask of
-you:
-
-1. if you are an FP beginner and something confused you, please point
-   out the exact part of the text that confused you at
-   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fp-scala-mortals]]
-2. if you are an expert in FP, please help by answering my questions
-   at [[https://github.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
-   this text.
-3. if you understood a concept, but feel that it could be explained in
-   a different way, let's park that thought for now.
-
-* Frontmatter
+* Frontmatter                                                  :sample:final:
 :PROPERTIES:
 :EXPORT_FILE_NAME: frontmatter.md
 :END:
@@ -145,13 +122,36 @@ import freestyle.implicits._
 import fs2._
 #+END_SRC
 
-* Mainmatter
+* Sample                                                             :sample:
+:PROPERTIES:
+:EXPORT_FILE_NAME: sample.md
+:END:
+
+** Giving Feedback
+
+You are reading the Sample. Please help raise awareness of this book
+by retweeting [[https://twitter.com/fommil/status/855877100296953862][the announcement]] and buying it when it becomes available
+for purchase.
+
+If you would like to give feedback on this book, thank you! I ask of
+you:
+
+1. if you are an FP beginner and something confused you, please point
+   out the exact part of the text that confused you at
+   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fp-scala-mortals]]
+2. if you are an expert in FP, please help by answering my questions
+   at [[https://github.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
+   this text.
+3. if you understood a concept, but feel that it could be explained in
+   a different way, let's park that thought for now.
+
+* Mainmatter                                                   :sample:final:
 :PROPERTIES:
 :EXPORT_FILE_NAME: mainmatter.md
 :END:
 {mainmatter}
 
-* Introduction                                                       :sample:
+* Introduction                                                 :sample:final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: introduction.md
   :END:
@@ -448,7 +448,7 @@ libraries to implement streaming applications. We'll also use the
 the boilerplate we've already seen in this chapter, allowing you to
 focus on writing pure business logic.
 
-* Under Review                                                       :sample:
+* Under Review                                                 :sample:final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: under-review.md
   :END:
@@ -1731,8 +1731,10 @@ and remove redundancy that we've accidentally introduced.
 4. Test handlers can mock out the side-effecting parts of the system
    with trivial implementations, enabling a high level of test
    coverage for the business logic.
+5. algebraic methods can be performed in parallel by taking their
+   =Cartesian= product or traversing sequences, caveat emptor.
 
-* Main Text
+* Main Text                                                           :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: main-text.md
   :END:
@@ -1811,7 +1813,7 @@ Protect yourself from mistyping
 
 not sure what the relevance to this project would be yet.
 
-* Backmatter
+* Backmatter                                                          :final:
 :PROPERTIES:
 :EXPORT_FILE_NAME: backmatter.md
 :END:
