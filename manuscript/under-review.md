@@ -1255,9 +1255,8 @@ when designing and testing applications:
 However, even if we look past the learning curve of FP, there are
 still some real challenges that remain:
 
-1.  trampolining has a performance impact due to increased memory
-    churn. FP is not applicable where the developer efficiency vs
-    runtime performance tradeoff is heavily biased towards performance.
+1.  trampolining has a performance impact due to increased memory churn
+    and garbage collection pressure.
 2.  there is not always IDE support for the advanced language features,
     macros or compiler plugins.
 3.  implementation details, as we have seen with `for` syntax sugar and
@@ -1273,6 +1272,11 @@ with time. Most of the problems are because there is a lack of
 commercially-funded tooling in FP scala. If you see the benefit of FP,
 you can help out by getting involved.
 
+Although FP Scala cannot be as fast as streamlined Java using mutable
+data structures, the performance impact is unlikely to affect you if
+you're already considering targetting the JVM. Measure the impact
+before making a decision if it is important to you.
+
 In the following chapters we are going to learn some of the vast
 library of functionality provided by the ecosystem, how it is
 organised and how you can find what you need (e.g. how did we know to
@@ -1280,5 +1284,17 @@ use `foldM` or `traverse` when we implemented `act`?). This will allow
 us to complete the implementation of our application by building
 additional layers of `@module`, use better alternatives to `Future`,
 and remove redundancy that we've accidentally introduced.
+
+## Summary
+
+1.  *algebras* define the boundaries between systems, implemented by
+    *handlers*.
+2.  *modules* define pure logic and depend on algebras and other
+    modules.
+3.  modules are *interpreted* by handlers in terms of the Free Monad,
+    which ensures stack safety at a modest cost to performance.
+4.  Test handlers can mock out the side-effecting parts of the system
+    with trivial implementations, enabling a high level of test
+    coverage for the business logic.
 
 

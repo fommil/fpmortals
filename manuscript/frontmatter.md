@@ -14,10 +14,12 @@ frustrated by the Java analogies and will prefer the [cats
 documentation](http://typelevel.org/cats/).
 
 This book is designed to be read from cover to cover, in the order
-presented, with a rest between chapters. A computer is not necessary
-to follow along.
+presented, with a rest between chapters. To ensure that the book is
+concise, important concepts are not repeated: intentionally against
+modern education theory.
 
-If you would like hands-on exercises, we recommend [scala-exercises.org](https://www.scala-exercises.org/)
+A computer is not necessary to follow along. If you would like
+hands-on exercises, we recommend [scala-exercises.org](https://www.scala-exercises.org/)
 
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
 write an FP library in Scala from first principles.

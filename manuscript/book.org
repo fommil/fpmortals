@@ -7,12 +7,34 @@
 #+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
 #+OPTIONS: toc:nil
 
+* Sample
+:PROPERTIES:
+:EXPORT_FILE_NAME: sample.md
+:END:
+
+** Giving Feedback
+
+You are reading the Sample. Please help raise awareness of this book
+by retweeting [[https://twitter.com/fommil/status/855877100296953862][the announcement]] and buying it when it becomes available
+for purchase.
+
+If you would like to give feedback on this book, thank you! I ask of
+you:
+
+1. if you are an FP beginner and something confused you, please point
+   out the exact part of the text that confused you at
+   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fp-scala-mortals]]
+2. if you are an expert in FP, please help by answering my questions
+   at [[https://github.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
+   this text.
+3. if you understood a concept, but feel that it could be explained in
+   a different way, let's park that thought for now.
+
 * Frontmatter
 :PROPERTIES:
 :EXPORT_FILE_NAME: frontmatter.md
 :END:
 {frontmatter}
-
 ** About This Book
 
 This book is for Scala developers with a Java Object Oriented
@@ -26,10 +48,12 @@ frustrated by the Java analogies and will prefer the [[http://typelevel.org/cats
 documentation]].
 
 This book is designed to be read from cover to cover, in the order
-presented, with a rest between chapters. A computer is not necessary
-to follow along.
+presented, with a rest between chapters. To ensure that the book is
+concise, important concepts are not repeated: intentionally against
+modern education theory.
 
-If you would like hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exercises.org]]
+A computer is not necessary to follow along. If you would like
+hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exercises.org]]
 
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
 write an FP library in Scala from first principles.
@@ -1666,9 +1690,8 @@ when designing and testing applications:
 However, even if we look past the learning curve of FP, there are
 still some real challenges that remain:
 
-1. trampolining has a performance impact due to increased memory
-   churn. FP is not applicable where the developer efficiency vs
-   runtime performance tradeoff is heavily biased towards performance.
+1. trampolining has a performance impact due to increased memory churn
+   and garbage collection pressure.
 2. there is not always IDE support for the advanced language features,
    macros or compiler plugins.
 3. implementation details, as we have seen with =for= syntax sugar and
@@ -1684,6 +1707,11 @@ with time. Most of the problems are because there is a lack of
 commercially-funded tooling in FP scala. If you see the benefit of FP,
 you can help out by getting involved.
 
+Although FP Scala cannot be as fast as streamlined Java using mutable
+data structures, the performance impact is unlikely to affect you if
+you're already considering targetting the JVM. Measure the impact
+before making a decision if it is important to you.
+
 In the following chapters we are going to learn some of the vast
 library of functionality provided by the ecosystem, how it is
 organised and how you can find what you need (e.g. how did we know to
@@ -1691,6 +1719,18 @@ use =foldM= or =traverse= when we implemented =act=?). This will allow
 us to complete the implementation of our application by building
 additional layers of =@module=, use better alternatives to =Future=,
 and remove redundancy that we've accidentally introduced.
+
+*** Summary
+
+1. /algebras/ define the boundaries between systems, implemented by
+   /handlers/.
+2. /modules/ define pure logic and depend on algebras and other
+   modules.
+3. modules are /interpreted/ by handlers in terms of the Free Monad,
+   which ensures stack safety at a modest cost to performance.
+4. Test handlers can mock out the side-effecting parts of the system
+   with trivial implementations, enabling a high level of test
+   coverage for the business logic.
 
 * Main Text
   :PROPERTIES:
