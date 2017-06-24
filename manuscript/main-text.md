@@ -2,6 +2,8 @@
 
 # TODO ADTs and Typeclasses
 
+Perhaps two chapters? Data vs Function
+
 refresher on implicits
 
 look into the oauth / google / drone algebras as examples.
@@ -23,8 +25,6 @@ Use (impure) example of merging two deep configuration ADTs (scala
 does not enforce purity so we can choose our own level)
 
 Not enough to implement, must also pass the laws
-
-Maybe use this example? <https://gitter.im/typelevel/cats?at=5904a2e98bb56c2d11f53979>
 
 The most important methods on `Monad` are
 
@@ -57,6 +57,11 @@ Rewrite our business logic to be streaming, convert our GET api into a
 
 Pad out the application implementation with everything we've learnt.
 
+May need union types, see <https://github.com/propensive/totalitarian>
+
+Will probably be a big chapter. Maybe best to leave it for a final
+part of the book?
+
 ## TODO Spotting patterns, refactoring
 
 Note that some of our algebras are actually common things and can be
@@ -65,15 +70,30 @@ that this is a step you can do later.
 
 ### RESEARCH perf numbers
 
-# TODO type refinement
+# TODO Dependent Types
+
+Jons talks are usually good for this <https://www.youtube.com/watch?v=a1whaMzrtsY>
+
+# TODO Type Refinement
 
 instead of needing those `error` calls in the first place, just don't
 allow them to happen at your layer if you can get away with it.
 
 Protect yourself from mistyping
 
-# RESEARCH Optics
+# TODO Typeclass Derivation
+
+<https://github.com/propensive/magnolia>
+
+# TODO Recursion Schemes
+
+# TODO Optics
 
 not sure what the relevance to this project would be yet.
+
+# TODO Category Theory
+
+Just some of the high level concepts, where to get started if you're interested.
+Not needed to write FP but it is needed if you want to read any academic papers.
 
 

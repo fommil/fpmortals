@@ -802,11 +802,30 @@ way should be familiar if you've ever used Spring's `@Autowired`
 
 {lang="text"}
 ~~~~~~~~
-  // FIXME: https://github.com/frees-io/freestyle/issues/369
   @module trait DynAgents {
     val d: Drone
     val m: Machines
 ~~~~~~~~
+
+A> At the time of writing, this `@module` code causes problems due to an
+A> [upstream bug in scala.meta](https://github.com/frees-io/freestyle/issues/369). The workaround is to write it in the
+A> slighly more verbose form:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   @module trait Deps {
+A>     val d: Drone
+A>     val m: Machines
+A>   }
+A>   
+A>   class DynAgents[F[_]]()(implicit D: Deps[F]) {
+A>     import D._
+A>     type FS[A] = FreeS[F, A]
+A> ~~~~~~~~
+A> 
+A> This is just boilerplate and there is no need to be aware that `Deps`
+A> exists. Later on if we reference `DynAgents.Op`, just replace it with
+A> `Deps.Op`.
 
 We now have access to the algebra of `Drone` and `Machines` as `d` and
 `m`, respectively, with methods returning `FS`, which is *monadic*
@@ -1259,13 +1278,14 @@ still some real challenges that remain:
     and garbage collection pressure.
 2.  there is not always IDE support for the advanced language features,
     macros or compiler plugins.
-3.  implementation details, as we have seen with `for` syntax sugar and
-    `Free`, and will see more examples later for `implicit` derivation,
-    can introduce mental overhead and become a blocker when they don't
-    work.
+3.  implementation details --- as we have already seen with `for`
+    syntax sugar, `@module`, and `Free` --- can introduce mental
+    overhead and become a blocker when they don't work.
 4.  the distinction between pure / side-effecting code, or stack-safe /
     stack-unsafe, is not enforced by the scala compiler. This requires
     developer discipline.
+5.  the developer community is still small. Getting help from the
+    community can often be a slow process.
 
 As with any new technology, there are rough edges that will be fixed
 with time. Most of the problems are because there is a lack of

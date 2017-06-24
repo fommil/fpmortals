@@ -6,6 +6,6 @@
 detailed explanation about what `@free` / `@module` is generating and
 how that feeds into the cats `Free` implementation.
 
-# RESEARCH Tagless Final
+# TODO Alternatives to Free
 
 
