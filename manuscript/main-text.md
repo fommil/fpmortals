@@ -165,10 +165,27 @@ instances and protect invalid instances from propagating:
 We will see an even better way of reporting validation errors when we
 introduce `cats.data.Validation` in the next chapter.
 
+### Simple to Share
+
+By not providing any functionality, ADTs can have a minimal set of
+dependencies. This makes them easy to publish and share with other
+developers. By using a simple data domain language, it makes it
+possible to interact with cross-discipline teams, such as DBAs and
+business analysts, using the actual code instead of a hand written
+document as the source of truth.
+
+Furthermore, tooling can be more easily written to produce schemas for
+alternative languages and wire protocols that map naturally to the
+data types.
+
 ### Counting Complexity
 
 The complexity of a data type is the number of instances that can
-exist.
+exist. Minimising the number of possible values that can exist is the
+best way to achieve totality, which is one of the core principles of
+FP.
+
+Primitives have a built in complexity:
 
 -   `Boolean` has two values
 -   `Int` has 2<sup>32</sup> - 1 values
@@ -191,32 +208,97 @@ type parameter for each entry:
 
 -   `Option[Boolean]` has 3 values, `Some[Boolean]` and `None` (`2+1`)
 
-We should always strive for simplicity over complexity. Let's say we
-have three mutually exclusive configuration parameters `wobble`,
-`quiver` and `fish`. The product `(wobble: Boolean, quiver: Boolean,
-fish: Boolean)` has complexity 6 whereas the coproduct
+An archetypal modelling problem that comes up a lot is when there are
+mutually exclusive configuration parameters `a`, `b` and `c`. The
+product `(a: Boolean, b: Boolean, c: Boolean)` has complexity 8
+whereas the coproduct
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait Wibble
-  object Wibble {
-    case object Wobble extends Wibble
-    case object Quiver extends Wibble
-    case object Fish extends Wibble
+  sealed trait Config
+  object Config {
+    case object A extends Config
+    case object B extends Config
+    case object C extends Config
   }
 ~~~~~~~~
 
 has a complexity of 3. It would be far better to model these
-configuration parameters as a coproduct rather than allowing 3 invalid
+configuration parameters as a coproduct rather than allowing 5 invalid
 states to exist.
 
-1.  TODO arbitrary / testing
+The complexity of a data type also has implications on testing. It is
+practically impossible to test every possible input to a function, but
+it is easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property
+testing library. We'll talk more about scalacheck in the next section
+on functionality.
 
-### TODO Optimisations
+### Optimisations
 
-### TODO Generic Representation
+A big advantage of using a simplified subset of the Scala language to
+represent data structures is that tooling can optimise the JVM
+bytecode representation of the data. For example, [stalagmite](https://github.com/fommil/stalagmite) can pack
+`Boolean` and `Option` values into an `Array[Byte]`, memoise
+instances, memoise `hashCode`, optimise `equals`, enforce validation,
+use `@switch` statements when pattern matching, and much more. These
+optimisations are not generally applicable to OOP `class` data
+structures that may be managing state, throwing exceptions, or
+providing adhoc method implementations and pattern extractors.
+
+### Generic Representation
+
+We hinted that product is synonymous with tuple and coproduct is
+synonymous with nested `Either`. The [shapeless](https://github.com/milessabin/shapeless) library takes this
+duality to the extreme and introduces a representation that is
+*generic* for all ADTs:
+
+-   `shapeless.HList` for representing products (`scala.Product` is
+    already taken)
+-   `shapeless.Coproduct` for representing coproducts
+
+Shapeless provides the ability to convert between its generic
+representation and ADTs, allowing functions to be written that work
+**for every** `case class` and `sealed trait`.
+
+It is not necessary to know how to write generic code to be able to
+make use of shapeless. However, it is an important part of FP Scala so
+we will return to it later with a dedicated chapter.
 
 ## TODO Functionality
+
+### implicit class to add functionality to a case class, and to a sealed trait
+
+### aside about AnyVal and performance optimisation, also why cats sometimes uses abstract class with methods
+
+### Advantage is that it keeps the data model clean, and can live higher up the dependency chain where deps are available
+
+### Disadvantage is that developers may not be aware of what functionality is available for a class. Tooling could help.
+
+### typeclasses, what if the functionality is more general than your ADT?
+
+### Addable / Semigroup (??? maybe) with syntax
+
+### context bounds, reads like "has a"
+
+### implicit resolution rules
+
+### scalacheck / properties
+
+### kittens, don't need to write it
+
+### similarly scalacheck-shapeless
+
+### allows overriding with different implementations (e.g. the "merge business rules" example)
+
+we don't always get to choose our APIs, and sometimes our customers ask us to throw an exception
+
+### computed at compile time, more efficient than runtime lookup
+
+cachedImplicit into a val
+
+### downside is compile time speeds for ADTs of 50+
+
+but there is magnolia and Miles' efforts in the compiler to address this
 
 # TODO Cats
 
