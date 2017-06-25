@@ -57,7 +57,7 @@ Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skil
 Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50),
 John de Goes for [A Beginner Friendly Tour](http://degoes.net/articles/easy-monads), Erik Bakker for [Options in
 Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8), Kelley Robinson for [Why the Free Monad
-isn't Free](https://www.youtube.com/watch?v=U0lK0hnbc4U).
+isn't Free](https://www.youtube.com/watch?v=U0lK0hnbc4U), Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/)
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund
@@ -76,7 +76,8 @@ FP-specific features enabled (e.g. in `build.sbt`):
   scalaVersion in ThisBuild := "2.12.2"
   scalacOptions in ThisBuild ++= Seq(
     "-language:_",
-    "-Ypartial-unification"
+    "-Ypartial-unification",
+    "-Xfatal-warnings"
   )
 ~~~~~~~~
 
