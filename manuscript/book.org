@@ -1756,10 +1756,6 @@ and remove redundancy that we've accidentally introduced.
 5. algebraic methods can be performed in parallel by taking their
    =Cartesian= product or traversing sequences, caveat emptor.
 
-* Main Text                                                           :final:
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: main-text.md
-  :END:
 ** Data and Functionality
 
 From OOP we are used to thinking about data and functionality
@@ -2039,6 +2035,10 @@ cachedImplicit into a val
 **** downside is compile time speeds for ADTs of 50+
 but there is magnolia and Miles' efforts in the compiler to address this
 
+* Main Text                                                           :final:
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: main-text.md
+  :END:
 ** TODO Cats
 *** TODO typeclasses
 
