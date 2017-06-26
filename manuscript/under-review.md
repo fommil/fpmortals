@@ -1327,27 +1327,20 @@ data fields exist. Polymorphism of an object is in terms of "is a"
 relationships, requiring classes to inherit from common interfaces.
 This can get messy as a codebase grows. Simple data structures become
 obscured by hundreds of lines of methods, trait mixins suffer from
-order initialisation errors, and testing / mocking of highly coupled
+initialisation order errors, and testing / mocking of highly coupled
 components becomes a chore.
 
 FP takes a different approach, defining data and functionality
-separately. In this chapter, we'll cover the basics of data structures
-and the advantages of constrainting ourselves to a subset of the Scala
-language. We will also discover *type classes* as an alternative for
-polymorphism: thinking about data in terms of "has a" rather than "is
-a" relationships.
+separately. In this chapter, we will cover the basics of data
+structures and the advantages of constrainting ourselves to a subset
+of the Scala language. We will also discover *type classes* as an
+alternative way to achieve polymorphism: thinking about data in terms
+of "has a" rather than "is a" relationships.
 
 ## Data
 
 In FP we make data structures explicit, rather than hidden as
 implementation detail.
-
-If you know the details of the Java or Scala standard library
-Collections implementations, you might think about them in terms of
-their data structures rather than the functionality they provide:
-`HashMap` vs `TreeMap`, `LinkedList` vs `ArrayList`, `List` vs
-`Vector`. This is useful to reason about memory footprint and
-performance.
 
 The fundamental building blocks of data structures are
 
@@ -1355,25 +1348,33 @@ The fundamental building blocks of data structures are
 -   `case object` also known as *singletons*
 -   `sealed trait` also known as *coproducts*
 
+with no members other than the constructor parameters.
+
+A `sealed trait` containing only singletons is equivalent to an `enum`
+in Java and is a more descriptive replacement for `Boolean` or `Int`
+feature flags.
+
 In fact singletons are just products in disguise, so we can think
-about data in terms of *products* and *coproducts*.
+about data in terms of *products* and *coproducts*. Products implement
+coproducts by extending them, but products are `final` and cannot be
+extended.
 
 The collective name for products and coproducts is *Algebraic Data
 Type* (ADT), an unfortunate and unrelated name collision with the
 algebras that we seen in the previous chapter. In this case, we
 compose data structures out of the `AND` and `XOR` algebra: a product
 (`case class`) always has every field, but a coproduct (`sealed
-trait`) must only be one of the possible implementations.
+trait`) can be only one of the possible implementations.
 
 It is important that we use `sealed trait`, not just `trait`, when
 defining a data structure. Sealing a trait means that all
 implementations must be defined in the same file, allowing the
 compiler to know about them in pattern match exhaustivity checks and
-in macros to eliminate boilerplate.
+in macros that eliminate boilerplate.
 
 When we introduce a type parameter into a `sealed trait` or `case
-class`, we call it a *Generalised Algebraic Data Type*. `List` is a
-GADT:
+class`, we call it a *Generalised Algebraic Data Type* (GADT). `List`
+is a GADT:
 
 {lang="text"}
 ~~~~~~~~
@@ -1383,12 +1384,17 @@ GADT:
 ~~~~~~~~
 
 If an ADT refers to itself, we call it a *recursive type*. Scala's
-`List` is recursive because the `::` (pronounced "cons" as in
-constructor) contains a reference to a `List`.
+`List` is recursive because the `::` (pronounced "cons", as in
+constructor cell) contains a reference to `List`.
 
-A `sealed trait` containing only singletons is equivalent to a simple
-`enum` in Java and is a more descriptive replacement for a `Boolean`
-or `Int` feature flag.
+ADTs can contain pure functions. In fact we have already seen this in
+the previous chapter when we encountered `Free`, which is a GADT.
+Carrying functions on ADTs come with some caveats as it doesn't map
+perfectly into the JVM. For example, legacy `Serializable`,
+`hashCode`, `equals` and `toString` do not support functions as first
+class members. We will explore alternatives to these legacy methods
+when we discuss the cats library in the next chapter, at the cost of
+losing interoperability with legacy Java and Scala code.
 
 A> **Exhaustivity caveats**
 A> 
@@ -1438,20 +1444,19 @@ A> with a default value unless you have proven that it cannot occur.
 ### Convey Information
 
 Besides being a container for necessary business information, data
-structure can be used to encode constraints. For example,
+structures can be used to encode constraints. For example,
 
 {lang="text"}
 ~~~~~~~~
   final case class NonEmptyList[+T](head: T, tail: List[T])
 ~~~~~~~~
 
-can never be empty because it is impossible to construct an empty
-instance. This makes `cats.data.NonEmptyList` a useful data structure
-despite containing the same information as `List`.
+can never be empty. This makes `cats.data.NonEmptyList` a useful data
+structure despite containing the same information as `List`.
 
-In addition, wrapping a class can convey information such as if a
-class contains valid entries. Instead of breaking *totality* by
-throwing an exception
+In addition, wrapping an ADT can convey information such as if it
+contains valid instances. Instead of breaking *totality* by throwing
+an exception
 
 {lang="text"}
 ~~~~~~~~
@@ -1460,8 +1465,8 @@ throwing an exception
   }
 ~~~~~~~~
 
-we can use the `scala.Either` data type to provide `Right[Person]`
-instances and protect invalid instances from propagating:
+we can use the `Either` data type to provide `Right[Person]` instances
+and protect invalid instances from propagating:
 
 {lang="text"}
 ~~~~~~~~
@@ -1481,7 +1486,7 @@ instances and protect invalid instances from propagating:
   } yield welcome(person)
 ~~~~~~~~
 
-We will see an even better way of reporting validation errors when we
+We will see a better way of reporting validation errors when we
 introduce `cats.data.Validation` in the next chapter.
 
 ### Simple to Share
@@ -1489,25 +1494,26 @@ introduce `cats.data.Validation` in the next chapter.
 By not providing any functionality, ADTs can have a minimal set of
 dependencies. This makes them easy to publish and share with other
 developers. By using a simple data domain language, it makes it
-possible to interact with cross-discipline teams, such as DBAs and
-business analysts, using the actual code instead of a hand written
-document as the source of truth.
+possible to interact with cross-discipline teams, such as DBAs, UI
+developers and business analysts, using the actual code instead of a
+hand written document as the source of truth.
 
 Furthermore, tooling can be more easily written to produce schemas for
-alternative languages and wire protocols that map naturally to the
-data types.
+other programming languages and wire protocols that map naturally to
+the data types.
 
 ### Counting Complexity
 
 The complexity of a data type is the number of instances that can
-exist. Minimising the number of possible values that can exist is the
-best way to achieve totality, which is one of the core principles of
-FP.
+exist. All pure functions are *total* and must return a value for
+every input. Minimising the number of possible values that can exist
+is the best way to achieve totality.
 
-Primitives have a built in complexity:
+Primitives have a built-in complexity:
 
+-   `Unit` has one value (why it's called "unit")
 -   `Boolean` has two values
--   `Int` has 2<sup>32</sup> - 1 values
+-   `Int` has 4,294,967,295 values
 -   `String` has effectively infinite values
 
 To find the complexity of a product, synonymous with a tuple, we
@@ -1527,6 +1533,38 @@ type parameter for each entry:
 
 -   `Option[Boolean]` has 3 values, `Some[Boolean]` and `None` (`2+1`)
 
+The complexity of a total function is the number of functions that
+could exist to satisfy the types, the output complexity to the power of
+the input complexity:
+
+-   `Unit=>Boolean` has complexity 2
+-   `Boolean=>Boolean` has complexity 4
+-   `Option[Boolean]=>Option[Boolean]` has complexity 9
+-   `Boolean=>Int` is a mere quintillion going on a sextillion.
+-   `Int=>Boolean` is so big that if all implementations were assigned a
+    unique number, each key would be 4GB. There may be more possible
+    implementations than there are particles in the universe.
+
+In reality, `Int=>Boolean` will be something simple like `isOdd`,
+`isEven` or a `bitset`. Functions are complicated, so do not put
+functions on your ADTs unless absolutely necessary: perhaps it could
+be better replaced with a coproduct of the limited set of functions
+that are relevant.
+
+As a rule of thumb, it is a sign of a badly designed function when the
+complexity of a function's return value is larger than the product of
+its inputs, like a source of entropy.
+
+When your complexity is always "infinity in, infinity out" you should
+consider introducing more restrictive data types and performing
+validation closer to the point of input. A powerful technique to
+reduce complexity is *type refinement* which merits a dedicated
+chapter later in the book and allows the compiler to keep track of
+more information than the bytecode, e.g. if a number is within a
+specific bound.
+
+### Prefer Coproduct over Product
+
 An archetypal modelling problem that comes up a lot is when there are
 mutually exclusive configuration parameters `a`, `b` and `c`. The
 product `(a: Boolean, b: Boolean, c: Boolean)` has complexity 8
@@ -1542,27 +1580,26 @@ whereas the coproduct
   }
 ~~~~~~~~
 
-has a complexity of 3. It would be far better to model these
-configuration parameters as a coproduct rather than allowing 5 invalid
-states to exist.
+has a complexity of 3. It is better to model these configuration
+parameters as a coproduct rather than allowing 5 invalid states to
+exist.
 
 The complexity of a data type also has implications on testing. It is
 practically impossible to test every possible input to a function, but
 it is easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property
-testing library. We'll talk more about scalacheck in the next section
-on functionality.
+testing library as we will see in the next section.
 
 ### Optimisations
 
 A big advantage of using a simplified subset of the Scala language to
 represent data structures is that tooling can optimise the JVM
-bytecode representation of the data. For example, [stalagmite](https://github.com/fommil/stalagmite) can pack
-`Boolean` and `Option` values into an `Array[Byte]`, memoise
-instances, memoise `hashCode`, optimise `equals`, enforce validation,
-use `@switch` statements when pattern matching, and much more. These
-optimisations are not generally applicable to OOP `class` data
-structures that may be managing state, throwing exceptions, or
-providing adhoc method implementations and pattern extractors.
+bytecode representation. For example, [stalagmite](https://github.com/fommil/stalagmite) can pack `Boolean`
+and `Option` fields into an `Array[Byte]`, cache instances, memoise
+`hashCode`, optimise `equals`, enforce validation, use `@switch`
+statements when pattern matching, and much more. These optimisations
+are not generally applicable to OOP `class` data structures that may
+be managing state, throwing exceptions, or providing adhoc method
+implementations and pattern extractors.
 
 ### Generic Representation
 
@@ -1575,9 +1612,9 @@ duality to the extreme and introduces a representation that is
     already taken)
 -   `shapeless.Coproduct` for representing coproducts
 
-Shapeless provides the ability to convert between its generic
-representation and ADTs, allowing functions to be written that work
-**for every** `case class` and `sealed trait`.
+Shapeless provides the ability to convert back and fourth between a
+generic representation and the ADT, allowing functions to be written
+that work **for every** `case class` and `sealed trait`.
 
 It is not necessary to know how to write generic code to be able to
 make use of shapeless. However, it is an important part of FP Scala so
