@@ -1352,94 +1352,156 @@ with no members other than the constructor parameters.
 
 A `sealed trait` containing only singletons is equivalent to an `enum`
 in Java and is a more descriptive replacement for `Boolean` or `Int`
-feature flags.
-
-In fact singletons are just products in disguise, so we can think
-about data in terms of *products* and *coproducts*. Products implement
-coproducts by extending them, but products are `final` and cannot be
-extended.
+feature flags. In fact singletons are just products in disguise, so we
+can think about data in terms of *products* and *coproducts*.
 
 The collective name for products and coproducts is *Algebraic Data
-Type* (ADT), an unfortunate and unrelated name collision with the
-algebras that we seen in the previous chapter. In this case, we
-compose data structures out of the `AND` and `XOR` algebra: a product
-(`case class`) always has every field, but a coproduct (`sealed
-trait`) can be only one of the possible implementations.
+Type* (ADT), an unfortunate name collision with the algebras from the
+previous chapter. In this case, we compose data structures out of the
+`AND` and `XOR` algebra: a product always has every field, but a
+coproduct can be only one of the possible subtypes.
 
-It is important that we use `sealed trait`, not just `trait`, when
-defining a data structure. Sealing a trait means that all
-implementations must be defined in the same file, allowing the
-compiler to know about them in pattern match exhaustivity checks and
-in macros that eliminate boilerplate.
+-   product is `a AND b AND c`
+-   coproduct is `x OR y OR z`
 
-When we introduce a type parameter into a `sealed trait` or `case
-class`, we call it a *Generalised Algebraic Data Type* (GADT). `List`
-is a GADT:
+As an example in Scala (remembering that `.type` is the type of a
+singleton):
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait List[+T]
-  case object Nil extends List[Nothing]
-  final case class ::[+T](head: T, tail: List[T]) extends List[T]
+  case object A
+  case object B
+  sealed trait C
+  
+  // product
+  case class ABC(a: A.type, b: B.type, c: C)
+  
+  // coproduct
+  sealed trait XYZ
+  case object X extends XYZ
+  case object Y extends XYZ
+  sealed trait Z extends XYZ
 ~~~~~~~~
 
-If an ADT refers to itself, we call it a *recursive type*. Scala's
-`List` is recursive because the `::` (pronounced "cons", as in
-constructor cell) contains a reference to `List`.
+1.  Alternative Products and Coproducts
 
-ADTs can contain pure functions. In fact we have already seen this in
-the previous chapter when we encountered `Free`, which is a GADT.
-Carrying functions on ADTs come with some caveats as it doesn't map
-perfectly into the JVM. For example, legacy `Serializable`,
-`hashCode`, `equals` and `toString` do not support functions as first
-class members. We will explore alternatives to these legacy methods
-when we discuss the cats library in the next chapter, at the cost of
-losing interoperability with legacy Java and Scala code.
+    Another form of product is a tuple, which is like a unlabelled `case
+    class`. `(A.type, B.type, C)` is equivalent to `ABC` in the above
+    example. It's best to use `case class` when part of an ADT because the
+    lack of names is awkward to deal with.
+    
+    Another form of coproduct is when we nest `Either` types. e.g.
+    
+    {lang="text"}
+    ~~~~~~~~
+      Either[X.type, Either[Y.type, Z]]
+    ~~~~~~~~
+    
+    equivalent to the `XYZ` sealed trait. A cleaner syntax to define
+    nested `Either` types is to create an alias type ending with a colon,
+    allowing infix notation with association from the right:
+    
+    {lang="text"}
+    ~~~~~~~~
+      type |:[L,R] = Either[L, R]
+      
+      X.type |: Y.type |: Z
+    ~~~~~~~~
+    
+    This is useful to create anonymous coproducts when you can't put all
+    the implementations into the same source file.
+    
+    {lang="text"}
+    ~~~~~~~~
+      type Accepted = String |: Long |: Boolean
+    ~~~~~~~~
 
-A> **Exhaustivity caveats**
-A> 
-A> We add `-Xfatal-warnings` to our compiler flags and are forced to
-A> update any code that matches over a `sealed trait` when somebody adds
-A> an extra implementation.
-A> 
-A> Although the scala compiler will perform exhaustivity checks when
-A> matching on sealed traits, e.g.
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   scala> sealed trait Foo
-A>          final case class Bar(flag: Boolean) extends Foo
-A>          final case object Baz extends Foo
-A>   
-A>   scala> def thing(foo: Foo) = foo match {
-A>            case Bar(_) => true
-A>          }
-A>   <console>:14: error: match may not be exhaustive.
-A>   It would fail on the following input: Baz
-A>          def thing(foo: Foo) = foo match {
-A>                                ^
-A> ~~~~~~~~
-A> 
-A> the compiler will not perform exhaustivity checking if there are
-A> guards, e.g.
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   scala> def thing(foo: Foo) = foo match {
-A>            case Bar(flag) if flag => true
-A>          }
-A>   
-A>   scala> thing(Baz)
-A>   scala.MatchError: Baz (of class Baz$)
-A>     at .thing(<console>:15)
-A> ~~~~~~~~
-A> 
-A> Note that the implementations of `Foo` are not the only concern here:
-A> this will fail at runtime if we pass a `Bar(false)`.
-A> 
-A> Guards should not be used when matching on a `sealed trait`, and when
-A> used on a `case class` should always include a `case _ =>` catch-all
-A> with a default value unless you have proven that it cannot occur.
+2.  Generalised ADTs
+
+    When we introduce a type parameter into a `sealed trait` or `case
+    class`, we call it a *Generalised Algebraic Data Type* (GADT). `List`
+    is a GADT:
+    
+    {lang="text"}
+    ~~~~~~~~
+      sealed trait List[+T]
+      case object Nil extends List[Nothing]
+      final case class ::[+T](head: T, tail: List[T]) extends List[T]
+    ~~~~~~~~
+    
+    If an ADT refers to itself, we call it a *recursive type*. Scala's
+    `List` is recursive because the `::` (pronounced "cons", as in
+    constructor cell) contains a reference to `List`.
+    
+    ADTs can contain pure functions. In fact we have already seen this in
+    the previous chapter when we encountered `Free`, look again at the `f`
+    parameter in `FlatMapped`
+    
+    {lang="text"}
+    ~~~~~~~~
+      sealed trait Free[S[_], A]
+      case class Pure[S[_], A](a: A) extends Free[S, A]
+      case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+      case class FlatMapped[S[_], B, C](c: Free[S, C],
+                                        f: C => Free[S, B]) extends Free[S, B]
+    ~~~~~~~~
+    
+    Carrying functions on ADTs come with some caveats as it doesn't map
+    perfectly onto the JVM. For example, legacy `Serializable`,
+    `hashCode`, `equals` and `toString` do not support functions as first
+    class members. We will explore alternatives to these legacy methods
+    when we discuss the cats library in the next chapter, at the cost of
+    losing interoperability with legacy Java and Scala code.
+    
+    It is important that we use `sealed trait`, not just `trait`, when
+    defining a data structure. Sealing a trait means that all subtypes
+    must be defined in the same file, allowing the compiler to know about
+    them in pattern match exhaustivity checks and in macros that eliminate
+    boilerplate.
+    
+    A> **Exhaustivity caveats**
+    A> 
+    A> The scala compiler will perform exhaustivity checks when matching on
+    A> sealed traits, e.g.
+    A> 
+    A> {lang="text"}
+    A> ~~~~~~~~
+    A>   scala> sealed trait Foo
+    A>          final case class Bar(flag: Boolean) extends Foo
+    A>          final case object Baz extends Foo
+    A>   
+    A>   scala> def thing(foo: Foo) = foo match {
+    A>            case Bar(_) => true
+    A>          }
+    A>   <console>:14: error: match may not be exhaustive.
+    A>   It would fail on the following input: Baz
+    A>          def thing(foo: Foo) = foo match {
+    A>                                ^
+    A> ~~~~~~~~
+    A> 
+    A> This shows the developer what they have broken when they add a new
+    A> product to the codebase. We're using `-Xfatal-warnings`, otherwise
+    A> this is just a warning.
+    A> 
+    A> However, the compiler will not perform exhaustivity checking if there
+    A> are guards, e.g.
+    A> 
+    A> {lang="text"}
+    A> ~~~~~~~~
+    A>   scala> def thing(foo: Foo) = foo match {
+    A>            case Bar(flag) if flag => true
+    A>          }
+    A>   
+    A>   scala> thing(Baz)
+    A>   scala.MatchError: Baz (of class Baz$)
+    A>     at .thing(<console>:15)
+    A> ~~~~~~~~
+    A> 
+    A> This will also fail at runtime if we pass a `Bar(false)`.
+    A> 
+    A> Guards should not be used when matching on a `sealed trait`. When
+    A> guards are used on a `case class`, there should always be a `case _
+    A> =>` with a default value, unless you have proven that it cannot occur.
 
 ### Convey Information
 
@@ -1505,9 +1567,8 @@ the data types.
 ### Counting Complexity
 
 The complexity of a data type is the number of instances that can
-exist. All pure functions are *total* and must return a value for
-every input. Minimising the number of possible values that can exist
-is the best way to achieve totality.
+exist. A good data structure has the least amount of complexity it
+needs to hold the information it conveys, and no more.
 
 Primitives have a built-in complexity:
 
@@ -1516,51 +1577,52 @@ Primitives have a built-in complexity:
 -   `Int` has 4,294,967,295 values
 -   `String` has effectively infinite values
 
-To find the complexity of a product, synonymous with a tuple, we
-multiply the complexity of each part.
+To find the complexity of a product, we multiply the complexity of
+each part.
 
 -   `(Boolean, Boolean)` has 4 values (`2*2`)
 -   `(Boolean, Boolean, Boolean)` has 8 values (`2*2*2`)
 
-To find the complexity of a coproduct, synonymous with nested
-`Either`, we add the complexity of each part.
+To find the complexity of a coproduct, we add the complexity of each
+part.
 
 -   `Either[Boolean, Boolean]` has 4 values (`2+2`)
 -   `Either[Boolean, Either[Boolean, Boolean]]` has 6 values (`2+2+2`)
 
-To find the complexity of a GADT, multiply by the complexity of the
-type parameter for each entry:
+To find the complexity of a GADT, multiply each part by the complexity
+of the type parameter:
 
 -   `Option[Boolean]` has 3 values, `Some[Boolean]` and `None` (`2+1`)
 
-The complexity of a total function is the number of functions that
-could exist to satisfy the types, the output complexity to the power of
-the input complexity:
+In FP, functions are *total* and must return a value for every input,
+no `Exception`. Minimising the complexity of inputs and outputs is the
+best way to achieve totality. As a rule of thumb, it is a sign of a
+badly designed function when the complexity of a function's return
+value is larger than the product of its inputs: it becomes a source of
+entropy.
+
+The complexity of a total function itself is the number of possible
+functions that can satisfy the type signature: the output to the power
+of the input.
 
 -   `Unit=>Boolean` has complexity 2
 -   `Boolean=>Boolean` has complexity 4
--   `Option[Boolean]=>Option[Boolean]` has complexity 9
+-   `Option[Boolean]=>Option[Boolean]` has complexity 27
 -   `Boolean=>Int` is a mere quintillion going on a sextillion.
 -   `Int=>Boolean` is so big that if all implementations were assigned a
-    unique number, each key would be 4GB. There may be more possible
-    implementations than there are particles in the universe.
+    unique number, each number would be 4GB.
 
 In reality, `Int=>Boolean` will be something simple like `isOdd`,
-`isEven` or a `bitset`. Functions are complicated, so do not put
-functions on your ADTs unless absolutely necessary: perhaps it could
-be better replaced with a coproduct of the limited set of functions
-that are relevant.
-
-As a rule of thumb, it is a sign of a badly designed function when the
-complexity of a function's return value is larger than the product of
-its inputs, like a source of entropy.
+`isEven` or a sparse `BitSet`. This function, when used in an ADT,
+could be better replaced with a coproduct labelling the limited set of
+functions that are relevant.
 
 When your complexity is always "infinity in, infinity out" you should
 consider introducing more restrictive data types and performing
 validation closer to the point of input. A powerful technique to
 reduce complexity is *type refinement* which merits a dedicated
-chapter later in the book and allows the compiler to keep track of
-more information than the bytecode, e.g. if a number is within a
+chapter later in the book. It allows the compiler to keep track of
+more information than is in the bytecode, e.g. if a number is within a
 specific bound.
 
 ### Prefer Coproduct over Product
@@ -1587,7 +1649,9 @@ exist.
 The complexity of a data type also has implications on testing. It is
 practically impossible to test every possible input to a function, but
 it is easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property
-testing library as we will see in the next section.
+testing library as we will see in the next section. If a random sample
+of a data type has a low probability of being valid, it's a sign that
+the data has been modelling incorrectly.
 
 ### Optimisations
 
@@ -1608,13 +1672,33 @@ synonymous with nested `Either`. The [shapeless](https://github.com/milessabin/s
 duality to the extreme and introduces a representation that is
 *generic* for all ADTs:
 
--   `shapeless.HList` for representing products (`scala.Product` is
-    already taken)
--   `shapeless.Coproduct` for representing coproducts
+-   `shapeless.HList` (symbolically `::`) for representing products
+    (`scala.Product` already exists for another purpose)
+-   `shapeless.Coproduct` (symbolically `:+:`) for representing coproducts
 
 Shapeless provides the ability to convert back and fourth between a
 generic representation and the ADT, allowing functions to be written
 that work **for every** `case class` and `sealed trait`.
+
+{lang="text"}
+~~~~~~~~
+  scala> import shapeless._
+         case class Foo(a: String, b: Long)
+         Generic[Foo].to(Foo("hello", 13L))
+  res: String :: Long :: HNil = hello :: 13 :: HNil
+  
+  scala> Generic[Foo].from("hello" :: 13L :: HNil)
+  res: Foo = Foo(hello,13)
+  
+  scala> sealed trait Bar
+         case object Irish extends Bar
+         case object English extends Bar
+  
+  scala> Generic[Bar].to(Irish)
+  res: English.type :+: Irish.type :+: CNil = Inr(Inl(Irish))
+~~~~~~~~
+
+`HNil` is the empty product and `CNil` is the empty coproduct.
 
 It is not necessary to know how to write generic code to be able to
 make use of shapeless. However, it is an important part of FP Scala so

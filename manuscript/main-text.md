@@ -25,6 +25,9 @@ The most important methods on `Monad` are
 -   `flatMap[B](f: A => FreeS[F, B])` creates a new program from the
     result of running a previous program
 
+examples that are not necessarily pure, such as ApplicativeError and
+the Monoid usecase with exceptions.
+
 ## TODO data types
 
 # TODO Effects
