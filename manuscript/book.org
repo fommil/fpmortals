@@ -1783,8 +1783,7 @@ The fundamental building blocks of data types are
 
 - =final case class= also known as /products/
 - =sealed trait= also known as /coproducts/
-- value types (=Int=, =Double=, etc), =String= and =case object=
-  /singletons/
+- =case object= /singletons/ and /values/ (=Int=, =Double=, =String=, etc)
 
 with no methods or fields other than the constructor parameters.
 
@@ -1795,35 +1794,36 @@ think about data in terms of /products/, /coproducts/ and /values/.
 
 The collective name for products and coproducts is /Algebraic Data
 Type/ (ADT), an unfortunate name collision with the algebras from the
-previous chapter. In this case, we compose data types out of the =AND=
-and =XOR= algebra: a product always has every type, but a coproduct
-can be only one of the possible types. For example
+previous chapter. We compose data types from the =AND= and =XOR=
+algebra: a product always has every type, but a coproduct can be only
+one of the possible types. For example
 
 - product: =a AND b AND c=
-- coproduct: =x OR y OR z=
+- coproduct: =x XOR y XOR z=
 
 and in Scala (remembering that =.type= is the type of a singleton):
 
 #+BEGIN_SRC scala
 case object A
-case object B
-sealed trait C
+type B = String
+type C = Int
 
 // product
-case class ABC(a: A.type, b: B.type, c: C)
+case class ABC(a: A.type, b: B, c: C)
 
 // coproduct
 sealed trait XYZ
 case object X extends XYZ
 case object Y extends XYZ
-sealed trait Z extends XYZ
+case class Z(b: B) extends XYZ
 #+END_SRC
 
 **** Generalised ADTs
 
-When we introduce a type parameter into a =sealed trait= or =case
-class=, we call it a /Generalised Algebraic Data Type/ (GADT). =List=
-is a GADT:
+When we introduce a type parameter into an ADT, we call it a
+/Generalised Algebraic Data Type/ (GADT).
+
+=List= is a GADT:
 
 #+BEGIN_SRC scala
 sealed trait List[+T]
@@ -1833,7 +1833,7 @@ final case class ::[+T](head: T, tail: List[T]) extends List[T]
 
 If an ADT refers to itself, we call it a /recursive type/. Scala's
 =List= is recursive because the =::= (pronounced "cons", as in
-constructor cell) contains a reference to =List=.
+"constructor cell") contains a reference to =List=.
 
 ADTs can contain pure functions. In fact we have already seen this in
 the previous chapter when we encountered =Free=, look again at the =f=
@@ -1850,7 +1850,7 @@ case class FlatMapped[S[_], B, C](c: Free[S, C],
 Functions on ADTs come with some caveats as they don't translate
 perfectly onto the JVM. For example, legacy =Serializable=,
 =hashCode=, =equals= and =toString= do not behave as one might
-reasonably expect for functions.
+reasonably expect.
 
 In particular, =Serializable= may attempt to serialise the entire
 closure of a function, and has been known to crash production servers.
@@ -1918,9 +1918,9 @@ guards are used on a =case class=, there should always be a =case _
 **** Alternative Products and Coproducts
 
 Another form of product is a tuple, which is like an unlabelled =case
-class=. =(A.type, B.type, C)= is equivalent to =ABC= in the above
-example. It's best to use =case class= when part of an ADT because the
-lack of names is awkward to deal with.
+class=. =(A.type, B, C)= is equivalent to =ABC= in the above example.
+It's best to use =case class= when part of an ADT because the lack of
+names is awkward to deal with.
 
 Another form of coproduct is when we nest =Either= types. e.g.
 
@@ -1944,6 +1944,11 @@ the implementations into the same source file.
 #+BEGIN_SRC scala
 type Accepted = String |: Long |: Boolean
 #+END_SRC
+
+Pattern matching on this form of coproduct can be tedious, which is
+why [[https://contributors.scala-lang.org/t/733][Union Types]] are being explored in the Dotty next-generation scala
+compiler. Workarounds such as [[https://github.com/propensive/totalitarian][totalitarian]]'s =Disjunct= exist as
+another way of encoding anonymous coproducts.
 
 **** Convey Information
 
@@ -2009,35 +2014,35 @@ The complexity of a data type is the number of instances that can
 exist. A good data type has the least amount of complexity it needs to
 hold the information it conveys, and no more.
 
-Primitives have a built-in complexity:
+Values have a built-in complexity:
 
-- =Unit= has one value (why it's called "unit")
-- =Boolean= has two values
-- =Int= has 4,294,967,295 values
-- =String= has effectively infinite values
+- =Unit= has one instance (why it's called "unit")
+- =Boolean= has two instances
+- =Int= has 4,294,967,295 instances
+- =String= has effectively infinite instances
 
 To find the complexity of a product, we multiply the complexity of
 each part.
 
-- =(Boolean, Boolean)= has 4 values (=2*2=)
-- =(Boolean, Boolean, Boolean)= has 8 values (=2*2*2=)
+- =(Boolean, Boolean)= has 4 instances (=2*2=)
+- =(Boolean, Boolean, Boolean)= has 8 instances (=2*2*2=)
 
 To find the complexity of a coproduct, we add the complexity of each
 part.
 
-- =Boolean |: Boolean= has 4 values (=2+2=)
-- =Boolean |: Boolean |: Boolean= has 6 values (=2+2+2=)
+- =(Boolean |: Boolean)= has 4 instances (=2+2=)
+- =(Boolean |: Boolean |: Boolean)= has 6 instances (=2+2+2=)
 
 To find the complexity of a GADT, multiply each part by the complexity
 of the type parameter:
 
-- =Option[Boolean]= has 3 values, =Some[Boolean]= and =None= (=2+1=)
+- =Option[Boolean]= has 3 instances, =Some[Boolean]= and =None= (=2+1=)
 
-In FP, functions are /total/ and must return a value for every input,
+In FP, functions are /total/ and must return a instance for every input,
 no =Exception=. Minimising the complexity of inputs and outputs is the
 best way to achieve totality. As a rule of thumb, it is a sign of a
 badly designed function when the complexity of a function's return
-value is larger than the product of its inputs: it is a source of
+instance is larger than the product of its inputs: it is a source of
 entropy.
 
 The complexity of a total function itself is the number of possible
@@ -2094,14 +2099,17 @@ the data has been modelling incorrectly.
 **** Optimisations
 
 A big advantage of using a simplified subset of the Scala language to
-represent data type is that tooling can optimise the JVM bytecode
-representation. For example, [[https://github.com/fommil/stalagmite][stalagmite]] can pack =Boolean= and
-=Option= fields into an =Array[Byte]=, cache instances, memoise
-=hashCode=, optimise =equals=, enforce validation, use =@switch=
-statements when pattern matching, and much more. These optimisations
-are not generally applicable to OOP =class= data type that may be
-managing state, throwing exceptions, or providing adhoc method
-implementations and pattern extractors.
+represent data types is that tooling can optimise the JVM bytecode
+representation.
+
+For example, [[https://github.com/fommil/stalagmite][stalagmite]] can pack =Boolean= and =Option= fields into an
+=Array[Byte]=, cache instances, memoise =hashCode=, optimise =equals=,
+enforce validation, use =@switch= statements when pattern matching,
+and much more.
+
+These optimisations are not applicable to general =class= definitions
+that may be managing state, throwing exceptions, or providing adhoc
+method implementations and pattern extractors.
 
 **** Generic Representation
 
