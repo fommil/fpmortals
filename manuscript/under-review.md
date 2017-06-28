@@ -1463,8 +1463,8 @@ This shows the developer what they have broken when they add a new
 product to the codebase. We're using `-Xfatal-warnings`, otherwise
 this is just a warning.
 
-However, the compiler will not perform exhaustivity checking if there
-are guards, e.g.
+However, the compiler will not perform exhaustivity checking if the
+`trait` is not sealed or if there are guards, e.g.
 
 {lang="text"}
 ~~~~~~~~
@@ -1482,6 +1482,9 @@ This will also fail at runtime if we pass a `Bar(false)`.
 Guards should not be used when matching on a `sealed trait`. When
 guards are used on a `case class`, there should always be a `case _
 =>` with a default value, unless you have proven that it cannot occur.
+
+[`-Xstrict-patmat-analysis`](https://github.com/scala/scala/pull/5617) flag has been proposed as a language
+improvement to perform additional pattern matcher checks.
 
 ### Alternative Products and Coproducts
 
