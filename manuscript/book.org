@@ -1804,6 +1804,7 @@ one of the possible types. For example
 and in Scala (remembering that =.type= is the type of a singleton):
 
 #+BEGIN_SRC scala
+// values
 case object A
 type B = String
 type C = Int

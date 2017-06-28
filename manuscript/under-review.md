@@ -1368,6 +1368,7 @@ and in Scala (remembering that `.type` is the type of a singleton):
 
 {lang="text"}
 ~~~~~~~~
+  // values
   case object A
   type B = String
   type C = Int
