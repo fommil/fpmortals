@@ -1221,8 +1221,8 @@ protecting internal state with concurrency locks.
 
 What we've been doing in this chapter is using the *free monad*,
 `cats.free.Free`, to build up the definition of our program as a data
-structure and then we interpret it. Freestyle calls it `FS`, which is
-just a type alias to `Free`, hiding an irrelevant type parameter.
+type and then we interpret it. Freestyle calls it `FS`, which is just
+a type alias to `Free`, hiding an irrelevant type parameter.
 
 The reason why we use `Free` instead of just implementing `cats.Monad`
 directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
@@ -1246,11 +1246,11 @@ the stack, eventually resulting in a `StackOverflowError`.
 ~~~~~~~~
 
 Its definition of `pure` / `map` / `flatMap` do not do any work, they
-just build up data structures that live on the heap. Work is delayed
-until Free is *interpreted*. This technique of using heap objects to
+just build up data types that live on the heap. Work is delayed until
+Free is *interpreted*. This technique of using heap objects to
 eliminate stack growth is known as *trampolining*.
 
-When we use the `@free` annotation, a `sealed trait` data structure is
+When we use the `@free` annotation, a `sealed trait` data type is
 generated for each of our algebras, with a `case class` per method,
 allowing trampolining. When we write a `Handler`, Freestyle is
 converting pattern matches over heap objects into method calls.
@@ -1292,10 +1292,10 @@ with time. Most of the problems are because there is a lack of
 commercially-funded tooling in FP scala. If you see the benefit of FP,
 you can help out by getting involved.
 
-Although FP Scala cannot be as fast as streamlined Java using mutable
-data structures, the performance impact is unlikely to affect you if
-you're already considering targetting the JVM. Measure the impact
-before making a decision if it is important to you.
+Although FP Scala cannot be as fast as streamlined Java using
+mutation, the performance impact is unlikely to affect you if you're
+already considering targetting the JVM. Measure the impact before
+making a decision if it is important to you.
 
 In the following chapters we are going to learn some of the vast
 library of functionality provided by the ecosystem, how it is
@@ -1325,47 +1325,47 @@ From OOP we are used to thinking about data and functionality
 together: class hierarchies carry methods, and traits can demand that
 data fields exist. Polymorphism of an object is in terms of "is a"
 relationships, requiring classes to inherit from common interfaces.
-This can get messy as a codebase grows. Simple data structures become
+This can get messy as a codebase grows. Simple data types become
 obscured by hundreds of lines of methods, trait mixins suffer from
 initialisation order errors, and testing / mocking of highly coupled
 components becomes a chore.
 
 FP takes a different approach, defining data and functionality
-separately. In this chapter, we will cover the basics of data
-structures and the advantages of constrainting ourselves to a subset
-of the Scala language. We will also discover *type classes* as an
-alternative way to achieve polymorphism: thinking about data in terms
-of "has a" rather than "is a" relationships.
+separately. In this chapter, we will cover the basics of data types
+and the advantages of constrainting ourselves to a subset of the Scala
+language. We will also discover *type classes* as an alternative way
+to achieve polymorphism: thinking about data in terms of "has a"
+rather than "is a" relationships.
 
 ## Data
 
-In FP we make data structures explicit, rather than hidden as
+In FP we make data types explicit, rather than hidden as
 implementation detail.
 
-The fundamental building blocks of data structures are
+The fundamental building blocks of data types are
 
 -   `final case class` also known as *products*
--   `case object` also known as *singletons*
 -   `sealed trait` also known as *coproducts*
+-   value types (`Int`, `Double`, etc), `String` and `case object`
+      *singletons*
 
-with no members other than the constructor parameters.
+with no methods or fields other than the constructor parameters.
 
 A `sealed trait` containing only singletons is equivalent to an `enum`
 in Java and is a more descriptive replacement for `Boolean` or `Int`
-feature flags. In fact singletons are just products in disguise, so we
-can think about data in terms of *products* and *coproducts*.
+feature flags. Singletons are just value types in disguise, so we can
+think about data in terms of *products*, *coproducts* and *values*.
 
 The collective name for products and coproducts is *Algebraic Data
 Type* (ADT), an unfortunate name collision with the algebras from the
-previous chapter. In this case, we compose data structures out of the
-`AND` and `XOR` algebra: a product always has every field, but a
-coproduct can be only one of the possible subtypes.
+previous chapter. In this case, we compose data types out of the `AND`
+and `XOR` algebra: a product always has every type, but a coproduct
+can be only one of the possible types. For example
 
--   product is `a AND b AND c`
--   coproduct is `x OR y OR z`
+-   product: `a AND b AND c`
+-   coproduct: `x OR y OR z`
 
-As an example in Scala (remembering that `.type` is the type of a
-singleton):
+and in Scala (remembering that `.type` is the type of a singleton):
 
 {lang="text"}
 ~~~~~~~~
@@ -1383,130 +1383,143 @@ singleton):
   sealed trait Z extends XYZ
 ~~~~~~~~
 
-1.  Alternative Products and Coproducts
+### Generalised ADTs
 
-    Another form of product is a tuple, which is like a unlabelled `case
-    class`. `(A.type, B.type, C)` is equivalent to `ABC` in the above
-    example. It's best to use `case class` when part of an ADT because the
-    lack of names is awkward to deal with.
-    
-    Another form of coproduct is when we nest `Either` types. e.g.
-    
-    {lang="text"}
-    ~~~~~~~~
-      Either[X.type, Either[Y.type, Z]]
-    ~~~~~~~~
-    
-    equivalent to the `XYZ` sealed trait. A cleaner syntax to define
-    nested `Either` types is to create an alias type ending with a colon,
-    allowing infix notation with association from the right:
-    
-    {lang="text"}
-    ~~~~~~~~
-      type |:[L,R] = Either[L, R]
-      
-      X.type |: Y.type |: Z
-    ~~~~~~~~
-    
-    This is useful to create anonymous coproducts when you can't put all
-    the implementations into the same source file.
-    
-    {lang="text"}
-    ~~~~~~~~
-      type Accepted = String |: Long |: Boolean
-    ~~~~~~~~
+When we introduce a type parameter into a `sealed trait` or `case
+class`, we call it a *Generalised Algebraic Data Type* (GADT). `List`
+is a GADT:
 
-2.  Generalised ADTs
+{lang="text"}
+~~~~~~~~
+  sealed trait List[+T]
+  case object Nil extends List[Nothing]
+  final case class ::[+T](head: T, tail: List[T]) extends List[T]
+~~~~~~~~
 
-    When we introduce a type parameter into a `sealed trait` or `case
-    class`, we call it a *Generalised Algebraic Data Type* (GADT). `List`
-    is a GADT:
-    
-    {lang="text"}
-    ~~~~~~~~
-      sealed trait List[+T]
-      case object Nil extends List[Nothing]
-      final case class ::[+T](head: T, tail: List[T]) extends List[T]
-    ~~~~~~~~
-    
-    If an ADT refers to itself, we call it a *recursive type*. Scala's
-    `List` is recursive because the `::` (pronounced "cons", as in
-    constructor cell) contains a reference to `List`.
-    
-    ADTs can contain pure functions. In fact we have already seen this in
-    the previous chapter when we encountered `Free`, look again at the `f`
-    parameter in `FlatMapped`
-    
-    {lang="text"}
-    ~~~~~~~~
-      sealed trait Free[S[_], A]
-      case class Pure[S[_], A](a: A) extends Free[S, A]
-      case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-      case class FlatMapped[S[_], B, C](c: Free[S, C],
-                                        f: C => Free[S, B]) extends Free[S, B]
-    ~~~~~~~~
-    
-    Carrying functions on ADTs come with some caveats as it doesn't map
-    perfectly onto the JVM. For example, legacy `Serializable`,
-    `hashCode`, `equals` and `toString` do not support functions as first
-    class members. We will explore alternatives to these legacy methods
-    when we discuss the cats library in the next chapter, at the cost of
-    losing interoperability with legacy Java and Scala code.
-    
-    It is important that we use `sealed trait`, not just `trait`, when
-    defining a data structure. Sealing a trait means that all subtypes
-    must be defined in the same file, allowing the compiler to know about
-    them in pattern match exhaustivity checks and in macros that eliminate
-    boilerplate.
-    
-    A> **Exhaustivity caveats**
-    A> 
-    A> The scala compiler will perform exhaustivity checks when matching on
-    A> sealed traits, e.g.
-    A> 
-    A> {lang="text"}
-    A> ~~~~~~~~
-    A>   scala> sealed trait Foo
-    A>          final case class Bar(flag: Boolean) extends Foo
-    A>          final case object Baz extends Foo
-    A>   
-    A>   scala> def thing(foo: Foo) = foo match {
-    A>            case Bar(_) => true
-    A>          }
-    A>   <console>:14: error: match may not be exhaustive.
-    A>   It would fail on the following input: Baz
-    A>          def thing(foo: Foo) = foo match {
-    A>                                ^
-    A> ~~~~~~~~
-    A> 
-    A> This shows the developer what they have broken when they add a new
-    A> product to the codebase. We're using `-Xfatal-warnings`, otherwise
-    A> this is just a warning.
-    A> 
-    A> However, the compiler will not perform exhaustivity checking if there
-    A> are guards, e.g.
-    A> 
-    A> {lang="text"}
-    A> ~~~~~~~~
-    A>   scala> def thing(foo: Foo) = foo match {
-    A>            case Bar(flag) if flag => true
-    A>          }
-    A>   
-    A>   scala> thing(Baz)
-    A>   scala.MatchError: Baz (of class Baz$)
-    A>     at .thing(<console>:15)
-    A> ~~~~~~~~
-    A> 
-    A> This will also fail at runtime if we pass a `Bar(false)`.
-    A> 
-    A> Guards should not be used when matching on a `sealed trait`. When
-    A> guards are used on a `case class`, there should always be a `case _
-    A> =>` with a default value, unless you have proven that it cannot occur.
+If an ADT refers to itself, we call it a *recursive type*. Scala's
+`List` is recursive because the `::` (pronounced "cons", as in
+constructor cell) contains a reference to `List`.
+
+ADTs can contain pure functions. In fact we have already seen this in
+the previous chapter when we encountered `Free`, look again at the `f`
+parameter in `FlatMapped`
+
+{lang="text"}
+~~~~~~~~
+  sealed trait Free[S[_], A]
+  case class Pure[S[_], A](a: A) extends Free[S, A]
+  case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  case class FlatMapped[S[_], B, C](c: Free[S, C],
+                                    f: C => Free[S, B]) extends Free[S, B]
+~~~~~~~~
+
+Functions on ADTs come with some caveats as they don't translate
+perfectly onto the JVM. For example, legacy `Serializable`,
+`hashCode`, `equals` and `toString` do not behave as one might
+reasonably expect for functions.
+
+In particular, `Serializable` may attempt to serialise the entire
+closure of a function, and has been known to crash production servers.
+A similar caveat applies to legacy Java classes such as `Throwable`,
+which can carry references to arbitrary objects. This is one of the
+reasons why we restrict what can live on an ADT.
+
+A similar caveat applies to *by name* parameters, e.g. `foo:=>String`,
+which are equivalent to functions taking no parameter. Lazy parameters
+can be used to define infinitely long data types. This is an advanced
+and specialist topic that we will not cover.
+
+We will explore alternatives to these legacy methods when we discuss
+the cats library in the next chapter, at the cost of losing
+interoperability with some legacy Java and Scala code.
+
+### Exhaustivity
+
+It is important that we use `sealed trait`, not just `trait`, when
+defining a data type. Sealing a trait means that all subtypes must be
+defined in the same file, allowing the compiler to know about them in
+pattern match exhaustivity checks and in macros that eliminate
+boilerplate.
+
+The scala compiler will perform exhaustivity checks when matching on
+sealed traits, e.g.
+
+{lang="text"}
+~~~~~~~~
+  scala> sealed trait Foo
+         final case class Bar(flag: Boolean) extends Foo
+         final case object Baz extends Foo
+  
+  scala> def thing(foo: Foo) = foo match {
+           case Bar(_) => true
+         }
+  <console>:14: error: match may not be exhaustive.
+  It would fail on the following input: Baz
+         def thing(foo: Foo) = foo match {
+                               ^
+~~~~~~~~
+
+This shows the developer what they have broken when they add a new
+product to the codebase. We're using `-Xfatal-warnings`, otherwise
+this is just a warning.
+
+However, the compiler will not perform exhaustivity checking if there
+are guards, e.g.
+
+{lang="text"}
+~~~~~~~~
+  scala> def thing(foo: Foo) = foo match {
+           case Bar(flag) if flag => true
+         }
+  
+  scala> thing(Baz)
+  scala.MatchError: Baz (of class Baz$)
+    at .thing(<console>:15)
+~~~~~~~~
+
+This will also fail at runtime if we pass a `Bar(false)`.
+
+Guards should not be used when matching on a `sealed trait`. When
+guards are used on a `case class`, there should always be a `case _
+=>` with a default value, unless you have proven that it cannot occur.
+
+### Alternative Products and Coproducts
+
+Another form of product is a tuple, which is like an unlabelled `case
+class`. `(A.type, B.type, C)` is equivalent to `ABC` in the above
+example. It's best to use `case class` when part of an ADT because the
+lack of names is awkward to deal with.
+
+Another form of coproduct is when we nest `Either` types. e.g.
+
+{lang="text"}
+~~~~~~~~
+  Either[X.type, Either[Y.type, Z]]
+~~~~~~~~
+
+equivalent to the `XYZ` sealed trait. A cleaner syntax to define
+nested `Either` types is to create an alias type ending with a colon,
+allowing infix notation with association from the right:
+
+{lang="text"}
+~~~~~~~~
+  type |:[L,R] = Either[L, R]
+  
+  X.type |: Y.type |: Z
+~~~~~~~~
+
+This is useful to create anonymous coproducts when you can't put all
+the implementations into the same source file.
+
+{lang="text"}
+~~~~~~~~
+  type Accepted = String |: Long |: Boolean
+~~~~~~~~
 
 ### Convey Information
 
 Besides being a container for necessary business information, data
-structures can be used to encode constraints. For example,
+types can be used to encode constraints. For example,
 
 {lang="text"}
 ~~~~~~~~
@@ -1514,7 +1527,7 @@ structures can be used to encode constraints. For example,
 ~~~~~~~~
 
 can never be empty. This makes `cats.data.NonEmptyList` a useful data
-structure despite containing the same information as `List`.
+type despite containing the same information as `List`.
 
 In addition, wrapping an ADT can convey information such as if it
 contains valid instances. Instead of breaking *totality* by throwing
@@ -1549,13 +1562,13 @@ and protect invalid instances from propagating:
 ~~~~~~~~
 
 We will see a better way of reporting validation errors when we
-introduce `cats.data.Validation` in the next chapter.
+introduce `cats.data.Validated` in the next chapter.
 
 ### Simple to Share
 
 By not providing any functionality, ADTs can have a minimal set of
 dependencies. This makes them easy to publish and share with other
-developers. By using a simple data domain language, it makes it
+developers. By using a simple data modelling language, it makes it
 possible to interact with cross-discipline teams, such as DBAs, UI
 developers and business analysts, using the actual code instead of a
 hand written document as the source of truth.
@@ -1567,8 +1580,8 @@ the data types.
 ### Counting Complexity
 
 The complexity of a data type is the number of instances that can
-exist. A good data structure has the least amount of complexity it
-needs to hold the information it conveys, and no more.
+exist. A good data type has the least amount of complexity it needs to
+hold the information it conveys, and no more.
 
 Primitives have a built-in complexity:
 
@@ -1586,8 +1599,8 @@ each part.
 To find the complexity of a coproduct, we add the complexity of each
 part.
 
--   `Either[Boolean, Boolean]` has 4 values (`2+2`)
--   `Either[Boolean, Either[Boolean, Boolean]]` has 6 values (`2+2+2`)
+-   `Boolean |: Boolean` has 4 values (`2+2`)
+-   `Boolean |: Boolean |: Boolean` has 6 values (`2+2+2`)
 
 To find the complexity of a GADT, multiply each part by the complexity
 of the type parameter:
@@ -1598,7 +1611,7 @@ In FP, functions are *total* and must return a value for every input,
 no `Exception`. Minimising the complexity of inputs and outputs is the
 best way to achieve totality. As a rule of thumb, it is a sign of a
 badly designed function when the complexity of a function's return
-value is larger than the product of its inputs: it becomes a source of
+value is larger than the product of its inputs: it is a source of
 entropy.
 
 The complexity of a total function itself is the number of possible
@@ -1656,18 +1669,18 @@ the data has been modelling incorrectly.
 ### Optimisations
 
 A big advantage of using a simplified subset of the Scala language to
-represent data structures is that tooling can optimise the JVM
-bytecode representation. For example, [stalagmite](https://github.com/fommil/stalagmite) can pack `Boolean`
-and `Option` fields into an `Array[Byte]`, cache instances, memoise
+represent data type is that tooling can optimise the JVM bytecode
+representation. For example, [stalagmite](https://github.com/fommil/stalagmite) can pack `Boolean` and
+`Option` fields into an `Array[Byte]`, cache instances, memoise
 `hashCode`, optimise `equals`, enforce validation, use `@switch`
 statements when pattern matching, and much more. These optimisations
-are not generally applicable to OOP `class` data structures that may
-be managing state, throwing exceptions, or providing adhoc method
+are not generally applicable to OOP `class` data type that may be
+managing state, throwing exceptions, or providing adhoc method
 implementations and pattern extractors.
 
 ### Generic Representation
 
-We hinted that product is synonymous with tuple and coproduct is
+We showed that product is synonymous with tuple and coproduct is
 synonymous with nested `Either`. The [shapeless](https://github.com/milessabin/shapeless) library takes this
 duality to the extreme and introduces a representation that is
 *generic* for all ADTs:
@@ -1676,7 +1689,7 @@ duality to the extreme and introduces a representation that is
     (`scala.Product` already exists for another purpose)
 -   `shapeless.Coproduct` (symbolically `:+:`) for representing coproducts
 
-Shapeless provides the ability to convert back and fourth between a
+Shapeless provides the ability to convert back and forth between a
 generic representation and the ADT, allowing functions to be written
 that work **for every** `case class` and `sealed trait`.
 
@@ -1695,7 +1708,10 @@ that work **for every** `case class` and `sealed trait`.
          case object English extends Bar
   
   scala> Generic[Bar].to(Irish)
-  res: English.type :+: Irish.type :+: CNil = Inr(Inl(Irish))
+  res: English.type :+: Irish.type :+: CNil = Inl(Irish)
+  
+  scala> Generic[Bar].from(Inl(Irish))
+  res: Bar = Irish
 ~~~~~~~~
 
 `HNil` is the empty product and `CNil` is the empty coproduct.

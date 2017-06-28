@@ -29,12 +29,12 @@ In 2005, Java 5 introduced *generics*, allowing us to define
 elements. Generics changed how we wrote Java.
 
 The author of the Java generics compiler, Martin Odersky, then created
-Scala with a stronger type system, immutable data structures and
-multiple inheritance. This brought about a fusion of object oriented
-(OOP) and functional programming (FP).
+Scala with a stronger type system, immutable data and multiple
+inheritance. This brought about a fusion of object oriented (OOP) and
+functional programming (FP).
 
-For most developers, FP means using immutable data structures as much
-as possible, but mutable state is still a necessary evil that must be
+For most developers, FP means using immutable data as much as
+possible, but mutable state is still a necessary evil that must be
 isolated and managed, e.g. with Akka actors or `synchronized` classes.
 This style of FP results in simpler programs that are easier to
 parallelise and distribute, an improvement over Java. But it is only
