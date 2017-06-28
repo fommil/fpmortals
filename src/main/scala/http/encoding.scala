@@ -9,7 +9,7 @@ import scala.collection.immutable.{ Nil, Seq }
 import scala.Predef.ArrowAssoc
 import scala.language.implicitConversions
 
-import shapeless.{ :: => #:, _ }
+import shapeless.{ :: => :*:, _ }
 import shapeless.labelled._
 import java.net.{ URLDecoder, URLEncoder }
 import simulacrum.typeclass
@@ -65,10 +65,10 @@ object UrlEncoded {
     k: Witness.Aux[Key],
     h: UrlEncoded[Value],
     t: UrlEncoded[Remaining]
-  ): UrlEncoded[FieldType[Key, Value] #: Remaining] =
-    new UrlEncoded[FieldType[Key, Value] #: Remaining] {
+  ): UrlEncoded[FieldType[Key, Value] :*: Remaining] =
+    new UrlEncoded[FieldType[Key, Value] :*: Remaining] {
       override def urlEncoded(
-        hlist: FieldType[Key, Value] #: Remaining
+        hlist: FieldType[Key, Value] :*: Remaining
       ): String = {
         val rest = {
           val rest = t.urlEncoded(hlist.tail)
@@ -99,10 +99,10 @@ object QueryEncoded {
     key: Witness.Aux[Key],
     h: UrlEncoded[Value],
     t: QueryEncoded[Remaining]
-  ): QueryEncoded[FieldType[Key, Value] #: Remaining] =
-    new QueryEncoded[FieldType[Key, Value] #: Remaining] {
+  ): QueryEncoded[FieldType[Key, Value] :*: Remaining] =
+    new QueryEncoded[FieldType[Key, Value] :*: Remaining] {
       override def queryEncoded(
-        hlist: FieldType[Key, Value] #: Remaining
+        hlist: FieldType[Key, Value] :*: Remaining
       ): Query = {
         val first = {
           val decodedKey = key.value.name
