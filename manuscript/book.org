@@ -1760,18 +1760,18 @@ and remove redundancy that we've accidentally introduced.
 
 From OOP we are used to thinking about data and functionality
 together: class hierarchies carry methods, and traits can demand that
-data fields exist. Polymorphism of an object is in terms of "is a"
-relationships, requiring classes to inherit from common interfaces.
-This can get messy as a codebase grows. Simple data types become
-obscured by hundreds of lines of methods, trait mixins suffer from
-initialisation order errors, and testing / mocking of highly coupled
-components becomes a chore.
+data fields exist. Runtime polymorphism of an object is in terms of
+"is a" relationships, requiring classes to inherit from common
+interfaces. This can get messy as a codebase grows. Simple data types
+become obscured by hundreds of lines of methods, trait mixins suffer
+from initialisation order errors, and testing / mocking of highly
+coupled components becomes a chore.
 
 FP takes a different approach, defining data and functionality
 separately. In this chapter, we will cover the basics of data types
-and the advantages of constrainting ourselves to a subset of the Scala
-language. We will also discover /type classes/ as an alternative way
-to achieve polymorphism: thinking about data in terms of "has a"
+and the advantages of constraining ourselves to a subset of the Scala
+language. We will also discover /type classes/ as a way to achieve
+compiletime polymorphism: thinking about data in terms of "has a"
 rather than "is a" relationships.
 
 *** Data
@@ -1792,11 +1792,10 @@ in Java and is a more descriptive replacement for =Boolean= or =Int=
 feature flags. Singletons are just value types in disguise, so we can
 think about data in terms of /products/, /coproducts/ and /values/.
 
-The collective name for products and coproducts is /Algebraic Data
-Type/ (ADT), an unfortunate name collision with the algebras from the
-previous chapter. We compose data types from the =AND= and =XOR=
-algebra: a product always has every type, but a coproduct can be only
-one of the possible types. For example
+The collective name is /Algebraic Data Type/ (ADT). We compose data
+types from the =AND= and =XOR= algebra: a product always has every
+type, but a coproduct can be only one of the possible types. For
+example
 
 - product: =a AND b AND c=
 - coproduct: =x XOR y XOR z=
@@ -2008,9 +2007,8 @@ possible to interact with cross-discipline teams, such as DBAs, UI
 developers and business analysts, using the actual code instead of a
 hand written document as the source of truth.
 
-Furthermore, tooling can be more easily written to produce schemas for
-other programming languages and wire protocols that map naturally to
-the data types.
+Furthermore, tooling can be more easily written to produce or consume
+schemas from other programming languages and wire protocols.
 
 **** Counting Complexity
 
@@ -2042,12 +2040,12 @@ of the type parameter:
 
 - =Option[Boolean]= has 3 instances, =Some[Boolean]= and =None= (=2+1=)
 
-In FP, functions are /total/ and must return a instance for every input,
-no =Exception=. Minimising the complexity of inputs and outputs is the
-best way to achieve totality. As a rule of thumb, it is a sign of a
-badly designed function when the complexity of a function's return
-instance is larger than the product of its inputs: it is a source of
-entropy.
+In FP, functions are /total/ and must return an instance for every
+input, no =Exception=. Minimising the complexity of inputs and outputs
+is the best way to achieve totality. As a rule of thumb, it is a sign
+of a badly designed function when the complexity of a function's
+return instance is larger than the product of its inputs: it is a
+source of entropy.
 
 The complexity of a total function itself is the number of possible
 functions that can satisfy the type signature: the output to the power
@@ -2098,7 +2096,7 @@ practically impossible to test every possible input to a function, but
 it is easy to test a sample of values with the [[https://www.scalacheck.org/][scalacheck]] property
 testing library as we will see in the next section. If a random sample
 of a data type has a low probability of being valid, it's a sign that
-the data has been modelling incorrectly.
+the data is modelled incorrectly.
 
 **** Optimisations
 
@@ -2106,14 +2104,15 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, [[https://github.com/fommil/stalagmite][stalagmite]] can pack =Boolean= and =Option= fields into an
-=Array[Byte]=, cache instances, memoise =hashCode=, optimise =equals=,
-enforce validation, use =@switch= statements when pattern matching,
-and much more.
+For example, [[https://github.com/fommil/stalagmite][stalagmite]] aims to pack =Boolean= and =Option= fields
+into an =Array[Byte]=, cache instances, memoise =hashCode=, optimise
+=equals=, enforce validation, use =@switch= statements when pattern
+matching, and much more. [[https://www.47deg.com/blog/iota-v0-1-0-release/][iota]] has performance improvements for nested
+=Either= coproducts.
 
-These optimisations are not applicable to general =class= definitions
-that may be managing state, throwing exceptions, or providing adhoc
-method implementations and pattern extractors.
+These optimisations are not applicable to OOP =class= hierarchies that
+may be managing state, throwing exceptions, or providing adhoc method
+implementations.
 
 **** Generic Representation
 
