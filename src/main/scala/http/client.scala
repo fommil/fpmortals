@@ -22,18 +22,16 @@ object algebra {
   final case class Response[T](header: HttpResponseHeader, body: T)
 
   @free trait JsonHttpClient {
-    def get[B](
+    def get[B: Decoder](
       uri: Uri,
       headers: List[HttpHeader] = Nil
-    )(
-      implicit decoder: Decoder[B]
     ): FS[Response[B]]
 
     // using application/x-www-form-urlencoded
-    def postUrlencoded[A, B](
+    def postUrlencoded[A: UrlEncoded, B: Decoder](
       uri: Uri,
       payload: A,
       headers: List[HttpHeader] = Nil
-    )(implicit encoder: UrlEncoded[A], decoder: Decoder[B]): FS[Response[B]]
+    ): FS[Response[B]]
   }
 }

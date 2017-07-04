@@ -44,7 +44,7 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin(
   "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
 )
-libraryDependencies += "io.frees" %% "freestyle" % "0.3.1-SNAPSHOT"
+libraryDependencies += "io.frees" %% "freestyle" % "0.3.1"
 
 scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := file("project/scalafmt.conf")
