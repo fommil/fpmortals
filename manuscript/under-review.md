@@ -1733,7 +1733,7 @@ we will return to it later with a dedicated chapter.
 
 ## Functionality
 
-In FP, pure functions that operate on fixed input can be defined as
+Pure functions that operate on fixed input types can be defined as
 methods on an `object`. Bringing such methods into scope is as simple
 as importing the `object` or by full name.
 
@@ -1750,8 +1750,8 @@ as importing the `object` or by full name.
 
 However, it can be clunky to use `object` methods instead of
 traditional OOP style since it reads inside-out, not a flow of
-operations from left to right: it's Java's static method vs class
-method all over again.
+operations from left to right: it's Java's static methods vs class
+methods all over again.
 
 With the `implicit class` language feature (also known as *extension
 methodology*), and a little boilerplate, we can get the familiar
@@ -1807,11 +1807,7 @@ A> feature was introduced.
 ## Polymorphic Functions
 
 The more common kind of function is a polymorphic function, encoded on
-*type classes*.
-
-### Type Classes
-
-A type class is a trait that:
+*type classes*. A type class is a trait that:
 
 -   holds no state
 -   has a type parameter
@@ -1845,10 +1841,10 @@ We can see all the key features of a typeclass in action:
 
 -   there is no state
 -   `Ordering` and `Numeric` have type parameter `T`
--   `Ordering` has abstract `compare` and numeric has abstract `plus`,
+-   `Ordering` has abstract `compare` and `Numeric` has abstract `plus`,
     `times`, `negate` and `zero`
 -   `Ordering` defines generalised `lt` and `gt` based on `compare`,
-    `Numeric` defines `abs` in terms of `lt` and `negate`.
+    `Numeric` defines `abs` in terms of `lt`, `negate` and `zero`.
 -   `Numeric` extends `Ordering`
 
 We can now write functions for types that *have a* `Numeric`
@@ -1856,9 +1852,9 @@ typeclass:
 
 {lang="text"}
 ~~~~~~~~
-  def signOfTheTimes[T](in: T)(implicit N: Numeric[T]): T = {
+  def signOfTheTimes[T](t: T)(implicit N: Numeric[T]): T = {
     import N._
-    times(negate(abs(in)), in)
+    times(negate(abs(t)), t)
   }
 ~~~~~~~~
 
@@ -1867,14 +1863,11 @@ i.e. we don't demand that our input *is a* `Numeric`, which is vitally
 important if we want to support a third party class that we cannot
 redefine.
 
-Another advantage of typeclasses is the association of data to
-functionality is at compiletime, as opposed to OOP runtime dynamic
-dispatch. Typeclasses can exist for types that are erased at runtime,
-allowing us to *derive* typeclasses for ADTs, entirely avoiding the
-need for runtime reflection whilst being much faster! For example,
-whereas `List` can only have one implementation of a class method,
-typeclasses allow us to have a different implementation depending on
-the type of the contents.
+Another advantage of typeclasses is that the association of
+functionality to data is at compiletime, as opposed to OOP runtime
+dynamic dispatch. For example, whereas the `List` class can only have
+one implementation of a method, a typeclass method allows us to have a
+different implementation depending on the `List` contents.
 
 ### Syntax
 
@@ -1891,12 +1884,16 @@ If we define boilerplate on the companion of the typeclass,
 ~~~~~~~~
 
 it allows the use of *context bounds*, much nicer for downstream users
-since the method reads cleanly as "takes a `T` that has a `Numeric`"
+since the method signature reads cleanly as "takes a `T` that has a
+`Numeric`"
 
 {lang="text"}
 ~~~~~~~~
-  def signOfTheTimes[T: Numeric](in: T): T =
-    Numeric[T].Times(Numeric[T].negate(Numeric[T].abs(in)), in)
+  def signOfTheTimes[T: Numeric](t: T): T = {
+    val N = Numeric[T]
+    import N._
+    times(negate(abs(t)), t)
+  }
 ~~~~~~~~
 
 But that's made things worse for us as the implementors. We still have
@@ -1930,7 +1927,7 @@ now write the much cleaner:
 {lang="text"}
 ~~~~~~~~
   import Numeric.ops._
-  def signOfTheTimes[T: Numeric](t: T): T = -t.abs * t
+  def signOfTheTimes[T: Numeric](t: T): T = -(t.abs) * t
 ~~~~~~~~
 
 The good news is that we never need to write this boilerplate because
@@ -1947,18 +1944,18 @@ names for common methods. In full:
     def compare(x: T, y: T): Int
     @op("<") def lt(x: T, y: T): Boolean = compare(x, y) < 0
     @op(">") def gt(x: T, y: T): Boolean = compare(x, y) > 0
-    def zero: T
   }
   
   @typeclass trait Numeric[T] extends Ordering[T] {
     @op("+") def plus(x: T, y: T): T
     @op("*") def times(x: T, y: T): T
     @op("unary_-") def negate(x: T): T
+    def zero: T
     def abs(x: T): T = if (lt(x, zero)) negate(x) else x
   }
   
   import Numeric.ops._
-  def signOfTheTimes[T: Numeric](t: T): T = -t.abs * t
+  def signOfTheTimes[T: Numeric](t: T): T = -(t.abs) * t
 ~~~~~~~~
 
 ### Instances
@@ -2011,7 +2008,7 @@ for complex numbers:
 
 {lang="text"}
 ~~~~~~~~
-  case class Complex[T](r: T, i: T)
+  final case class Complex[T](r: T, i: T)
 ~~~~~~~~
 
 And derive a `Numeric[Complex[T]]` if `Numeric[T]` exists. Since these
