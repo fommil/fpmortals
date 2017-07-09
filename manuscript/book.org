@@ -1780,7 +1780,7 @@ coupled components becomes a chore.
 FP takes a different approach, defining data and functionality
 separately. In this chapter, we will cover the basics of data types
 and the advantages of constraining ourselves to a subset of the Scala
-language. We will also discover /type classes/ as a way to achieve
+language. We will also discover /typeclasses/ as a way to achieve
 compiletime polymorphism: thinking about functionality of a data
 structure in terms of "has a" rather than "is a" relationships.
 
@@ -2169,7 +2169,7 @@ we will return to it later with a dedicated chapter.
 
 Pure functions that operate on fixed input types can be defined as
 methods on an =object=. Bringing such methods into scope is as simple
-as importing the =object= or by full name.
+as importing the =object= members, or calling by full name.
 
 #+BEGIN_SRC scala
 package object math {
@@ -2181,10 +2181,9 @@ import math._ ; sin(1.0)
 math.sin(1.0)
 #+END_SRC
 
-However, it can be clunky to use =object= methods instead of
-traditional OOP style since it reads inside-out, not a flow of
-operations from left to right: it's Java's static methods vs class
-methods all over again.
+However, it can be clunky to use =object= methods since it reads
+inside-out, not a flow from left to right: it's Java's static methods
+vs class methods all over again.
 
 With the =implicit class= language feature (also known as /extension
 methodology/), and a little boilerplate, we can get the familiar
@@ -2238,16 +2237,16 @@ feature was introduced.
 **** Polymorphic Functions
 
 The more common kind of function is a polymorphic function, encoded as
-/type classes/. A type class is a trait that:
+/typeclasses/. A typeclass is a trait that:
 
 - holds no state
 - has a type parameter
 - has at least one abstract method
 - may contain /generalised/ methods
-- may extend other type classes
+- may extend other typeclasses
 
-Type classes are used in the Scala standard library to encode numbers.
-This is a simplified =Numeric= to demonstrate the principle:
+typeclasses are in the Scala standard library. This is a simplified
+=scala.Numeric= to demonstrate the principle:
 
 #+BEGIN_SRC scala
 trait Ordering[T] {
@@ -2462,14 +2461,81 @@ beyond real numbers. This is a good lesson that typeclasses should not
 become monolithic APIs, but are better if broken into parts.
 
 If you need to write generic code that works for a wide range of
-number types, prefer [[https://github.com/non/spire][spire]] to the standard library.
+number types, prefer [[https://github.com/non/spire][spire]] to the standard library. Indeed, in the
+next chapter we will see that concepts such as having a zero element,
+or adding two values, are worthy of their own typeclass.
 
-**** TODO implicit resolution rules
-**** TODO circe / scalacheck-shapeless
-**** TODO cachedImplicit into a val
-**** TODO downside is compile time speeds for ADTs of 50+
+**** Implicit Resolution
 
-but there is magnolia and Miles' efforts in the compiler to address this
+We've discussed implicits a lot: this section is to clarify what
+implicits are and how they work.
+
+/Implicit parameters/ are when a method requests that a unique
+instance of a particular type is in the /implicit scope/ of the
+caller, with special syntax for typeclass instances. Implicit
+parameters are a clean way to thread configuration through an
+application.
+
+In this example, =foo= requires that typeclasses for =Numeric= and
+shapeless' =Typeable= are available for =T=, as well as an implicit
+(user-defined) =Config= object.
+
+#+BEGIN_SRC scala
+def foo[T: Numeric: Typeable](implicit conf: Config) = ...
+#+END_SRC
+
+/Implicit conversion/ is when an =implicit def= exists. One such use
+of implicit conversions is to enable extension methodology. When the
+compiler is resolving a call to a method, it first checks if the
+method exists on the type, then its ancestors (Java-like rules). If it
+fails to find a match, it will search the /implicit scope/ for
+conversions to other types, then search for methods on those types.
+
+Another use for implicit conversion is /typeclass derivation/. In the
+previous section we wrote an =implicit def= that derived a
+=Numeric[Complex[T]]= if a =Numeric[T]= is in the implicit scope. It
+is possible to chain together many =implicit def= (including
+recursively) which is the basis of /typelevel programming/, allowing
+for computations to be performed at compiletime rather than runtime.
+
+The glue that combines implicit parameters (receivers) with implicit
+conversion (providers) is implicit resolution.
+
+First, the normal variable scope is searched for implicits (=val= or
+=def=), in order:
+
+- local scope (e.g. the block or method)
+- outer scope (e.g. members in the class)
+- ancestors (e.g. members in the super class)
+- the current package object
+- ancestor package objects (only when using nested packages)
+- imported members
+
+If that fails to find a match, the special scope is searched, which
+looks for implicit instances inside types and their ancestors, then
+their companion objects and their ancestors, in order, for the:
+
+- given parameter type
+- expected parameter type
+- type parameter (if there is one)
+
+If two matching implicits are found in the same phase of implicit
+resolution, an /ambiguous implicit/ error is raised.
+
+Implicits are often defined on a =trait=, which is then extended by an
+object. This is to try and control the priority of the implicit
+relative to another more specific one, to avoid ambiguous implicits.
+
+The language's specification for corner cases, e.g. chaining of
+=implicit def=, are rather vague: the compiler implementation is the
+de facto specification. However, unless you are writing a typeclass
+derivation library, you are unlikely to encounter any problems.
+
+**** Libraries with Typeclass Derivation
+
+- circe / scalacheck-shapeless
+- cachedImplicit into a val
+- downside is compile time speeds for ADTs of 50+
 
 * Main Text                                                           :final:
   :PROPERTIES:
