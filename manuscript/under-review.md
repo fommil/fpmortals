@@ -2093,8 +2093,9 @@ First, the normal variable scope is searched for implicits (`val` or
 -   imported members
 
 If that fails to find a match, the special scope is searched, which
-looks for implicit instances inside types and their ancestors, then
-their companion objects and their ancestors, in order, for the:
+looks for implicit instances inside a type's companion, its package
+object, outer objects (if nested), and then repeated for ancestors.
+This is performed, in order, for the:
 
 -   given parameter type
 -   expected parameter type
@@ -2104,7 +2105,7 @@ If two matching implicits are found in the same phase of implicit
 resolution, an *ambiguous implicit* error is raised.
 
 Implicits are often defined on a `trait`, which is then extended by an
-object. This is to try and control the priority of the implicit
+object. This is to try and control the priority of an implicit
 relative to another more specific one, to avoid ambiguous implicits.
 
 The language's specification for corner cases, e.g. chaining of
