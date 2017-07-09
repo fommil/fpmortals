@@ -1,4 +1,4 @@
-#+TITLE: Functional Programming in Scala for Mortals
+#+TITLE: Functional Programming in Scala with Cats for Mortals
 #+AUTHOR: Sam Halliday
 #+DATE: 2017
 
@@ -106,6 +106,7 @@ libraryDependencies ++= Seq(
   "io.frees"      %% "freestyle"     % "0.3.1"
 )
 
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
 addCompilerPlugin(
   "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
 )
@@ -275,6 +276,15 @@ when it would otherwise think there are two, like when we implement
 
 #+BEGIN_SRC scala
 object FooEitherString extends Foo[EitherString] {
+ def create(i: Int): Either[String, Int] = Right(i)
+}
+#+END_SRC
+
+Alternatively, the [[https://github.com/non/kind-projector/][kind projector]] plugin allows us to avoid the =type=
+alias and use =?= syntax to tell the compiler where the type hole is:
+
+#+BEGIN_SRC scala
+object FooEitherString extends Foo[Either[String, ?]] {
  def create(i: Int): Either[String, Int] = Right(i)
 }
 #+END_SRC
@@ -1771,8 +1781,8 @@ FP takes a different approach, defining data and functionality
 separately. In this chapter, we will cover the basics of data types
 and the advantages of constraining ourselves to a subset of the Scala
 language. We will also discover /type classes/ as a way to achieve
-compiletime polymorphism: thinking about data in terms of "has a"
-rather than "is a" relationships.
+compiletime polymorphism: thinking about functionality of a data
+structure in terms of "has a" rather than "is a" relationships.
 
 *** Data
 
@@ -2155,24 +2165,313 @@ It is not necessary to know how to write generic code to be able to
 make use of shapeless. However, it is an important part of FP Scala so
 we will return to it later with a dedicated chapter.
 
-*** TODO Functionality
+*** Functionality
 
-**** implicit class to add functionality to a case class, and to a sealed trait
-**** aside about AnyVal and performance optimisation, also why cats sometimes uses abstract class with methods
-**** Advantage is that it keeps the data model clean, and can live higher up the dependency chain where deps are available
-**** Disadvantage is that developers may not be aware of what functionality is available for a class. Tooling could help.
-**** typeclasses, what if the functionality is more general than your ADT?
-**** Addable / Semigroup (??? maybe) with syntax
-**** context bounds, reads like "has a"
-**** implicit resolution rules
-**** scalacheck / properties
-**** kittens, don't need to write it
-**** similarly scalacheck-shapeless
-**** allows overriding with different implementations (e.g. the "merge business rules" example)
-we don't always get to choose our APIs, and sometimes our customers ask us to throw an exception
-**** computed at compile time, more efficient than runtime lookup
-cachedImplicit into a val
-**** downside is compile time speeds for ADTs of 50+
+In FP, pure functions that operate on fixed input can be defined as
+methods on an =object=. Bringing such methods into scope is as simple
+as importing the =object= or by full name.
+
+#+BEGIN_SRC scala
+package object math {
+  def sin(x: Double): Double = java.lang.Math.sin(x)
+  ...
+}
+
+import math._ ; sin(1.0)
+math.sin(1.0)
+#+END_SRC
+
+However, it can be clunky to use =object= methods instead of
+traditional OOP style since it reads inside-out, not a flow of
+operations from left to right: it's Java's static method vs class
+method all over again.
+
+With the =implicit class= language feature (also known as /extension
+methodology/), and a little boilerplate, we can get the familiar
+style:
+
+#+BEGIN_SRC scala
+scala> implicit class DoubleOps(x: Double) {
+         def sin: Double = math.sin(x)
+       }
+
+scala> 1.0.sin
+res: Double = 0.8414709848078965
+#+END_SRC
+
+Often you might want to just skip the =object= definition and go
+straight for an =implicit class=, keeping boilerplate to a minimum:
+
+#+BEGIN_SRC scala
+implicit class DoubleOps(x: Double) {
+  def sin: Double = java.lang.Math.sin(x)
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+=implicit class= is syntax sugar for an implicit conversion:
+
+#+BEGIN_SRC scala
+implicit def DoubleOps(x: Double): DoubleOps = new DoubleOps(x)
+class DoubleOps(x: Double) {
+  def sin: Double = java.lang.Math.sin(x)
+}
+#+END_SRC
+
+Which unfortunately has a runtime cost: each time the extension method
+is called, an intermediate =DoubleOps= will be constructed and then
+thrown away. This can contribute to GC pressure in hotspots.
+
+There is a slightly more verbose form of =implicit class= that avoids
+the allocation and is therefore preferred:
+
+#+BEGIN_SRC scala
+implicit final class DoubleOps(val x: Double) extends AnyVal {
+  def sin: Double = java.lang.Math.sin(x)
+}
+#+END_SRC
+
+It is unfortunate that this was not the default when the language
+feature was introduced.
+#+END_ASIDE
+
+*** Polymorphic Functions
+
+The more common kind of function is a polymorphic function, encoded on
+/type classes/.
+
+**** Type Classes
+
+A type class is a trait that:
+
+- holds no state
+- has a type parameter
+- has at least one abstract method
+- may contain /generalised/ methods
+- may extend other type classes
+
+Type classes are used in the Scala standard library to encode numbers.
+This is a simplified =Numeric= to demonstrate the principle:
+
+#+BEGIN_SRC scala
+trait Ordering[T] {
+  def compare(x: T, y: T): Int
+
+  def lt(x: T, y: T): Boolean = compare(x, y) < 0
+  def gt(x: T, y: T): Boolean = compare(x, y) > 0
+}
+
+trait Numeric[T] extends Ordering[T] {
+  def plus(x: T, y: T): T
+  def times(x: T, y: T): T
+  def negate(x: T): T
+  def zero: T
+
+  def abs(x: T): T = if (lt(x, zero)) negate(x) else x
+}
+#+END_SRC
+
+We can see all the key features of a typeclass in action:
+
+- there is no state
+- =Ordering= and =Numeric= have type parameter =T=
+- =Ordering= has abstract =compare= and numeric has abstract =plus=,
+  =times=, =negate= and =zero=
+- =Ordering= defines generalised =lt= and =gt= based on =compare=,
+  =Numeric= defines =abs= in terms of =lt= and =negate=.
+- =Numeric= extends =Ordering=
+
+We can now write functions for types that /have a/ =Numeric=
+typeclass:
+
+#+BEGIN_SRC scala
+def signOfTheTimes[T](in: T)(implicit N: Numeric[T]): T = {
+  import N._
+  times(negate(abs(in)), in)
+}
+#+END_SRC
+
+We are no longer dependent on the OOP hierarchy of our input types,
+i.e. we don't demand that our input /is a/ =Numeric=, which is vitally
+important if we want to support a third party class that we cannot
+redefine.
+
+Another advantage of typeclasses is the association of data to
+functionality is at compiletime, as opposed to OOP runtime dynamic
+dispatch. Typeclasses can exist for types that are erased at runtime,
+allowing us to /derive/ typeclasses for ADTs, entirely avoiding the
+need for runtime reflection whilst being much faster! For example,
+whereas =List= can only have one implementation of a class method,
+typeclasses allow us to have a different implementation depending on
+the type of the contents.
+
+**** Syntax
+
+The syntax for writing =signOfTheTimes= is clunky, there are some
+things we can do to clean it up.
+
+If we define boilerplate on the companion of the typeclass,
+
+#+BEGIN_SRC scala
+object Numeric {
+  def apply[T](implicit numeric: Numeric[T]): Numeric[T] = numeric
+}
+#+END_SRC
+
+it allows the use of /context bounds/, much nicer for downstream users
+since the method reads cleanly as "takes a =T= that has a =Numeric="
+
+#+BEGIN_SRC scala
+def signOfTheTimes[T: Numeric](in: T): T =
+  Numeric[T].Times(Numeric[T].negate(Numeric[T].abs(in)), in)
+#+END_SRC
+
+But that's made things worse for us as the implementors. We still have
+the syntactic problem of inside-out static methods vs class methods.
+We deal with this by introducing =ops= on the typeclass companion:
+
+#+BEGIN_SRC scala
+object Numeric {
+  def apply[T](implicit numeric: Numeric[T]): Numeric[T] = numeric
+
+  object ops {
+    implicit class NumericOps[T](t: T)(implicit N: Numeric[T]) {
+      def +(o: T): T = N.plus(t, o)
+      def *(o: T): T = N.times(t, o)
+      def unary_-: T = N.negate(t)
+      def abs: T = N.abs(t)
+
+      // duplicated from Ordering.ops
+      def <(o: T): T = N.lt(t, o)
+      def >(o: T): T = N.gt(t, o)
+    }
+  }
+}
+#+END_SRC
+
+Note that =-x= is expanded into =x.unary_-= by the compiler's syntax
+sugar, which is why we define =unary_-= as an extension method. We can
+now write the much cleaner:
+
+#+BEGIN_SRC scala
+import Numeric.ops._
+def signOfTheTimes[T: Numeric](t: T): T = -t.abs * t
+#+END_SRC
+
+The good news is that we never need to write this boilerplate because
+[[https://github.com/mpilquist/simulacrum][Simulacrum]] (included with cats) provides a =@typeclass= macro
+annotation to have the companion =apply= and =ops= automatically
+generated. It even allows us to define alternative (usually symbolic)
+names for common methods. In full:
+
+#+BEGIN_SRC scala
+import simulacrum._
+
+@typeclass trait Ordering[T] {
+  def compare(x: T, y: T): Int
+  @op("<") def lt(x: T, y: T): Boolean = compare(x, y) < 0
+  @op(">") def gt(x: T, y: T): Boolean = compare(x, y) > 0
+  def zero: T
+}
+
+@typeclass trait Numeric[T] extends Ordering[T] {
+  @op("+") def plus(x: T, y: T): T
+  @op("*") def times(x: T, y: T): T
+  @op("unary_-") def negate(x: T): T
+  def abs(x: T): T = if (lt(x, zero)) negate(x) else x
+}
+
+import Numeric.ops._
+def signOfTheTimes[T: Numeric](t: T): T = -t.abs * t
+#+END_SRC
+
+**** Instances
+
+/Instances/ of =Numeric= (which are also instances of =Ordering=) are
+defined as an =implicit object= that extends the typeclass, and can
+provide optimised implementations for the generalised methods:
+
+#+BEGIN_SRC scala
+implicit object NumericDouble extends Numeric[Double] {
+  def plus(x: Double, y: Double): Double = x + y
+  def times(x: Double, y: Double): Double = x * y
+  def negate(x: Double): Double = -x
+  def zero: Double = 0.0
+  def compare(x: Double, y: Double): Int = java.lang.Double.compare(x, y)
+
+  // optimised implementations
+  override def lt(x: Double, y: Double): Boolean = x < y
+  override def gt(x: Double, y: Double): Boolean = x > y
+  override def abs(x: Double): Double = java.lang.Math.abs(x)
+}
+#+END_SRC
+
+Although we are using =+=, =*=, =unary_-=, =<= and =>= here, which are
+the ops (and could be an infinite loop!), these methods exist already
+on =Double=. Class methods are always used in preference to extension
+methods. Indeed, the scala compiler performs special handling of
+primitives and converts these method calls into raw =dadd=, =dmul=,
+=dcmpl= and =dcmpg= bytecode instructions, respectively.
+
+We can also implement =Numeric= for Java's =BigDecimal= class (avoid
+=scala.BigDecimal=, [[https://github.com/scala/bug/issues/9670][it is fundamentally broken]])
+
+#+BEGIN_SRC scala
+import java.math.{ BigDecimal => BD }
+
+implicit object NumericBD extends Numeric[BD] {
+  def plus(x: BD, y: BD): BD = x.add(y)
+  def times(x: BD, y: BD): BD = x.multiply(y)
+  def negate(x: BD): BD = x.negate
+  def zero: BD = BD.ZERO
+  def compare(x: BD, y: BD): Int = x.compareTo(y)
+}
+#+END_SRC
+
+We could even take some liberties and create our own data structure
+for complex numbers:
+
+#+BEGIN_SRC scala
+case class Complex[T](r: T, i: T)
+#+END_SRC
+
+And derive a =Numeric[Complex[T]]= if =Numeric[T]= exists. Since these
+instances depend on the type parameter, it is a =def=, not an
+=object=.
+
+#+BEGIN_SRC scala
+implicit def numericComplex[T: Numeric]: Numeric[Complex[T]] =
+  new Numeric[Complex[T]] {
+    type CT = Complex[T]
+    def plus(x: CT, y: CT): CT = Complex(x.r + y.r, x.i + y.i)
+    def times(x: CT, y: CT): CT =
+      Complex(x.r * y.r + (-x.i * y.i), x.r * y.i + x.i * y.r)
+    def negate(x: CT): CT = Complex(-x.r, -x.i)
+    def zero: CT = Complex(Numeric[T].zero, Numeric[T].zero)
+    def compare(x: CT, y: CT): Int = {
+      val real = (Numeric[T].compare(x.r, y.r))
+      if (real != 0) real
+      else Numeric[T].compare(x.i, y.i)
+    }
+  }
+#+END_SRC
+
+The observant reader may notice that =abs= is not at all what a
+mathematician would expect. The correct return value for =abs= should
+be =T=, not =Complex[T]=, and would require =T= to implement =sqrt=.
+
+=scala.math.Numeric= tries to do too much and does not generalise
+beyond real numbers. This is a good lesson that typeclasses should not
+become monolithic APIs, but are better if broken into parts.
+
+If you need to write generic code that works for a wide range of
+number types, prefer [[https://github.com/non/spire][spire]] to the standard library.
+
+**** TODO implicit resolution rules
+**** TODO circe / scalacheck-shapeless
+**** TODO cachedImplicit into a val
+**** TODO downside is compile time speeds for ADTs of 50+
+
 but there is magnolia and Miles' efforts in the compiler to address this
 
 * Main Text                                                           :final:
@@ -2205,6 +2504,12 @@ The most important methods on =Monad= are
 
 examples that are not necessarily pure, such as ApplicativeError and
 the Monoid usecase with exceptions.
+
+kittens
+
+allows overriding with different implementations (e.g. the "merge business rules" example)
+we don't always get to choose our APIs, and sometimes our customers ask us to throw an exception
+
 
 *** TODO data types
 ** TODO Effects

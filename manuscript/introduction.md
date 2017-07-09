@@ -127,6 +127,16 @@ A>    def create(i: Int): Either[String, Int] = Right(i)
 A>   }
 A> ~~~~~~~~
 A> 
+A> Alternatively, the [kind projector](https://github.com/non/kind-projector/) plugin allows us to avoid the `type`
+A> alias and use `?` syntax to tell the compiler where the type hole is:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   object FooEitherString extends Foo[Either[String, ?]] {
+A>    def create(i: Int): Either[String, Int] = Right(i)
+A>   }
+A> ~~~~~~~~
+A> 
 A> Finally, there is this one weird trick we can use when we want to
 A> ignore the type constructor. Let's define a type alias to be equal to
 A> its parameter:

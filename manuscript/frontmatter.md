@@ -96,6 +96,7 @@ and add the following dependencies to your project's settings:
     "io.frees"      %% "freestyle"     % "0.3.1"
   )
   
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
   addCompilerPlugin(
     "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
   )

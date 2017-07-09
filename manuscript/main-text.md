@@ -28,6 +28,11 @@ The most important methods on `Monad` are
 examples that are not necessarily pure, such as ApplicativeError and
 the Monoid usecase with exceptions.
 
+kittens
+
+allows overriding with different implementations (e.g. the "merge business rules" example)
+we don't always get to choose our APIs, and sometimes our customers ask us to throw an exception
+
 ## TODO data types
 
 # TODO Effects
