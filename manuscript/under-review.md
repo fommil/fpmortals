@@ -1804,7 +1804,7 @@ A>
 A> It is unfortunate that this was not the default when the language
 A> feature was introduced.
 
-## Polymorphic Functions
+### Polymorphic Functions
 
 The more common kind of function is a polymorphic function, encoded on
 *type classes*. A type class is a trait that:
