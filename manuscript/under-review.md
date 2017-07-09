@@ -1806,7 +1806,7 @@ A> feature was introduced.
 
 ### Polymorphic Functions
 
-The more common kind of function is a polymorphic function, encoded on
+The more common kind of function is a polymorphic function, encoded as
 *type classes*. A type class is a trait that:
 
 -   holds no state
