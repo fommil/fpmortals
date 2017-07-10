@@ -2167,9 +2167,7 @@ we will return to it later with a dedicated chapter.
 
 *** Functionality
 
-Pure functions that operate on fixed input types can be defined as
-methods on an =object=. Bringing such methods into scope is as simple
-as importing the =object= members, or calling by full name.
+Pure functions are typically defined as methods on an =object=.
 
 #+BEGIN_SRC scala
 package object math {
@@ -2177,13 +2175,23 @@ package object math {
   ...
 }
 
-import math._ ; sin(1.0)
 math.sin(1.0)
+
+import math._
+sin(1.0)
 #+END_SRC
 
-However, it can be clunky to use =object= methods since it reads
-inside-out, not a flow from left to right: it's Java's static methods
-vs class methods all over again.
+#+BEGIN_WARNING
+If you like to put methods on a =trait=, requiring users to mix your
+traits into their =classes= or =objects= with the /cake pattern/,
+please get out of this nasty habit: you're leaking internal
+implementation detail to public APIs, bloating your bytecode, and
+creating a lot of noise for IDE autocompleters.
+#+END_WARNING
+
+However, it can sometimes be clunky to use =object= methods since it
+reads inside-out, not left to right: it's the same problem as Java's
+static methods vs class methods.
 
 With the =implicit class= language feature (also known as /extension
 methodology/), and a little boilerplate, we can get the familiar
@@ -2198,8 +2206,8 @@ scala> 1.0.sin
 res: Double = 0.8414709848078965
 #+END_SRC
 
-Often you might want to just skip the =object= definition and go
-straight for an =implicit class=, keeping boilerplate to a minimum:
+Often it's best to just skip the =object= definition and go straight
+for an =implicit class=, keeping boilerplate to a minimum:
 
 #+BEGIN_SRC scala
 implicit class DoubleOps(x: Double) {
@@ -2236,8 +2244,8 @@ feature was introduced.
 
 **** Polymorphic Functions
 
-The more common kind of function is a polymorphic function, encoded as
-/typeclasses/. A typeclass is a trait that:
+The more common kind of function is a polymorphic function, which
+lives in a /typeclass/. A typeclass is a trait that:
 
 - holds no state
 - has a type parameter
@@ -2245,8 +2253,9 @@ The more common kind of function is a polymorphic function, encoded as
 - may contain /generalised/ methods
 - may extend other typeclasses
 
-typeclasses are in the Scala standard library. This is a simplified
-=scala.Numeric= to demonstrate the principle:
+Typeclasses are used in the Scala standard library. We'll explore a
+simplified version of =scala.math.Numeric= to demonstrate the
+principle:
 
 #+BEGIN_SRC scala
 trait Ordering[T] {
@@ -2276,7 +2285,7 @@ We can see all the key features of a typeclass in action:
   =Numeric= defines =abs= in terms of =lt=, =negate= and =zero=.
 - =Numeric= extends =Ordering=
 
-We can now write functions for types that /have a/ =Numeric=
+We can now write functions for types that "have a" =Numeric=
 typeclass:
 
 #+BEGIN_SRC scala
@@ -2287,7 +2296,7 @@ def signOfTheTimes[T](t: T)(implicit N: Numeric[T]): T = {
 #+END_SRC
 
 We are no longer dependent on the OOP hierarchy of our input types,
-i.e. we don't demand that our input /is a/ =Numeric=, which is vitally
+i.e. we don't demand that our input "is a" =Numeric=, which is vitally
 important if we want to support a third party class that we cannot
 redefine.
 
@@ -2454,11 +2463,12 @@ implicit def numericComplex[T: Numeric]: Numeric[Complex[T]] =
 
 The observant reader may notice that =abs= is not at all what a
 mathematician would expect. The correct return value for =abs= should
-be =T=, not =Complex[T]=, and would require =T= to implement =sqrt=.
+be =T=, not =Complex[T]=.
 
 =scala.math.Numeric= tries to do too much and does not generalise
-beyond real numbers. This is a good lesson that typeclasses should not
-become monolithic APIs, but are better if broken into parts.
+beyond real numbers. This is a good lesson that smaller, well defined,
+typeclasses are often better than a monolithic collection of overly
+specific features.
 
 If you need to write generic code that works for a wide range of
 number types, prefer [[https://github.com/non/spire][spire]] to the standard library. Indeed, in the
@@ -2501,8 +2511,8 @@ for computations to be performed at compiletime rather than runtime.
 The glue that combines implicit parameters (receivers) with implicit
 conversion (providers) is implicit resolution.
 
-First, the normal variable scope is searched for implicits (=val= or
-=def=), in order:
+First, the normal variable scope is searched for implicits (=val=,
+=object= or =def=), in order:
 
 - local scope (e.g. the block or method)
 - outer scope (e.g. members in the class)
@@ -2527,10 +2537,10 @@ Implicits are often defined on a =trait=, which is then extended by an
 object. This is to try and control the priority of an implicit
 relative to another more specific one, to avoid ambiguous implicits.
 
-The language's specification for corner cases, e.g. chaining of
-=implicit def=, are rather vague: the compiler implementation is the
-de facto specification. However, unless you are writing a typeclass
-derivation library, you are unlikely to encounter any problems.
+The Scala Language Specification is rather vague for corner cases,
+e.g. chaining of =implicit def=: the compiler implementation is the de
+facto standard. However, unless you are writing a typeclass derivation
+library, you are unlikely to encounter any problems.
 
 **** Libraries with Typeclass Derivation
 
