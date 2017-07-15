@@ -2295,6 +2295,8 @@ W> avoid putting it in a collection that will use `hashCode` or `equals`.
 W> If you need to perform equality checks, create your own equality
 W> function out of the raw `String` parts.
 
+### Functionality
+
 We need to marshal these data classes into JSON or URL/POST-encoded
 form. Since this requires polymorphism, we will need typeclasses.
 

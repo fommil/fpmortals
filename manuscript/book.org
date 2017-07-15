@@ -2713,6 +2713,8 @@ If you need to perform equality checks, create your own equality
 function out of the raw =String= parts.
 #+END_WARNING
 
+**** Functionality
+
 We need to marshal these data classes into JSON or URL/POST-encoded
 form. Since this requires polymorphism, we will need typeclasses.
 
