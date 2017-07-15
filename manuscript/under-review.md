@@ -2342,12 +2342,11 @@ The JSON typeclasses are (again, paraphrased)
 ~~~~~~~~
   package io.circe
   
-  // circe doesn't use simulacrum or provide ops syntax
-  trait Encoder[T] {
+  @typeclass trait Encoder[T] {
     def encodeJson(t: T): Json
   }
-  trait Decoder[T] {
-    def decodeJson(j: Json): Either[DecodingFailure, T]
+  @typeclass trait Decoder[T] {
+    @op("as") def decodeJson(j: Json): Either[DecodingFailure, T]
   }
 ~~~~~~~~
 
@@ -2359,12 +2358,10 @@ into `AccessResponse`:
 {lang="text"}
 ~~~~~~~~
   scala> import io.circe._
-         import io.circe.parser._
          import io.circe.generic.auto._
-         import io.circe.syntax._
   
          for {
-           json <- parse("""
+           json <- io.circe.parser.parse("""
                    {
                      "access_token": "BEARER_TOKEN",
                      "token_type": "Bearer",
@@ -2372,7 +2369,7 @@ into `AccessResponse`:
                      "refresh_token": "REFRESH_TOKEN"
                    }
                    """)
-           response <- Decoder[AccessResponse].decodeJson(json)
+           response <- json.as[AccessResponse]
          } yield response
   
   res = Right(AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN))
