@@ -24,6 +24,9 @@ import spinoco.protocol.http._
 import algebra.machines._
 import apis.gce._
 
+// NOTE: for oauth2 we need to use
+// scope=https://www.googleapis.com/auth/cloud-platform
+
 final case class GceConfig(
   projectId: String, // e.g. summer-function-158620
   zone: String, // e.g. us-central1-a

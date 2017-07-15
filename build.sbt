@@ -13,10 +13,11 @@ libraryDependencies ++= Seq(
   "io.circe"      %% "circe-parser"  % circeVersion,
   "io.circe"      %% "circe-fs2"     % circeVersion,
   "org.typelevel" %% "cats"          % "0.9.0",
-  "com.spinoco"   %% "fs2-http"      % "0.1.6"
+  "com.spinoco"   %% "fs2-http"      % "0.1.7"
 )
 
 scalacOptions ++= Seq(
+  "-language:_",
   "-unchecked",
   "-explaintypes",
   "-Ywarn-value-discard",
@@ -42,7 +43,7 @@ wartremoverWarnings in (Compile, compile) -= Wart.Any              // too many c
 // http://frees.io/docs/
 resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin(
-  "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
+  "org.scalameta" % "paradise" % "3.0.0-M9" cross CrossVersion.patch
 )
 libraryDependencies += "io.frees" %% "freestyle" % "0.3.1"
 
