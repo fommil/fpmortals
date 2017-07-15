@@ -2127,37 +2127,43 @@ We will finish this chapter with a practical example of data modelling
 and typeclass derivation.
 
 In our `drone-dynamic-agents` application, we must communicate with
-Drone and Google Cloud services with JSON over REST. Both services use
-[OAuth2](https://tools.ietf.org/html/rfc6749) for authentication. Although there are many permutations of
-Oauth2, we'll focus on the version that works for Google Cloud (the
-Drone version is even simpler).
+Drone and Google Cloud using JSON over REST. Both services use [OAuth2](https://tools.ietf.org/html/rfc6749)
+for authentication. Although there are many ways to interpret OAuth2,
+we'll focus on the version that works for Google Cloud (the Drone
+version is even simpler).
 
 ### Description
 
 Every Google Cloud application needs to have an *OAuth 2.0 Client Key*
 set up at
-`https://console.developers.google.com/apis/credentials?project=PROJECT_ID`
+
+{lang="text"}
+~~~~~~~~
+  https://console.developers.google.com/apis/credentials?project={PROJECT_ID}
+~~~~~~~~
+
 You will be provided with a *Client ID* and a *Client secret*.
 
 The application can then obtain a one time *code* by making the user
 perform an *Authorization Request* in their browser (yes, really, **in
 their browser**). We need to make this page open in the browser:
 
-I> In these payload examples, `CAPITAL_SYMBOLS` are used as placeholders
-I> for variables, and escaped newlines have been added for clarity.
-
 {lang="text"}
 ~~~~~~~~
   https://accounts.google.com/o/oauth2/v2/auth?\
-    redirect_uri=CALLBACK_URI&\
+    redirect_uri={CALLBACK_URI}&\
     prompt=consent&\
     response_type=code&\
-    scope=SCOPE&\
+    scope={SCOPE}&\
     access_type=offline&\
-    client_id=CLIENT_ID
+    client_id={CLIENT_ID}
 ~~~~~~~~
 
-The *code* is delivered to the `CALLBACK_URI` in a `GET` request. To
+I> In these payload examples, `{CAPITAL_SYMBOLS}` are used as
+I> placeholders for variables, and escaped newlines have been added for
+I> clarity.
+
+The *code* is delivered to the `{CALLBACK_URI}` in a `GET` request. To
 capture it in our application, we need to have a web server listening
 on `localhost`.
 
@@ -2167,14 +2173,14 @@ Once we have the *code*, we can perform an *Access Token Request*:
 ~~~~~~~~
   POST /oauth2/v4/token HTTP/1.1
   Host: www.googleapis.com
-  Content-length: CONTENT_LENGTH
+  Content-length: {CONTENT_LENGTH}
   content-type: application/x-www-form-urlencoded
   user-agent: google-oauth-playground
-  code=CODE&\
-    redirect_uri=CALLBACK_URI&\
-    client_id=CLIENT_ID&\
-    client_secret=CLIENT_SECRET&\
-    scope=&\
+  code={CODE}&\
+    redirect_uri={CALLBACK_URI}&\
+    client_id={CLIENT_ID}&\
+    client_secret={CLIENT_SECRET}&\
+    scope={SCOPE}&\
     grant_type=authorization_code
 ~~~~~~~~
 
@@ -2190,10 +2196,6 @@ which gives a JSON response payload
   }
 ~~~~~~~~
 
-According to the spec, the *refresh token* is optional. We don't
-support such authentication servers: it's practically impossible to
-write a headless server under those circumstances.
-
 *Bearer tokens* typically expire after an hour, and can be refreshed
 by sending an HTTP request with any valid *refresh token*:
 
@@ -2201,7 +2203,7 @@ by sending an HTTP request with any valid *refresh token*:
 ~~~~~~~~
   POST /oauth2/v4/token HTTP/1.1
   Host: www.googleapis.com
-  Content-length: 163
+  Content-length: {CONTENT_LENGTH}
   content-type: application/x-www-form-urlencoded
   user-agent: google-oauth-playground
   client_secret=CLIENT_SECRET&
@@ -2228,7 +2230,7 @@ include it as configuration for the headless server.
 
 ### Data
 
-The first step is to model the data that our Oauth2 implementation
+The first step is to model the data that our OAuth2 implementation
 requires. We create an ADT with fields having exactly the same name as
 required by the OAuth2 server. We will use `String` and `Long` for
 now, even though there is a limited set of valid entries. We will
@@ -2286,9 +2288,9 @@ remedy this when we learn about *refined types*.
 W> Avoid using `java.net.URL` at all costs: it uses DNS to resolve the
 W> hostname part when performing `toString`, `equals` or `hashCode`.
 W> 
-W> Apart from being insane, and **very very** slow, these core JVM methods
-W> can throw I/O exceptions (are not *pure*), and can change depending on
-W> your network configuration (are not *deterministic*).
+W> Apart from being insane, and **very very** slow, these methods can throw
+W> I/O exceptions (are not *pure*), and can change depending on your
+W> network configuration (are not *deterministic*).
 W> 
 W> If you must use `java.net.URL` to satisfy a legacy system, at least
 W> avoid putting it in a collection that will use `hashCode` or `equals`.
@@ -2297,8 +2299,9 @@ W> function out of the raw `String` parts.
 
 ### Functionality
 
-We need to marshal these data classes into JSON or URL/POST-encoded
-form. Since this requires polymorphism, we will need typeclasses.
+We need to marshal the data classes we defined in the previous section
+into JSON, URLs and POST-encoded forms. Since this requires
+polymorphism, we will need typeclasses.
 
 [circe](https://github.com/circe/circe) gives us an ADT for the JSON encoding and a typeclass to perform
 conversions. Circe's JSON AST looks like (paraphrased for brevity):
@@ -2321,7 +2324,7 @@ roughly `java.math.BigDecimal` and `Map[String, Json]`.
 
 W> `java.math.BigDecimal` is not a safe object to include in a wire
 W> protocol format. It is possible to construct valid numerical values
-W> that will exception when parsed and hang the `Thread` forever if
+W> that will exception when parsed or hang the `Thread` forever if
 W> converted into `java.math.BigInteger`.
 W> 
 W> Travis Brown, maintainer of Circe, has [gone to great lengths](https://github.com/circe/circe/blob/master/modules/core/shared/src/main/scala/io/circe/JsonNumber.scala) to
