@@ -26,23 +26,23 @@ import spinoco.protocol.http.Uri.Query
 
 object UrlEncoded {
   // primitive impls
-  implicit object UrlEncodedString extends UrlEncoded[String] {
+  implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
     override def urlEncoded(s: String): String = URLEncoder.encode(s, "UTF-8")
   }
-  implicit object UrlEncodedLong extends UrlEncoded[Long] {
+  implicit val UrlEncodedLong: UrlEncoded[Long] = new UrlEncoded[Long] {
     override def urlEncoded(s: Long): String = s.toString
   }
 
   // useful impls
   import ops._
-  implicit object UrlEncodedStringySeq
-      extends UrlEncoded[Seq[(String, String)]] {
-    override def urlEncoded(m: Seq[(String, String)]): String =
-      m.map {
-        case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-      }.mkString("&")
-  }
-  implicit object UrlEncodedUri extends UrlEncoded[Uri] {
+  implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
+    new UrlEncoded[Seq[(String, String)]] {
+      override def urlEncoded(m: Seq[(String, String)]): String =
+        m.map {
+          case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
+        }.mkString("&")
+    }
+  implicit val UrlEncodedUri: UrlEncoded[Uri] = new UrlEncoded[Uri] {
     override def urlEncoded(u: Uri): String = {
       // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
       //             (which would also let us remove UrlEncodedStringySeq)
@@ -56,7 +56,7 @@ object UrlEncoded {
   }
 
   // generic impl
-  implicit object UrlEncodedHNil extends UrlEncoded[HNil] {
+  implicit val UrlEncodedHNil: UrlEncoded[HNil] = new UrlEncoded[HNil] {
     override def urlEncoded(h: HNil): String = ""
   }
   implicit def UrlEncodedHList[Key <: Symbol, Value, Remaining <: HList](
@@ -90,7 +90,7 @@ object UrlEncoded {
 
 object QueryEncoded {
   // generic impl
-  implicit object QueryEncodedHNil extends QueryEncoded[HNil] {
+  implicit val QueryEncodedHNil: QueryEncoded[HNil] = new QueryEncoded[HNil] {
     override def queryEncoded(h: HNil): Query = Query(Nil)
   }
   implicit def QueryEncodedHList[Key <: Symbol, Value, Remaining <: HList](
