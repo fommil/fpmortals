@@ -1868,9 +1868,12 @@ redefine.
 
 Another advantage of typeclasses is that the association of
 functionality to data is at compiletime, as opposed to OOP runtime
-dynamic dispatch. For example, whereas the `List` class can only have
-one implementation of a method, a typeclass method allows us to have a
-different implementation depending on the `List` contents.
+dynamic dispatch.
+
+For example, whereas the `List` class can only have one implementation
+of a method, a typeclass method allows us to have a different
+implementation depending on the `List` contents and therefore offload
+work to compiletime instead of leaving it to runtime.
 
 ### Syntax
 
@@ -1976,7 +1979,7 @@ provide optimised implementations for the generalised methods:
     def zero: Double = 0.0
     def compare(x: Double, y: Double): Int = java.lang.Double.compare(x, y)
   
-    // optimised implementations
+    // optimised
     override def lt(x: Double, y: Double): Boolean = x < y
     override def gt(x: Double, y: Double): Boolean = x > y
     override def abs(x: Double): Double = java.lang.Math.abs(x)
@@ -2119,13 +2122,14 @@ library, you are unlikely to encounter any problems.
 
 e.g. prefer `implicit val` over `implicit object` despite the
 temptation of less typing. It is a [quirk of implicit resolution](https://github.com/scala/bug/issues/10411) that
-`implicit object` implementations on companion objects are not treated
-the same as `implicit val`.
+`implicit object` on companion objects are not treated the same as
+`implicit val`.
 
 ## Modelling OAuth2
 
 We will finish this chapter with a practical example of data modelling
-and typeclass derivation.
+and typeclass derivation, combined with algebra / module design from
+the previous chapter.
 
 In our `drone-dynamic-agents` application, we must communicate with
 Drone and Google Cloud using JSON over REST. Both services use [OAuth2](https://tools.ietf.org/html/rfc6749)
@@ -2220,19 +2224,20 @@ responding with
   }
 ~~~~~~~~
 
-Google expires all but the most recent 50 bearer tokens, so the expiry
-times are just guidance. The *refresh tokens* persist between sessions
-and can be expired manually by the user. We can therefore have a
-one-time setup application to obtain the token and then include the
-token as configuration for the user's install of the headless server.
+Google expires all but the most recent 50 *bearer tokens*, so the
+expiry times are just guidance. The *refresh tokens* persist between
+sessions and can be expired manually by the user. We can therefore
+have a one-time setup application to obtain the refresh token and then
+include the refresh token as configuration for the user's install of
+the headless server.
 
 ### Data
 
-The first step is to model the data that our OAuth2 implementation
-requires. We create an ADT with fields having exactly the same name as
-required by the OAuth2 server. We will use `String` and `Long` for
-now, even though there is a limited set of valid entries. We will
-remedy this when we learn about *refined types*.
+The first step is to model the data needed for OAuth2. We create an
+ADT with fields having exactly the same name as required by the OAuth2
+server. We will use `String` and `Long` for now, even though there is
+a limited set of valid entries. We will remedy this when we learn
+about *refined types*.
 
 {lang="text"}
 ~~~~~~~~
@@ -2279,7 +2284,7 @@ remedy this when we learn about *refined types*.
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "com.spinoco" %% "fs2-http" % "0.1.6"
+  libraryDependencies += "com.spinoco" %% "fs2-http" % "0.1.7"
 ~~~~~~~~
 
 W> Avoid using `java.net.URL` at all costs: it uses DNS to resolve the
@@ -2300,8 +2305,8 @@ We need to marshal the data classes we defined in the previous section
 into JSON, URLs and POST-encoded forms. Since this requires
 polymorphism, we will need typeclasses.
 
-[circe](https://github.com/circe/circe) gives us an ADT for the JSON encoding and a typeclass to perform
-(paraphrased for brevity):
+[circe](https://github.com/circe/circe) gives us an ADT for JSON and typeclasses to convert to/from that
+ADT (paraphrased for brevity):
 
 {lang="text"}
 ~~~~~~~~
@@ -2390,7 +2395,7 @@ following is a reasonable design:
   }
 ~~~~~~~~
 
-We need to provide typeclass instances for our types:
+We need to provide typeclass instances for basic types:
 
 {lang="text"}
 ~~~~~~~~
@@ -2426,8 +2431,8 @@ We need to provide typeclass instances for our types:
 ~~~~~~~~
 
 In a dedicated chapter on *Generic Programming* we will write generic
-implementations of `QueryEncoded` and `UrlEncoded`, but for now we
-will write the boilerplate for the types we wish to convert:
+instances of `QueryEncoded` and `UrlEncoded`, but for now we will
+write the boilerplate for the types we wish to convert:
 
 {lang="text"}
 ~~~~~~~~
@@ -2482,12 +2487,13 @@ will write the boilerplate for the types we wish to convert:
 ### Module
 
 That concludes the data and functionality modelling required to
-implement OAuth2. Now the implementation almost writes itself. Recall
-from the previous chapter that we use `@free` to define mockable
-components that need to interact with the world in an impure way, and
-we define pure business logic in `@module`.
+implement OAuth2. Recall from the previous chapter that we use `@free`
+to define mockable components that need to interact with the world in
+an impure way, and we define pure business logic in `@module`.
 
-We can define our dependency algebras:
+We define our dependency algebras, and use context bounds to show that
+our responses must have a `Decoder` and our `POST` payload must have a
+`UrlEncoded`:
 
 {lang="text"}
 ~~~~~~~~
@@ -2620,6 +2626,8 @@ and then write an OAuth2 client:
     provided via "has a" *context bounds*, rather than "is a" class
     hierarchies.
 -   *typeclass instances* are implementations of the typeclass.
+-   `@simulacrum.typeclass` generates `.ops` on the companion, providing
+    convenient syntax for types that have a typeclass instance.
 -   *typeclass derivation* is compiletime composition of typeclass
     instances, based on other typeclass instances.
 -   *generic instances* use the shapeless library to automatically
