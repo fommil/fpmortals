@@ -1967,12 +1967,12 @@ names for common methods. In full:
 ### Instances
 
 *Instances* of `Numeric` (which are also instances of `Ordering`) are
-defined as an `implicit object` that extends the typeclass, and can
+defined as an `implicit val` that extends the typeclass, and can
 provide optimised implementations for the generalised methods:
 
 {lang="text"}
 ~~~~~~~~
-  implicit object NumericDouble extends Numeric[Double] {
+  implicit val NumericDouble: Numeric[Double] = new Numeric[Double] {
     def plus(x: Double, y: Double): Double = x + y
     def times(x: Double, y: Double): Double = x * y
     def negate(x: Double): Double = -x
@@ -2000,7 +2000,7 @@ We can also implement `Numeric` for Java's `BigDecimal` class (avoid
 ~~~~~~~~
   import java.math.{ BigDecimal => BD }
   
-  implicit object NumericBD extends Numeric[BD] {
+  implicit val NumericBD: Numeric[BD] = new Numeric[BD] {
     def plus(x: BD, y: BD): BD = x.add(y)
     def times(x: BD, y: BD): BD = x.multiply(y)
     def negate(x: BD): BD = x.negate
@@ -2090,15 +2090,14 @@ for computations to be performed at compiletime rather than runtime.
 The glue that combines implicit parameters (receivers) with implicit
 conversion (providers) is implicit resolution.
 
-First, the normal variable scope is searched for implicits (`val`,
-`object` or `def`), in order:
+First, the normal variable scope is searched for implicits, in order:
 
--   local scope (e.g. the block or method)
--   outer scope (e.g. members in the class)
+-   local scope, including scoped imports (e.g. the block or method)
+-   outer scope, including scoped imports (e.g. members in the class)
 -   ancestors (e.g. members in the super class)
 -   the current package object
 -   ancestor package objects (only when using nested packages)
--   imported members
+-   the file's imports
 
 If that fails to find a match, the special scope is searched, which
 looks for implicit instances inside a type's companion, its package
@@ -2120,6 +2119,11 @@ The Scala Language Specification is rather vague for corner cases,
 e.g. chaining of `implicit def`: the compiler implementation is the de
 facto standard. However, unless you are writing a typeclass derivation
 library, you are unlikely to encounter any problems.
+
+e.g. prefer `implicit val` over `implicit object` despite the
+temptation of less typing. It is a [quirk of implicit resolution](https://github.com/scala/bug/issues/10411) that
+`implicit object` implementations on companion objects are not treated
+the same as `implicit val`.
 
 ## Modelling OAuth2
 
@@ -2345,6 +2349,8 @@ The JSON typeclasses are (again, paraphrased)
 ~~~~~~~~
   package io.circe
   
+  import simulacrum._
+  
   @typeclass trait Encoder[T] {
     def encodeJson(t: T): Json
   }
@@ -2385,12 +2391,103 @@ following is a reasonable design:
 ~~~~~~~~
   package http.encoding
   
-  @typeclass trait UrlEncoded[T] {
-    def urlEncoded(t: T): String
-  }
+  import simulacrum._
   
   @typeclass trait QueryEncoded[T] {
     def queryEncoded(t: T): Uri.Query
+  }
+  
+  @typeclass trait UrlEncoded[T] {
+    def urlEncoded(t: T): String
+  }
+~~~~~~~~
+
+We need to provide typeclass instances for the types we will use:
+
+{lang="text"}
+~~~~~~~~
+  import java.net.URLEncoder
+  import spinoco.protocol.http.Uri
+  
+  object UrlEncoded {
+    implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
+      override def urlEncoded(s: String): String = URLEncoder.encode(s, "UTF-8")
+    }
+    implicit val UrlEncodedLong: UrlEncoded[Long] = new UrlEncoded[Long] {
+      override def urlEncoded(s: Long): String = s.toString
+    }
+    import ops._
+    implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
+      new UrlEncoded[Seq[(String, String)]] {
+        override def urlEncoded(m: Seq[(String, String)]): String =
+          m.map {
+            case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
+          }.mkString("&")
+      }
+    implicit val UrlEncodedUri: UrlEncoded[Uri] = new UrlEncoded[Uri] {
+      override def urlEncoded(u: Uri): String = {
+        val scheme = u.scheme.toString
+        val host   = u.host.host
+        val port   = u.host.port.fold("")(p => s":$p")
+        val path   = u.path.stringify
+        val query  = u.query.params.toSeq.urlEncoded
+        s"$scheme://$host$port$path?$query".urlEncoded
+      }
+    }
+  }
+~~~~~~~~
+
+In a dedicated chapter on *Generic Programming* we will write generic
+implementations of `QueryEncoded` and `UrlEncoded`, but for now we
+will write the boilerplate for the types we wish to convert:
+
+{lang="text"}
+~~~~~~~~
+  import java.net.URLDecoder
+  import http.encoding._
+  import UrlEncoded.ops._
+  
+  object AuthRequest {
+    implicit val QueryEncoder: QueryEncoded[AuthRequest] =
+      new QueryEncoded[AuthRequest] {
+        private def stringify[T: UrlEncoded](t: T) =
+          URLDecoder.decode(t.urlEncoded, "UTF-8")
+  
+        def queryEncoded(a: AuthRequest): Uri.Query =
+          Uri.Query.empty :+
+            ("redirect_uri"  -> stringify(a.redirect_uri)) :+
+            ("scope"         -> stringify(a.scope)) :+
+            ("client_id"     -> stringify(a.client_id)) :+
+            ("prompt"        -> stringify(a.prompt)) :+
+            ("response_type" -> stringify(a.response_type)) :+
+            ("access_type"   -> stringify(a.access_type))
+      }
+  }
+  object AccessRequest {
+    implicit val UrlEncoder: UrlEncoded[AccessRequest] =
+      new UrlEncoded[AccessRequest] {
+        def urlEncoded(a: AccessRequest): String =
+          Seq(
+            "code"          -> a.code.urlEncoded,
+            "redirect_uri"  -> a.redirect_uri.urlEncoded,
+            "client_id"     -> a.client_id.urlEncoded,
+            "client_secret" -> a.client_secret.urlEncoded,
+            "scope"         -> a.scope.urlEncoded,
+            "grant_type"    -> a.grant_type
+          ).urlEncoded
+      }
+  }
+  object RefreshRequest {
+    implicit val UrlEncoder: UrlEncoded[RefreshRequest] =
+      new UrlEncoded[RefreshRequest] {
+        def urlEncoded(r: RefreshRequest): String =
+          Seq(
+            "client_secret" -> r.client_secret.urlEncoded,
+            "refresh_token" -> r.refresh_token.urlEncoded,
+            "client_id"     -> r.client_id.urlEncoded,
+            "grant_type"    -> r.grant_type.urlEncoded
+          ).urlEncoded
+      }
   }
 ~~~~~~~~
 
