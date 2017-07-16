@@ -50,3 +50,6 @@ libraryDependencies += "io.frees" %% "freestyle" % "0.3.1"
 scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := file("project/scalafmt.conf")
 scalafmtVersion in ThisBuild := "1.0.0-RC4"
+
+// WORKAROUND https://github.com/scalameta/paradise/issues/10
+scalacOptions in (Compile, console) ~= (_ filterNot (_ contains "paradise"))
