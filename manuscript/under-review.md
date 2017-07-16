@@ -1618,8 +1618,8 @@ In FP, functions are *total* and must return an instance for every
 input, no `Exception`. Minimising the complexity of inputs and outputs
 is the best way to achieve totality. As a rule of thumb, it is a sign
 of a badly designed function when the complexity of a function's
-return instance is larger than the product of its inputs: it is a
-source of entropy.
+return value is larger than the product of its inputs: it is a source
+of entropy.
 
 The complexity of a total function itself is the number of possible
 functions that can satisfy the type signature: the output to the power
@@ -1668,10 +1668,9 @@ exist.
 
 The complexity of a data type also has implications on testing. It is
 practically impossible to test every possible input to a function, but
-it is easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property
-testing library as we will see in the next section. If a random sample
-of a data type has a low probability of being valid, it's a sign that
-the data is modelled incorrectly.
+it is easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property. If
+a random sample of a data type has a low probability of being valid,
+it's a sign that the data is modelled incorrectly.
 
 ### Optimisations
 
@@ -1802,9 +1801,6 @@ A>   implicit final class DoubleOps(val x: Double) extends AnyVal {
 A>     def sin: Double = java.lang.Math.sin(x)
 A>   }
 A> ~~~~~~~~
-A> 
-A> It is unfortunate that this was not the default when the language
-A> feature was introduced.
 
 ### Polymorphic Functions
 
