@@ -1743,20 +1743,17 @@ Pure functions are typically defined as methods on an `object`.
   }
   
   math.sin(1.0)
-  
-  import math._
-  sin(1.0)
 ~~~~~~~~
+
+However, it can sometimes be clunky to use `object` methods since it
+reads inside-out, not left to right: it's the same problem as Java's
+static methods vs class methods.
 
 W> If you like to put methods on a `trait`, requiring users to mix your
 W> traits into their `classes` or `objects` with the *cake pattern*,
 W> please get out of this nasty habit: you're leaking internal
 W> implementation detail to public APIs, bloating your bytecode, and
 W> creating a lot of noise for IDE autocompleters.
-
-However, it can sometimes be clunky to use `object` methods since it
-reads inside-out, not left to right: it's the same problem as Java's
-static methods vs class methods.
 
 With the `implicit class` language feature (also known as *extension
 methodology* or *syntax*), and a little boilerplate, we can get the
@@ -2163,10 +2160,6 @@ their browser**). We need to make this page open in the browser:
     client_id={CLIENT_ID}
 ~~~~~~~~
 
-I> In these payload examples, `{CAPITAL_SYMBOLS}` are used as
-I> placeholders for variables, and escaped newlines have been added for
-I> clarity.
-
 The *code* is delivered to the `{CALLBACK_URI}` in a `GET` request. To
 capture it in our application, we need to have a web server listening
 on `localhost`.
@@ -2210,10 +2203,10 @@ by sending an HTTP request with any valid *refresh token*:
   Content-length: {CONTENT_LENGTH}
   content-type: application/x-www-form-urlencoded
   user-agent: google-oauth-playground
-  client_secret=CLIENT_SECRET&
+  client_secret={CLIENT_SECRET}&
     grant_type=refresh_token&
-    refresh_token=REFRESH_TOKEN&
-    client_id=CLIENT_ID
+    refresh_token={REFRESH_TOKEN}&
+    client_id={CLIENT_ID}
 ~~~~~~~~
 
 responding with
@@ -2228,9 +2221,10 @@ responding with
 ~~~~~~~~
 
 Google expires all but the most recent 50 bearer tokens, so the expiry
-times are just guidance. The *refresh tokens* are long term
-persistent, so we can use a one-time app to obtain the token and then
-include it as configuration for the headless server.
+times are just guidance. The *refresh tokens* persist between sessions
+and can be expired manually by the user. We can therefore have a
+one-time setup application to obtain the token and then include the
+token as configuration for the user's install of the headless server.
 
 ### Data
 
@@ -2242,7 +2236,6 @@ remedy this when we learn about *refined types*.
 
 {lang="text"}
 ~~~~~~~~
-  /** The API as defined by the OAuth 2.0 server */
   package http.oauth2.client.api
   
   import spinoco.protocol.http.Uri
@@ -2308,11 +2301,13 @@ into JSON, URLs and POST-encoded forms. Since this requires
 polymorphism, we will need typeclasses.
 
 [circe](https://github.com/circe/circe) gives us an ADT for the JSON encoding and a typeclass to perform
-conversions. Circe's JSON AST looks like (paraphrased for brevity):
+(paraphrased for brevity):
 
 {lang="text"}
 ~~~~~~~~
   package io.circe
+  
+  import simulacrum._
   
   sealed trait Json
   case object JNull extends Json
@@ -2321,35 +2316,6 @@ conversions. Circe's JSON AST looks like (paraphrased for brevity):
   final case class JString(value: String) extends Json
   final case class JArray(value: Vector[Json]) extends Json
   final case class JObject(value: JsonObject) extends Json
-~~~~~~~~
-
-where `JsonNumber` and `JsonObject` are optimised specialisations of
-roughly `java.math.BigDecimal` and `Map[String, Json]`.
-
-W> `java.math.BigDecimal` is not a safe object to include in a wire
-W> protocol format. It is possible to construct valid numerical values
-W> that will exception when parsed or hang the `Thread` forever if
-W> converted into `java.math.BigInteger`.
-W> 
-W> Travis Brown, maintainer of Circe, has [gone to great lengths](https://github.com/circe/circe/blob/master/modules/core/shared/src/main/scala/io/circe/JsonNumber.scala) to
-W> protect us all. If you want to have similarly safe numbers in your
-W> wire protocols, either use `JsonNumber` or settle for lossy `Double`.
-W> 
-W> We give you *The Infinity Bomb*: `"1e2147483648"`. To freeze your JVM,
-W> type this in the REPL
-W> 
-W> {lang="text"}
-W> ~~~~~~~~
-W>   scala> new java.math.BigDecimal("1e2147483647").toBigInteger
-W> ~~~~~~~~
-
-The JSON typeclasses are (again, paraphrased)
-
-{lang="text"}
-~~~~~~~~
-  package io.circe
-  
-  import simulacrum._
   
   @typeclass trait Encoder[T] {
     def encodeJson(t: T): Json
@@ -2359,10 +2325,32 @@ The JSON typeclasses are (again, paraphrased)
   }
 ~~~~~~~~
 
-And because circe provides *generic* implementations, we can conjure
-up a `Decoder[AccessResponse]` and `Decoder[RefreshResponse]` with
-only a couple of lines of code. This is an example of parsing text
-into `AccessResponse`:
+where `JsonNumber` and `JsonObject` are optimised specialisations of
+roughly `java.math.BigDecimal` and `Map[String, Json]`.
+
+W> `java.math.BigDecimal` and especially `java.math.BigInteger` are not
+W> safe objects to include in wire protocol formats. It is possible to
+W> construct valid numerical values that will exception when parsed or
+W> hang the `Thread` forever.
+W> 
+W> Travis Brown, author of Circe, has [gone to great lengths](https://github.com/circe/circe/blob/master/modules/core/shared/src/main/scala/io/circe/JsonNumber.scala) to protect
+W> us. If you want to have similarly safe numbers in your wire protocols,
+W> either use `JsonNumber` or settle for lossy `Double`.
+W> 
+W> {lang="text"}
+W> ~~~~~~~~
+W>   scala> new java.math.BigDecimal("1e2147483648")
+W>   java.lang.NumberFormatException
+W>     at java.math.BigDecimal.<init>(BigDecimal.java:491)
+W>     ... elided
+W>   
+W>   scala> new java.math.BigDecimal("1e2147483647").toBigInteger
+W>     ... hangs forever ...
+W> ~~~~~~~~
+
+Because circe provides *generic* instances, we can conjure up a
+`Decoder[AccessResponse]` and `Decoder[RefreshResponse]`. This is an
+example of parsing text into `AccessResponse`:
 
 {lang="text"}
 ~~~~~~~~
@@ -2370,14 +2358,14 @@ into `AccessResponse`:
          import io.circe.generic.auto._
   
          for {
-           json <- io.circe.parser.parse("""
-                   {
-                     "access_token": "BEARER_TOKEN",
-                     "token_type": "Bearer",
-                     "expires_in": 3600,
-                     "refresh_token": "REFRESH_TOKEN"
-                   }
-                   """)
+           json     <- io.circe.parser.parse("""
+                       {
+                         "access_token": "BEARER_TOKEN",
+                         "token_type": "Bearer",
+                         "expires_in": 3600,
+                         "refresh_token": "REFRESH_TOKEN"
+                       }
+                       """)
            response <- json.as[AccessResponse]
          } yield response
   
