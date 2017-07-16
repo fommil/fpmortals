@@ -149,13 +149,13 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 object algebra {
   @free trait UserInteraction {
 
-    /** returns the Uri that the local server is listening on */
+    /** returns the Uri of the local server */
     def start: FS[Uri]
 
-    /** prompts the user to open this Uri, which will end up at the local server */
+    /** prompts the user to open this Uri */
     def open(uri: Uri): FS[Unit]
 
-    /** wait for the user interaction to complete and recover the code */
+    /** recover the code from the callback */
     def stop: FS[CodeToken]
   }
 
