@@ -2390,7 +2390,7 @@ following is a reasonable design:
   }
 ~~~~~~~~
 
-We need to provide typeclass instances for the types we will use:
+We need to provide typeclass instances for our types:
 
 {lang="text"}
 ~~~~~~~~
@@ -2479,38 +2479,150 @@ will write the boilerplate for the types we wish to convert:
   }
 ~~~~~~~~
 
-1.  FIXME FIXME FIXME this is as far as I got
+### Module
 
-    {lang="text"}
-    ~~~~~~~~
-      package http.client
-      
-      import io.circe.Decoder
-      import freestyle._
-      import spinoco.protocol.http._
-      import spinoco.protocol.http.header._
-      import http.encoding._
-      
-      object algebra {
-        final case class Response[T](header: HttpResponseHeader, body: T)
-      
-        @free trait JsonHttpClient {
-          def get[B: Decoder](
-            uri: Uri,
-            headers: List[HttpHeader] = Nil
-          ): FS[Response[B]]
-      
-          def postUrlencoded[A: UrlEncoded, B: Decoder](
-            uri: Uri,
-            payload: A,
-            headers: List[HttpHeader] = Nil
-          ): FS[Response[B]]
-        }
+That concludes the data and functionality modelling required to
+implement OAuth2. Now the implementation almost writes itself. Recall
+from the previous chapter that we use `@free` to define mockable
+components that need to interact with the world in an impure way, and
+we define pure business logic in `@module`.
+
+We can define our dependency algebras:
+
+{lang="text"}
+~~~~~~~~
+  import java.time.LocalDateTime
+  
+  package http.client {
+    object algebra {
+      final case class Response[T](header: HttpResponseHeader, body: T)
+  
+      @free trait JsonHttpClient {
+        def get[B: Decoder](
+          uri: Uri,
+          headers: List[HttpHeader] = Nil
+        ): FS[Response[B]]
+  
+        def postUrlencoded[A: UrlEncoded, B: Decoder](
+          uri: Uri,
+          payload: A,
+          headers: List[HttpHeader] = Nil
+        ): FS[Response[B]]
       }
-    ~~~~~~~~
-    
-    -   scalacheck-shapeless
-    -   cachedImplicit into a val
-    -   downside is compile time speeds for ADTs of 50+
+    }
+  }
+  
+  package http.oauth2.client {
+    object algebra {
+  
+      final case class CodeToken(token: String, redirect_uri: Uri)
+  
+      @free trait UserInteraction {
+        /** returns the Uri of the local server */
+        def start: FS[Uri]
+  
+        /** prompts the user to open this Uri */
+        def open(uri: Uri): FS[Unit]
+  
+        /** recover the code from the callback */
+        def stop: FS[CodeToken]
+      }
+  
+      @free trait LocalClock {
+        def now: FS[LocalDateTime]
+      }
+    }
+  }
+~~~~~~~~
+
+some convenient data classes
+
+{lang="text"}
+~~~~~~~~
+  final case class ServerConfig(
+    auth: Uri,
+    access: Uri,
+    refresh: Uri,
+    scope: String,
+    clientId: String,
+    clientSecret: String
+  )
+  final case class RefreshToken(token: String)
+  final case class BearerToken(token: String, expires: LocalDateTime)
+~~~~~~~~
+
+and then write an OAuth2 client:
+
+{lang="text"}
+~~~~~~~~
+  package logic {
+    import java.time.temporal.ChronoUnit
+    import io.circe.generic.auto._
+    import http.encoding.QueryEncoded.ops._
+  
+    @module class OAuth2Client(config: ServerConfig) {
+      val user: UserInteraction
+      val server: JsonHttpClient
+      val clock: LocalClock
+  
+      def authenticate: FS[CodeToken] =
+        for {
+          callback <- user.start
+          params   = AuthRequest(callback, config.scope, config.clientId)
+          _        <- user.open(config.auth.withQuery(params.queryEncoded))
+          code     <- user.stop
+        } yield code
+  
+      def access(code: CodeToken): FS[(RefreshToken, BearerToken)] =
+        for {
+          request <- AccessRequest(code.token,
+                                   code.redirect_uri,
+                                   config.clientId,
+                                   config.clientSecret).pure[FS]
+          response <- server
+                       .postUrlencoded[AccessRequest, AccessResponse](
+                         config.access,
+                         request
+                       )
+          time    <- clock.now
+          msg     = response.body
+          expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+          refresh = RefreshToken(msg.refresh_token)
+          bearer  = BearerToken(msg.access_token, expires)
+        } yield (refresh, bearer)
+  
+      def bearer(refresh: RefreshToken): FS[BearerToken] =
+        for {
+          request <- RefreshRequest(config.clientSecret,
+                                    refresh.token,
+                                    config.clientId).pure[FS]
+          response <- server
+                       .postUrlencoded[RefreshRequest, RefreshResponse](
+                         config.refresh,
+                         request
+                       )
+          time    <- clock.now
+          msg     = response.body
+          expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+          bearer  = BearerToken(msg.access_token, expires)
+        } yield bearer
+    }
+  }
+~~~~~~~~
+
+## Summary
+
+-   data types are defined as *products* (`case class`) and *coproducts*
+      (`sealed trait` or nested `Either`).
+-   specific functions are defined on `object` or `implicit class`,
+    according to personal taste.
+-   polymorphic functions are defined as *typeclasses*. Functionality is
+    provided via "has a" *context bounds*, rather than "is a" class
+    hierarchies.
+-   *typeclass instances* are implementations of the typeclass.
+-   *typeclass derivation* is compiletime composition of typeclass
+    instances, based on other typeclass instances.
+-   *generic instances* use the shapeless library to automatically
+    derive typeclass instances for your data types.
 
 
