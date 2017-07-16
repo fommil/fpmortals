@@ -278,4 +278,55 @@ package api {
     expires_in: Long
   )
 
+  // to avoid having to implement a generic encoder in Chapter 4
+  // (I don't want cyclic dependencies in my book, damnit!)
+  import scala.collection.immutable.Seq
+  import scala.Predef.ArrowAssoc
+  import java.net.URLDecoder
+  import http.encoding._
+  import UrlEncoded.ops._
+  object AuthRequest {
+    implicit val QueryEncoder: QueryEncoded[AuthRequest] =
+      new QueryEncoded[AuthRequest] {
+        private def stringify[T: UrlEncoded](t: T) =
+          URLDecoder.decode(t.urlEncoded, "UTF-8")
+
+        def queryEncoded(a: AuthRequest): Uri.Query =
+          Uri.Query.empty :+
+            ("redirect_uri"  -> stringify(a.redirect_uri)) :+
+            ("scope"         -> stringify(a.scope)) :+
+            ("client_id"     -> stringify(a.client_id)) :+
+            ("prompt"        -> stringify(a.prompt)) :+
+            ("response_type" -> stringify(a.response_type)) :+
+            ("access_type"   -> stringify(a.access_type))
+      }
+  }
+
+  object AccessRequest {
+    implicit val UrlEncoder: UrlEncoded[AccessRequest] =
+      new UrlEncoded[AccessRequest] {
+        def urlEncoded(a: AccessRequest): String =
+          Seq(
+            "code"          -> a.code.urlEncoded,
+            "redirect_uri"  -> a.redirect_uri.urlEncoded,
+            "client_id"     -> a.client_id.urlEncoded,
+            "client_secret" -> a.client_secret.urlEncoded,
+            "scope"         -> a.scope.urlEncoded,
+            "grant_type"    -> a.grant_type
+          ).urlEncoded
+      }
+  }
+  object RefreshRequest {
+    implicit val UrlEncoder: UrlEncoded[RefreshRequest] =
+      new UrlEncoded[RefreshRequest] {
+        def urlEncoded(r: RefreshRequest): String =
+          Seq(
+            "client_secret" -> r.client_secret.urlEncoded,
+            "refresh_token" -> r.refresh_token.urlEncoded,
+            "client_id"     -> r.client_id.urlEncoded,
+            "grant_type"    -> r.grant_type.urlEncoded
+          ).urlEncoded
+      }
+  }
+
 }

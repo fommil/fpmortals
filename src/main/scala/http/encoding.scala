@@ -56,6 +56,7 @@ object UrlEncoded {
     }
   }
 
+  /*
   // generic impl
   implicit object UrlEncodedHNil extends UrlEncoded[HNil] {
     override def urlEncoded(h: HNil): String = ""
@@ -86,10 +87,12 @@ object UrlEncoded {
   ): UrlEncoded[T] = new UrlEncoded[T] {
     override def urlEncoded(t: T): String = u.urlEncoded(g.to(t))
   }
+ */
 
 }
 
 object QueryEncoded {
+  /*
   // generic impl
   implicit object QueryEncodedHNil extends QueryEncoded[HNil] {
     override def queryEncoded(h: HNil): Query = Query(Nil)
@@ -122,4 +125,5 @@ object QueryEncoded {
   ): QueryEncoded[T] = new QueryEncoded[T] {
     override def queryEncoded(t: T): Query = u.queryEncoded(g.to(t))
   }
+ */
 }
