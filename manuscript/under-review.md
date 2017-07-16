@@ -1479,7 +1479,7 @@ However, the compiler will not perform exhaustivity checking if the
 
 This will also fail at runtime if we pass a `Bar(false)`.
 
-Guards should not be used when matching on a `sealed trait`. When
+[Guards should not be used when matching on a `sealed trait`](https://github.com/wartremover/wartremover/issues/382). When
 guards are used on a `case class`, there should always be a `case _
 =>` with a default value, unless you have proven that it cannot occur.
 

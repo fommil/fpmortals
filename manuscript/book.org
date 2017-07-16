@@ -1921,7 +1921,7 @@ scala.MatchError: Baz (of class Baz$)
 
 This will also fail at runtime if we pass a =Bar(false)=.
 
-Guards should not be used when matching on a =sealed trait=. When
+[[https://github.com/wartremover/wartremover/issues/382][Guards should not be used when matching on a =sealed trait=]]. When
 guards are used on a =case class=, there should always be a =case _
 =>= with a default value, unless you have proven that it cannot occur.
 
