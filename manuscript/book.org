@@ -102,7 +102,7 @@ libraryDependencies ++= Seq(
   "io.circe"      %% "circe-parser"  % circeVersion,
   "io.circe"      %% "circe-fs2"     % circeVersion,
   "org.typelevel" %% "cats"          % "0.9.0",
-  "com.spinoco"   %% "fs2-http"      % "0.1.6",
+  "com.spinoco"   %% "fs2-http"      % "0.1.7",
   "io.frees"      %% "freestyle"     % "0.3.1"
 )
 
@@ -2694,11 +2694,7 @@ final case class RefreshResponse(
 )
 #+END_SRC
 
-=Uri= is a typed ADT for URL requests and is from [[https://github.com/Spinoco/fs2-http][fs2-http]]:
-
-#+BEGIN_SRC scala
-libraryDependencies += "com.spinoco" %% "fs2-http" % "0.1.7"
-#+END_SRC
+=Uri= is a typed ADT for URL requests from [[https://github.com/Spinoco/fs2-http][fs2-http]]:
 
 #+BEGIN_WARNING
 Avoid using =java.net.URL= at all costs: it uses DNS to resolve the

@@ -92,7 +92,7 @@ and add the following dependencies to your project's settings:
     "io.circe"      %% "circe-parser"  % circeVersion,
     "io.circe"      %% "circe-fs2"     % circeVersion,
     "org.typelevel" %% "cats"          % "0.9.0",
-    "com.spinoco"   %% "fs2-http"      % "0.1.6",
+    "com.spinoco"   %% "fs2-http"      % "0.1.7",
     "io.frees"      %% "freestyle"     % "0.3.1"
   )
   

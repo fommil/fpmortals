@@ -2280,12 +2280,7 @@ about *refined types*.
   )
 ~~~~~~~~
 
-`Uri` is a typed ADT for URL requests and is from [fs2-http](https://github.com/Spinoco/fs2-http):
-
-{lang="text"}
-~~~~~~~~
-  libraryDependencies += "com.spinoco" %% "fs2-http" % "0.1.7"
-~~~~~~~~
+`Uri` is a typed ADT for URL requests from [fs2-http](https://github.com/Spinoco/fs2-http):
 
 W> Avoid using `java.net.URL` at all costs: it uses DNS to resolve the
 W> hostname part when performing `toString`, `equals` or `hashCode`.
