@@ -38,6 +38,7 @@ class UrlEncodedSpec extends FlatSpec {
     val uri =
       Uri.parse("http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar").toOption.get
     uri.urlEncoded should be(
+      // the %3A must be double escaped to %253A
       "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar"
     )
   }

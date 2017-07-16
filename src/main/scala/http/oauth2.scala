@@ -278,6 +278,7 @@ package api {
     expires_in: Long
   )
 
+  /*
   // to avoid having to implement a generic encoder in Chapter 4
   // (I don't want cyclic dependencies in my book, damnit!)
   import scala.collection.immutable.Seq
@@ -328,5 +329,6 @@ package api {
           ).urlEncoded
       }
   }
+ */
 
 }

@@ -34,12 +34,12 @@ object UrlEncoded {
   }
 
   // useful impls
+  import ops._
   implicit object UrlEncodedStringySeq
       extends UrlEncoded[Seq[(String, String)]] {
     override def urlEncoded(m: Seq[(String, String)]): String =
       m.map {
-        case (k, v) =>
-          s"${UrlEncodedString.urlEncoded(k)}=${UrlEncodedString.urlEncoded(v)}"
+        case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
       }.mkString("&")
   }
   implicit object UrlEncodedUri extends UrlEncoded[Uri] {
@@ -47,16 +47,14 @@ object UrlEncoded {
       // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
       //             (which would also let us remove UrlEncodedStringySeq)
       val scheme = u.scheme.toString
-      val host   = s"${u.host.host}"
+      val host   = u.host.host
       val port   = u.host.port.fold("")(p => s":$p")
       val path   = u.path.stringify
-      val query  = UrlEncodedStringySeq.urlEncoded(u.query.params)
-      val uri    = s"$scheme://$host$port$path?$query"
-      UrlEncodedString.urlEncoded(uri)
+      val query  = u.query.params.toSeq.urlEncoded
+      s"$scheme://$host$port$path?$query".urlEncoded
     }
   }
 
-  /*
   // generic impl
   implicit object UrlEncodedHNil extends UrlEncoded[HNil] {
     override def urlEncoded(h: HNil): String = ""
@@ -75,7 +73,7 @@ object UrlEncoded {
           val rest = t.urlEncoded(hlist.tail)
           if (rest.isEmpty) "" else s"&$rest"
         }
-        val key   = UrlEncodedString.urlEncoded(k.value.name)
+        val key   = k.value.name.urlEncoded
         val value = h.urlEncoded(hlist.head)
         s"$key=$value$rest"
       }
@@ -87,12 +85,10 @@ object UrlEncoded {
   ): UrlEncoded[T] = new UrlEncoded[T] {
     override def urlEncoded(t: T): String = u.urlEncoded(g.to(t))
   }
- */
 
 }
 
 object QueryEncoded {
-  /*
   // generic impl
   implicit object QueryEncodedHNil extends QueryEncoded[HNil] {
     override def queryEncoded(h: HNil): Query = Query(Nil)
@@ -125,5 +121,4 @@ object QueryEncoded {
   ): QueryEncoded[T] = new QueryEncoded[T] {
     override def queryEncoded(t: T): Query = u.queryEncoded(g.to(t))
   }
- */
 }
