@@ -2421,6 +2421,40 @@ We need to provide typeclass instances for basic types:
   }
 ~~~~~~~~
 
+A> Typing or reading
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
+A>     override def urlEncoded(s: String): String = ...
+A>   }
+A> ~~~~~~~~
+A> 
+A> can be tiresome. We've basically said `UrlEncoded`, `String` four
+A> times. A common pattern, that [may be added to simulacrum](https://github.com/mpilquist/simulacrum/issues/5) is to define
+A> a method named `instance` on the typeclass companion
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   def instance[T](f: T => String): UrlEncoded[T] = new UrlEncoded[T] {
+A>     override def urlEncoded(t: T): String = f(t)
+A>   }
+A> ~~~~~~~~
+A> 
+A> which then allows for instances to be defined more tersely as
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   implicit val UrlEncodedString: UrlEncoded[String] = instance { s => ... }
+A> ~~~~~~~~
+A> 
+A> Syntax sugar has been proposed in [dotty](https://github.com/lampepfl/dotty/issues/2879) allowing for:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   implicit val _: UrlEncoded[String] = instance { s => ... }
+A> ~~~~~~~~
+
 In a dedicated chapter on *Generic Programming* we will write generic
 instances of `QueryEncoded` and `UrlEncoded`, but for now we will
 write the boilerplate for the types we wish to convert:
@@ -2457,7 +2491,7 @@ write the boilerplate for the types we wish to convert:
             "client_id"     -> a.client_id.urlEncoded,
             "client_secret" -> a.client_secret.urlEncoded,
             "scope"         -> a.scope.urlEncoded,
-            "grant_type"    -> a.grant_type
+            "grant_type"    -> a.grant_type.urlEncoded
           ).urlEncoded
       }
   }
