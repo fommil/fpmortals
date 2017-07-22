@@ -67,8 +67,7 @@ Hadziavdic, for giving feedback on early drafts of this text.
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
 John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in
-Futures, how to unsuck them]], Kelley Robinson for [[https://www.youtube.com/watch?v=U0lK0hnbc4U][Why the Free Monad
-isn't Free]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]]
+Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]]
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund
