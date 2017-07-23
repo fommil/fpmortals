@@ -10,8 +10,11 @@ Therefore, this book justifies every concept with practical examples,
 in Scala.
 
 This book is not aimed at Haskell developers. Such readers will be
-frustrated by the Java analogies and will prefer the [cats
-documentation](http://typelevel.org/cats/).
+frustrated by the Java analogies.
+
+There are many ways to do Functional Programming in Scala. This book
+focuses on using cats, but you can instead use scalaz or roll your own
+framework.
 
 This book is designed to be read from cover to cover, in the order
 presented, with a rest between chapters. To ensure that the book is
