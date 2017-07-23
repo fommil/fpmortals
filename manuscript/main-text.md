@@ -88,6 +88,8 @@ Protect yourself from mistyping
 -   cachedImplicit into a val
 -   downside is compile time speeds for ADTs of 50+
 -   alternative is <https://github.com/propensive/magnolia>
+-   some advanced cases, e.g. spray-json-shapeless stuff, typeclass
+    hierarchy / ambiguities and Not
 
 # TODO Recursion Schemes
 
