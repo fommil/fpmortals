@@ -2544,6 +2544,14 @@ temptation of less typing. It is a [[https://github.com/scala/bug/issues/10411][
 =implicit object= on companion objects are not treated the same as
 =implicit val=.
 
+Implicit resolution falls short when there is a hierarchy of
+typeclasses, like =Ordering= and =Numeric=. If we write a function
+that takes an implicit =Ordering=, and we call it for a type which has
+an instance of =Numeric= defined on the =Numeric= companion, the
+compiler will fail to find it. A workaround is to add implicit
+conversions to the companion of =Ordering= that up-cast more specific
+instances. [[https://github.com/lampepfl/dotty/issues/2047][Fixed In Dotty]].
+
 *** Modelling OAuth2
 
 We will finish this chapter with a practical example of data modelling
