@@ -2816,7 +2816,8 @@ We need to provide typeclass instances for basic types:
 import java.net.URLEncoder
 import spinoco.protocol.http.Uri
 
-object UrlEncoded {
+object UrlEncoded extends UrlEncodedDefaultInstances
+trait UrlEncodedDefaultInstances {
   implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
     override def urlEncoded(s: String): String = URLEncoder.encode(s, "UTF-8")
   }
