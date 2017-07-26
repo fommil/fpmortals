@@ -7,6 +7,8 @@
 #+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
 #+OPTIONS: toc:nil
 
+# Σ ⊣ Δ ⊣ Π
+
 * Frontmatter                                                  :sample:final:
 :PROPERTIES:
 :EXPORT_FILE_NAME: frontmatter.md
