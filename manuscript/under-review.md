@@ -1519,7 +1519,18 @@ the implementations into the same source file.
   type Accepted = String |: Long |: Boolean
 ~~~~~~~~
 
-Pattern matching on this form of coproduct can be tedious, which is
+Yet another alternative coproduct is to create a custom `sealed trait`
+with `case class` definitions that simply wrap the desired type:
+
+{lang="text"}
+~~~~~~~~
+  sealed trait Accepted
+  final case class AcceptedString(value: String) extends Accepted
+  final case class AcceptedLong(value: Long) extends Accepted
+  final case class AcceptedBoolean(value: Boolean) extends Accepted
+~~~~~~~~
+
+Pattern matching on these forms of coproduct can be tedious, which is
 why [Union Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation scala
 compiler. Workarounds such as [totalitarian](https://github.com/propensive/totalitarian)'s `Disjunct` exist as
 another way of encoding anonymous coproducts.
