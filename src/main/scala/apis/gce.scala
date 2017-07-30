@@ -66,7 +66,7 @@ final case class NodePool(
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#Status
-sealed trait Status
+sealed abstract class Status
 case object STATUS_UNSPECIFIED extends Status
 case object PROVISIONING       extends Status
 case object RUNNING            extends Status

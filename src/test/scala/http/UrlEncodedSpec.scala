@@ -10,8 +10,10 @@ import scala.Predef.ArrowAssoc
 
 import org.scalatest._
 import org.scalatest.Matchers._
-import UrlEncoded.ops._
 import spinoco.protocol.http.Uri
+
+import UrlEncoded.ops._
+import http.encoding.generic._
 
 final case class Foo(apple: String, bananas: Long, pears: String)
 

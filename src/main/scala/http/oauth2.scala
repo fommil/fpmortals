@@ -187,6 +187,7 @@ package logic {
     import api._
     import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
+    import http.encoding.generic._
     type FS[A] = FreeS[F, A]
 
     // for use in one-shot apps requiring user interaction

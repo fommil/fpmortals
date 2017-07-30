@@ -24,7 +24,8 @@ import spinoco.protocol.http.Uri.Query
   def queryEncoded(t: T): Query
 }
 
-object UrlEncoded {
+object UrlEncoded extends UrlEncodedDefaultInstances
+trait UrlEncodedDefaultInstances {
   // primitive impls
   implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
     override def urlEncoded(s: String): String = URLEncoder.encode(s, "UTF-8")
@@ -34,7 +35,7 @@ object UrlEncoded {
   }
 
   // useful impls
-  import ops._
+  import UrlEncoded.ops._
   implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
     new UrlEncoded[Seq[(String, String)]] {
       override def urlEncoded(m: Seq[(String, String)]): String =
@@ -54,6 +55,16 @@ object UrlEncoded {
       s"$scheme://$host$port$path?$query".urlEncoded
     }
   }
+
+}
+
+object generic
+    extends UrlEncodedGenericInstances
+    with UrlEncodedDefaultInstances
+
+trait UrlEncodedGenericInstances {
+  this: UrlEncodedDefaultInstances =>
+  import UrlEncoded.ops._
 
   // generic impl
   implicit val UrlEncodedHNil: UrlEncoded[HNil] = new UrlEncoded[HNil] {

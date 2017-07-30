@@ -18,7 +18,7 @@ import spinoco.protocol.http._
 import spinoco.protocol.http.header._
 import http.encoding._
 
-object algebra {
+package algebra {
   final case class Response[T](header: HttpResponseHeader, body: T)
 
   @free trait JsonHttpClient {

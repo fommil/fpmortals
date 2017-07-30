@@ -12,14 +12,14 @@ import scala.language.higherKinds
 import cats.data.NonEmptyList
 import freestyle._
 
-object drone {
+package drone {
   @free trait Drone {
     def getBacklog: FS[Int]
     def getAgents: FS[Int]
   }
 }
 
-object machines {
+package machines {
   final case class Node(id: String)
 
   @free trait Machines {
