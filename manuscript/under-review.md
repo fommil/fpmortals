@@ -714,14 +714,14 @@ something useful in a moment.
   import cats.data.NonEmptyList
   import freestyle._
   
-  object drone {
+  package drone {
     @free trait Drone {
       def getBacklog: FS[Int]
       def getAgents: FS[Int]
     }
   }
   
-  object machines {
+  package machines {
     case class Node(id: String)
   
     @free trait Machines {
@@ -1229,11 +1229,11 @@ directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
 running on the JVM. Every nested call to `map` or `flatMap` adds to
 the stack, eventually resulting in a `StackOverflowError`.
 
-`Free` is a `sealed trait` that roughly looks like:
+`Free` is a `sealed abstract class` that roughly looks like:
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait Free[S[_], A] {
+  sealed abstract class Free[S[_], A] {
     def pure(a: A): Free[S, A] = Pure(a)
     def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
     def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
@@ -1250,9 +1250,9 @@ just build up data types that live on the heap. Work is delayed until
 Free is *interpreted*. This technique of using heap objects to
 eliminate stack growth is known as *trampolining*.
 
-When we use the `@free` annotation, a `sealed trait` data type is
-generated for each of our algebras, with a `case class` per method,
-allowing trampolining. When we write a `Handler`, Freestyle is
+When we use the `@free` annotation, a `sealed abstract class` data
+type is generated for each of our algebras, with a `case class` per
+method, allowing trampolining. When we write a `Handler`, Freestyle is
 converting pattern matches over heap objects into method calls.
 
 ### Free as in Monad
@@ -1345,12 +1345,12 @@ implementation detail.
 The fundamental building blocks of data types are
 
 -   `final case class` also known as *products*
--   `sealed trait` also known as *coproducts*
+-   `sealed abstract class` also known as *coproducts*
 -   `case object` *singletons* and *values* (`Int`, `Double`, `String`, etc)
 
 with no methods or fields other than the constructor parameters.
 
-A `sealed trait` containing only singletons is equivalent to an `enum`
+A `sealed abstract class` containing only singletons is equivalent to an `enum`
 in Java and is a more descriptive replacement for `Boolean` or `Int`
 feature flags. Singletons are just value types in disguise, so we can
 think about data in terms of *products*, *coproducts* and *values*.
@@ -1376,7 +1376,7 @@ and in Scala (remembering that `.type` is the type of a singleton):
   case class ABC(a: A.type, b: B, c: C)
   
   // coproduct
-  sealed trait XYZ
+  sealed abstract class XYZ
   case object X extends XYZ
   case object Y extends XYZ
   case class Z(b: B) extends XYZ
@@ -1391,7 +1391,7 @@ When we introduce a type parameter into an ADT, we call it a
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait List[+T]
+  sealed abstract class List[+T]
   case object Nil extends List[Nothing]
   final case class ::[+T](head: T, tail: List[T]) extends List[T]
 ~~~~~~~~
@@ -1406,7 +1406,7 @@ parameter in `FlatMapped`
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait Free[S[_], A]
+  sealed abstract class Free[S[_], A]
   case class Pure[S[_], A](a: A) extends Free[S, A]
   case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
   case class FlatMapped[S[_], B, C](c: Free[S, C],
@@ -1435,18 +1435,15 @@ interoperability with some legacy Java and Scala code.
 
 ### Exhaustivity
 
-It is important that we use `sealed trait`, not just `trait`, when
-defining a data type. Sealing a trait means that all subtypes must be
-defined in the same file, allowing the compiler to know about them in
-pattern match exhaustivity checks and in macros that eliminate
-boilerplate.
-
-The scala compiler will perform exhaustivity checks when matching on
-sealed traits, e.g.
+It is important that we use `sealed abstract class`, not just
+`abstract class`, when defining a data type. Sealing a `class` means
+that all subtypes must be defined in the same file, allowing the
+compiler to know about them in pattern match exhaustivity checks and
+in macros that eliminate boilerplate. e.g.
 
 {lang="text"}
 ~~~~~~~~
-  scala> sealed trait Foo
+  scala> sealed abstract class Foo
          final case class Bar(flag: Boolean) extends Foo
          final case object Baz extends Foo
   
@@ -1464,7 +1461,7 @@ product to the codebase. We're using `-Xfatal-warnings`, otherwise
 this is just a warning.
 
 However, the compiler will not perform exhaustivity checking if the
-`trait` is not sealed or if there are guards, e.g.
+`class` is not sealed or if there are guards, e.g.
 
 {lang="text"}
 ~~~~~~~~
@@ -1479,9 +1476,8 @@ However, the compiler will not perform exhaustivity checking if the
 
 This will also fail at runtime if we pass a `Bar(false)`.
 
-[Guards should not be used when matching on a `sealed trait`](https://github.com/wartremover/wartremover/issues/382). When
-guards are used on a `case class`, there should always be a `case _
-=>` with a default value, unless you have proven that it cannot occur.
+To remain safe, [guards should not be used when matching on a `sealed`
+type](https://github.com/wartremover/wartremover/issues/382).
 
 [`-Xstrict-patmat-analysis`](https://github.com/scala/scala/pull/5617) flag has been proposed as a language
 improvement to perform additional pattern matcher checks.
@@ -1500,7 +1496,7 @@ Another form of coproduct is when we nest `Either` types. e.g.
   Either[X.type, Either[Y.type, Z]]
 ~~~~~~~~
 
-equivalent to the `XYZ` sealed trait. A cleaner syntax to define
+equivalent to the `XYZ` sealed abstract class. A cleaner syntax to define
 nested `Either` types is to create an alias type ending with a colon,
 allowing infix notation with association from the right:
 
@@ -1519,12 +1515,12 @@ the implementations into the same source file.
   type Accepted = String |: Long |: Boolean
 ~~~~~~~~
 
-Yet another alternative coproduct is to create a custom `sealed trait`
+Yet another alternative coproduct is to create a custom `sealed abstract class`
 with `case class` definitions that simply wrap the desired type:
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait Accepted
+  sealed abstract class Accepted
   final case class AcceptedString(value: String) extends Accepted
   final case class AcceptedLong(value: Long) extends Accepted
   final case class AcceptedBoolean(value: Boolean) extends Accepted
@@ -1534,6 +1530,10 @@ Pattern matching on these forms of coproduct can be tedious, which is
 why [Union Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation scala
 compiler. Workarounds such as [totalitarian](https://github.com/propensive/totalitarian)'s `Disjunct` exist as
 another way of encoding anonymous coproducts.
+
+A> We can also use a `sealed trait` in place of a `sealed abstract class`
+A> but there are binary compatibility advantages to using `abstract
+A> class`, so there is no real reason for `sealed trait`.
 
 ### Convey Information
 
@@ -1665,7 +1665,7 @@ whereas the coproduct
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait Config
+  sealed abstract class Config
   object Config {
     case object A extends Config
     case object B extends Config
@@ -1712,7 +1712,7 @@ duality to the extreme and introduces a representation that is
 
 Shapeless provides the ability to convert back and forth between a
 generic representation and the ADT, allowing functions to be written
-that work **for every** `case class` and `sealed trait`.
+that work **for every** `case class` and `sealed abstract class`.
 
 {lang="text"}
 ~~~~~~~~
@@ -1724,7 +1724,7 @@ that work **for every** `case class` and `sealed trait`.
   scala> Generic[Foo].from("hello" :: 13L :: HNil)
   res: Foo = Foo(hello,13)
   
-  scala> sealed trait Bar
+  scala> sealed abstract class Bar
          case object Irish extends Bar
          case object English extends Bar
   
@@ -2025,8 +2025,7 @@ for complex numbers:
 ~~~~~~~~
 
 And derive a `Numeric[Complex[T]]` if `Numeric[T]` exists. Since these
-instances depend on the type parameter, it is a `def`, not an
-`object`.
+instances depend on the type parameter, it is a `def`, not a `val`.
 
 {lang="text"}
 ~~~~~~~~
@@ -2324,7 +2323,7 @@ ADT (paraphrased for brevity):
   
   import simulacrum._
   
-  sealed trait Json
+  sealed abstract class Json
   case object JNull extends Json
   final case class JBoolean(value: Boolean) extends Json
   final case class JNumber(value: JsonNumber) extends Json
@@ -2420,7 +2419,7 @@ We need to provide typeclass instances for basic types:
     implicit val UrlEncodedLong: UrlEncoded[Long] = new UrlEncoded[Long] {
       override def urlEncoded(s: Long): String = s.toString
     }
-    import ops._
+    import UrlEncoded.ops._
     implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
       new UrlEncoded[Seq[(String, String)]] {
         override def urlEncoded(m: Seq[(String, String)]): String =
@@ -2544,44 +2543,39 @@ our responses must have a `Decoder` and our `POST` payload must have a
 ~~~~~~~~
   import java.time.LocalDateTime
   
-  package http.client {
-    object algebra {
-      final case class Response[T](header: HttpResponseHeader, body: T)
+  package http.client.algebra {
+    final case class Response[T](header: HttpResponseHeader, body: T)
   
-      @free trait JsonHttpClient {
-        def get[B: Decoder](
-          uri: Uri,
-          headers: List[HttpHeader] = Nil
-        ): FS[Response[B]]
+    @free trait JsonHttpClient {
+      def get[B: Decoder](
+        uri: Uri,
+        headers: List[HttpHeader] = Nil
+      ): FS[Response[B]]
   
-        def postUrlencoded[A: UrlEncoded, B: Decoder](
-          uri: Uri,
-          payload: A,
-          headers: List[HttpHeader] = Nil
-        ): FS[Response[B]]
-      }
+      def postUrlencoded[A: UrlEncoded, B: Decoder](
+        uri: Uri,
+        payload: A,
+        headers: List[HttpHeader] = Nil
+      ): FS[Response[B]]
     }
   }
   
-  package http.oauth2.client {
-    object algebra {
+  package http.oauth2.client.algebra {
+    final case class CodeToken(token: String, redirect_uri: Uri)
   
-      final case class CodeToken(token: String, redirect_uri: Uri)
+    @free trait UserInteraction {
+      /** returns the Uri of the local server */
+      def start: FS[Uri]
   
-      @free trait UserInteraction {
-        /** returns the Uri of the local server */
-        def start: FS[Uri]
+      /** prompts the user to open this Uri */
+      def open(uri: Uri): FS[Unit]
   
-        /** prompts the user to open this Uri */
-        def open(uri: Uri): FS[Unit]
+      /** recover the code from the callback */
+      def stop: FS[CodeToken]
+    }
   
-        /** recover the code from the callback */
-        def stop: FS[CodeToken]
-      }
-  
-      @free trait LocalClock {
-        def now: FS[LocalDateTime]
-      }
+    @free trait LocalClock {
+      def now: FS[LocalDateTime]
     }
   }
 ~~~~~~~~
@@ -2664,7 +2658,7 @@ and then write an OAuth2 client:
 ## Summary
 
 -   data types are defined as *products* (`case class`) and *coproducts*
-      (`sealed trait` or nested `Either`).
+      (`sealed abstract class` or nested `Either`).
 -   specific functions are defined on `object` or `implicit class`,
     according to personal taste.
 -   polymorphic functions are defined as *typeclasses*. Functionality is
@@ -2674,8 +2668,8 @@ and then write an OAuth2 client:
 -   `@simulacrum.typeclass` generates `.ops` on the companion, providing
     convenient syntax for types that have a typeclass instance.
 -   *typeclass derivation* is compiletime composition of typeclass
-    instances, based on other typeclass instances.
--   *generic instances* use the shapeless library to automatically
-    derive typeclass instances for your data types.
+    instances.
+-   *generic instances* automatically derive instances for your data
+    types.
 
 

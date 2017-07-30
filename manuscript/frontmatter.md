@@ -75,7 +75,7 @@ FP-specific features enabled (e.g. in `build.sbt`):
 
 {lang="text"}
 ~~~~~~~~
-  scalaVersion in ThisBuild := "2.12.2"
+  scalaVersion in ThisBuild := "2.12.3"
   scalacOptions in ThisBuild ++= Seq(
     "-language:_",
     "-Ypartial-unification",
@@ -100,7 +100,7 @@ and add the following dependencies to your project's settings:
   
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
   addCompilerPlugin(
-    "org.scalameta" % "paradise" % "3.0.0-M8" cross CrossVersion.patch
+    "org.scalameta" % "paradise" % "3.0.0-M10" cross CrossVersion.patch
   )
 ~~~~~~~~
 
