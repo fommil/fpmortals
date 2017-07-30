@@ -1976,7 +1976,8 @@ another way of encoding anonymous coproducts.
 #+BEGIN_ASIDE
 We can also use a =sealed trait= in place of a =sealed abstract class=
 but there are binary compatibility advantages to using =abstract
-class=, so there is no real reason for =sealed trait=.
+class=. A =sealed trait= is only needed if you need to create a
+complicated ADT with multiple inheritance.
 #+END_ASIDE
 
 **** Convey Information

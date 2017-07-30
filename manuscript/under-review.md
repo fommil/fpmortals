@@ -1533,7 +1533,8 @@ another way of encoding anonymous coproducts.
 
 A> We can also use a `sealed trait` in place of a `sealed abstract class`
 A> but there are binary compatibility advantages to using `abstract
-A> class`, so there is no real reason for `sealed trait`.
+A> class`. A `sealed trait` is only needed if you need to create a
+A> complicated ADT with multiple inheritance.
 
 ### Convey Information
 
