@@ -112,6 +112,7 @@ import java.time.LocalDateTime
 import scala.{ Long, Unit }
 import scala.language.higherKinds
 
+import cats.implicits._
 import freestyle._
 import spinoco.protocol.http.Uri
 
@@ -199,12 +200,10 @@ package logic {
 
     def access(code: CodeToken): FS[(RefreshToken, BearerToken)] =
       for {
-        request <- FreeS.pure(
-                    AccessRequest(code.token,
-                                  code.redirect_uri,
-                                  config.clientId,
-                                  config.clientSecret)
-                  )
+        request <- AccessRequest(code.token,
+                                 code.redirect_uri,
+                                 config.clientId,
+                                 config.clientSecret).pure[FS]
         response <- server
                      .postUrlencoded[AccessRequest, AccessResponse](
                        config.access,
@@ -219,11 +218,9 @@ package logic {
 
     def bearer(refresh: RefreshToken): FS[BearerToken] =
       for {
-        request <- FreeS.pure(
-                    RefreshRequest(config.clientSecret,
-                                   refresh.token,
-                                   config.clientId)
-                  )
+        request <- RefreshRequest(config.clientSecret,
+                                  refresh.token,
+                                  config.clientId).pure[FS]
         response <- server
                      .postUrlencoded[RefreshRequest, RefreshResponse](
                        config.refresh,
