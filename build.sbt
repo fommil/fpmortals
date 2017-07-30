@@ -1,6 +1,6 @@
 inThisBuild(
   Seq(
-    scalaVersion := "2.12.2",
+    scalaVersion := "2.12.3",
     sonatypeGithub := ("fommil", "drone-dynamic-agents"),
     licenses := Seq(Apache2)
   )
@@ -43,7 +43,7 @@ wartremoverWarnings in (Compile, compile) -= Wart.Any              // too many c
 // http://frees.io/docs/
 resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin(
-  "org.scalameta" % "paradise" % "3.0.0-M9" cross CrossVersion.patch
+  "org.scalameta" % "paradise" % "3.0.0-M10" cross CrossVersion.patch
 )
 libraryDependencies += "io.frees" %% "freestyle" % "0.3.1"
 
