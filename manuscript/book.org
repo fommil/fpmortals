@@ -3089,8 +3089,39 @@ package logic {
   :PROPERTIES:
   :EXPORT_FILE_NAME: main-text.md
   :END:
-** TODO Cats
+** Cats
+
+In this chapter we will tour the data types and typeclasses in cats
+and its related ecosystem. Although we don't use all these types in
+=drone-dynamic-agents=, they are useful to know so we will try to give
+realistic examples.
+
+Before we introduce the complete typeclass hierarchy, we will visit
+the two most important typeclasses for writing programs that interact
+with the real world: =cats.Applicative= and =cats.Monad=. Their
+simplified definition is:
+
+#+BEGIN_SRC scala
+FIXME
+#+END_SRC
+
+- =pure(a: A)= creates a new program from a value
+- =map[B](f: A => B)= translates the result of running a previous
+  program
+- =flatMap[B](f: A => M[B])= creates a new program from the result of
+  running a previous program
+
+- parallel / sequential blah blah
+
+
+*** TODO effects
+
+dare we introduce some basic effects first? reader / writer / state /
+error. They are particularly practical.
+
 *** TODO typeclasses
+
+Overwhelming, so we'll try to visualise.
 
 Cheat sheet http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf
 
