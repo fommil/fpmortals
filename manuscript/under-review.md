@@ -722,7 +722,7 @@ something useful in a moment.
   }
   
   package machines {
-    case class Node(id: String)
+    final case class Node(id: String)
   
     @free trait Machines {
       def getTime: FS[ZonedDateTime]
@@ -1239,9 +1239,10 @@ the stack, eventually resulting in a `StackOverflowError`.
     def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
   }
   
-  case class Pure[S[_], A](a: A) extends Free[S, A]
-  case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  case class FlatMapped[S[_], B, C](c: Free[S, C],
+  final case class Pure[S[_], A](a: A) extends Free[S, A]
+  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  final case class FlatMapped[S[_], B, C](
+                                    c: Free[S, C],
                                     f: C => Free[S, B]) extends Free[S, B]
 ~~~~~~~~
 
@@ -1251,9 +1252,10 @@ Free is *interpreted*. This technique of using heap objects to
 eliminate stack growth is known as *trampolining*.
 
 When we use the `@free` annotation, a `sealed abstract class` data
-type is generated for each of our algebras, with a `case class` per
-method, allowing trampolining. When we write a `Handler`, Freestyle is
-converting pattern matches over heap objects into method calls.
+type is generated for each of our algebras, with a `final case class`
+per method, allowing trampolining. When we write a `Handler`,
+Freestyle is converting pattern matches over heap objects into method
+calls.
 
 ### Free as in Monad
 
@@ -1373,13 +1375,13 @@ and in Scala (remembering that `.type` is the type of a singleton):
   type C = Int
   
   // product
-  case class ABC(a: A.type, b: B, c: C)
+  final case class ABC(a: A.type, b: B, c: C)
   
   // coproduct
   sealed abstract class XYZ
   case object X extends XYZ
   case object Y extends XYZ
-  case class Z(b: B) extends XYZ
+  final case class Z(b: B) extends XYZ
 ~~~~~~~~
 
 ### Generalised ADTs
@@ -1407,9 +1409,10 @@ parameter in `FlatMapped`
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Free[S[_], A]
-  case class Pure[S[_], A](a: A) extends Free[S, A]
-  case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  case class FlatMapped[S[_], B, C](c: Free[S, C],
+  final case class Pure[S[_], A](a: A) extends Free[S, A]
+  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  final case class FlatMapped[S[_], B, C](
+                                    c: Free[S, C],
                                     f: C => Free[S, B]) extends Free[S, B]
 ~~~~~~~~
 
@@ -1474,20 +1477,17 @@ However, the compiler will not perform exhaustivity checking if the
     at .thing(<console>:15)
 ~~~~~~~~
 
-This will also fail at runtime if we pass a `Bar(false)`.
+To remain safe, [don't use guards on `sealed` types](https://github.com/wartremover/wartremover/issues/382).
 
-To remain safe, [guards should not be used when matching on a `sealed`
-type](https://github.com/wartremover/wartremover/issues/382).
-
-[`-Xstrict-patmat-analysis`](https://github.com/scala/scala/pull/5617) flag has been proposed as a language
+The [`-Xstrict-patmat-analysis`](https://github.com/scala/scala/pull/5617) flag has been proposed as a language
 improvement to perform additional pattern matcher checks.
 
 ### Alternative Products and Coproducts
 
-Another form of product is a tuple, which is like an unlabelled `case
-class`. `(A.type, B, C)` is equivalent to `ABC` in the above example.
-It's best to use `case class` when part of an ADT because the lack of
-names is awkward to deal with.
+Another form of product is a tuple, which is like an unlabelled `final
+case class`. The `(A.type, B, C)` is equivalent to `ABC` in the above
+example. It's best to use `final case class` when part of an ADT
+because the lack of names is awkward to deal with.
 
 Another form of coproduct is when we nest `Either` types. e.g.
 
@@ -1516,7 +1516,7 @@ the implementations into the same source file.
 ~~~~~~~~
 
 Yet another alternative coproduct is to create a custom `sealed abstract class`
-with `case class` definitions that simply wrap the desired type:
+with `final case class` definitions that simply wrap the desired type:
 
 {lang="text"}
 ~~~~~~~~
@@ -1713,12 +1713,12 @@ duality to the extreme and introduces a representation that is
 
 Shapeless provides the ability to convert back and forth between a
 generic representation and the ADT, allowing functions to be written
-that work **for every** `case class` and `sealed abstract class`.
+that work **for every** `final case class` and `sealed abstract class`.
 
 {lang="text"}
 ~~~~~~~~
   scala> import shapeless._
-         case class Foo(a: String, b: Long)
+         final case class Foo(a: String, b: Long)
          Generic[Foo].to(Foo("hello", 13L))
   res: String :: Long :: HNil = hello :: 13 :: HNil
   
@@ -2122,15 +2122,12 @@ Implicits are often defined on a `trait`, which is then extended by an
 object. This is to try and control the priority of an implicit
 relative to another more specific one, to avoid ambiguous implicits.
 
-The Scala Language Specification is rather vague for corner cases,
-e.g. chaining of `implicit def`: the compiler implementation is the de
-facto standard. However, unless you are writing a typeclass derivation
-library, you are unlikely to encounter any problems.
-
-e.g. prefer `implicit val` over `implicit object` despite the
-temptation of less typing. It is a [quirk of implicit resolution](https://github.com/scala/bug/issues/10411) that
-`implicit object` on companion objects are not treated the same as
-`implicit val`.
+The Scala Language Specification is rather vague for corner cases, and
+the compiler implementation is the *de facto* standard. There are some
+rules of thumb that we will use throughout this book, e.g. prefer
+`implicit val` over `implicit object` despite the temptation of less
+typing. It is a [quirk of implicit resolution](https://github.com/scala/bug/issues/10411) that `implicit object` on
+companion objects are not treated the same as `implicit val`.
 
 Implicit resolution falls short when there is a hierarchy of
 typeclasses, like `Ordering` and `Numeric`. If we write a function
@@ -2658,8 +2655,8 @@ and then write an OAuth2 client:
 
 ## Summary
 
--   data types are defined as *products* (`case class`) and *coproducts*
-      (`sealed abstract class` or nested `Either`).
+-   data types are defined as *products* (`final case class`) and
+    *coproducts* (`sealed abstract class` or nested `Either`).
 -   specific functions are defined on `object` or `implicit class`,
     according to personal taste.
 -   polymorphic functions are defined as *typeclasses*. Functionality is

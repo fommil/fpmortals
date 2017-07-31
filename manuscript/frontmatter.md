@@ -3,9 +3,9 @@
 
 # About This Book
 
-This book is for Scala developers with a Java Object Oriented
-background who wish to learn the **Functional Programming** (FP)
-paradigm. We do not accept that the merits of FP are obvious.
+This book is for experienced Scala developers with a Java Object
+Oriented background who wish to learn the **Functional Programming**
+(FP) paradigm. We do not accept that the merits of FP are obvious.
 Therefore, this book justifies every concept with practical examples,
 in Scala.
 
