@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   id="svg5806"
+   version="1.1"
+   viewBox="0 0 178.32916 89.429153"
+   height="89.429153mm"
+   width="178.32916mm">
+  <defs
+     id="defs5800">
+    <marker
+       markerHeight="8"
+       markerWidth="10"
+       viewBox="-1 -4 10 8"
+       id="FilledArrow_Marker"
+       markerUnits="strokeWidth"
+       overflow="visible"
+       orient="auto"
+       style="color:#000000;overflow:visible">
+      <g
+         id="g4516">
+        <path
+           id="path4514"
+           d="M 8,0 0,-3 v 6 z"
+           style="fill:currentColor;stroke:currentColor;stroke-width:1" />
+      </g>
+    </marker>
+  </defs>
+  <metadata
+     id="metadata5803">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(-14.400897,-109.41042)"
+     id="layer1">
+    <path
+       d="m 20.927286,135.1632 h 38.099998 c 3.506999,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843001,6.35 -6.35,6.35 H 20.927286 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4544"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 20.927286,135.1632 h 38.099998 c 3.506999,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843001,6.35 -6.35,6.35 H 20.927286 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4546"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="139.04375"
+       x="16.341175"
+       id="text4550"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="35.033916"
+         y="142.9243"
+         id="tspan4548"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">Band</tspan>
+    </text>
+    <path
+       d="m 20.927286,185.9632 h 38.099998 c 3.506999,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843001,6.34999 -6.35,6.34999 H 20.927286 c -3.506999,0 -6.35,-2.84298 -6.35,-6.34999 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4552"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 20.927286,185.9632 h 38.099998 c 3.506999,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843001,6.34999 -6.35,6.34999 H 20.927286 c -3.506999,0 -6.35,-2.84298 -6.35,-6.34999 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4554"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="189.84375"
+       x="16.341175"
+       id="text4558"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="21.150528"
+         y="193.7243"
+         id="tspan4556"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">BoundedSemilattice</tspan>
+    </text>
+    <path
+       d="m 84.427284,185.9632 h 38.100006 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.34999 -6.35,6.34999 H 84.427284 c -3.506999,0 -6.35,-2.84298 -6.35,-6.34999 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4560"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 84.427284,185.9632 h 38.100006 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.34999 -6.35,6.34999 H 84.427284 c -3.506999,0 -6.35,-2.84298 -6.35,-6.34999 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4562"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="189.84375"
+       x="79.841171"
+       id="text4566"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="85.125946"
+         y="193.7243"
+         id="tspan4564"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">CommutativeGroup</tspan>
+    </text>
+    <path
+       d="m 84.427284,160.5632 h 38.100006 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 H 84.427284 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4568"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 84.427284,160.5632 h 38.100006 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 H 84.427284 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4570"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="164.44376"
+       x="79.841171"
+       id="text4574"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="84.066582"
+         y="168.32431"
+         id="tspan4572"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">CommutativeMonoid</tspan>
+    </text>
+    <path
+       d="m 84.427284,135.1632 h 38.100006 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 H 84.427284 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4576"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 84.427284,135.1632 h 38.100006 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 H 84.427284 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4578"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="139.04375"
+       x="79.841171"
+       id="text4582"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="80.77272"
+         y="142.9243"
+         id="tspan4580"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">CommutativeSemigroup</tspan>
+    </text>
+    <path
+       d="m 147.92728,160.5632 h 38.1 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.84301,-6.35 6.35,-6.35 z"
+       id="path4592"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 147.92728,160.5632 h 38.1 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.84301,-6.35 6.35,-6.35 z"
+       id="path4594"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="164.44376"
+       x="143.34117"
+       id="text4598"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="161.09442"
+         y="168.32431"
+         id="tspan4596"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">Group</tspan>
+    </text>
+    <path
+       d="m 147.92728,109.7632 h 38.1 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.84301,-6.35 6.35,-6.35 z"
+       id="path4600"
+       style="fill:#ff99ca;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 147.92728,109.7632 h 38.1 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.84301,-6.35 6.35,-6.35 z"
+       id="path4602"
+       style="fill:none;fill-opacity:1;stroke:#515151;stroke-width:0.7055555;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="112.58542"
+       x="143.34117"
+       id="text4606"
+       style="font-size:4.23333311px;fill:#343434;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="17"
+         font-weight="bold"
+         x="151.31657"
+         y="118.22987"
+         id="tspan4604"
+         style="font-weight:bold;font-size:5.99722195px;font-family:Helvetica;fill:#343434;stroke-width:0.35277775">Semigroup</tspan>
+    </text>
+    <path
+       d="m 147.92728,135.1632 h 38.1 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.84301,-6.35 6.35,-6.35 z"
+       id="path4608"
+       style="fill:#ff99ca;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 147.92728,135.1632 h 38.1 c 3.507,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.84301,-6.35 6.35,-6.35 z"
+       id="path4610"
+       style="fill:none;fill-opacity:1;stroke:#515151;stroke-width:0.7055555;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="137.98541"
+       x="143.34117"
+       id="text4614"
+       style="font-size:4.23333311px;fill:#343434;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="17"
+         font-weight="bold"
+         x="156.31963"
+         y="143.62987"
+         id="tspan4612"
+         style="font-weight:bold;font-size:5.99722195px;font-family:Helvetica;fill:#343434;stroke-width:0.35277775">Monoid</tspan>
+    </text>
+    <path
+       d="m 20.927286,160.5632 h 38.099998 c 3.506999,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843001,6.35 -6.35,6.35 H 20.927286 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4632"
+       style="fill:#ffd9eb;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 20.927286,160.5632 h 38.099998 c 3.506999,0 6.35,2.84299 6.35,6.35 v 0 c 0,3.50701 -2.843001,6.35 -6.35,6.35 H 20.927286 c -3.506999,0 -6.35,-2.84299 -6.35,-6.35 v 0 c 0,-3.50701 2.843001,-6.35 6.35,-6.35 z"
+       id="path4634"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />
+    <text
+       y="164.44376"
+       x="16.341175"
+       id="text4638"
+       style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+      <tspan
+         font-size="12"
+         font-weight="500"
+         x="29.625463"
+         y="168.32431"
+         id="tspan4636"
+         style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">Semilattice</tspan>
+    </text>
+    <path
+       d="m 55.852284,135.1632 47.624996,-19.05 h 34.43112"
+       id="path4640"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="39.977283"
+       y1="185.9632"
+       x2="39.977283"
+       y2="176.75569"
+       id="line4642"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="55.852283"
+       y1="185.9632"
+       x2="84.359581"
+       y2="174.56027"
+       id="line4644"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="119.35229"
+       y1="185.9632"
+       x2="147.85959"
+       y2="174.56027"
+       id="line4646"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="103.47728"
+       y1="185.9632"
+       x2="103.47728"
+       y2="176.75569"
+       id="line4648"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="119.35229"
+       y1="160.56319"
+       x2="147.41861"
+       y2="149.33667"
+       id="line4650"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="103.47728"
+       y1="160.56319"
+       x2="103.47728"
+       y2="151.3557"
+       id="line4652"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="119.35229"
+       y1="135.16319"
+       x2="147.41861"
+       y2="123.93667"
+       id="line4654"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="166.97728"
+       y1="160.56319"
+       x2="166.97728"
+       y2="151.53207"
+       id="line4656"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="166.97728"
+       y1="134.9868"
+       x2="166.97728"
+       y2="126.13209"
+       id="line4658"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="39.977283"
+       y1="160.56319"
+       x2="39.977283"
+       y2="151.3557"
+       id="line4664"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+    <line
+       x1="55.852283"
+       y1="160.56319"
+       x2="84.359581"
+       y2="149.16028"
+       id="line4666"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  </g>
+</svg>

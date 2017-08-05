@@ -49,24 +49,30 @@ as possible.
 That said, an `Applicative` is often required for its `pure` method
 which allows lifting a pure value into the context.
 
-| Typeclass     | Method    | From   |             | To     |
-|------------- |--------- |------ |----------- |------ |
-| `Monad`       | `flatMap` | `F[A]` | `(A=>F[B])` | `F[B]` |
-| `Applicative` | `pure`    | `A`    |             | `F[A]` |
-| `Functor`     | `map`     | `F[A]` | `(A=>B)`    | `F[B]` |
+| Typeclass     | Method    | From   |               | To     |
+|------------- |--------- |------ |------------- |------ |
+| `Monad`       | `flatMap` | `F[A]` | `(A => F[B])` | `F[B]` |
+| `Applicative` | `pure`    | `A`    |               | `F[A]` |
+| `Functor`     | `map`     | `F[A]` | `(A => B)`    | `F[B]` |
 
 When it comes to depending on typeclasses, functional programmers and
 object oriented programmers agree: depend on the most general (least
-powerful) interface that you can. In contrast to data types, where
+powerful) interface you can. In contrast to data types, where
 parameters should be as specific as possible to forbid impossible
 states.
 
-## TODO effects
+## Typeclasses
 
-dare we introduce some basic effects first? reader / writer / state /
-error. They are particularly practical.
+There is an overwhelming number of typeclasses, so we will [visualise
+the clusters](https://github.com/tpolecat/cats-infographic) and discuss. We'll gloss over the more esoteric
+typeclasses.
 
-## TODO typeclasses
+### Addable Things
+
+{width=60%}
+![](./images/cats-monoid.svg)
+
+## NOTES 
 
 Overwhelming, so we'll try to visualise.
 
@@ -82,14 +88,6 @@ Use (impure) example of merging two deep configuration ADTs (scala
 does not enforce purity so we can choose our own level)
 
 Not enough to implement, must also pass the laws
-
-The most important methods on `Monad` are
-
--   `pure(a: A)` creates a new program from a value
--   `map[B](f: A => B)` translates the result of running a previous
-    program
--   `flatMap[B](f: A => FreeS[F, B])` creates a new program from the
-    result of running a previous program
 
 examples that are not necessarily pure, such as ApplicativeError and
 the Monoid usecase with exceptions.

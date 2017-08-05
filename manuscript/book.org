@@ -68,13 +68,14 @@ Hadziavdic, for giving feedback on early drafts of this text.
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
 John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in
-Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]]
+Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Rob
+Norris for the [[https://github.com/tpolecat/cats-infographic][Cats Infographic]].
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund
-Noble, Vincent Marquez, Rob Norris, Adelbert Chang, Kai(luo) Wang,
-Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
-Daniel Spiewak.
+Noble, Vincent Marquez, Adelbert Chang, Kai(luo) Wang, Michael
+Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively, Daniel
+Spiewak.
 
 ** Practicalities
 
@@ -3134,24 +3135,30 @@ as possible.
 That said, an =Applicative= is often required for its =pure= method
 which allows lifting a pure value into the context.
 
-| Typeclass     | Method    | From   |             | To     |
-|---------------+-----------+--------+-------------+--------|
-| =Monad=       | =flatMap= | =F[A]= | =(A=>F[B])= | =F[B]= |
-| =Applicative= | =pure=    | =A=    |             | =F[A]= |
-| =Functor=     | =map=     | =F[A]= | =(A=>B)=    | =F[B]= |
+| Typeclass     | Method    | From   |               | To     |
+|---------------+-----------+--------+---------------+--------|
+| =Monad=       | =flatMap= | =F[A]= | =(A => F[B])= | =F[B]= |
+| =Applicative= | =pure=    | =A=    |               | =F[A]= |
+| =Functor=     | =map=     | =F[A]= | =(A => B)=    | =F[B]= |
 
 When it comes to depending on typeclasses, functional programmers and
 object oriented programmers agree: depend on the most general (least
-powerful) interface that you can. In contrast to data types, where
+powerful) interface you can. In contrast to data types, where
 parameters should be as specific as possible to forbid impossible
 states.
 
-*** TODO effects
+*** Typeclasses
 
-dare we introduce some basic effects first? reader / writer / state /
-error. They are particularly practical.
+There is an overwhelming number of typeclasses, so we will [[https://github.com/tpolecat/cats-infographic][visualise
+the clusters]] and discuss. We'll gloss over the more esoteric
+typeclasses.
 
-*** TODO typeclasses
+**** Addable Things
+
+[[./images/cats-monoid.svg]]
+
+
+*** NOTES
 
 Overwhelming, so we'll try to visualise.
 
@@ -3168,14 +3175,6 @@ does not enforce purity so we can choose our own level)
 
 Not enough to implement, must also pass the laws
 
-The most important methods on =Monad= are
-
-- =pure(a: A)= creates a new program from a value
-- =map[B](f: A => B)= translates the result of running a previous
-  program
-- =flatMap[B](f: A => FreeS[F, B])= creates a new program from the
-  result of running a previous program
-
 examples that are not necessarily pure, such as ApplicativeError and
 the Monoid usecase with exceptions.
 
@@ -3186,6 +3185,7 @@ we don't always get to choose our APIs, and sometimes our customers ask us to th
 
 
 *** TODO data types
+
 ** TODO Effects
 ** TODO FS2
 
