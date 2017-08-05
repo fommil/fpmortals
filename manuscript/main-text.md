@@ -70,7 +70,7 @@ typeclasses.
 ### Addable Things
 
 {width=60%}
-![](./images/cats-monoid.svg)
+![](./images/cats-monoid.png)
 
 ## NOTES 
 

@@ -3155,7 +3155,7 @@ typeclasses.
 
 **** Addable Things
 
-[[./images/cats-monoid.svg]]
+[[./images/cats-monoid.png]]
 
 
 *** NOTES
