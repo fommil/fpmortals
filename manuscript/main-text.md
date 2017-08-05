@@ -97,8 +97,8 @@ over the more esoteric typeclasses.
 This may bring back memories of `Numeric` from Chapter 4, which tried
 to do too much and was unusable beyond the most basic of number types.
 Of course there are implementations of `Group` for all the primitive
-numbers, but the generalisation of *combinable* things is useful in
-its own right.
+numbers, but the generalisation of *combinable* things is useful
+beyond numbers.
 
 Consider the case where business rules for a trading system are
 implemented as a collection of partial configurations in a template
@@ -193,9 +193,6 @@ Let's try it out...
                          Some(false))
 ~~~~~~~~
 
-This approach has saved the author from writing **thousands** of lines
-of code meeting a related business requirement.
-
 The `Commutative*` variants have an additional requirement / law
 imposed upon them that the order of parameters to `combine` does not
 matter. Our trading example is most definitely **non** commutative,
@@ -210,6 +207,11 @@ that can only be one value, such as `Unit`, or if the `combine` is a
 least upper bound. If you ever need use these, you should probably
 tweet about it because they exist for niche downstream mathematics
 libraries `spire` and `algebird`.
+
+### Mappable Things
+
+{width=60%}
+![](/images/cats-monad.png)
 
 ## NOTES 
 
@@ -235,6 +237,28 @@ kittens
 
 allows overriding with different implementations (e.g. the "merge business rules" example)
 we don't always get to choose our APIs, and sometimes our customers ask us to throw an exception
+
+\### Ancestors
+java/lang/Object.java:37: java.lang.Object
+cats/FlatMap.scala:1: cats.FlatMap
+cats/Applicative.scala:1: cats.Applicative
+
+\### Inheritors
+cats/free/FreeT.scala:1: cats.free.FreeTMonad
+cats/derived/monad.scala:1: cats.derived.MkMonad
+cats/derived/monad.scala:1: cats.derived.MkMonad1$UnsafeTailRecM
+cats/data/EitherT.scala:1: cats.data.EitherTMonad
+cats/Bimonad.scala:1: cats.Bimonad
+cats/MonadState.scala:1: cats.MonadState
+cats/MonadError.scala:1: cats.MonadError
+cats/data/WriterT.scala:1: cats.data.WriterTMonad
+cats/MonadFilter.scala:1: cats.MonadFilter
+cats/data/IdT.scala:1: cats.data.IdTMonad
+cats/data/StateT.scala:1: cats.data.StateTMonad
+cats/MonadReader.scala:1: cats.MonadReader
+cats/data/OptionT.scala:1: cats.data.OptionTMonad
+cats/data/Prod.scala:1: cats.data.ProdMonad
+cats/MonadWriter.scala:1: cats.MonadWriter
 
 ## TODO data types
 
