@@ -70,7 +70,10 @@ typeclasses.
 ### Addable Things
 
 {width=60%}
-![](./images/cats-monoid.png)
+![](images/cats-monoid.png)
+
+{width=60%}
+![](images/cats-monoid.svg)
 
 ## NOTES 
 
@@ -154,6 +157,7 @@ Protect yourself from mistyping
 -   alternative is <https://github.com/propensive/magnolia>
 -   some advanced cases, e.g. spray-json-shapeless stuff, typeclass
     hierarchy / ambiguities and Not
+-   <https://issues.scala-lang.org/browse/SI-2509>
 
 # TODO Recursion Schemes
 
