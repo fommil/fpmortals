@@ -13,7 +13,7 @@ programming originated from academic research in the 1960s (with their
 high falutin words like *polymorphism*, *subtyping* and *generics*).
 We'll use the cats names in this book, but feel free to set up `type`
 aliases if you would prefer to use names based on the primary
-functionality of the typeclass. We'll suggest some aliases as we go.
+functionality of the typeclass.
 
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important typeclasses from a control flow perspective:
@@ -64,16 +64,137 @@ states.
 ## Typeclasses
 
 There is an overwhelming number of typeclasses, so we will [visualise
-the clusters](https://github.com/tpolecat/cats-infographic) and discuss. We'll gloss over the more esoteric
-typeclasses.
+the clusters](https://github.com/tpolecat/cats-infographic) and discuss, with simplified definitions. We'll gloss
+over the more esoteric typeclasses.
 
-### Addable Things
+### Combinable Things
 
 {width=60%}
 ![](images/cats-monoid.png)
 
-{width=60%}
-![](images/cats-monoid.svg)
+{lang="text"}
+~~~~~~~~
+  /** A set with an associative operation. */
+  @typeclass trait Semigroup {
+    @op("|+|") def combine(x: A, y: A): A
+  }
+  
+  /** A Semigroup with an identity. */
+  @typeclass trait Monoid extends Semigroup[A] {
+    def empty: A
+  
+    def combineAll(as: Seq[A]): A = as.foldLeft(empty)(combine)
+  }
+  
+  /** A monoid where each element has an inverse. */
+  @typeclass trait Group extends Monoid[A] {
+    def inverse(a: A): A
+  
+    @op("|-|") def remove(a: A, b: A): A = combine(a, inverse(b))
+  }
+~~~~~~~~
+
+This may bring back memories of `Numeric` from Chapter 4, which tried
+to do too much and was unusable beyond the most basic of number types.
+Of course there are implementations of `Group` for all the primitive
+numbers, but the generalisation of *combinable* things is useful in
+its own right.
+
+Consider the case where business rules for a trading system are
+implemented as a collection of partial configurations in a template
+database. The default values for a trade are built up by combining
+specific templates for that trade, in an order prescribed by the
+business as "last rule wins". Here we'll create a simple set of rules,
+but keep in mind that a realistic templating system would have
+hundreds of parameters in nested `case class`.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Currency
+  case object EUR extends Currency
+  case object USD extends Currency
+  
+  final case class TradeTemplate(
+    payments: Seq[java.time.LocalDate],
+    ccy: Option[Currency],
+    otc: Option[Boolean]
+  )
+~~~~~~~~
+
+If we write a method that takes `templates: Seq[TradeTemplate]`, we
+only need to call `combineAll`. But to call `combineAll` we must have
+an instance of `Monoid[TradeTemplate]`. Cats provides generic
+instances in the `kittens` library, so we do not need to write one.
+
+However, generic derivation will fail because `Monoid[Option[T]]`
+defers to `Monoid[T]` for the case where there are two `Some[T]` to be
+combined and we have neither a `Monoid[Currency]` (kittens cannot
+derive a `Monoid` for a coproduct) nor a `Monoid[Boolean]` (it could
+be implemented with either `&` or `|` logic so cats leaves it to the
+user).
+
+For example, `Monoid[Option[Int]]` behaves like this:
+
+{lang="text"}
+~~~~~~~~
+  scala> Option(2) |+| None
+  res: Option[Int] = Some(2)
+  scala> Option(2) |+| Option(1)
+  res: Option[Int] = Some(3)
+~~~~~~~~
+
+and we can see the content's `combine` has been called, which for
+`Int` is integer addition. We've used the `|+|` op because it is more
+common than the `combine` method. This op is known as the TIE Fighter
+operator and there is an Advanced TIE Fighter in the next section,
+because awesome.
+
+Our business rules state that the "last rule wins" which means that we
+can implement a simple, higher priority, `Monoid[Option[T]]` and use it
+during our generic derivation instead of the cats default one:
+
+{lang="text"}
+~~~~~~~~
+  implicit def lastWins[A]: Monoid[Option[A]] = new Monoid[Option[A]] {
+    def combine(x: Option[A], y: Option[A]): Option[A] = (x, y) match {
+      case (Some(_)     , winner@Some(_)) => winner
+      case (only@Some(_),              _) => only
+      case (           _,   only@Some(_)) => only
+      case _                              => None
+    }
+    def empty: Option[A] = None
+  }
+~~~~~~~~
+
+Let's try it out...
+
+{lang="text"}
+~~~~~~~~
+  scala> import cats._
+         import cats.implicits._
+         import cats.derived._, monoid._, legacy._
+         import java.time.LocalDate
+  
+  scala> implicitly[Monoid[TradeTemplate]]
+  res: cats.Monoid[TradeTemplate] = cats.derived.MkMonoid$$anon
+  
+  scala> val templates = List(
+           TradeTemplate(Nil, None, None),
+           TradeTemplate(Nil, Some(EUR), None),
+           TradeTemplate(List(LocalDate.of(2017, 8, 5)), Some(USD), None),
+           TradeTemplate(List(LocalDate.of(2017, 9, 5)), None, Some(true)),
+           TradeTemplate(Nil, None, Some(false))
+         )
+  
+         Monoid[TradeTemplate].combineAll(templates)
+  res: TradeTemplate = TradeTemplate(
+                         List(2017-08-05,2017-09-05),
+                         Some(USD),
+                         Some(false))
+~~~~~~~~
+
+This approach has saved the author from writing **thousands** of lines
+of code meeting a related business requirement.
 
 ## NOTES 
 
