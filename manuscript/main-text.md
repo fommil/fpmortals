@@ -196,6 +196,21 @@ Let's try it out...
 This approach has saved the author from writing **thousands** of lines
 of code meeting a related business requirement.
 
+The `Commutative*` variants have an additional requirement / law
+imposed upon them that the order of parameters to `combine` does not
+matter. Our trading example is most definitely **non** commutative,
+since the order of application is important, however this is a useful
+property to require if you are building a distributed system where
+there are efficiencies when order is not important.
+
+`Band`, `Semilattice` and `BoundedSemilattice` have the additional law
+that the `combine` operation of the same two elements is *idempotent*,
+i.e. gives the same value. An example is anything defined over a group
+that can only be one value, such as `Unit`, or if the `combine` is a
+least upper bound. If you ever need use these, you should probably
+tweet about it because they exist for niche downstream mathematics
+libraries `spire` and `algebird`.
+
 ## NOTES 
 
 Overwhelming, so we'll try to visualise.
