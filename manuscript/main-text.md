@@ -50,10 +50,10 @@ That said, an `Applicative` is often required for its `pure` method
 which allows lifting a pure value into the context.
 
 | Typeclass     | Method    | From   |             | To     |
-|---------------+-----------+--------+-------------+--------|
-| =Monad=       | =flatMap= | =F[A]= | =(A=>F[B])= | =F[B]= |
-| =Applicative= | =pure=    | =A=    |             | =F[A]= |
-| =Functor=     | =map=     | =F[A]= | =(A=>B)=    | =F[B]= |
+|------------- |--------- |------ |----------- |------ |
+| `Monad`       | `flatMap` | `F[A]` | `(A=>F[B])` | `F[B]` |
+| `Applicative` | `pure`    | `A`    |             | `F[A]` |
+| `Functor`     | `map`     | `F[A]` | `(A=>B)`    | `F[B]` |
 
 When it comes to depending on typeclasses, functional programmers and
 object oriented programmers agree: depend on the most general (least
