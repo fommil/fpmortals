@@ -51,6 +51,108 @@ powerful) interface you can. In contrast to data types, where
 parameters should be as specific as possible to forbid impossible
 states.
 
+## Data Types
+
+### TODO NonEmptyList
+
+### TODO NonEmptyVector
+
+### TODO Validated
+
+A> This ADT has methods on it, but in Chapter 4 we said that ADTs
+A> shouldn't have methods on them and that the functionality should live
+A> on typeclasses! You caught us red handed. There are several reasons
+A> for doing it this way.
+A> 
+A> Sorry, but there are more methods than the `value` and `memoize` on
+A> `Eval` shown here: it also has `map` and `flatMap`. The reason they
+A> live on the ADT and not in an instance of `Monad` is because it is
+A> slightly more efficient for the compiler to find these methods instead
+A> of looking for `Monad.ops._`, and it is slightly more efficient at
+A> runtime. This is an optimisation step that is absolutely vital in a
+A> core library such as cats, but please do not perform these
+A> optimisations in user code unless you have profiled and found a
+A> performance bottleneck. There is a significant cost to code
+A> readability.
+
+### Eval
+
+`Eval` is a monadic effect (i.e. there is an instance of
+`Monad[Eval]`) which controls evaluation. It wraps a value or
+computation and produces the result when `value` is called.
+
+There are three evaluation strategies:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Eval[+A] {
+    def value: A
+    def memoize: Eval[A]
+  }
+  final case class Now[A](value: A) extends Eval[A] {
+    def memoize: Eval[A] = this
+  }
+  final case class Later[A](f: () => A) extends Eval[A] {
+    lazy val value: A = f()
+    def memoize: Eval[A] = this
+  }
+  final case class Always[A](f: () => A) extends Eval[A] {
+    def value: A = f()
+    def memoize: Eval[A] = Later(f)
+  }
+~~~~~~~~
+
+`Later` and `Always` are lazy strategies while `Now` is eager. `Later`
+will run the computation at most once whereas `Always` will run
+computations every time they are requested. Calling `.memoize` will
+return an `Eval` with "at most once" semantics.
+
+`Eval` supports stack-safe lazy computation via `map` and `flatMap`
+methods (not shown here), which use an internal trampoline to avoid
+stack overflows. Computation within `map` and `flatMap` is always
+lazy, even when applied to a `Now` instance.
+
+There is no need for a standalone example of `Eval` as we will use it
+in many of the typeclasses of this chapter. It's primary use is to
+ensure that calculations are not needlessly re-performed and so that
+non `@tailrec` recursive methods do not result in
+`StackOverflowError`.
+
+`Eval` has instances of `Bimonad`, `Reducible`, `Order` and `Group`.
+
+A> We're breaking more Chapter 4 rules about what can live on a data
+A> type: it is necessary to use a `lazy val` inside `Later` to get the
+A> required semantics. It would not be possible to do this in a
+A> typeclass, because it requires managing state.
+A> 
+A> Note shown are two more children of `Eval`: `Call` and `Compute`,
+A> which are used to internally trampoline long chains of `map` and
+A> `flatMap`. `Eval` should therefore not be pattern-matched, despite
+A> being a sealed coproduct.
+
+### TODO Ior
+
+### TODO Esoteric / Advanced
+
+Maybe leave until after typeclasses
+
+-   Cokleisli
+-   Const
+-   Coproduct
+-   Func
+-   Kleisli
+-   Nested
+-   OneAnd
+-   Prod
+
+### TODO Monad Transformers
+
+-   EitherT
+-   IdT
+-   OptionT
+-   StateT
+-   WriterT
+
 ## Typeclasses
 
 There is an overwhelming number of typeclasses, so we will [visualise
@@ -290,11 +392,14 @@ focussing on things that can be "mapped over" in some sense.
       fa.map(f).map(g) == fa.map(f.andThen(g))
     ~~~~~~~~
     
-    The `map` should also perform a no-op if the provided function is `identity` from the Scala standard library
+    The `map` should also perform a no-op if the provided function is
+    `identity` (i.e. `x => x`)
     
     {lang="text"}
     ~~~~~~~~
-      fa.map(x => x) = fa
+      fa.map(identity) == fa
+      
+      fa.map(x => x) == fa
     ~~~~~~~~
     
     `Functor` defines some convenience methods around `map`. The
@@ -347,62 +452,11 @@ focussing on things that can be "mapped over" in some sense.
     This lets us jump into nested effects and apply a function at the
     layer we want.
 
-2.  Foldable
+2.  TODO Foldable
 
     Fold is for data structures that can be walked to produce a summary
     value. It is a one-trait army that can provide much of what you'd
     expect to see in a Collections API.
-    
-    Before introducing the `Foldable` typeclass we must take a moment to
-    understand `cats.data.Eval`, and this is where definitions start to
-    get a little bit cyclic.
-    
-    {lang="text"}
-    ~~~~~~~~
-      sealed abstract class Eval[+A] {
-        def value: A
-        def memoize: Eval[A]
-      }
-      final case class Now[A](value: A) extends Eval[A] {
-        def memoize: Eval[A] = this
-      }
-      final case class Later[A](f: () => A) extends Eval[A] {
-        lazy val value: A = f()
-        def memoize: Eval[A] = this
-      }
-      final case class Always[A](f: () => A) extends Eval[A] {
-        def value: A = f()
-        def memoize: Eval[A] = Later(f)
-      }
-    ~~~~~~~~
-    
-    A> This ADT has methods on it, but in Chapter 4 we said that ADTs
-    A> shouldn't have methods on them and that the functionality should live
-    A> on typeclasses. You caught us red handed. There are several reasons
-    A> for doing it this way.
-    A> 
-    A> Firstly, it is necessary to use a `lazy val` inside `Later` to get the
-    A> required semantics and it would not be possible to do this in an
-    A> extension class because the cached `value` would be thrown away on
-    A> each method call, thus defeating the point. But that only explains the
-    A> `lazy val`, not the methods on `Eval` or the other implementations.
-    A> 
-    A> Secondly, there are a lot more methods than just `value` and `memoize`
-    A> on `Eval`. There is also `map` and `flatMap`. The reason they live on
-    A> the ADT and not in an instance of `Monad` is because it is slightly
-    A> more efficient for the compiler to find these methods instead of
-    A> looking for `Monad.ops._`, and there is a lower memory cost to pay at
-    A> runtime. This is an optimisation step that is absolutely vital in a
-    A> core library such as cats, but please do not perform these
-    A> optimisations in user code unless you have profiled and found a
-    A> performance bottleneck. There is a significant cost to code
-    A> readability.
-    A> 
-    A> And while we're being honest, the actual implementation of `Later` is
-    A> slightly more involved, allowing for the `f` to be garbage collected,
-    A> and there are another two children of `Eval`, called `Call` and
-    A> `Compute`, which are internally used to trampoline long chains of
-    A> `map` and `flatMap`.
 
 3.  TODO Traversable
 
@@ -415,7 +469,7 @@ focussing on things that can be "mapped over" in some sense.
     -   CoflatMap
     -   Comonad
 
-## Variance
+### Variance
 
 <http://typelevel.org/blog/2016/02/04/variance-and-functors.html>
 
@@ -435,57 +489,25 @@ sealed trait Foo[A]
 case class Bar[A](a: A) extends Foo[A]
 case class Baz[A](f: A => Int) extends Foo[A]
 
-
 -   Invariant
 
-## NOTES 
+### TODO Bifunctor
 
-Overwhelming, so we'll try to visualise.
+### TODO Applicative Things
 
-Cheat sheet <http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf>
+### TODO Monads
 
-<https://github.com/tpolecat/cats-infographic>
+Or should this live in the Effects chapter?
 
-Foldable being imminently more interesting than the others.
+### TODO Comparable Things
 
-Traversable will need to be discussed, seems to come up a lot.
+### TODO Very Abstract Things
 
-Use (impure) example of merging two deep configuration ADTs (scala
-does not enforce purity so we can choose our own level)
+Category, etc
 
-Not enough to implement, must also pass the laws
+### TODO Other
 
-examples that are not necessarily pure, such as ApplicativeError and
-the Monoid usecase with exceptions.
-
-kittens
-
-allows overriding with different implementations (e.g. the "merge business rules" example)
-we don't always get to choose our APIs, and sometimes our customers ask us to throw an exception
-
-\### Ancestors
-java/lang/Object.java:37: java.lang.Object
-cats/FlatMap.scala:1: cats.FlatMap
-cats/Applicative.scala:1: cats.Applicative
-
-\### Inheritors
-cats/free/FreeT.scala:1: cats.free.FreeTMonad
-cats/derived/monad.scala:1: cats.derived.MkMonad
-cats/derived/monad.scala:1: cats.derived.MkMonad1$UnsafeTailRecM
-cats/data/EitherT.scala:1: cats.data.EitherTMonad
-cats/Bimonad.scala:1: cats.Bimonad
-cats/MonadState.scala:1: cats.MonadState
-cats/MonadError.scala:1: cats.MonadError
-cats/data/WriterT.scala:1: cats.data.WriterTMonad
-cats/MonadFilter.scala:1: cats.MonadFilter
-cats/data/IdT.scala:1: cats.data.IdTMonad
-cats/data/StateT.scala:1: cats.data.StateTMonad
-cats/MonadReader.scala:1: cats.MonadReader
-cats/data/OptionT.scala:1: cats.data.OptionTMonad
-cats/data/Prod.scala:1: cats.data.ProdMonad
-cats/MonadWriter.scala:1: cats.MonadWriter
-
-## TODO data types
+## Laws
 
 # TODO Effects
 

@@ -56,7 +56,8 @@ Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skil
 Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50),
 John de Goes for [A Beginner Friendly Tour](http://degoes.net/articles/easy-monads), Erik Bakker for [Options in
 Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8), Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Rob
-Norris for the [Cats Infographic](https://github.com/tpolecat/cats-infographic).
+Norris for the [Cats Infographic](https://github.com/tpolecat/cats-infographic), Adam Rosien for the [Scalaz
+Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf).
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund
