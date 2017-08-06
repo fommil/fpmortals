@@ -3090,57 +3090,48 @@ package logic {
 ** Cats
 
 In this chapter we will tour the data types and typeclasses in cats
-and its related ecosystem. We don't use all these types in
-=drone-dynamic-agents= so we will give standalone usecases.
+and its related ecosystem. We don't use everything in
+=drone-dynamic-agents= so we will give standalone examples when
+appropriate.
 
 There has been criticism of the naming in cats, and functional
 programming in general. Cats is a word play on /Category Theory/ and
-many of the concepts originate from academia, much as object oriented
+the concepts originate from academia, much like object oriented
 programming originated from academic research in the 1960s (with their
-high falutin words like /polymorphism/, /subtyping/ and /generics/).
-We'll use the cats names in this book, but feel free to set up =type=
-aliases if you would prefer to use names based on the primary
-functionality of the typeclass.
+high falutin words like /polymorphism/, /subtyping/, /generics/ and
+/aspects/). We'll use the cats names in this book, but feel free to
+set up =type= aliases if you would prefer to use names based on the
+primary functionality of the typeclass.
 
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important typeclasses from a control flow perspective:
-=cats.Functor=, =cats.Applicative= and =cats.Monad= (each extending
-the former).
-
-In Chapters 1 to 3 we explored how =for= comprehensions can be used to
-write nested =flatMap= calls, which allows us to reach into a runtime
-context such as a =Future= and sequence operations that call out to an
-/algebra/ that may interact with the world.
-
-The concept of sequencing operations that depend on runtime values is
-formalised by the =Monad= typeclass, which takes data =A= within a
-context =F[_]=, and allows us to provide pure functions that return
-another value within the same context =F[B]=.
-
-Another way of looking at data within a context =F[A]= is to think of
-it as a /program/ =F[_]= with =A= as the output: =flatMap= allows us
-to generate programs at runtime based on the results of running
-previous programs.
-
-However, much functionality can be written without having to resort to
-the full power of a =Monad=. If a function wishes to transform the
-result of running a program, that's just =map=, and your function need
-only request a =Functor=. As we seen in Chapter 3, we can create a
-product of programs and run them in parallel by calling their
-=Functor.map=.
-
-In Functional Programming, parallel computations are considered *less*
-powerful than sequential ones, so you are encouraged to be as parallel
-as possible.
-
-That said, an =Applicative= is often required for its =pure= method
-which allows lifting a pure value into the context.
+=Functor=, =Applicative= and =Monad= (each extending the former).
 
 | Typeclass     | Method    | From   |               | To     |
 |---------------+-----------+--------+---------------+--------|
-| =Monad=       | =flatMap= | =F[A]= | =(A => F[B])= | =F[B]= |
-| =Applicative= | =pure=    | =A=    |               | =F[A]= |
 | =Functor=     | =map=     | =F[A]= | =(A => B)=    | =F[B]= |
+| =Applicative= | =pure=    | =A=    |               | =F[A]= |
+| =Monad=       | =flatMap= | =F[A]= | =(A => F[B])= | =F[B]= |
+
+
+We learnt in Chapter 1 that sequential operations that return a =F[_]=
+are formalised by =flatMap=, which lives on the =Monad= typeclass. One
+way of looking at a context =F[A]= is to think of it as a /program/
+=F[_]= with =A= as the output: =flatMap= allows us to generate new
+programs =F[B]= at runtime based on the results of running previous
+programs.
+
+=Applicative=, a parent of =Monad=, introduces the =pure= method
+allowing a value to become a (trivial) program. We have used =pure=
+enough in previous chapters such that its importance should be
+self-evident.
+
+But much can be achieved without the full power of a =Monad=. If a
+function wishes to transform the result of running a program, that's
+just =map=, introduced by =Functor=. In Chapter 3, we ran programs in
+parallel by creating a product and mapping over them. In Functional
+Programming, parallel computations are considered *less* powerful than
+sequential ones: you are encouraged to be as parallel as possible.
 
 When it comes to depending on typeclasses, functional programmers and
 object oriented programmers agree: depend on the most general (least
@@ -3157,6 +3148,8 @@ over the more esoteric typeclasses.
 **** Combinable Things
 
 [[file:images/cats-monoid.png]]
+
+Defined roughly as:
 
 #+BEGIN_SRC scala
 /** A set with an associative operation. */
@@ -3179,19 +3172,49 @@ over the more esoteric typeclasses.
 }
 #+END_SRC
 
-This may bring back memories of =Numeric= from Chapter 4, which tried
-to do too much and was unusable beyond the most basic of number types.
-Of course there are implementations of =Group= for all the primitive
-numbers, but the generalisation of /combinable/ things is useful
-beyond numbers.
+It is common to use =|+|= instead of =combine=, known as the TIE
+Fighter operator. There is an Advanced TIE Fighter in the next
+section, which is very exciting.
 
-Consider the case where business rules for a trading system are
-implemented as a collection of partial configurations in a template
-database. The default values for a trade are built up by combining
-specific templates for that trade, in an order prescribed by the
-business as "last rule wins". Here we'll create a simple set of rules,
-but keep in mind that a realistic templating system would have
-hundreds of parameters in nested =case class=.
+/Associative/ means that the order of applications should not matter,
+i.e.
+
+#+BEGIN_SRC scala
+(a |+| b) |+| c == a |+| (b |+| c)
+#+END_SRC
+
+/Identity/ means that combining the =empty= with any other =a= should
+give =a=. For example, integer addition's =identity= is =0= so it is
+also common to refer to =empty= as =zero=.
+
+#+BEGIN_SRC scala
+a |+| 0 == a
+#+END_SRC
+
+/Inverse/ means that adding any element and its inverse should give
+the identity, e.g.
+
+#+BEGIN_SRC scala
+a |-| a == 0
+#+END_SRC
+
+For numbers, =remove= is synonymous with =minus=.
+
+This is probably bringing back memories of =Numeric= from Chapter 4,
+which tried to do too much and was unusable beyond the most basic of
+number types. Of course there are implementations of =Group= for all
+the primitive numbers, but the generalisation of /combinable/ things
+is useful beyond numbers.
+
+As a realistic example, consider a trading system that has a large
+database of reusable trade templates. Creating the default values for
+a new trade involves picking a sequence of off-the-shelf templates and
+combining them with a "last rule wins" merge policy in case of
+conflict.
+
+We'll create a simple template to demonstrate the principle, but keep
+in mind that a realistic system would have hundreds of parameters
+within nested =case class=.
 
 #+BEGIN_SRC scala
 sealed abstract class Currency
@@ -3206,18 +3229,27 @@ final case class TradeTemplate(
 #+END_SRC
 
 If we write a method that takes =templates: Seq[TradeTemplate]=, we
-only need to call =combineAll=. But to call =combineAll= we must have
-an instance of =Monoid[TradeTemplate]=. Cats provides generic
-instances in the =kittens= library, so we do not need to write one.
+only need to call =combineAll= and our job is done!
+
+But to call =combineAll= we must have an instance of
+=Monoid[TradeTemplate]=. Cats provides generic instances in the with
+the right imports, so we do not need to write one manually.
+
+#+BEGIN_SRC scala
+import cats._
+import cats.implicits._
+import cats.derived._, monoid._, legacy._
+import java.time.LocalDate
+#+END_SRC
 
 However, generic derivation will fail because =Monoid[Option[T]]=
-defers to =Monoid[T]= for the case where there are two =Some[T]= to be
-combined and we have neither a =Monoid[Currency]= (kittens cannot
-derive a =Monoid= for a coproduct) nor a =Monoid[Boolean]= (it could
-be implemented with either =&= or =|= logic so cats leaves it to the
-user).
+defers to =Monoid[T]= and we have neither a =Monoid[Currency]=
+(kittens cannot derive a =Monoid= for a coproduct) nor a
+=Monoid[Boolean]= (inclusive or exclusive logic must be explicitly
+chosen).
 
-For example, =Monoid[Option[Int]]= behaves like this:
+To explain what we mean by "defers to", consider
+=Monoid[Option[Int]]=:
 
 #+BEGIN_SRC scala
 scala> Option(2) |+| None
@@ -3226,15 +3258,13 @@ scala> Option(2) |+| Option(1)
 res: Option[Int] = Some(3)
 #+END_SRC
 
-and we can see the content's =combine= has been called, which for
-=Int= is integer addition. We've used the =|+|= op because it is more
-common than the =combine= method. This op is known as the TIE Fighter
-operator and there is an Advanced TIE Fighter in the next section,
-because awesome.
+We can see the content's =combine= has been called, which for =Int= is
+integer addition.
 
-Our business rules state that the "last rule wins" which means that we
-can implement a simple, higher priority, =Monoid[Option[T]]= and use it
-during our generic derivation instead of the cats default one:
+But our business rules state that we use "last rule wins" on
+conflicts, so we introduce a higher priority, implicit
+=Monoid[Option[T]]= instance and use it during our generic derivation
+instead of the default one:
 
 #+BEGIN_SRC scala
 implicit def lastWins[A]: Monoid[Option[A]] = new Monoid[Option[A]] {
@@ -3251,43 +3281,56 @@ implicit def lastWins[A]: Monoid[Option[A]] = new Monoid[Option[A]] {
 Let's try it out...
 
 #+BEGIN_SRC scala
-scala> import cats._
-       import cats.implicits._
-       import cats.derived._, monoid._, legacy._
-       import java.time.LocalDate
-
-scala> implicitly[Monoid[TradeTemplate]]
-res: cats.Monoid[TradeTemplate] = cats.derived.MkMonoid$$anon
-
 scala> val templates = List(
-         TradeTemplate(Nil, None, None),
-         TradeTemplate(Nil, Some(EUR), None),
+         TradeTemplate(Nil,                            None,      None),
+         TradeTemplate(Nil,                            Some(EUR), None),
          TradeTemplate(List(LocalDate.of(2017, 8, 5)), Some(USD), None),
-         TradeTemplate(List(LocalDate.of(2017, 9, 5)), None, Some(true)),
-         TradeTemplate(Nil, None, Some(false))
+         TradeTemplate(List(LocalDate.of(2017, 9, 5)), None,      Some(true)),
+         TradeTemplate(Nil,                            None,      Some(false))
        )
 
-       Monoid[TradeTemplate].combineAll(templates)
+scala> Monoid[TradeTemplate].combineAll(templates)
 res: TradeTemplate = TradeTemplate(
                        List(2017-08-05,2017-09-05),
                        Some(USD),
                        Some(false))
 #+END_SRC
 
+All we needed to do was implement one piece of business logic and
+=Monoid= took care of everything else for us! Can you imagine doing
+this without using a generically derived typeclass? It could easily be
+thousands of lines of code to do it manually for realistic sized
+cases.
+
+Note that the list of =payments= are concatenated. This is because the
+default =Monoid[Seq]= uses concatenation of elements and happens to be
+the desired behaviour. If the business requirement was different, it
+would be a simple case of providing a custom =Monoid[Seq[LocalDate]]=.
+Recall from Chapter 4 that with compiletime polymorphism we can have a
+different implementation of =combine= depending on the =E= in
+=Seq[E]=, not just the base runtime class =Seq=.
+
+***** Esoterics
+
 The =Commutative*= variants have an additional requirement / law
 imposed upon them that the order of parameters to =combine= does not
-matter. Our trading example is most definitely *non* commutative,
-since the order of application is important, however this is a useful
-property to require if you are building a distributed system where
-there are efficiencies when order is not important.
+matter, i.e.
+
+#+BEGIN_SRC scala
+a |+| b == b |+| a
+#+END_SRC
+
+Our trading example is most definitely *non* commutative, since the
+order of application is important, however this is a useful property
+to require if you are building a distributed system where there are
+efficiencies to be gained by reordering your calculations.
 
 =Band=, =Semilattice= and =BoundedSemilattice= have the additional law
 that the =combine= operation of the same two elements is /idempotent/,
 i.e. gives the same value. An example is anything defined over a group
 that can only be one value, such as =Unit=, or if the =combine= is a
-least upper bound. If you ever need use these, you should probably
-tweet about it because they exist for niche downstream mathematics
-libraries =spire= and =algebird=.
+least upper bound. These exist so that niche downstream mathematics
+libraries =spire= and =algebird= can share common definitions.
 
 **** Mappable Things
 
