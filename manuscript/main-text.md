@@ -27,20 +27,20 @@ the three most important typeclasses from a control flow perspective:
 | `Monad`       | `flatMap` | `F[A]` | `(A => F[B])` | `F[B]` |
 
 We learnt in Chapter 1 that sequential operations that return a `F[_]`
-are formalised by `flatMap`, which lives on the `Monad` typeclass. One
-way of looking at a context `F[A]` is to think of it as a *program*
-`F[_]` with `A` as the output: `flatMap` allows us to generate new
-programs `F[B]` at runtime based on the results of running previous
-programs.
+are formalised by `flatMap`, which lives on the `Monad` typeclass. A
+way of looking at a context `F[A]` is to think of it as an intentional
+*effect* (as opposed to an incidental side-effect) `F[_]` with `A` as
+the output: `flatMap` allows us to generate new effects `F[B]` at
+runtime based on the results of evaluating previous effects.
 
 `Applicative`, a parent of `Monad`, introduces the `pure` method
-allowing a value to become a (trivial) program. We have used `pure`
+allowing a value to become a (trivial) effect. We have used `pure`
 enough in previous chapters such that its importance should be
 self-evident.
 
 But much can be achieved without the full power of a `Monad`. If a
-function wishes to transform the result of running a program, that's
-just `map`, introduced by `Functor`. In Chapter 3, we ran programs in
+function wishes to transform the result of running an effect, that's
+just `map`, introduced by `Functor`. In Chapter 3, we ran effects in
 parallel by creating a product and mapping over them. In Functional
 Programming, parallel computations are considered **less** powerful than
 sequential ones: you are encouraged to be as parallel as possible.
@@ -276,8 +276,8 @@ focussing on things that can be "mapped over" in some sense.
         def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => a -> f(a))
       
         def as[A, B](fa: F[A], b: B): F[B] = map(fa)(_ => b)
-        def tupleLeft[A, B](fa: F[A], b: B): F[(B, A)] = map(fa)(a => (b, a))
-        def tupleRight[A, B](fa: F[A], b: B): F[(A, B)] = map(fa)(a => (a, b))
+      
+        def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
       }
     ~~~~~~~~
     
@@ -319,18 +319,90 @@ focussing on things that can be "mapped over" in some sense.
     therefore it must keep the contents of `F[A]` and tuple them with the
     result of applying the function.
     
-    `as`, `tupleLeft` and `tupleRight` are different ways of sticking a
-    constant into the output. For example, a parser may wish to do
-    something like
+    `as` is a way of replacing the value with a constant. For example, a
+    parser may wish to
     
     {lang="text"}
     ~~~~~~~~
       string("foo").as(true)
     ~~~~~~~~
     
-    for a format that uses keyword existence to set a `Boolean` flag.
+    for a format that uses the existence of the `foo` keyword to set a
+    `Boolean` flag.
+    
+    Finally we have `compose`, which has a type signature that requires
+    explanation. The arrow syntax is a `kind-projector` type lambda that
+    says if this `Functor` is composed with a type `G[A]` (that also has a
+    `Functor`), we get a `Functor` that can operate on `F[G[A]]`. Let's
+    take an example where `F[_]` is `List` and `G[A]` is `Option[Int]`,
+    i.e. `List[Option[Int]]`
+    
+    {lang="text"}
+    ~~~~~~~~
+      scala> val lo = List(Some(1), None, Some(2))
+      scala> Functor[List].compose[Option].map(lo)(_ + 1)
+      res: List[Option[Int]] = List(Some(2), None, Some(3))
+    ~~~~~~~~
+    
+    This lets us jump into nested effects and apply a function at the
+    layer we want.
 
 2.  Foldable
+
+    Fold is for data structures that can be walked to produce a summary
+    value. It is a one-trait army that can provide much of what you'd
+    expect to see in a Collections API.
+    
+    Before introducing the `Foldable` typeclass we must take a moment to
+    understand `cats.data.Eval`, and this is where definitions start to
+    get a little bit cyclic.
+    
+    {lang="text"}
+    ~~~~~~~~
+      sealed abstract class Eval[+A] {
+        def value: A
+        def memoize: Eval[A]
+      }
+      final case class Now[A](value: A) extends Eval[A] {
+        def memoize: Eval[A] = this
+      }
+      final case class Later[A](f: () => A) extends Eval[A] {
+        lazy val value: A = f()
+        def memoize: Eval[A] = this
+      }
+      final case class Always[A](f: () => A) extends Eval[A] {
+        def value: A = f()
+        def memoize: Eval[A] = Later(f)
+      }
+    ~~~~~~~~
+    
+    A> This ADT has methods on it, but in Chapter 4 we said that ADTs
+    A> shouldn't have methods on them and that the functionality should live
+    A> on typeclasses. You caught us red handed. There are several reasons
+    A> for doing it this way.
+    A> 
+    A> Firstly, it is necessary to use a `lazy val` inside `Later` to get the
+    A> required semantics and it would not be possible to do this in an
+    A> extension class because the cached `value` would be thrown away on
+    A> each method call, thus defeating the point. But that only explains the
+    A> `lazy val`, not the methods on `Eval` or the other implementations.
+    A> 
+    A> Secondly, there are a lot more methods than just `value` and `memoize`
+    A> on `Eval`. There is also `map` and `flatMap`. The reason they live on
+    A> the ADT and not in an instance of `Monad` is because it is slightly
+    A> more efficient for the compiler to find these methods instead of
+    A> looking for `Monad.ops._`, and there is a lower memory cost to pay at
+    A> runtime. This is an optimisation step that is absolutely vital in a
+    A> core library such as cats, but please do not perform these
+    A> optimisations in user code unless you have profiled and found a
+    A> performance bottleneck. There is a significant cost to code
+    A> readability.
+    A> 
+    A> And while we're being honest, the actual implementation of `Later` is
+    A> slightly more involved, allowing for the `f` to be garbage collected,
+    A> and there are another two children of `Eval`, called `Call` and
+    A> `Compute`, which are internally used to trampoline long chains of
+    A> `map` and `flatMap`.
 
 3.  TODO Traversable
 
