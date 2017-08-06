@@ -60,9 +60,9 @@ Norris for the [Cats Infographic](https://github.com/tpolecat/cats-infographic).
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund
-Noble, Vincent Marquez, Adelbert Chang, Kai(luo) Wang, Michael
-Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively, Daniel
-Spiewak.
+Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
+Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
+Daniel Spiewak.
 
 # Practicalities
 

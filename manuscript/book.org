@@ -73,9 +73,9 @@ Norris for the [[https://github.com/tpolecat/cats-infographic][Cats Infographic]
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund
-Noble, Vincent Marquez, Adelbert Chang, Kai(luo) Wang, Michael
-Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively, Daniel
-Spiewak.
+Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
+Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
+Daniel Spiewak.
 
 ** Practicalities
 
@@ -3334,7 +3334,107 @@ libraries =spire= and =algebird= can share common definitions.
 
 **** Mappable Things
 
-[[file:/images/cats-monad.png]]
+[[file:/images/cats-mappable.png]]
+
+This is only a partial view of the full typeclass hierarchy. We're
+focussing on things that can be "mapped over" in some sense.
+
+***** Functor
+
+#+BEGIN_SRC scala
+  @typeclass trait Functor[F[_]] {
+    def map[A, B](fa: F[A])(f: A => B): F[B]
+
+    def widen[A, B >: A](fa: F[A]): F[B] = fa.asInstanceOf[F[B]]
+    def lift[A, B](f: A => B): F[A] => F[B] = map(_)(f)
+    def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
+    def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => a -> f(a))
+
+    def as[A, B](fa: F[A], b: B): F[B] = map(fa)(_ => b)
+    def tupleLeft[A, B](fa: F[A], b: B): F[(B, A)] = map(fa)(a => (b, a))
+    def tupleRight[A, B](fa: F[A], b: B): F[(A, B)] = map(fa)(a => (a, b))
+  }
+#+END_SRC
+
+The only abstract method is =map=, and it must /compose/, i.e. mapping
+with =f= and then again with =g= is the same as mapping once with the
+composition of =f= and =g=:
+
+#+BEGIN_SRC scala
+fa.map(f).map(g) == fa.map(f.andThen(g))
+#+END_SRC
+
+The =map= should also perform a no-op if the provided function is =identity= from the Scala standard library
+
+#+BEGIN_SRC scala
+fa.map(x => x) = fa
+#+END_SRC
+
+=Functor= defines some convenience methods around =map=. The
+implementation of =widen= is just a safe upcast that can safely use
+=asInstanceOf= for performance thanks to the no-op identity law.
+
+The documentation has been intentionally omitted in the above
+definitions to encourage reading the type signatures to understand
+what they do. You are encouraged to spend a moment studying =lift=,
+=void= and =fproduct= before reading further.
+
+=lift= takes a =A => B= and returns a =F[A] => F[B]=, or in English,
+it takes a function over the contents of an =F[A]= and returns a
+function that operates *on* the =F[A]= directly, perhaps to meet a
+type requirement elsewhere.
+
+=void= takes an instance of the =F[A]= and always returns a
+=F[Unit]=, so it must erase all the values whilst preserving
+structure.
+
+=fproduct= takes the same input as =map= but returns =F[(A, B)]=,
+therefore it must keep the contents of =F[A]= and tuple them with the
+result of applying the function.
+
+=as=, =tupleLeft= and =tupleRight= are different ways of sticking a
+constant into the output. For example, a parser may wish to do
+something like
+
+#+BEGIN_SRC scala
+string("foo").as(true)
+#+END_SRC
+
+for a format that uses keyword existence to set a =Boolean= flag.
+
+***** Foldable
+
+
+
+***** TODO Traversable
+***** TODO Reducible
+***** TODO Esoteric
+
+- FunctorFilter
+- TraverseFilter
+- CoflatMap
+- Comonad
+
+*** Variance
+
+http://typelevel.org/blog/2016/02/04/variance-and-functors.html
+
+A =Functor= is documented in cats as a "covariant functor". This seems
+immediately contradictory since it inherits from =Invariant=. TODO
+
+Fabio Labella: the sub typing relationship does make sense, functors answer the question: "what do I need, to go from an F[A] to an F[B]" ?
+1) invariant: you need both an A => B, and a B => A
+2 ) covariant: you only need an A => B
+3) contravariant: you only need a B => A
+The requirements for 2) are a subset of the requirements for 1), so 2) is a subtype of 1)
+The requirements for 3) are a subset of the requirements for 1) so 3) is a subtype of 1)
+
+sealed trait Foo[A]
+case class Bar[A](a: A) extends Foo[A]
+case class Baz[A](f: A => Int) extends Foo[A]
+
+
+- Invariant
 
 
 *** NOTES

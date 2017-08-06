@@ -1,0 +1,1035 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="178.32915mm"
+   height="89.429153mm"
+   viewBox="0 0 178.32915 89.429155"
+   version="1.1"
+   id="svg6597"
+   sodipodi:docname="cats-mappable.svg"
+   inkscape:version="0.92.1 r">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1791"
+     inkscape:window-height="1042"
+     id="namedview3851"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="1.4283557"
+     inkscape:cx="456.93837"
+     inkscape:cy="159.94155"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg6597" />
+  <defs
+     id="defs6591">
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="FilledArrow_Marker"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g4516">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path4514"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6186"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6184">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6182"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6192"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6190">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6188"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6198"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6196">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6194"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="FilledArrow_Marker_2"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g4521">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path4519"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6207"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6205">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6203"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6213"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6211">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6209"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6219"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6217">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6215"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6225"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6223">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6221"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6231"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6229">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6227"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6237"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6235">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6233"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6243"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6241">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6239"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6249"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6247">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6245"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6255"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6253">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6251"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6261"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6259">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6257"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6267"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6265">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6263"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6273"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6271">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6269"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6279"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6277">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6275"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#cbcbcb;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6285"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6283">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6281"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6291"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6289">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6287"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6297"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6295">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6293"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6303"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6301">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6299"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6309"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6307">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6305"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6315"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6313">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6311"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6321"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6319">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6317"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6327"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6325">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6323"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6333"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6331">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6329"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6339"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6337">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6335"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6345"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6343">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6341"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6351"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6349">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6347"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6357"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6355">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6353"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6363"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6361">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6359"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6369"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6367">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6365"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6375"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6373">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6371"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6381"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6379">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6377"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6387"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6385">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6383"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6393"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6391">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6389"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6399"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6397">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6395"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="marker6405"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g6403">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path6401"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+    <marker
+       style="color:#000000;overflow:visible"
+       orient="auto"
+       overflow="visible"
+       markerUnits="strokeWidth"
+       id="FilledArrow_Marker-9"
+       viewBox="-1 -4 10 8"
+       markerWidth="10"
+       markerHeight="8">
+      <g
+         id="g4516-4">
+        <path
+           style="fill:currentColor;stroke:currentColor;stroke-width:1"
+           d="M 8,0 0,-3 v 6 z"
+           id="path4514-8"
+           inkscape:connector-curvature="0" />
+      </g>
+    </marker>
+  </defs>
+  <metadata
+     id="metadata6594">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <path
+     d="m 133.52638,51.152779 h 38.1 c 3.507,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.843 -6.35,-6.35 v 0 c 0,-3.507 2.84301,-6.35 6.35,-6.35 z"
+     id="path4732"
+     style="fill:#cadfff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="m 133.52638,51.152779 h 38.1 c 3.507,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.843 -6.35,-6.35 v 0 c 0,-3.507 2.84301,-6.35 6.35,-6.35 z"
+     id="path4734"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="55.033321"
+     x="128.94026"
+     id="text4740"
+     style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="142.92943"
+       y="58.913891"
+       id="tspan4736"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">Cofl</tspan>
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="150.45766"
+       y="58.913891"
+       id="tspan4738"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">atMap</tspan>
+  </text>
+  <path
+     d="m 133.52638,76.552769 h 38.1 c 3.507,0 6.35,2.84301 6.35,6.35 v 0 c 0,3.507 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.843 -6.35,-6.35 v 0 c 0,-3.50699 2.84301,-6.35 6.35,-6.35 z"
+     id="path4742"
+     style="fill:#cadfff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="m 133.52638,76.552769 h 38.1 c 3.507,0 6.35,2.84301 6.35,6.35 v 0 c 0,3.507 -2.843,6.35 -6.35,6.35 h -38.1 c -3.50699,0 -6.35,-2.843 -6.35,-6.35 v 0 c 0,-3.50699 2.84301,-6.35 6.35,-6.35 z"
+     id="path4744"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="80.433334"
+     x="128.94026"
+     id="text4748"
+     style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="143.39864"
+       y="84.313889"
+       id="tspan4746"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">Comonad</tspan>
+  </text>
+  <path
+     d="m 70.026378,0.35277775 h 38.100012 c 3.50701,0 6.35,2.84299995 6.35,6.34999995 v 0 c 0,3.5070003 -2.84299,6.3500003 -6.35,6.3500003 H 70.026378 c -3.50701,0 -6.35,-2.843 -6.35,-6.3500003 v 0 c 0,-3.507 2.84299,-6.34999995 6.35,-6.34999995 z"
+     id="path4766"
+     style="fill:#77afff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="m 70.026378,0.35277775 h 38.100012 c 3.50701,0 6.35,2.84299995 6.35,6.34999995 v 0 c 0,3.5070003 -2.84299,6.3500003 -6.35,6.3500003 H 70.026378 c -3.50701,0 -6.35,-2.843 -6.35,-6.3500003 v 0 c 0,-3.507 2.84299,-6.34999995 6.35,-6.34999995 z"
+     id="path4768"
+     style="fill:none;fill-opacity:1;stroke:#515151;stroke-width:0.7055555;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="3.174999"
+     x="65.440262"
+     id="text4772"
+     style="font-size:4.23333311px;fill:#343434;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="17"
+       font-weight="bold"
+       x="76.748123"
+       y="8.8194389"
+       id="tspan4770"
+       style="font-weight:bold;font-size:5.99722195px;font-family:Helvetica;fill:#343434;stroke-width:0.35277775">Foldable</tspan>
+  </text>
+  <path
+     d="m 133.52638,0.35277775 h 38.1 c 3.507,0 6.35,2.84299995 6.35,6.34999995 v 0 c 0,3.5070003 -2.843,6.3500003 -6.35,6.3500003 h -38.1 c -3.50699,0 -6.35,-2.843 -6.35,-6.3500003 v 0 c 0,-3.507 2.84301,-6.34999995 6.35,-6.34999995 z"
+     id="path4774"
+     style="fill:#77afff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="m 133.52638,0.35277775 h 38.1 c 3.507,0 6.35,2.84299995 6.35,6.34999995 v 0 c 0,3.5070003 -2.843,6.3500003 -6.35,6.3500003 h -38.1 c -3.50699,0 -6.35,-2.843 -6.35,-6.3500003 v 0 c 0,-3.507 2.84301,-6.34999995 6.35,-6.34999995 z"
+     id="path4776"
+     style="fill:none;fill-opacity:1;stroke:#515151;stroke-width:0.7055555;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="3.174999"
+     x="128.94026"
+     id="text4780"
+     style="font-size:4.23333311px;fill:#343434;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="17"
+       font-weight="bold"
+       x="141.41652"
+       y="8.8194389"
+       id="tspan4778"
+       style="font-weight:bold;font-size:5.99722195px;font-family:Helvetica;fill:#343434;stroke-width:0.35277775">Functor</tspan>
+  </text>
+  <path
+     d="m 70.026378,51.152779 h 38.100012 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507 -2.84299,6.35 -6.35,6.35 H 70.026378 c -3.50701,0 -6.35,-2.843 -6.35,-6.35 v 0 c 0,-3.507 2.84299,-6.35 6.35,-6.35 z"
+     id="path4782"
+     style="fill:#cadfff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="m 70.026378,51.152779 h 38.100012 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507 -2.84299,6.35 -6.35,6.35 H 70.026378 c -3.50701,0 -6.35,-2.843 -6.35,-6.35 v 0 c 0,-3.507 2.84299,-6.35 6.35,-6.35 z"
+     id="path4784"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="55.033321"
+     x="65.440262"
+     id="text4788"
+     style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="77.197006"
+       y="58.913891"
+       id="tspan4786"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">FunctorFilter</tspan>
+  </text>
+  <path
+     d="M 6.5263889,25.752778 H 44.626378 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507004 -2.84299,6.350004 -6.35,6.350004 H 6.5263889 c -3.50701,0 -6.35000003,-2.843 -6.35000003,-6.350004 v 0 c 0,-3.507 2.84299003,-6.35 6.35000003,-6.35 z"
+     id="path4846"
+     style="fill:#cadfff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="M 6.5263889,25.752778 H 44.626378 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507004 -2.84299,6.350004 -6.35,6.350004 H 6.5263889 c -3.50701,0 -6.35000003,-2.843 -6.35000003,-6.350004 v 0 c 0,-3.507 2.84299003,-6.35 6.35000003,-6.35 z"
+     id="path4848"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="29.633324"
+     x="1.9402456"
+     id="text4852"
+     style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="16.16297"
+       y="33.513878"
+       id="tspan4850"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">Reducible</tspan>
+  </text>
+  <path
+     d="M 6.5263889,51.152779 H 44.626378 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507 -2.84299,6.35 -6.35,6.35 H 6.5263889 c -3.50701,0 -6.35000003,-2.843 -6.35000003,-6.35 v 0 c 0,-3.507 2.84299003,-6.35 6.35000003,-6.35 z"
+     id="path4880"
+     style="fill:#cadfff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="M 6.5263889,51.152779 H 44.626378 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507 -2.84299,6.35 -6.35,6.35 H 6.5263889 c -3.50701,0 -6.35000003,-2.843 -6.35000003,-6.35 v 0 c 0,-3.507 2.84299003,-6.35 6.35000003,-6.35 z"
+     id="path4882"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="55.033321"
+     x="1.9402456"
+     id="text4888"
+     style="font-size:4.23333311px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="12.599372"
+       y="58.913891"
+       id="tspan4884"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">T</tspan>
+    <tspan
+       font-size="12"
+       font-weight="500"
+       x="15.03028"
+       y="58.913891"
+       id="tspan4886"
+       style="font-weight:500;font-size:4.23333311px;font-family:Helvetica;stroke-width:0.35277775">raverseFilter</tspan>
+  </text>
+  <line
+     x1="152.57637"
+     y1="51.152775"
+     x2="152.57637"
+     y2="16.721672"
+     id="line4964"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  <line
+     x1="152.57637"
+     y1="76.552757"
+     x2="152.57637"
+     y2="67.345268"
+     id="line4966"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  <path
+     d="M 104.95139,51.152779 152.57638,32.102778 V 16.721668"
+     id="path4976"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)"
+     inkscape:connector-curvature="0" />
+  <line
+     x1="41.451363"
+     y1="25.752769"
+     x2="69.517715"
+     y2="14.526253"
+     id="line5004"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  <path
+     d="m 70.026378,25.752778 h 38.100012 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507004 -2.84299,6.350004 -6.35,6.350004 H 70.026378 c -3.50701,0 -6.35,-2.843 -6.35,-6.350004 v 0 c 0,-3.507 2.84299,-6.35 6.35,-6.35 z"
+     id="path5006"
+     style="fill:#77afff;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <path
+     d="m 70.026378,25.752778 h 38.100012 c 3.50701,0 6.35,2.843 6.35,6.35 v 0 c 0,3.507004 -2.84299,6.350004 -6.35,6.350004 H 70.026378 c -3.50701,0 -6.35,-2.843 -6.35,-6.350004 v 0 c 0,-3.507 2.84299,-6.35 6.35,-6.35 z"
+     id="path5008"
+     style="fill:none;fill-opacity:1;stroke:#515151;stroke-width:0.7055555;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     inkscape:connector-curvature="0" />
+  <text
+     y="28.574989"
+     x="65.440262"
+     id="text5014"
+     style="font-size:4.23333311px;fill:#343434;fill-opacity:1;stroke:none;stroke-width:0.35277775;stroke-dasharray:none;stroke-opacity:1">
+    <tspan
+       font-size="17"
+       font-weight="bold"
+       x="76.736404"
+       y="34.219444"
+       id="tspan5010"
+       style="font-weight:bold;font-size:5.99722195px;font-family:Helvetica;fill:#343434;stroke-width:0.35277775">T</tspan>
+    <tspan
+       font-size="17"
+       font-weight="bold"
+       x="80.071762"
+       y="34.219444"
+       id="tspan5012"
+       style="font-weight:bold;font-size:5.99722195px;font-family:Helvetica;fill:#343434;stroke-width:0.35277775">raverse</tspan>
+  </text>
+  <line
+     x1="105.39234"
+     y1="25.576378"
+     x2="133.01772"
+     y2="14.526253"
+     id="line5016"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  <line
+     x1="89.076393"
+     y1="25.576378"
+     x2="89.076393"
+     y2="16.721672"
+     id="line5018"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  <line
+     x1="41.451363"
+     y1="51.152775"
+     x2="69.517715"
+     y2="39.926266"
+     id="line5020"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+  <line
+     x1="50.976387"
+     y1="57.502773"
+     x2="60.18388"
+     y2="57.502773"
+     id="line5022"
+     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35277775;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#FilledArrow_Marker)" />
+</svg>
