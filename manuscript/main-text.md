@@ -17,8 +17,9 @@ set up `type` aliases if you would prefer to use names based on the
 primary functionality of the typeclass.
 
 Before we introduce the complete typeclass hierarchy, we will look at
-the three most important typeclasses from a control flow perspective:
-`Functor`, `Applicative` and `Monad` (each extending the former).
+the three most important methods from a control flow perspective,
+which live on: `Functor`, `Applicative` and `Monad` (each extending
+the former).
 
 | Typeclass     | Method    | From   |               | To     |
 |------------- |--------- |------ |------------- |------ |
@@ -26,30 +27,27 @@ the three most important typeclasses from a control flow perspective:
 | `Applicative` | `pure`    | `A`    |               | `F[A]` |
 | `Monad`       | `flatMap` | `F[A]` | `(A => F[B])` | `F[B]` |
 
-We learnt in Chapter 1 that sequential operations that return a `F[_]`
-are formalised by `flatMap`, which lives on the `Monad` typeclass. A
-way of looking at a context `F[A]` is to think of it as an intentional
-*effect* (as opposed to an incidental side-effect) `F[_]` with `A` as
-the output: `flatMap` allows us to generate new effects `F[B]` at
-runtime based on the results of evaluating previous effects.
+We know that operations which return a `F[_]` can be sequenced in a
+`for` comprehension by `.flatMap`, defined on its `Monad[F]`. The
+context `F[_]` can be thought of as a container for an intentional
+*effect* with `A` as the output: `flatMap` allows us to generate new
+effects `F[B]` at runtime based on the results of evaluating previous
+effects.
 
-`Applicative`, a parent of `Monad`, introduces the `pure` method
-allowing a value to become a (trivial) effect. We have used `pure`
-enough in previous chapters such that its importance should be
-self-evident.
+Of course, not all Higher Kinded Types `F[_]` are effectful, even if
+they have a `Monad[F]`. Often they are data structures. By using the
+least specific abstraction, our code can work for `List`, `Either`,
+`Future` and more, without us needing to know.
 
-But much can be achieved without the full power of a `Monad`. If a
-function wishes to transform the result of running an effect, that's
-just `map`, introduced by `Functor`. In Chapter 3, we ran effects in
-parallel by creating a product and mapping over them. In Functional
-Programming, parallel computations are considered **less** powerful than
-sequential ones: you are encouraged to be as parallel as possible.
+If we only need to transform the output from an effect or contents of
+a data structure, that's just `map`, introduced by `Functor`. In
+Chapter 3, we ran effects in parallel by creating a product and
+mapping over them. In Functional Programming, parallel computations
+are considered **less** powerful than sequential ones.
 
-When it comes to depending on typeclasses, functional programmers and
-object oriented programmers agree: depend on the most general (least
-powerful) interface you can. In contrast to data types, where
-parameters should be as specific as possible to forbid impossible
-states.
+In between `Monad` and `Functor` is `Applicative`, defining `pure`
+that lets us elevate a value into an effect, or create a data
+structure from a single value.
 
 ## Data Types
 
@@ -107,10 +105,10 @@ will run the computation at most once whereas `Always` will run
 computations every time they are requested. Calling `.memoize` will
 return an `Eval` with "at most once" semantics.
 
-`Eval` supports stack-safe lazy computation via `map` and `flatMap`
-methods (not shown here), which use an internal trampoline to avoid
-stack overflows. Computation within `map` and `flatMap` is always
-lazy, even when applied to a `Now` instance.
+`Eval` supports stack-safe computation via `map` and `flatMap` methods
+(not shown here), which trampoline to avoid stack overflows.
+Computation within `map` and `flatMap` is always lazy, even when
+applied to a `Now` instance.
 
 There is no need for a standalone example of `Eval` as we will use it
 in many of the typeclasses of this chapter. It's primary use is to
@@ -120,15 +118,20 @@ non `@tailrec` recursive methods do not result in
 
 `Eval` has instances of `Bimonad`, `Reducible`, `Order` and `Group`.
 
-A> We're breaking more Chapter 4 rules about what can live on a data
-A> type: it is necessary to use a `lazy val` inside `Later` to get the
-A> required semantics. It would not be possible to do this in a
-A> typeclass, because it requires managing state.
+A> `Eval` is quite naughty and breaks a few more Chapter 4 rules about
+A> what can live on a data type: it is necessary to use a `lazy val`
+A> inside `Later` to get the required semantics. It would not be possible
+A> to do this in a typeclass, because it requires managing state.
 A> 
-A> Note shown are two more children of `Eval`: `Call` and `Compute`,
-A> which are used to internally trampoline long chains of `map` and
-A> `flatMap`. `Eval` should therefore not be pattern-matched, despite
-A> being a sealed coproduct.
+A> Not shown are two more children of `Eval`: `Call` and `Compute`, which
+A> are used to do the trampolining. `Eval` should therefore not be
+A> pattern-matched, despite being a sealed coproduct.
+A> 
+A> If you find yourself reading the actual implementation of `Later`, you
+A> might be surprised to see a `var`. Functional Programmers are happy
+A> getting their hands dirty with JVM internal details to squeeze extra
+A> performance out of core components of their toolbox, so long as the
+A> really dirty hacks do not leak into the API.
 
 ### TODO Ior
 
@@ -168,19 +171,16 @@ Defined roughly as:
 
 {lang="text"}
 ~~~~~~~~
-  /** A set with an associative operation. */
   @typeclass trait Semigroup {
     @op("|+|") def combine(x: A, y: A): A
   }
   
-  /** A Semigroup with an identity. */
   @typeclass trait Monoid extends Semigroup[A] {
     def empty: A
   
     def combineAll(as: Seq[A]): A = as.foldLeft(empty)(combine)
   }
   
-  /** A monoid where each element has an inverse. */
   @typeclass trait Group extends Monoid[A] {
     def inverse(a: A): A
   
@@ -188,9 +188,12 @@ Defined roughly as:
   }
 ~~~~~~~~
 
-It is common to use `|+|` instead of `combine`, known as the TIE
-Fighter operator. There is an Advanced TIE Fighter in the next
-section, which is very exciting.
+A `Semigroup` should exist for a set of elements that have an
+*associative* operation `|+|`.
+
+A> It is common to use `|+|` instead of `combine`, known as the TIE
+A> Fighter operator. There is an Advanced TIE Fighter in the next
+A> section, which is very exciting.
 
 *Associative* means that the order of applications should not matter,
 i.e.
@@ -198,32 +201,39 @@ i.e.
 {lang="text"}
 ~~~~~~~~
   (a |+| b) |+| c == a |+| (b |+| c)
+  
+  (1 |+| 2) |+| 3 == 1 |+| (2 |+| 3)
 ~~~~~~~~
 
-*Identity* means that combining the `empty` with any other `a` should
-give `a`. For example, integer addition's `identity` is `0` so it is
-also common to refer to `empty` as `zero`.
+A `Monoid` is a `Semigroup` with an *empty* element (also called
+*zero* or *identity*). Combining `empty` with any other `a` should
+give `a`.
 
 {lang="text"}
 ~~~~~~~~
+  a |+| empty == a
+  
   a |+| 0 == a
 ~~~~~~~~
 
-*Inverse* means that adding any element and its inverse should give
-the identity, e.g.
+A `Group` is a `Monoid` where every element has an *inverse* such that
+adding any element and its inverse should give the empty. For numbers,
+`remove` is synonymous with `minus`:
 
 {lang="text"}
 ~~~~~~~~
-  a |-| a == 0
+  a |+| (a.inverse) == empty
+  a |-| a == empty
+  
+  1 |-| 1 == 0
+  3 |-| 2 == 1
 ~~~~~~~~
-
-For numbers, `remove` is synonymous with `minus`.
 
 This is probably bringing back memories of `Numeric` from Chapter 4,
 which tried to do too much and was unusable beyond the most basic of
-number types. Of course there are implementations of `Group` for all
-the primitive numbers, but the generalisation of *combinable* things
-is useful beyond numbers.
+number types. There are implementations of `Group` for all the
+primitive numbers, but the concept to *combinable* things is useful
+beyond numbers.
 
 As a realistic example, consider a trading system that has a large
 database of reusable trade templates. Creating the default values for
@@ -252,8 +262,8 @@ If we write a method that takes `templates: Seq[TradeTemplate]`, we
 only need to call `combineAll` and our job is done!
 
 But to call `combineAll` we must have an instance of
-`Monoid[TradeTemplate]`. Cats provides generic instances in the with
-the right imports, so we do not need to write one manually.
+`Monoid[TradeTemplate]`. Cats provides generic instances, so we do not
+need to write one manually.
 
 {lang="text"}
 ~~~~~~~~
@@ -264,10 +274,9 @@ the right imports, so we do not need to write one manually.
 ~~~~~~~~
 
 However, generic derivation will fail because `Monoid[Option[T]]`
-defers to `Monoid[T]` and we have neither a `Monoid[Currency]`
-(kittens cannot derive a `Monoid` for a coproduct) nor a
-`Monoid[Boolean]` (inclusive or exclusive logic must be explicitly
-chosen).
+defers to `Monoid[T]` and we have neither a `Monoid[Currency]` (cats
+cannot derive a `Monoid` for a coproduct) nor a `Monoid[Boolean]`
+(inclusive or exclusive logic must be explicitly chosen).
 
 To explain what we mean by "defers to", consider
 `Monoid[Option[Int]]`:
@@ -334,28 +343,28 @@ Recall from Chapter 4 that with compiletime polymorphism we can have a
 different implementation of `combine` depending on the `E` in
 `Seq[E]`, not just the base runtime class `Seq`.
 
-1.  Esoterics
+#### Esoterics
 
-    The `Commutative*` variants have an additional requirement / law
-    imposed upon them that the order of parameters to `combine` does not
-    matter, i.e.
-    
-    {lang="text"}
-    ~~~~~~~~
-      a |+| b == b |+| a
-    ~~~~~~~~
-    
-    Our trading example is most definitely **non** commutative, since the
-    order of application is important, however this is a useful property
-    to require if you are building a distributed system where there are
-    efficiencies to be gained by reordering your calculations.
-    
-    `Band`, `Semilattice` and `BoundedSemilattice` have the additional law
-    that the `combine` operation of the same two elements is *idempotent*,
-    i.e. gives the same value. An example is anything defined over a group
-    that can only be one value, such as `Unit`, or if the `combine` is a
-    least upper bound. These exist so that niche downstream mathematics
-    libraries `spire` and `algebird` can share common definitions.
+The `Commutative*` variants have an additional requirement / law
+imposed upon them that the order of parameters to `combine` does not
+matter, i.e.
+
+{lang="text"}
+~~~~~~~~
+  a |+| b == b |+| a
+~~~~~~~~
+
+Our trading example is most definitely **non** commutative, since the
+order of application is important, however this is a useful property
+to require if you are building a distributed system where there are
+efficiencies to be gained by reordering your calculations.
+
+`Band`, `Semilattice` and `BoundedSemilattice` have the additional law
+that the `combine` operation of the same two elements is *idempotent*,
+i.e. gives the same value. An example is anything that can only be one
+value, such as `Unit`, or if the `combine` is a least upper bound.
+These exist so that niche downstream mathematics libraries `spire` and
+`algebird` can share common definitions.
 
 ### Mappable Things
 
@@ -365,109 +374,110 @@ different implementation of `combine` depending on the `E` in
 This is only a partial view of the full typeclass hierarchy. We're
 focussing on things that can be "mapped over" in some sense.
 
-1.  Functor
+#### Functor
 
-    {lang="text"}
-    ~~~~~~~~
-      @typeclass trait Functor[F[_]] {
-        def map[A, B](fa: F[A])(f: A => B): F[B]
-      
-        def widen[A, B >: A](fa: F[A]): F[B] = fa.asInstanceOf[F[B]]
-        def lift[A, B](f: A => B): F[A] => F[B] = map(_)(f)
-        def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
-        def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => a -> f(a))
-      
-        def as[A, B](fa: F[A], b: B): F[B] = map(fa)(_ => b)
-      
-        def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
-      }
-    ~~~~~~~~
-    
-    The only abstract method is `map`, and it must *compose*, i.e. mapping
-    with `f` and then again with `g` is the same as mapping once with the
-    composition of `f` and `g`:
-    
-    {lang="text"}
-    ~~~~~~~~
-      fa.map(f).map(g) == fa.map(f.andThen(g))
-    ~~~~~~~~
-    
-    The `map` should also perform a no-op if the provided function is
-    `identity` (i.e. `x => x`)
-    
-    {lang="text"}
-    ~~~~~~~~
-      fa.map(identity) == fa
-      
-      fa.map(x => x) == fa
-    ~~~~~~~~
-    
-    `Functor` defines some convenience methods around `map`. The
-    implementation of `widen` is just a safe upcast that can safely use
-    `asInstanceOf` for performance thanks to the no-op identity law.
-    
-    The documentation has been intentionally omitted in the above
-    definitions to encourage reading the type signatures to understand
-    what they do. You are encouraged to spend a moment studying `lift`,
-    `void` and `fproduct` before reading further.
-    
-    `lift` takes a `A => B` and returns a `F[A] => F[B]`, or in English,
-    it takes a function over the contents of an `F[A]` and returns a
-    function that operates **on** the `F[A]` directly, perhaps to meet a
-    type requirement elsewhere.
-    
-    `void` takes an instance of the `F[A]` and always returns a
-    `F[Unit]`, so it must erase all the values whilst preserving
-    structure.
-    
-    `fproduct` takes the same input as `map` but returns `F[(A, B)]`,
-    therefore it must keep the contents of `F[A]` and tuple them with the
-    result of applying the function.
-    
-    `as` is a way of replacing the value with a constant. For example, a
-    parser may wish to
-    
-    {lang="text"}
-    ~~~~~~~~
-      string("foo").as(true)
-    ~~~~~~~~
-    
-    for a format that uses the existence of the `foo` keyword to set a
-    `Boolean` flag.
-    
-    Finally we have `compose`, which has a type signature that requires
-    explanation. The arrow syntax is a `kind-projector` type lambda that
-    says if this `Functor` is composed with a type `G[A]` (that also has a
-    `Functor`), we get a `Functor` that can operate on `F[G[A]]`. Let's
-    take an example where `F[_]` is `List` and `G[A]` is `Option[Int]`,
-    i.e. `List[Option[Int]]`
-    
-    {lang="text"}
-    ~~~~~~~~
-      scala> val lo = List(Some(1), None, Some(2))
-      scala> Functor[List].compose[Option].map(lo)(_ + 1)
-      res: List[Option[Int]] = List(Some(2), None, Some(3))
-    ~~~~~~~~
-    
-    This lets us jump into nested effects and apply a function at the
-    layer we want.
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Functor[F[_]] {
+    def map[A, B](fa: F[A])(f: A => B): F[B]
+  
+    def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
+    def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => a -> f(a))
+    def as[A, B](fa: F[A], b: B): F[B] = map(fa)(_ => b)
+  
+    def lift[A, B](f: A => B): F[A] => F[B] = map(_)(f)
+    def widen[A, B >: A](fa: F[A]): F[B] = fa.asInstanceOf[F[B]]
+  
+    def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
+  }
+~~~~~~~~
 
-2.  TODO Foldable
+The only abstract method is `map`, and it must *compose*, i.e. mapping
+with `f` and then again with `g` is the same as mapping once with the
+composition of `f` and `g`:
 
-    Fold is for data structures that can be walked to produce a summary
-    value. It is a one-trait army that can provide much of what you'd
-    expect to see in a Collections API.
+{lang="text"}
+~~~~~~~~
+  fa.map(f).map(g) == fa.map(f.andThen(g))
+~~~~~~~~
 
-3.  TODO Traversable
+The `map` should also perform a no-op if the provided function is
+`identity` (i.e. `x => x`)
 
-4.  TODO Reducible
+{lang="text"}
+~~~~~~~~
+  fa.map(identity) == fa
+  
+  fa.map(x => x) == fa
+~~~~~~~~
 
-5.  TODO Esoteric
+`Functor` defines some convenience methods around `map` that can be
+optimised by specific instances. The documentation has been
+intentionally omitted in the above definitions to encourage you to
+read (just) the type signatures and guess what a method does before
+looking at the implementation. You are encouraged to spend a moment
+studying `void`, `fproduct` and `as` before reading further.
 
-    -   FunctorFilter
-    -   TraverseFilter
-    -   CoflatMap
-    -   Comonad
+`void` takes an instance of the `F[A]` and always returns an
+`F[Unit]`, it forgets all the values whilst preserving the structure.
+
+`fproduct` takes the same input as `map` but returns `F[(A, B)]`, it
+tuples the contents of `F[A]` with the result of applying the
+function.
+
+`as` is a way of replacing the value with a constant. For example, a
+parser may wish to
+
+{lang="text"}
+~~~~~~~~
+  string("foo").as(true)
+~~~~~~~~
+
+for a format that uses the existence of the `foo` keyword to set a
+`Boolean` flag.
+
+`lift` takes a `A => B` and returns a `F[A] => F[B]`, or in English,
+it takes a function over the contents of an `F[A]` and returns a
+function that operates **on** the `F[A]` directly.
+
+The implementation of `widen` is a safe upcast that can use
+`asInstanceOf` for performance thanks to the no-op identity law.
+
+Finally we have `compose`, which has a complex type signature. The
+arrow syntax is a `kind-projector` *type lambda* that says if this
+`Functor[F]` is composed with a type `G[_]` (that has a `Functor[G]`),
+we get a `Functor[F[G[_]]]` that can operate on `F[G[A]]`.
+
+A simple example is where `F[_]` is `List` and `G[_]` is `Option`, and
+we want to be able to map over the `Int` inside a `List[Option[Int]]`
+without changing the two structures:
+
+{lang="text"}
+~~~~~~~~
+  scala> val lo = List(Some(1), None, Some(2))
+  scala> Functor[List].compose[Option].map(lo)(_ + 1)
+  res: List[Option[Int]] = List(Some(2), None, Some(3))
+~~~~~~~~
+
+This lets us jump into nested effects and structures and apply a
+function at the layer we want.
+
+#### TODO Foldable
+
+Fold is for data structures that can be walked to produce a summary
+value. It is a one-trait army that can provide much of what you'd
+expect to see in a Collections API.
+
+#### TODO Traversable
+
+#### TODO Reducible
+
+#### TODO Esoteric
+
+-   FunctorFilter
+-   TraverseFilter
+-   CoflatMap
+-   Comonad
 
 ### Variance
 
