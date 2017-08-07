@@ -3553,21 +3553,102 @@ expect to see in a Collections API.
 
 **** Variance
 
+[[file:images/cats-variance.png]]
+
+We must return to =Functor= for a moment and reveal a typeclass parent
+and method that we previously ignored:
+
+#+BEGIN_SRC scala
+@typeclass trait Invariant[F[_]] {
+  def imap[A, B](fa: F[A])(f: A => B)(g: B => A): F[B]
+
+  def compose[G[_]: Invariant]: Invariant[λ[α => F[G[α]]]] = 
+  def composeFunctor[G[_]: Functor]: Invariant[λ[α => F[G[α]]]]
+  def composeContravariant[G[_]: Contravariant]: Invariant[λ[α => F[G[α]]]]
+}
+
+@typeclass trait Functor[F[_]] extends Invariant[F] {
+  def map[A, B](fa: F[A])(f: A => B): F[B]
+
+  def imap[A, B](fa: F[A])(f: A => B)(fi: B => A): F[B] = map(fa)(f)
+
+  def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] =
+  ...
+}
+
+@typeclass trait Contravariant[F[_]] extends Invariant[F] {
+  def contramap[A, B](fa: F[A])(f: B => A): F[B]
+
+  def imap[A, B](fa: F[A])(f: A => B)(fi: B => A): F[B] = contramap(fa)(fi)
+
+  def narrow[A, B <: A](fa: F[A]): F[B] = fa.asInstanceOf[F[B]]
+
+  def compose[G[_]: Contravariant]: Functor[λ[α => F[G[α]]]] = ...
+}
+#+END_SRC
+
+=Functor= is a short name for what should be /covariant functor/. But
+since =Functor= is so popular it gets the nickname. Likewise
+=Contravariant= should really be /contravariant functor/ and
+=Invariant= should be /invariant functor/.
+
+It is important to note that, although related at a theoretical level,
+the words /covariant/, /contravariant/ and /invariant/ do not refer to
+the type variance (i.e. the =+= and =-= prefixes that may be written
+in type signatures).
+
+/Invariance/ here means that it is possible to map the contents of a
+structure =F[A]= into =F[B]= if we can provide a map from =A => B= and
+a map from =B to A=. A normal, covariant, functor only needs the =A =>
+B= to be able to do this, exemplified in its implementation of =imap=,
+but a bizarro contravariant functor only needs a map from =B => A=.
+
+This is so ridiculously abstract and seemingly impossible that it
+needs a practical example immediately, before we can continue on good
+terms. In Chapter 4 we used circe to derive a JSON encoder for our
+data types and we gave a brief description of the =Encoder= typeclass.
+This is an expanded version:
+
+#+BEGIN_SRC scala
+@typeclass trait Encoder[T] { self =>
+  def encodeJson(t: T): Json
+
+  def contramap[B](f: B => A): Encoder[B] = new Encoder[B] {
+    final def apply(a: B) = self(f(a))
+  }
+}
+#+END_SRC
+
+Now consider the case where we want to write an instance of an
+=Encoder[B]= in terms of another =Encoder[A]=, that's exactly what
+=contramap= is for (recall that it is safe to call =Some.get=, but not
+=Option.get=):
+
+#+BEGIN_SRC scala
+implicit def encodeSome[A: Encoder]: Encoder[Some[A]] =
+  Encoder[A].contramap(_.get)
+#+END_SRC
+
+
 http://typelevel.org/blog/2016/02/04/variance-and-functors.html
 
 A =Functor= is documented in cats as a "covariant functor". This seems
 immediately contradictory since it inherits from =Invariant=. TODO
 
-Fabio Labella: the sub typing relationship does make sense, functors answer the question: "what do I need, to go from an F[A] to an F[B]" ?
+the sub typing relationship does make sense, functors answer the question: "what do I need, to go from an F[A] to an F[B]" ?
+
 1) invariant: you need both an A => B, and a B => A
 2 ) covariant: you only need an A => B
 3) contravariant: you only need a B => A
 The requirements for 2) are a subset of the requirements for 1), so 2) is a subtype of 1)
 The requirements for 3) are a subset of the requirements for 1) so 3) is a subtype of 1)
 
+#+BEGIN_SRC scala
 sealed trait Foo[A]
 case class Bar[A](a: A) extends Foo[A]
 case class Baz[A](f: A => Int) extends Foo[A]
+#+END_SRC
+
 
 - Invariant
 
