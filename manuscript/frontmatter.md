@@ -1,6 +1,16 @@
 
 {frontmatter}
 
+> "Love is wise; hatred is foolish. In this world, which is getting more
+> and more closely interconnected, we have to learn to tolerate each
+> other, we have to learn to put up with the fact that some people say
+> things that we don't like. We can only live together in that way. But
+> if we are to live together, and not die together, we must learn a kind
+> of charity and a kind of tolerance, which is absolutely vital to the
+> continuation of human life on this planet."
+> 
+> ― Bertrand Russell
+
 # About This Book
 
 This book is for Scala developers with a Java background who wish to
