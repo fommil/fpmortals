@@ -41,7 +41,7 @@ redistribute this book and you can distribute your own version. That
 means you can print it, photocopy it, e-mail it, upload it to
 websites, change it, translate it, remix it, delete bits, and draw all
 over it. You can even sell it, although morally you should offer a
-royalty share with the author.
+royalty share to the author.
 
 This book is **Copyleft**: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -50,7 +50,10 @@ This book uses the [Creative Commons Attribution ShareAlike 4.0
 International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC BY-SA 4.0) license.
 
 All code samples in this book are separately [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) licensed,
-which is Libre but not Copyleft.
+which is Libre but not Copyleft. Note that the example application
+`drone-dynamic-agents` is distributed under the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html):
+only the snippets in this book are available under the permissive
+license.
 
 # Thanks
 
@@ -125,5 +128,23 @@ following imports:
   import freestyle.implicits._
   import fs2._
 ~~~~~~~~
+
+# Giving Feedback
+
+Please help raise awareness of this book by retweeting [the
+announcement](https://twitter.com/fommil/status/855877100296953862) and buying it when it becomes available for Early Access
+purchase.
+
+If you would like to give feedback on this book, thank you! I ask of
+you:
+
+1.  if you are an FP beginner and something confused you, please point
+    out the exact part of the text that confused you at
+    [fommil/fp-scala-mortals](https://github.com/fommil/fp-scala-mortals/issues)
+2.  if you are an expert in FP, please help by answering my questions
+    at [fommil/drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues) and pointing out factual errors in
+    this text.
+3.  if you understood a concept, but feel that it could be explained in
+    a different way, let's park that thought for now.
 
 

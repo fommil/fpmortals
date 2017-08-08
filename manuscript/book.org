@@ -56,7 +56,7 @@ redistribute this book and you can distribute your own version. That
 means you can print it, photocopy it, e-mail it, upload it to
 websites, change it, translate it, remix it, delete bits, and draw all
 over it. You can even sell it, although morally you should offer a
-royalty share with the author.
+royalty share to the author.
 
 This book is *Copyleft*: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -65,7 +65,10 @@ This book uses the [[https://creativecommons.org/licenses/by-sa/4.0/legalcode][C
 International]] (CC BY-SA 4.0) license.
 
 All code samples in this book are separately [[https://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] licensed,
-which is Libre but not Copyleft.
+which is Libre but not Copyleft. Note that the example application
+=drone-dynamic-agents= is distributed under the terms of the [[https://www.gnu.org/licenses/gpl-3.0.en.html][GPLv3]]:
+only the snippets in this book are available under the permissive
+license.
 
 ** Thanks
 
@@ -139,16 +142,11 @@ import freestyle.implicits._
 import fs2._
 #+END_SRC
 
-* Sample                                                             :sample:
-:PROPERTIES:
-:EXPORT_FILE_NAME: sample.md
-:END:
-
 ** Giving Feedback
 
-You are reading the Sample. Please help raise awareness of this book
-by retweeting [[https://twitter.com/fommil/status/855877100296953862][the announcement]] and buying it when it becomes available
-for purchase.
+Please help raise awareness of this book by retweeting [[https://twitter.com/fommil/status/855877100296953862][the
+announcement]] and buying it when it becomes available for Early Access
+purchase.
 
 If you would like to give feedback on this book, thank you! I ask of
 you:
@@ -161,6 +159,11 @@ you:
    this text.
 3. if you understood a concept, but feel that it could be explained in
    a different way, let's park that thought for now.
+
+* Sample                                                             :sample:
+:PROPERTIES:
+:EXPORT_FILE_NAME: sample.md
+:END:
 
 * Mainmatter                                                   :sample:final:
 :PROPERTIES:
@@ -3753,3 +3756,6 @@ Not needed to write FP but it is needed if you want to read any academic papers.
 detailed explanation about what =@free= / =@module= is generating and
 how that feeds into the cats =Free= implementation.
 ** TODO Alternatives to Free
+** TODO Licenses
+
+for anything with a snippet

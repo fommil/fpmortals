@@ -8,4 +8,8 @@ how that feeds into the cats `Free` implementation.
 
 # TODO Alternatives to Free
 
+# TODO Licenses
+
+for anything with a snippet
+
 
