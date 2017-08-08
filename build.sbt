@@ -2,7 +2,7 @@ inThisBuild(
   Seq(
     scalaVersion := "2.12.3",
     sonatypeGithub := ("fommil", "drone-dynamic-agents"),
-    licenses := Seq(Apache2)
+    licenses := Seq(GPL3)
   )
 )
 
@@ -13,6 +13,7 @@ libraryDependencies ++= Seq(
   "io.circe"      %% "circe-parser"  % circeVersion,
   "io.circe"      %% "circe-fs2"     % circeVersion,
   "org.typelevel" %% "cats"          % "0.9.0",
+  "org.typelevel" %% "kittens"       % "1.0.0-M10",
   "com.spinoco"   %% "fs2-http"      % "0.1.7"
 )
 
