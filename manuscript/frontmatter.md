@@ -23,6 +23,16 @@ hands-on exercises, we recommend [scala-exercises.org](https://www.scala-exercis
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
 write an FP library in Scala from first principles.
 
+A> Although this early access version of the book is making use of the
+A> cats library, This book may switch to using the `scalaz` library
+A> before completion.
+A> 
+A> Cats is a technical and social project, with origins in the more
+A> long-standing `scalaz`.
+A> 
+A> There will be a second book made available (at a discount to those who
+A> buy this book) covering the *other* library, whatever that may be.
+
 # Copyleft Notice
 
 This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you

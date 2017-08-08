@@ -36,6 +36,18 @@ hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exerc
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
 write an FP library in Scala from first principles.
 
+#+BEGIN_ASIDE
+Although this early access version of the book is making use of the
+cats library, This book may switch to using the =scalaz= library
+before completion.
+
+Cats is a technical and social project, with origins in the more
+long-standing =scalaz=.
+
+There will be a second book made available (at a discount to those who
+buy this book) covering the /other/ library, whatever that may be.
+#+END_ASIDE
+
 ** Copyleft Notice
 
 This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]]: you
@@ -3216,11 +3228,13 @@ are used to do the trampolining. =Eval= should therefore not be
 pattern-matched, despite being a sealed coproduct.
 
 If you find yourself reading the actual implementation of =Later=, you
-might be surprised to see a =var=. Functional Programmers are happy
-getting their hands dirty with JVM internal details to squeeze extra
-performance out of core components of their toolbox, so long as the
-really dirty hacks do not leak into the API.
+might be surprised to see a =var=. Functional Programmers will get
+their hands dirty in JVM details to squeeze extra performance out of
+core components of their toolbox, so long as the really dirty hacks do
+not leak into the API.
 #+END_ASIDE
+
+***** TODO The Lambda Calculus
 
 **** TODO Ior
 
@@ -3376,7 +3390,7 @@ We can see the content's =combine= has been called, which for =Int= is
 integer addition.
 
 But our business rules state that we use "last rule wins" on
-conflicts, so we introduce a higher priority, implicit
+conflicts, so we introduce a higher priority implicit
 =Monoid[Option[T]]= instance and use it during our generic derivation
 instead of the default one:
 
@@ -3490,33 +3504,33 @@ fa.map(x => x) == fa
 =Functor= defines some convenience methods around =map= that can be
 optimised by specific instances. The documentation has been
 intentionally omitted in the above definitions to encourage you to
-read (just) the type signatures and guess what a method does before
-looking at the implementation. You are encouraged to spend a moment
-studying =void=, =fproduct= and =as= before reading further.
-
-=void= takes an instance of the =F[A]= and always returns an
-=F[Unit]=, it forgets all the values whilst preserving the structure.
-
-=fproduct= takes the same input as =map= but returns =F[(A, B)]=, it
-tuples the contents of =F[A]= with the result of applying the
-function.
-
-=as= is a way of replacing the value with a constant. For example, a
-parser may wish to
+guess what a method does before looking at the implementation. Please
+spend a moment studying only the type signature of the following
+before reading further:
 
 #+BEGIN_SRC scala
-string("foo").as(true)
+  def void[A](fa: F[A]): F[Unit]
+  def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)]
+  def as[A, B](fa: F[A], b: B): F[B]
+  def lift[A, B](f: A => B): F[A] => F[B]
+  def widen[A, B >: A](fa: F[A]): F[B]
 #+END_SRC
 
-for a format that uses the existence of the =foo= keyword to set a
-=Boolean= flag.
-
-=lift= takes a =A => B= and returns a =F[A] => F[B]=, or in English,
-it takes a function over the contents of an =F[A]= and returns a
-function that operates *on* the =F[A]= directly.
-
-The implementation of =widen= is a safe upcast that can use
-=asInstanceOf= for performance thanks to the no-op identity law.
+1. =void= takes an instance of the =F[A]= and always returns an
+   =F[Unit]=, it forgets all the values whilst preserving the
+   structure.
+2. =fproduct= takes the same input as =map= but returns =F[(A, B)]=,
+   it tuples the contents of =F[A]= with the result of applying the
+   function.
+3. =as= is a way of replacing every value with a constant. For
+   example, a parser may wish to =string("foo").as(true)= for a format
+   that uses the existence of the =foo= keyword to set a =Boolean=
+   flag.
+4. =lift= takes a =A => B= and returns a =F[A] => F[B]=, or in
+   English, it takes a function over the contents of an =F[A]= and
+   returns a function that operates *on* the =F[A]= directly.
+5. =widen= is a safe upcast that can use =asInstanceOf= for
+   performance thanks to the no-op identity law.
 
 Finally we have =compose=, which has a complex type signature. The
 arrow syntax is a =kind-projector= /type lambda/ that says if this
@@ -3562,9 +3576,9 @@ and method that we previously ignored:
 @typeclass trait Invariant[F[_]] {
   def imap[A, B](fa: F[A])(f: A => B)(g: B => A): F[B]
 
-  def compose[G[_]: Invariant]: Invariant[λ[α => F[G[α]]]] = 
-  def composeFunctor[G[_]: Functor]: Invariant[λ[α => F[G[α]]]]
-  def composeContravariant[G[_]: Contravariant]: Invariant[λ[α => F[G[α]]]]
+  def compose[G[_]: Invariant]: Invariant[λ[α => F[G[α]]]] = ...
+  def composeFunctor[G[_]: Functor]: Invariant[λ[α => F[G[α]]]] = ...
+  def composeContravariant[G[_]: Contravariant]: Invariant[λ[α => F[G[α]]]] = ...
 }
 
 @typeclass trait Functor[F[_]] extends Invariant[F] {
@@ -3572,7 +3586,7 @@ and method that we previously ignored:
 
   def imap[A, B](fa: F[A])(f: A => B)(fi: B => A): F[B] = map(fa)(f)
 
-  def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] =
+  def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
   ...
 }
 
@@ -3593,13 +3607,13 @@ since =Functor= is so popular it gets the nickname. Likewise
 =Invariant= should be /invariant functor/.
 
 It is important to note that, although related at a theoretical level,
-the words /covariant/, /contravariant/ and /invariant/ do not refer to
-the type variance (i.e. the =+= and =-= prefixes that may be written
+the words /covariant/, /contravariant/ and /invariant/ do not directly
+refer to type variance (i.e. =+= and =-= prefixes that may be written
 in type signatures).
 
 /Invariance/ here means that it is possible to map the contents of a
 structure =F[A]= into =F[B]= if we can provide a map from =A => B= and
-a map from =B to A=. A normal, covariant, functor only needs the =A =>
+a map from =B => A=. A normal, covariant, functor only needs the =A =>
 B= to be able to do this, exemplified in its implementation of =imap=,
 but a bizarro contravariant functor only needs a map from =B => A=.
 
@@ -3610,8 +3624,8 @@ data types and we gave a brief description of the =Encoder= typeclass.
 This is an expanded version:
 
 #+BEGIN_SRC scala
-@typeclass trait Encoder[T] { self =>
-  def encodeJson(t: T): Json
+@typeclass trait Encoder[A] { self =>
+  def encodeJson(a: A): Json
 
   def contramap[B](f: B => A): Encoder[B] = new Encoder[B] {
     final def apply(a: B) = self(f(a))

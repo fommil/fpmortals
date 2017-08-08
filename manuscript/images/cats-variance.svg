@@ -36,114 +36,6 @@
            id="path3686" />
       </g>
     </marker>
-    <marker
-       style="color:#000000;overflow:visible"
-       orient="auto"
-       overflow="visible"
-       markerUnits="strokeWidth"
-       id="marker5241"
-       viewBox="-1 -4 10 8"
-       markerWidth="10"
-       markerHeight="8">
-      <g
-         id="g5239">
-        <path
-           style="fill:currentColor;stroke:currentColor;stroke-width:1"
-           inkscape:connector-curvature="0"
-           d="M 8,0 0,-3 v 6 z"
-           id="path5237" />
-      </g>
-    </marker>
-    <marker
-       style="color:#000000;overflow:visible"
-       orient="auto"
-       overflow="visible"
-       markerUnits="strokeWidth"
-       id="marker5247"
-       viewBox="-1 -4 10 8"
-       markerWidth="10"
-       markerHeight="8">
-      <g
-         id="g5245">
-        <path
-           style="fill:currentColor;stroke:currentColor;stroke-width:1"
-           inkscape:connector-curvature="0"
-           d="M 8,0 0,-3 v 6 z"
-           id="path5243" />
-      </g>
-    </marker>
-    <marker
-       style="color:#000000;overflow:visible"
-       orient="auto"
-       overflow="visible"
-       markerUnits="strokeWidth"
-       id="marker5253"
-       viewBox="-1 -4 10 8"
-       markerWidth="10"
-       markerHeight="8">
-      <g
-         id="g5251">
-        <path
-           style="fill:currentColor;stroke:currentColor;stroke-width:1"
-           inkscape:connector-curvature="0"
-           d="M 8,0 0,-3 v 6 z"
-           id="path5249" />
-      </g>
-    </marker>
-    <marker
-       style="color:#000000;overflow:visible"
-       orient="auto"
-       overflow="visible"
-       markerUnits="strokeWidth"
-       id="marker5259"
-       viewBox="-1 -4 10 8"
-       markerWidth="10"
-       markerHeight="8">
-      <g
-         id="g5257">
-        <path
-           style="fill:currentColor;stroke:currentColor;stroke-width:1"
-           inkscape:connector-curvature="0"
-           d="M 8,0 0,-3 v 6 z"
-           id="path5255" />
-      </g>
-    </marker>
-    <marker
-       style="color:#000000;overflow:visible"
-       orient="auto"
-       overflow="visible"
-       markerUnits="strokeWidth"
-       id="marker5265"
-       viewBox="-1 -4 10 8"
-       markerWidth="10"
-       markerHeight="8">
-      <g
-         id="g5263">
-        <path
-           style="fill:currentColor;stroke:currentColor;stroke-width:1"
-           inkscape:connector-curvature="0"
-           d="M 8,0 0,-3 v 6 z"
-           id="path5261" />
-      </g>
-    </marker>
-    <marker
-       style="color:#000000;overflow:visible"
-       orient="auto"
-       overflow="visible"
-       markerUnits="strokeWidth"
-       id="marker5271"
-       viewBox="-1 -4 10 8"
-       markerWidth="10"
-       markerHeight="8">
-      <g
-         id="g5269">
-        <path
-           style="fill:currentColor;stroke:currentColor;stroke-width:1"
-           inkscape:connector-curvature="0"
-           d="M 8,0 0,-3 v 6 z"
-           id="path5267" />
-      </g>
-    </marker>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -153,7 +45,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.35"
-     inkscape:cx="685.85713"
+     inkscape:cx="691.57142"
      inkscape:cy="-19.811322"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -175,7 +67,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
