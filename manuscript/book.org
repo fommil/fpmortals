@@ -3747,9 +3747,12 @@ Protect yourself from mistyping
 - cachedImplicit into a val
 - downside is compile time speeds for ADTs of 50+
 - alternative is https://github.com/propensive/magnolia
+- export-hook
 - some advanced cases, e.g. spray-json-shapeless stuff, typeclass
-  hierarchy / ambiguities and Not
+  hierarchy / ambiguities
 - https://issues.scala-lang.org/browse/SI-2509
+- gotchas with nested =object= and knownSubclasses
+- semi-auto
 
 ** TODO Recursion Schemes
 ** TODO Optics
