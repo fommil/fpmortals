@@ -35,13 +35,13 @@ that the merits of FP are obvious. Therefore, this book justifies
 every concept with practical examples, in Scala.
 
 There are many ways to do Functional Programming in Scala. This book
-focuses on using cats, but you can instead use scalaz or roll your own
-framework.
+focuses on using [[http://typelevel.org/cats/][cats]] with [[http://frees.io/docs/][freestyle]], but you can instead use [[https://github.com/scalaz/scalaz][scalaz]]
+or roll your own framework.
 
 This book is designed to be read from cover to cover, in the order
 presented, with a rest between chapters. To ensure that the book is
-concise, important concepts are not repeated: intentionally against
-modern education theory.
+concise, important concepts are not always repeated. Re-read sections
+that are confusing, they will be important later.
 
 A computer is not necessary to follow along. If you would like
 hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exercises.org]]
@@ -50,12 +50,14 @@ We also recommend [[https://www.manning.com/books/functional-programming-in-scal
 write an FP library in Scala from first principles.
 
 #+BEGIN_ASIDE
-Although this early access version of the book is making use of the
-cats library, This book may switch to using the =scalaz= library
-before completion.
+Cats is an evolving technical experiment under the Typelevel social
+project which has moderators on their channels who enforce a Code of
+Conduct. Cats has origins in the decade-long =scalaz= technical
+project.
 
-Cats is a technical and social project, with origins in the more
-long-standing =scalaz=.
+Although this Early Access version of the book that you are reading is
+making use of the cats library, we will probably switch to =scalaz=
+library before completion.
 
 There will be a second book made available (at a discount to those who
 buy this book) covering the /other/ library, whatever that may be.

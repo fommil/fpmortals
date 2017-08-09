@@ -19,13 +19,13 @@ that the merits of FP are obvious. Therefore, this book justifies
 every concept with practical examples, in Scala.
 
 There are many ways to do Functional Programming in Scala. This book
-focuses on using cats, but you can instead use scalaz or roll your own
-framework.
+focuses on using [cats](http://typelevel.org/cats/) with [freestyle](http://frees.io/docs/), but you can instead use [scalaz](https://github.com/scalaz/scalaz)
+or roll your own framework.
 
 This book is designed to be read from cover to cover, in the order
 presented, with a rest between chapters. To ensure that the book is
-concise, important concepts are not repeated: intentionally against
-modern education theory.
+concise, important concepts are not always repeated. Re-read sections
+that are confusing, they will be important later.
 
 A computer is not necessary to follow along. If you would like
 hands-on exercises, we recommend [scala-exercises.org](https://www.scala-exercises.org/)
@@ -33,12 +33,14 @@ hands-on exercises, we recommend [scala-exercises.org](https://www.scala-exercis
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
 write an FP library in Scala from first principles.
 
-A> Although this early access version of the book is making use of the
-A> cats library, This book may switch to using the `scalaz` library
-A> before completion.
+A> Cats is an evolving technical experiment under the Typelevel social
+A> project which has moderators on their channels who enforce a Code of
+A> Conduct. Cats has origins in the decade-long `scalaz` technical
+A> project.
 A> 
-A> Cats is a technical and social project, with origins in the more
-A> long-standing `scalaz`.
+A> Although this Early Access version of the book that you are reading is
+A> making use of the cats library, we will probably switch to `scalaz`
+A> library before completion.
 A> 
 A> There will be a second book made available (at a discount to those who
 A> buy this book) covering the *other* library, whatever that may be.
