@@ -50,14 +50,14 @@ We also recommend [[https://www.manning.com/books/functional-programming-in-scal
 write an FP library in Scala from first principles.
 
 #+BEGIN_ASIDE
-Cats is an evolving technical experiment under the Typelevel social
-project which has moderators on their channels who enforce a Code of
-Conduct. Cats has origins in the decade-long =scalaz= technical
-project.
+Cats is an evolving technical experiment under the Typelevel
+sociopolitical project, which has moderators who enforce a Code of
+Conduct to ensure that their spaces are welcoming and inclusive. Cats
+has origins in the decade-long =scalaz= technical project.
 
 Although this Early Access version of the book that you are reading is
 making use of the cats library, we will probably switch to =scalaz=
-library before completion.
+before completion due to its maturity.
 
 There will be a second book made available (at a discount to those who
 buy this book) covering the /other/ library, whatever that may be.

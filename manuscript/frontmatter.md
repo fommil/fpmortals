@@ -33,14 +33,14 @@ hands-on exercises, we recommend [scala-exercises.org](https://www.scala-exercis
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
 write an FP library in Scala from first principles.
 
-A> Cats is an evolving technical experiment under the Typelevel social
-A> project which has moderators on their channels who enforce a Code of
-A> Conduct. Cats has origins in the decade-long `scalaz` technical
-A> project.
+A> Cats is an evolving technical experiment under the Typelevel
+A> sociopolitical project, which has moderators who enforce a Code of
+A> Conduct to ensure that their spaces are welcoming and inclusive. Cats
+A> has origins in the decade-long `scalaz` technical project.
 A> 
 A> Although this Early Access version of the book that you are reading is
 A> making use of the cats library, we will probably switch to `scalaz`
-A> library before completion.
+A> before completion due to its maturity.
 A> 
 A> There will be a second book made available (at a discount to those who
 A> buy this book) covering the *other* library, whatever that may be.
