@@ -15,7 +15,7 @@ import spinoco.protocol.http._
 import spinoco.protocol.http.header.Authorization
 import spinoco.protocol.http.header.value.HttpCredentials._
 
-import algebra.drone._
+import algebra._
 
 final case class DroneConfig(
   host: String,
@@ -33,7 +33,7 @@ object Resources {
   implicit val AG = AsynchronousChannelGroup.withThreadPool(ES)
 }
 
-final class DroneFs2(config: DroneConfig) extends Drone.Handler[Task] {
+final class DroneFs2(config: DroneConfig) extends Drone[Task] {
   import Resources._
 
   // TODO: take clientTask as input so we can mock

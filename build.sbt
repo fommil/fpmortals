@@ -41,19 +41,10 @@ wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
 wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
 wartremoverWarnings in (Compile, compile) -= Wart.Any              // too many cats false positives
 
-// http://frees.io/docs/
-resolvers += Resolver.sonatypeRepo("snapshots")
-addCompilerPlugin(
-  "org.scalameta" % "paradise" % "3.0.0-M10" cross CrossVersion.patch
-)
-libraryDependencies += "io.frees" %% "freestyle" % "0.3.1"
-
 scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := file("project/scalafmt.conf")
 scalafmtVersion in ThisBuild := "1.2.0"
 
-// WORKAROUND https://github.com/scalameta/paradise/issues/10
-scalacOptions in (Compile, console) ~= (_ filterNot (_ contains "paradise"))
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(
   "scala._",

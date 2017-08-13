@@ -112,8 +112,8 @@ import java.time.LocalDateTime
 import scala.{ Long, Unit }
 import scala.language.higherKinds
 
+import cats.Monad
 import cats.implicits._
-import freestyle._
 import spinoco.protocol.http.Uri
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
@@ -147,21 +147,21 @@ final case class RefreshToken(token: String)
  */
 final case class BearerToken(token: String, expires: LocalDateTime)
 
-object algebra {
-  @free trait UserInteraction {
+package algebra {
+  trait UserInteraction[F[_]] {
 
     /** returns the Uri of the local server */
-    def start: FS[Uri]
+    def start: F[Uri]
 
     /** prompts the user to open this Uri */
-    def open(uri: Uri): FS[Unit]
+    def open(uri: Uri): F[Unit]
 
     /** recover the code from the callback */
-    def stop: FS[CodeToken]
+    def stop: F[CodeToken]
   }
 
-  @free trait LocalClock {
-    def now: FS[LocalDateTime]
+  trait LocalClock[F[_]] {
+    def now: F[LocalDateTime]
   }
 }
 
@@ -171,27 +171,21 @@ package logic {
   import http.client.algebra.JsonHttpClient
   import algebra._
 
-  @module trait Deps {
-    val user: UserInteraction
-    val server: JsonHttpClient
-    val clock: LocalClock
-  }
-
-  class OAuth2Client[F[_]](
+  class OAuth2Client[F[_]: Monad](
     config: ServerConfig
   )(
     implicit
-    D: Deps[F]
+    user: UserInteraction[F],
+    server: JsonHttpClient[F],
+    clock: LocalClock[F]
   ) {
-    import D._
     import api._
     import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
     import http.encoding.generic._
-    type FS[A] = FreeS[F, A]
 
     // for use in one-shot apps requiring user interaction
-    def authenticate: FS[CodeToken] =
+    def authenticate: F[CodeToken] =
       for {
         callback <- user.start
         params   = AuthRequest(callback, config.scope, config.clientId)
@@ -199,12 +193,12 @@ package logic {
         code     <- user.stop
       } yield code
 
-    def access(code: CodeToken): FS[(RefreshToken, BearerToken)] =
+    def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
       for {
         request <- AccessRequest(code.token,
                                  code.redirect_uri,
                                  config.clientId,
-                                 config.clientSecret).pure[FS]
+                                 config.clientSecret).pure[F]
         response <- server
                      .postUrlencoded[AccessRequest, AccessResponse](
                        config.access,
@@ -217,11 +211,11 @@ package logic {
         bearer  = BearerToken(msg.access_token, expires)
       } yield (refresh, bearer)
 
-    def bearer(refresh: RefreshToken): FS[BearerToken] =
+    def bearer(refresh: RefreshToken): F[BearerToken] =
       for {
         request <- RefreshRequest(config.clientSecret,
                                   refresh.token,
-                                  config.clientId).pure[FS]
+                                  config.clientId).pure[F]
         response <- server
                      .postUrlencoded[RefreshRequest, RefreshResponse](
                        config.refresh,

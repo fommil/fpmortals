@@ -21,7 +21,7 @@ import spinoco.fs2.http
 import spinoco.fs2.http._
 import spinoco.protocol.http._
 
-import algebra.machines._
+import algebra._
 import apis.gce._
 
 // NOTE: for oauth2 we need to use
@@ -43,7 +43,7 @@ object Resources {
 
 // https://cloud.google.com/container-engine/docs/
 // https://cloud.google.com/container-engine/reference/rest/
-final class GceFs2Machine extends Machines.Handler[Task] {
+final class GceFs2Machine extends Machines[Task] {
   def getTime: Task[ZonedDateTime]             = ???
   def getManaged: Task[NonEmptyList[Node]]     = ???
   def getAlive: Task[Map[Node, ZonedDateTime]] = ???

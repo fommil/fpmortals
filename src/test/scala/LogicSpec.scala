@@ -2,24 +2,19 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package tests
 
-import java.lang.String
 import java.time.ZonedDateTime
 
-import scala.Any
-import scala.{ Int, StringContext }
+import scala.Int
 import scala.collection.immutable.{ List, Map }
 
 import scala.Predef.ArrowAssoc
 
 import cats._
 import cats.data.NonEmptyList
-import freestyle._
-import freestyle.implicits._
 import org.scalatest._
 import org.scalatest.Matchers._
 
-import algebra.drone._
-import algebra.machines._
+import algebra._
 import logic._
 
 object Data {
@@ -47,12 +42,12 @@ import Data._
 final class StaticHandlers(state: WorldView) {
   var started, stopped: Int = 0
 
-  implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
+  implicit val drone: Drone[Id] = new Drone[Id] {
     def getBacklog: Int = state.backlog
     def getAgents: Int  = state.agents
   }
 
-  implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
+  implicit val machines: Machines[Id] = new Machines[Id] {
     def getAlive: Map[Node, ZonedDateTime] = state.alive
     def getManaged: NonEmptyList[Node]     = state.managed
     def getTime: ZonedDateTime             = state.time
@@ -60,7 +55,7 @@ final class StaticHandlers(state: WorldView) {
     def stop(node: Node): Node             = { stopped += 1; node }
   }
 
-  val program = new DynAgents[Deps.Op]
+  val program = new DynAgents[Id]
 }
 
 final class LogicSpec extends FlatSpec {
@@ -69,7 +64,7 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    program.initial.interpret[Id] shouldBe needsAgents
+    program.initial shouldBe needsAgents
   }
 
   it should "request agents when needed" in {
@@ -80,7 +75,7 @@ final class LogicSpec extends FlatSpec {
       pending = Map(node1 -> time1)
     )
 
-    program.act(needsAgents).interpret[Id] shouldBe expected
+    program.act(needsAgents) shouldBe expected
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 1
@@ -94,7 +89,7 @@ final class LogicSpec extends FlatSpec {
       pending = Map(node1 -> time1)
     )
 
-    program.act(pending).interpret[Id] shouldBe pending
+    program.act(pending) shouldBe pending
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0
@@ -106,7 +101,7 @@ final class LogicSpec extends FlatSpec {
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
 
-    program.act(world).interpret[Id] shouldBe world
+    program.act(world) shouldBe world
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0
@@ -119,7 +114,7 @@ final class LogicSpec extends FlatSpec {
     val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
     val expected = world.copy(pending = Map(node1 -> time3))
 
-    program.act(world).interpret[Id] shouldBe expected
+    program.act(world) shouldBe expected
 
     handlers.stopped shouldBe 1
     handlers.started shouldBe 0
@@ -132,7 +127,7 @@ final class LogicSpec extends FlatSpec {
     val world =
       WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
 
-    program.act(world).interpret[Id] shouldBe world
+    program.act(world) shouldBe world
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0
@@ -145,7 +140,7 @@ final class LogicSpec extends FlatSpec {
     val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
-    program.act(world).interpret[Id] shouldBe expected
+    program.act(world) shouldBe expected
 
     handlers.stopped shouldBe 1
     handlers.started shouldBe 0
@@ -158,7 +153,7 @@ final class LogicSpec extends FlatSpec {
     val world    = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
-    program.act(world).interpret[Id] shouldBe expected
+    program.act(world) shouldBe expected
 
     handlers.stopped shouldBe 1
     handlers.started shouldBe 0
@@ -171,9 +166,7 @@ final class LogicSpec extends FlatSpec {
 
     val initial =
       world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
-    program
-      .update(initial)
-      .interpret[Id] shouldBe world // i.e. pending is gone
+    program.update(initial) shouldBe world // i.e. pending is gone
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0
@@ -187,7 +180,7 @@ final class LogicSpec extends FlatSpec {
     val initial  = world.copy(time = time1)
     val expected = world.copy(pending = Map.empty)
 
-    program.update(initial).interpret[Id] shouldBe expected
+    program.update(initial) shouldBe expected
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0

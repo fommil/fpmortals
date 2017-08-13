@@ -11,12 +11,11 @@ import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.Predef.ArrowAssoc
 
+import cats.Monad
 import cats.data.NonEmptyList
 import cats.implicits._
-import freestyle._
 
-import algebra.drone._
-import algebra.machines._
+import algebra._
 
 /**
  * @param backlog how many builds are waiting to be run on the ci
@@ -42,21 +41,14 @@ final case class WorldView(
   time: ZonedDateTime
 )
 
-@module trait Deps {
-  val d: Drone
-  val m: Machines
-}
+final class DynAgents[F[_]: Monad]()(implicit d: Drone[F], m: Machines[F]) {
 
-final class DynAgents[F[_]]()(implicit D: Deps[F]) {
-  import D._
-  type FS[A] = FreeS[F, A]
-
-  def initial: FS[WorldView] =
+  def initial: F[WorldView] =
     (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).map {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 
-  def update(old: WorldView): FS[WorldView] =
+  def update(old: WorldView): F[WorldView] =
     for {
       snap    <- initial
       changed = symdiff(old.alive.keySet, snap.alive.keySet)
@@ -69,7 +61,7 @@ final class DynAgents[F[_]]()(implicit D: Deps[F]) {
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
 
-  def act(world: WorldView): FS[WorldView] = world match {
+  def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
         _      <- m.start(node)
@@ -83,7 +75,7 @@ final class DynAgents[F[_]]()(implicit D: Deps[F]) {
         update  = world.copy(pending = world.pending ++ updates)
       } yield update
 
-    case _ => world.pure[FS]
+    case _ => world.pure[F]
   }
 
   private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =

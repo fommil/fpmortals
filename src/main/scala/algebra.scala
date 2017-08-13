@@ -10,23 +10,18 @@ import scala.collection.immutable.Map
 import scala.language.higherKinds
 
 import cats.data.NonEmptyList
-import freestyle._
 
-package drone {
-  @free trait Drone {
-    def getBacklog: FS[Int]
-    def getAgents: FS[Int]
-  }
+trait Drone[F[_]] {
+  def getBacklog: F[Int]
+  def getAgents: F[Int]
 }
 
-package machines {
-  final case class Node(id: String)
+final case class Node(id: String)
 
-  @free trait Machines {
-    def getTime: FS[ZonedDateTime]
-    def getManaged: FS[NonEmptyList[Node]]
-    def getAlive: FS[Map[Node, ZonedDateTime]]
-    def start(node: Node): FS[Node]
-    def stop(node: Node): FS[Node]
-  }
+trait Machines[F[_]] {
+  def getTime: F[ZonedDateTime]
+  def getManaged: F[NonEmptyList[Node]]
+  def getAlive: F[Map[Node, ZonedDateTime]]
+  def start(node: Node): F[Node]
+  def stop(node: Node): F[Node]
 }

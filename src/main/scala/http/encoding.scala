@@ -16,6 +16,8 @@ import simulacrum.typeclass
 import spinoco.protocol.http.Uri
 import spinoco.protocol.http.Uri.Query
 
+// FIXME: split into four files: urlencoded, queryencoded and their
+//        export-hook generics. Also introduce the instance method
 @typeclass trait UrlEncoded[T] {
   def urlEncoded(t: T): String
 }
