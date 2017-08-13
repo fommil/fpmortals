@@ -86,8 +86,7 @@ final class DynAgents[F[_]]()(implicit D: Deps[F]) {
     case _ => world.pure[FS]
   }
 
-  private def timediff(from: ZonedDateTime,
-                       to: ZonedDateTime): FiniteDuration =
+  private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 
   // with a backlog, but no agents or pending nodes, start a node

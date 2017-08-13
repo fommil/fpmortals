@@ -50,7 +50,21 @@ libraryDependencies += "io.frees" %% "freestyle" % "0.3.1"
 
 scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := file("project/scalafmt.conf")
-scalafmtVersion in ThisBuild := "1.1.0"
+scalafmtVersion in ThisBuild := "1.2.0"
 
 // WORKAROUND https://github.com/scalameta/paradise/issues/10
 scalacOptions in (Compile, console) ~= (_ filterNot (_ contains "paradise"))
+scalacOptions in (Compile, console) -= "-Xfatal-warnings"
+initialCommands in (Compile, console) := Seq(
+  "scala._",
+  "scala.Predef._",
+  "scala.collection.immutable._",
+  "shapeless._",
+  "_root_.io.circe",
+  "circe._",
+  "circe.generic.auto._",
+  "cats._",
+  "cats.implicits._"
+).mkString("import ", ",", "")
+
+addCommandAlias("fmt", ";sbt:scalafmt ;scalafmt ;test:scalafmt")

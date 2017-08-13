@@ -169,9 +169,8 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(world)
     import handlers._
 
-    val initial = world.copy(alive = Map.empty,
-                             pending = Map(node1 -> time2),
-                             time = time2)
+    val initial =
+      world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
     program
       .update(initial)
       .interpret[Id] shouldBe world // i.e. pending is gone
