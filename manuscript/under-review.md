@@ -4,7 +4,7 @@
 
 Scala's `for` comprehension is the ideal FP abstraction for sequential
 programs that interact with the world. Since we'll be using it a lot,
-we're going to relearn the principles of `for` and how cats can help
+we're going to relearn the principles of `for` and how scalaz can help
 us to write cleaner code.
 
 This chapter doesn't try to write pure programs and the techniques are
@@ -216,7 +216,7 @@ If there were a trait, it would roughly look like:
 
 If the context (`C[_]`) of a `for` comprehension doesn't provide its
 own `map` and `flatMap`, all is not lost. If an implicit
-`cats.FlatMap[T]` is available for `T`, it will provide `map` and
+`scalaz.Bind[T]` is available for `T`, it will provide `map` and
 `flatMap`.
 
 A> It often surprises developers when inline `Future` calculations in a
@@ -406,18 +406,6 @@ We need to create a `Future` from the `cache`
 If functional programming was like this all the time, it'd be a
 nightmare. Thankfully these tricky situations are the corner cases.
 
-A> We could code golf it and write
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   getFromRedis(key) orElseM getFromSql(key)
-A> ~~~~~~~~
-A> 
-A> by defining <https://github.com/typelevel/cats/issues/1625> but it can
-A> be a cognitive burden to remember all these helper methods. The level
-A> of verbosity of a codebase vs code reuse of trivial functions is a
-A> stylistic decision for each team.
-
 ### Early Exit
 
 Let's say we have some condition that should exit early.
@@ -477,10 +465,10 @@ is rewritten asynchronously as
 ~~~~~~~~
 
 A> If there is an implicit `Monad[T]` for `T[_]` (i.e. `T` is monadic)
-A> then cats lets us create a `T[A]` from a value `a:A` by calling
+A> then scalaz lets us create a `T[A]` from a value `a:A` by calling
 A> `a.pure[T]`.
 A> 
-A> Cats provides `Monad[Future]` and `.pure[Future]` simply calls
+A> Scalaz provides `Monad[Future]` and `.pure[Future]` simply calls
 A> `Future.successful`. Besides `pure` being slightly shorter to type, it
 A> is a general concept that works beyond `Future`, and is therefore
 A> recommended.
@@ -535,9 +523,8 @@ the compiler still doesn't accept our code.
 
 Here we want `for` to take care of the outer context and let us write
 our code on the inner `Option`. Hiding the outer context is exactly
-what a *monad transformer* does, and cats provides implementations for
-`Option`, `Future` and `Either` named `OptionT`, `FutureT` and
-`EitherT` respectively.
+what a *monad transformer* does, and scalaz provides implementations
+for `Option` and `Either` named `OptionT` and `EitherT` respectively.
 
 The outer context can be anything that normally works in a `for`
 comprehension, but it needs to stay the same throughout.
@@ -554,11 +541,11 @@ of the `for` from `Future[Option[_]]` to `OptionT[Future, _]`.
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-`.value` returns us to the original context
+`.run` returns us to the original context
 
 {lang="text"}
 ~~~~~~~~
-  scala> result.value
+  scala> result.run
   res: Future[Option[Int]] = Future(<not completed>)
 ~~~~~~~~
 
@@ -575,7 +562,7 @@ with methods that just return plain `Future` via `OptionT.liftF`
   scala> val result = for {
            a <- OptionT(getA)
            b <- OptionT(getB)
-           c <- OptionT.liftF(getC)
+           c <- getC.liftM[OptionT]
          } yield a * b / c
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
@@ -589,7 +576,7 @@ them in `Future.successful` (`.pure[Future]`) followed by `OptionT`
   scala> val result = for {
            a <- OptionT(getA)
            b <- OptionT(getB)
-           c <- OptionT.liftF(getC)
+           c <- getC.liftM[OptionT]
            d <- OptionT(getD.pure[Future])
          } yield (a * b) / (c * d)
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
@@ -601,16 +588,15 @@ required conversions into `OptionT[Future, _]`
 
 {lang="text"}
 ~~~~~~~~
-  implicit class Ops[In](in: In) {
-    def |>[Out](f: In => Out): Out = f(in)
-  }
   def liftFutureOption[A](f: Future[Option[A]]) = OptionT(f)
-  def liftFuture[A](f: Future[A]) = OptionT.liftF(f)
+  def liftFuture[A](f: Future[A]) = f.liftM[OptionT]
   def liftOption[A](o: Option[A]) = OptionT(o.pure[Future])
   def lift[A](a: A)               = liftOption(Some(a))
 ~~~~~~~~
 
-which visually separates the logic from the transformers
+combined with the *thrush operator* `|>`, which applies the function
+on the right to the value on the left, to visually separate the logic
+from the transformers
 
 {lang="text"}
 ~~~~~~~~
@@ -624,17 +610,16 @@ which visually separates the logic from the transformers
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-This approach also works for `EitherT` or `FutureT` as the inner
+This approach also works for `EitherT` (and others) as the inner
 context, but their lifting methods are more complex and require
-parameters. cats provides monad transformers for a lot of its own
+parameters. Scalaz provides monad transformers for a lot of its own
 types, so it's worth checking if one is available.
 
-Notably absent is `ListT` (or `TraversableT`) because it is difficult
-to create a well-behaved monad transformer for collections. It comes
-down to the unfortunate fact that grouping of the operations can
-unintentionally reorder `flatMap` calls.
-<https://github.com/typelevel/cats/issues/977> aims to implement
-`ListT`. Implementing a monad transformer is an advanced topic.
+Implementing a monad transformer is an advanced topic. Although
+`ListT` exists, it should be avoided because it can unintentionally
+reorder `flatMap` calls according to
+<https://github.com/scalaz/scalaz/issues/921>. A better alternative is
+`StreamT`, which we will visit later.
 
 # Application Design
 
@@ -699,43 +684,31 @@ we define all side-effecting interactions of our system.
 There is tight iteration between writing the business logic and the
 algebra: it is a good level of abstraction to design a system.
 
-`@freestyle.free` is a macro annotation that generates boilerplate.
-The details of the boilerplate are not important right now, we will
-explain as required and go into gruelling detail in the Appendix.
-
-`@free` requires that all methods return `FS[A]`, expanded into
-something useful in a moment.
-
 {lang="text"}
 ~~~~~~~~
   package algebra
   
   import java.time.ZonedDateTime
-  import cats.data.NonEmptyList
-  import freestyle._
+  import scalaz.NonEmptyList
   
-  package drone {
-    @free trait Drone {
-      def getBacklog: FS[Int]
-      def getAgents: FS[Int]
-    }
+  trait Drone[F[_]] {
+    def getBacklog: F[Int]
+    def getAgents: F[Int]
   }
   
-  package machines {
-    final case class Node(id: String)
-  
-    @free trait Machines {
-      def getTime: FS[ZonedDateTime]
-      def getManaged: FS[NonEmptyList[Node]]
-      def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start zdt
-      def start(node: Node): FS[Node]
-      def stop(node: Node): FS[Node]
-    }
+  final case class MachineNode(id: String)
+  trait Machines[F[_]] {
+    def getTime: F[ZonedDateTime]
+    def getManaged: F[NonEmptyList[MachineNode]]
+    def getAlive: F[Map[MachineNode, ZonedDateTime]] // with start zdt
+    def start(node: MachineNode): F[MachineNode]
+    def stop(node: MachineNode): F[MachineNode]
   }
 ~~~~~~~~
 
-We've used `cats.data.NonEmptyList`, a wrapper around the standard
-library's `List`, otherwise everything should be familiar.
+We've used `NonEmptyList`, easily created by calling `.toNel` on the
+standard library's `List` (returning an `Option[NonEmptyList]`),
+otherwise everything should be familiar.
 
 A> It is good practice in FP to encode constraints in parameters **and**
 A> return types --- it means we never need to handle situations that are
@@ -762,12 +735,13 @@ First, the imports
   
   import java.time.ZonedDateTime
   import java.time.temporal.ChronoUnit
+  
   import scala.concurrent.duration._
-  import cats.data.NonEmptyList
-  import cats.implicits._
-  import freestyle._
-  import algebra.drone._
-  import algebra.machines._
+  
+  import scalaz._
+  import Scalaz._
+  
+  import algebra._
 ~~~~~~~~
 
 We need a `WorldView` class to hold a snapshot of our knowledge of the
@@ -782,9 +756,9 @@ algebras, and adds a *pending* field to track unfulfilled requests.
   final case class WorldView(
     backlog: Int,
     agents: Int,
-    managed: NonEmptyList[Node],
-    alive: Map[Node, ZonedDateTime],
-    pending: Map[Node, ZonedDateTime], // requested at zdt
+    managed: NonEmptyList[MachineNode],
+    alive: Map[MachineNode, ZonedDateTime],
+    pending: Map[MachineNode, ZonedDateTime], // requested at zdt
     time: ZonedDateTime
   )
 ~~~~~~~~
@@ -795,42 +769,20 @@ that we depend on `Drone` and `Machines`.
 We create a *module* to contain our main business logic. A module is
 pure and depends only on other modules, algebras and pure functions.
 
-The `@freestyle.module` macro annotation generates boilerplate for
-dependency injection, we leave an unassigned `val` for each `@free` or
-`@module` dependency that we need to use. Declaring dependencies this
-way should be familiar if you've ever used Spring's `@Autowired`
-
 {lang="text"}
 ~~~~~~~~
-  @module trait DynAgents {
-    val d: Drone
-    val m: Machines
+  final class DynAgents[F[_]](implicit
+                              M: Monad[F],
+                              d: Drone[F],
+                              m: Machines[F]) {
 ~~~~~~~~
 
-A> At the time of writing, this `@module` code causes problems due to an
-A> [upstream bug in scala.meta](https://github.com/frees-io/freestyle/issues/369). The workaround is to write it in the
-A> slighly more verbose form:
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   @module trait Deps {
-A>     val d: Drone
-A>     val m: Machines
-A>   }
-A>   
-A>   class DynAgents[F[_]]()(implicit D: Deps[F]) {
-A>     import D._
-A>     type FS[A] = FreeS[F, A]
-A> ~~~~~~~~
-A> 
-A> This is just boilerplate and there is no need to be aware that `Deps`
-A> exists. Later on if we reference `DynAgents.Op`, just replace it with
-A> `Deps.Op`.
+The implicit `Monad[F]` means that `F` is *monadic*, allowing us to
+use `map`, `pure` and, of course, `flatMap` via `for` comprehensions.
 
-We now have access to the algebra of `Drone` and `Machines` as `d` and
-`m`, respectively, with methods returning `FS`, which is *monadic*
-(i.e. has an implicit `Monad`) and can be the context of a `for`
-comprehension.
+We have access to the algebra of `Drone` and `Machines` as `d` and
+`m`, respectively. Declaring injected dependencies this way should be
+familiar if you've ever used Spring's `@Autowired`.
 
 Our business logic will run in an infinite loop (pseudocode)
 
@@ -843,7 +795,7 @@ Our business logic will run in an infinite loop (pseudocode)
 ~~~~~~~~
 
 We must write three functions: `initial`, `update` and `act`, all
-returning an `FS[WorldView]`.
+returning an `F[WorldView]`.
 
 ### initial
 
@@ -852,7 +804,7 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
 
 {lang="text"}
 ~~~~~~~~
-  def initial: FS[WorldView] = for {
+  def initial: F[WorldView] = for {
     db <- d.getBacklog
     da <- d.getAgents
     mm <- m.getManaged
@@ -863,8 +815,8 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
 
 Recall from Chapter 1 that `flatMap` (i.e. when we use the `<-`
 generator) allows us to operate on a value that is computed at
-runtime. When we return an `FS` we are returning another program to be
-interpreted at runtime, that we can then `flatMap`. This is how we
+runtime. When we return an `F[_]` we are returning another program to
+be interpreted at runtime, that we can then `flatMap`. This is how we
 safely chain together sequential side-effecting code, whilst being
 able to provide a pure implementation for tests. FP could be described
 as Extreme Mocking.
@@ -880,7 +832,7 @@ assume that it failed and forget that we asked to do it.
 
 {lang="text"}
 ~~~~~~~~
-  def update(old: WorldView): FS[WorldView] = for {
+  def update(old: WorldView): F[WorldView] = for {
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
@@ -923,7 +875,7 @@ actions. We return a candidate node that we would like to start:
 {lang="text"}
 ~~~~~~~~
   private object NeedsAgent {
-    def unapply(world: WorldView): Option[Node] = world match {
+    def unapply(world: WorldView): Option[MachineNode] = world match {
       case WorldView(backlog, 0, managed, alive, pending, _)
            if backlog > 0 && alive.isEmpty && pending.isEmpty
              => Option(managed.head)
@@ -943,18 +895,18 @@ As a financial safety net, all nodes should have a maximum lifetime of
 {lang="text"}
 ~~~~~~~~
   private object Stale {
-    def unapply(world: WorldView): Option[NonEmptyList[Node]] = world match {
-      case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
-        val stale = (alive -- pending.keys).collect {
-          case (n, started)
-               if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 => n
-          case (n, started)
-               if timediff(started, time) >= 5.hours                           => n
-        }.toList
-        NonEmptyList.fromList(stale)
+    def unapply(world: WorldView): Option[NonEmptyList[MachineNode]] =
+      world match {
+        case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
+          (alive -- pending.keys).collect {
+            case (n, started)
+                if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 =>
+              n
+            case (n, started) if timediff(started, time) >= 5.hours => n
+          }.toList.toNel
   
-      case _ => None
-    }
+        case _ => None
+      }
   }
 ~~~~~~~~
 
@@ -964,7 +916,7 @@ add it to `pending` noting the time that we scheduled the action.
 
 {lang="text"}
 ~~~~~~~~
-  def act(world: WorldView): FS[WorldView] = world match {
+  def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
         _ <- m.start(node)
@@ -989,7 +941,7 @@ we need a catch-all `case _` to do nothing. Recall from Chapter 2 that
 
 `foldM` is like `foldLeft` over `nodes`, but each iteration of the
 fold may return a monadic value. In our case, each iteration of the
-fold returns `FS[WorldView]`.
+fold returns `F[WorldView]`.
 
 The `M` is for Monadic and you will find more of these *lifted*
 methods that behave as one would expect, taking monadic values in
@@ -1014,8 +966,8 @@ We'll start with some test data
 {lang="text"}
 ~~~~~~~~
   object Data {
-    val node1 = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
-    val node2 = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
+    val node1   = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+    val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
     val managed = NonEmptyList(node1, List(node2))
   
     import ZonedDateTime.parse
@@ -1042,20 +994,20 @@ state (but this is not threadsafe).
   class StaticHandlers(state: WorldView) {
     var started, stopped: Int = 0
   
-    implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
+    implicit val drone: Drone[Id] = new Drone[Id] {
       def getBacklog: Int = state.backlog
       def getAgents: Int = state.agents
     }
   
-    implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
-      def getAlive: Map[Node, ZonedDateTime] = state.alive
-      def getManaged: NonEmptyList[Node] = state.managed
+    implicit val machines: Machines[Id] = new Machines[Id] {
+      def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
+      def getManaged: NonEmptyList[MachineNode] = state.managed
       def getTime: ZonedDateTime = state.time
-      def start(node: Node): Node = { started += 1 ; node }
-      def stop(node: Node): Node = { stopped += 1 ; node }
+      def start(node: MachineNode): MachineNode = { started += 1 ; node }
+      def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
     }
   
-    val program = DynAgents[DynAgents.Op]
+    val program = DynAgents[Id]
   }
 ~~~~~~~~
 
@@ -1063,10 +1015,9 @@ When we write a unit test (here using `FlatSpec` from scalatest), we
 create an instance of `StaticHandlers` and then import all of its
 members.
 
-`FS` has a method `interpret`, requiring implicit handlers for all of
-its dependencies. Our implicit `drone` and `machines` both use the
-`Id` execution context and therefore interpreting this program with
-them returns an `Id[WorldView]` that we can assert on.
+Our implicit `drone` and `machines` both use the `Id` execution
+context and therefore interpreting this program with them returns an
+`Id[WorldView]` that we can assert on.
 
 In this trivial case we just check that the `initial` method returns
 the same value that we use in the static handlers:
@@ -1077,7 +1028,7 @@ the same value that we use in the static handlers:
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
   
-    program.initial.interpret[Id] shouldBe needsAgents
+    program.initial shouldBe needsAgents
   }
 ~~~~~~~~
 
@@ -1094,7 +1045,7 @@ helping us flush out bugs and refine the requirements:
     val old = world.copy(alive = Map.empty,
                          pending = Map(node1 -> time2),
                          time = time2)
-    program.update(old).interpret[Id] shouldBe world
+    program.update(old) shouldBe world
   }
   
   it should "request agents when needed" in {
@@ -1105,7 +1056,7 @@ helping us flush out bugs and refine the requirements:
       pending = Map(node1 -> time1)
     )
   
-    program.act(needsAgents).interpret[Id] shouldBe expected
+    program.act(needsAgents) shouldBe expected
   
     handlers.stopped shouldBe 0
     handlers.started shouldBe 1
@@ -1145,23 +1096,29 @@ be performed in parallel.
 In our definition of `initial` we could ask for all the information we
 need at the same time instead of one query at a time.
 
-As opposed to `flatMap` for sequential operations, cats uses
-`Cartesian` syntax for parallel operations:
+As opposed to `flatMap` for sequential operations, scalaz uses
+`Apply` syntax for parallel operations:
 
 {lang="text"}
 ~~~~~~~~
-  d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime
+  ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+~~~~~~~~
+
+which can also use infix notation, if you prefer:
+
+{lang="text"}
+~~~~~~~~
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 ~~~~~~~~
 
 If each of the parallel operations returns a value in the same monadic
-context, then the `Cartesian` product has a `map` method that will
-provide all of the results as a tuple. Rewriting `update` to take
-advantage of this:
+context, then the product has a `map` method that will provide all of
+the results as a tuple. Rewriting `update` to take advantage of this:
 
 {lang="text"}
 ~~~~~~~~
-  def initial: FS[WorldView] =
-    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).map {
+  def initial: F[WorldView] =
+    ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime) {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 ~~~~~~~~
@@ -1179,10 +1136,10 @@ reasonable tradeoff since our `update` will gracefully handle the case
 where a `node` is shut down unexpectedly.
 
 We need a method that operates on `NonEmptyList` that allows us to
-`map` each element into an `FS[Node]`, returning an
-`FS[NonEmptyList[Node]]`. The method is called `traverse`, and when we
-`flatMap` over it we get a `NonEmptyList[Node]` that we can deal with
-in a simple way:
+`map` each element into an `F[MachineNode]`, returning an
+`F[NonEmptyList[MachineNode]]`. The method is called `traverse`, and
+when we `flatMap` over it we get a `NonEmptyList[MachineNode]` that we
+can deal with in a simple way:
 
 {lang="text"}
 ~~~~~~~~
@@ -1202,67 +1159,9 @@ guarantee that it will be executed in parallel: that is the
 responsibility of the handler. Not to state the obvious: parallel
 execution is supported by `Future`, but not `Id`.
 
-It is also not enough to implement a `Future` handler, it is necessary
-to
-
-{lang="text"}
-~~~~~~~~
-  import freestyle.NonDeterminism._
-~~~~~~~~
-
-when running the `interpret` method to ensure that the `Future`
-interpreter knows it can perform actions in a non-deterministic order.
-
 Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
-protecting internal state with concurrency locks.
-
-## Free Monad
-
-What we've been doing in this chapter is using the *free monad*,
-`cats.free.Free`, to build up the definition of our program as a data
-type and then we interpret it. Freestyle calls it `FS`, which is just
-a type alias to `Free`, hiding an irrelevant type parameter.
-
-The reason why we use `Free` instead of just implementing `cats.Monad`
-directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
-running on the JVM. Every nested call to `map` or `flatMap` adds to
-the stack, eventually resulting in a `StackOverflowError`.
-
-`Free` is a `sealed abstract class` that roughly looks like:
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Free[S[_], A] {
-    def pure(a: A): Free[S, A] = Pure(a)
-    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
-    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
-  }
-  
-  final case class Pure[S[_], A](a: A) extends Free[S, A]
-  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  final case class FlatMapped[S[_], B, C](
-                                    c: Free[S, C],
-                                    f: C => Free[S, B]) extends Free[S, B]
-~~~~~~~~
-
-Its definition of `pure` / `map` / `flatMap` do not do any work, they
-just build up data types that live on the heap. Work is delayed until
-Free is *interpreted*. This technique of using heap objects to
-eliminate stack growth is known as *trampolining*.
-
-When we use the `@free` annotation, a `sealed abstract class` data
-type is generated for each of our algebras, with a `final case class`
-per method, allowing trampolining. When we write a `Handler`,
-Freestyle is converting pattern matches over heap objects into method
-calls.
-
-### Free as in Monad
-
-`Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
-the name. However, from a practical point of view, there needs to be a
-`Monad[S]` in order to interpret it --- so it's more like an interest
-only mortgage where you still have to buy the house at the end.
+protecting internal state with concurrency locks or actors.
 
 ## Reality Check
 
@@ -1276,28 +1175,20 @@ when designing and testing applications:
 However, even if we look past the learning curve of FP, there are
 still some real challenges that remain:
 
-1.  trampolining has a performance impact due to increased memory churn
-    and garbage collection pressure.
-2.  there is not always IDE support for the advanced language features,
+1.  there is not always IDE support for the advanced language features,
     macros or compiler plugins.
-3.  implementation details --- as we have already seen with `for`
+2.  implementation details --- as we have already seen with `for`
     syntax sugar, `@module`, and `Free` --- can introduce mental
     overhead and become a blocker when they don't work.
-4.  the distinction between pure / side-effecting code, or stack-safe /
-    stack-unsafe, is not enforced by the scala compiler. This requires
-    developer discipline.
-5.  the developer community is still small. Getting help from the
+3.  the distinction between pure / side-effecting code is not enforced
+    by the scala compiler. This requires developer discipline.
+4.  the developer community is still small. Getting help from the
     community can often be a slow process.
 
 As with any new technology, there are rough edges that will be fixed
 with time. Most of the problems are because there is a lack of
 commercially-funded tooling in FP scala. If you see the benefit of FP,
 you can help out by getting involved.
-
-Although FP Scala cannot be as fast as streamlined Java using
-mutation, the performance impact is unlikely to affect you if you're
-already considering targetting the JVM. Measure the impact before
-making a decision if it is important to you.
 
 In the following chapters we are going to learn some of the vast
 library of functionality provided by the ecosystem, how it is
@@ -1313,13 +1204,12 @@ and remove redundancy that we've accidentally introduced.
     *handlers*.
 2.  *modules* define pure logic and depend on algebras and other
     modules.
-3.  modules are *interpreted* by handlers in terms of the Free Monad,
-    which ensures stack safety at a modest cost to performance.
+3.  modules are *interpreted* by handlers
 4.  Test handlers can mock out the side-effecting parts of the system
     with trivial implementations, enabling a high level of test
     coverage for the business logic.
 5.  algebraic methods can be performed in parallel by taking their
-    `Cartesian` product or traversing sequences, caveat emptor.
+    product or traversing sequences (caveat emptor, revisited later).
 
 # Data and Functionality
 
@@ -1433,7 +1323,7 @@ can be used to define infinitely long data types. This is an advanced
 and specialist topic that we will not cover.
 
 We will explore alternatives to these legacy methods when we discuss
-the cats library in the next chapter, at the cost of losing
+the scalaz library in the next chapter, at the cost of losing
 interoperability with some legacy Java and Scala code.
 
 ### Exhaustivity
@@ -1529,7 +1419,8 @@ with `final case class` definitions that simply wrap the desired type:
 Pattern matching on these forms of coproduct can be tedious, which is
 why [Union Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation scala
 compiler. Workarounds such as [totalitarian](https://github.com/propensive/totalitarian)'s `Disjunct` exist as
-another way of encoding anonymous coproducts.
+another way of encoding anonymous coproducts and [stalagmite](https://github.com/fommil/stalagmite/issues/37) aims to
+reduce the boilerplate for the approaches presented here.
 
 A> We can also use a `sealed trait` in place of a `sealed abstract class`
 A> but there are binary compatibility advantages to using `abstract
@@ -1546,7 +1437,7 @@ types can be used to encode constraints. For example,
   final case class NonEmptyList[+T](head: T, tail: List[T])
 ~~~~~~~~
 
-can never be empty. This makes `cats.data.NonEmptyList` a useful data
+can never be empty. This makes `scalaz.NonEmptyList` a useful data
 type despite containing the same information as `List`.
 
 In addition, wrapping an ADT can convey information such as if it
@@ -1582,7 +1473,7 @@ and protect invalid instances from propagating:
 ~~~~~~~~
 
 We will see a better way of reporting validation errors when we
-introduce `cats.data.Validated` in the next chapter.
+introduce `scalaz.Validation` in the next chapter.
 
 ### Simple to Share
 
@@ -1945,10 +1836,10 @@ now write the much cleaner:
 ~~~~~~~~
 
 The good news is that we never need to write this boilerplate because
-[Simulacrum](https://github.com/mpilquist/simulacrum) (included with cats) provides a `@typeclass` macro
-annotation to have the companion `apply` and `ops` automatically
-generated. It even allows us to define alternative (usually symbolic)
-names for common methods. In full:
+[Simulacrum](https://github.com/mpilquist/simulacrum) provides a `@typeclass` macro annotation to have the
+companion `apply` and `ops` automatically generated. It even allows us
+to define alternative (usually symbolic) names for common methods. In
+full:
 
 {lang="text"}
 ~~~~~~~~
@@ -2338,7 +2229,18 @@ ADT (paraphrased for brevity):
 ~~~~~~~~
 
 where `JsonNumber` and `JsonObject` are optimised specialisations of
-roughly `java.math.BigDecimal` and `Map[String, Json]`.
+roughly `java.math.BigDecimal` and `Map[String, Json]`. To depend on
+circe in your project we must add the following to `build.sbt`:
+
+{lang="text"}
+~~~~~~~~
+  val circeVersion = "0.8.0"
+  libraryDependencies ++= Seq(
+    "io.circe"             %% "circe-core"    % circeVersion,
+    "io.circe"             %% "circe-generic" % circeVersion,
+    "io.circe"             %% "circe-parser"  % circeVersion
+  )
+~~~~~~~~
 
 W> `java.math.BigDecimal` and especially `java.math.BigInteger` are not
 W> safe objects to include in wire protocol formats. It is possible to
@@ -2409,31 +2311,31 @@ We need to provide typeclass instances for basic types:
   import java.net.URLEncoder
   import spinoco.protocol.http.Uri
   
-  object UrlEncoded extends UrlEncodedDefaultInstances
-  trait UrlEncodedDefaultInstances {
-    implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
-      override def urlEncoded(s: String): String = URLEncoder.encode(s, "UTF-8")
+  object UrlEncoded {
+    import ops._
+    def instance[A](f: A => String): UrlEncoded[A] = new UrlEncoded[A] {
+      override def urlEncoded(a: A): String = f(a)
     }
-    implicit val UrlEncodedLong: UrlEncoded[Long] = new UrlEncoded[Long] {
-      override def urlEncoded(s: Long): String = s.toString
+  
+    implicit val UrlEncodedString: UrlEncoded[String] = instance { s =>
+      URLEncoder.encode(s, "UTF-8")
     }
-    import UrlEncoded.ops._
+    implicit val UrlEncodedLong: UrlEncoded[Long] = instance { n =>
+      n.toString
+    }
     implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
-      new UrlEncoded[Seq[(String, String)]] {
-        override def urlEncoded(m: Seq[(String, String)]): String =
-          m.map {
-            case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-          }.mkString("&")
+      instance { m =>
+        m.map {
+          case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
+        }.mkString("&")
       }
-    implicit val UrlEncodedUri: UrlEncoded[Uri] = new UrlEncoded[Uri] {
-      override def urlEncoded(u: Uri): String = {
-        val scheme = u.scheme.toString
-        val host   = u.host.host
-        val port   = u.host.port.fold("")(p => s":$p")
-        val path   = u.path.stringify
-        val query  = u.query.params.toSeq.urlEncoded
-        s"$scheme://$host$port$path?$query".urlEncoded
-      }
+    implicit val UrlEncodedUri: UrlEncoded[Uri] = instance { u =>
+      val scheme = u.scheme.toString
+      val host   = u.host.host
+      val port   = u.host.port.fold("")(p => s":$p")
+      val path   = u.path.stringify
+      val query  = u.query.params.toSeq.urlEncoded
+      s"$scheme://$host$port$path?$query".urlEncoded
     }
   }
 ~~~~~~~~
@@ -2529,9 +2431,9 @@ write the boilerplate for the types we wish to convert:
 ### Module
 
 That concludes the data and functionality modelling required to
-implement OAuth2. Recall from the previous chapter that we use `@free`
-to define mockable components that need to interact with the world in
-an impure way, and we define pure business logic in `@module`.
+implement OAuth2. Recall from the previous chapter that we define
+mockable components that need to interact with the world as algebras,
+and we define pure business logic in a module.
 
 We define our dependency algebras, and use context bounds to show that
 our responses must have a `Decoder` and our `POST` payload must have a
@@ -2544,36 +2446,36 @@ our responses must have a `Decoder` and our `POST` payload must have a
   package http.client.algebra {
     final case class Response[T](header: HttpResponseHeader, body: T)
   
-    @free trait JsonHttpClient {
+    trait JsonHttpClient[F[_]] {
       def get[B: Decoder](
         uri: Uri,
         headers: List[HttpHeader] = Nil
-      ): FS[Response[B]]
+      ): F[Response[B]]
   
       def postUrlencoded[A: UrlEncoded, B: Decoder](
         uri: Uri,
         payload: A,
         headers: List[HttpHeader] = Nil
-      ): FS[Response[B]]
+      ): F[Response[B]]
     }
   }
   
   package http.oauth2.client.algebra {
     final case class CodeToken(token: String, redirect_uri: Uri)
   
-    @free trait UserInteraction {
+    trait UserInteraction[F[_]] {
       /** returns the Uri of the local server */
-      def start: FS[Uri]
+      def start: F[Uri]
   
       /** prompts the user to open this Uri */
-      def open(uri: Uri): FS[Unit]
+      def open(uri: Uri): F[Unit]
   
       /** recover the code from the callback */
-      def stop: FS[CodeToken]
+      def stop: F[CodeToken]
     }
   
-    @free trait LocalClock {
-      def now: FS[LocalDateTime]
+    trait LocalClock[F[_]] {
+      def now: F[LocalDateTime]
     }
   }
 ~~~~~~~~
@@ -2603,12 +2505,15 @@ and then write an OAuth2 client:
     import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
   
-    @module class OAuth2Client(config: ServerConfig) {
-      val user: UserInteraction
-      val server: JsonHttpClient
-      val clock: LocalClock
-  
-      def authenticate: FS[CodeToken] =
+    class OAuth2Client[F[_]: Monad](
+      config: ServerConfig
+    )(
+      implicit
+      user: UserInteraction[F],
+      server: JsonHttpClient[F],
+      clock: LocalClock[F]
+    ) { 
+      def authenticate: F[CodeToken] =
         for {
           callback <- user.start
           params   = AuthRequest(callback, config.scope, config.clientId)
@@ -2616,7 +2521,7 @@ and then write an OAuth2 client:
           code     <- user.stop
         } yield code
   
-      def access(code: CodeToken): FS[(RefreshToken, BearerToken)] =
+      def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
         for {
           request <- AccessRequest(code.token,
                                    code.redirect_uri,
@@ -2634,7 +2539,7 @@ and then write an OAuth2 client:
           bearer  = BearerToken(msg.access_token, expires)
         } yield (refresh, bearer)
   
-      def bearer(refresh: RefreshToken): FS[BearerToken] =
+      def bearer(refresh: RefreshToken): F[BearerToken] =
         for {
           request <- RefreshRequest(config.clientSecret,
                                     refresh.token,

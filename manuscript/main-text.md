@@ -1,6 +1,8 @@
 
 
-# Cats
+# Scalaz Core
+
+-   FIXME rewrite
 
 In this chapter we will tour the data types and typeclasses in cats
 and its related ecosystem. We don't use everything in
@@ -605,7 +607,70 @@ Category, etc
 
 ## Laws
 
+# Free Monad
+
+-   FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
+
+What we've been doing in this chapter is using the *free monad*,
+`cats.free.Free`, to build up the definition of our program as a data
+type and then we interpret it. Freestyle calls it `FS`, which is just
+a type alias to `Free`, hiding an irrelevant type parameter.
+
+The reason why we use `Free` instead of just implementing `cats.Monad`
+directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
+running on the JVM. Every nested call to `map` or `flatMap` adds to
+the stack, eventually resulting in a `StackOverflowError`.
+
+`Free` is a `sealed abstract class` that roughly looks like:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Free[S[_], A] {
+    def pure(a: A): Free[S, A] = Pure(a)
+    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
+    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
+  }
+  
+  final case class Pure[S[_], A](a: A) extends Free[S, A]
+  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  final case class FlatMapped[S[_], B, C](
+                                    c: Free[S, C],
+                                    f: C => Free[S, B]) extends Free[S, B]
+~~~~~~~~
+
+Its definition of `pure` / `map` / `flatMap` do not do any work, they
+just build up data types that live on the heap. Work is delayed until
+Free is *interpreted*. This technique of using heap objects to
+eliminate stack growth is known as *trampolining*.
+
+When we use the `@free` annotation, a `sealed abstract class` data
+type is generated for each of our algebras, with a `final case class`
+per method, allowing trampolining. When we write a `Handler`,
+Freestyle is converting pattern matches over heap objects into method
+calls.
+
+### Free as in Monad
+
+`Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
+the name. However, from a practical point of view, there needs to be a
+`Monad[S]` in order to interpret it --- so it's more like an interest
+only mortgage where you still have to buy the house at the end.
+
 # TODO Effects
+
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+
+<https://www.irccloud.com/pastebin/dx1r05od/>
+
+{lang="text"}
+~~~~~~~~
+  trait ApMonad[F[_], G[_]] {
+    def to[A](fa: F[A]): G[A]
+    def from[A](ga: G[A]): F[A]
+    implicit val fmonad: Monad[F]
+    implicit val gap: Applicative[G]
+  }
+~~~~~~~~
 
 # TODO FS2
 

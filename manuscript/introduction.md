@@ -258,10 +258,10 @@ use a *for comprehension*, which is just syntax sugar over nested
     } yield in
 ~~~~~~~~
 
-Our `Execution` has the same signature as a trait in the cats library
-called `Monad` (except `doAndThen` is `flatMap` and `create` is `pure`).
-We say that `C` is *monadic* when there is an implicit `Monad[C]`
-available. In addition, cats has the `Id` type alias.
+Our `Execution` has the same signature as a trait in scalaz called
+`Monad`, except `doAndThen` is `flatMap` and `create` is `pure`. We
+say that `C` is *monadic* when there is an implicit `Monad[C]`
+available. In addition, scalaz has the `Id` type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write sequential code that abstracts over its execution
@@ -306,10 +306,10 @@ edges. That kind of code can use battle-tested libraries like NIO,
 Akka and Play, isolated away from the core business logic.
 
 This book expands on the FP style introduced in this chapter. We're
-going to use the traits and classes defined in the *cats* and *fs2*
-libraries to implement streaming applications. We'll also use the
-*freestyle* and *simulacrum* developer tooling to eliminate some of
-the boilerplate we've already seen in this chapter, allowing you to
-focus on writing pure business logic.
+going to use the traits and classes defined in the *scalaz* and *fs2*
+libraries to implement streaming applications. We'll also use
+developer tooling to eliminate some of the boilerplate we've already
+seen in this chapter, allowing you to focus on writing pure business
+logic.
 
 

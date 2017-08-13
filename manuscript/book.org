@@ -1,4 +1,4 @@
-#+TITLE: Functional Programming in Scala with Cats for Mortals
+#+TITLE: Functional Programming in Scala for Mortals
 #+AUTHOR: Sam Halliday
 #+DATE: 2017
 
@@ -35,32 +35,30 @@ that the merits of FP are obvious. Therefore, this book justifies
 every concept with practical examples, in Scala.
 
 There are many ways to do Functional Programming in Scala. This book
-focuses on using [[http://typelevel.org/cats/][cats]] with [[http://frees.io/docs/][freestyle]], but you can instead use [[https://github.com/scalaz/scalaz][scalaz]]
-or roll your own framework.
+focuses on using [[https://github.com/scalaz/scalaz][scalaz]], but you can instead use [[http://typelevel.org/cats/][cats]] or roll your own
+framework.
 
 This book is designed to be read from cover to cover, in the order
 presented, with a rest between chapters. To ensure that the book is
 concise, important concepts are not always repeated. Re-read sections
 that are confusing, they will be important later.
 
-A computer is not necessary to follow along. If you would like
-hands-on exercises, we recommend [[https://www.scala-exercises.org/][scala-exercises.org]]
+A computer is not necessary to follow along.
 
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
 write an FP library in Scala from first principles.
 
 #+BEGIN_ASIDE
-Cats is an evolving technical experiment under the Typelevel
-sociopolitical project, which has moderators who enforce a Code of
-Conduct to ensure that their spaces are welcoming and inclusive. Cats
-has origins in the decade-long =scalaz= technical project.
+Scalaz is a principled Functional Programming library that has evolved
+over a decade of industry use.
 
-Although this Early Access version of the book that you are reading is
-making use of the cats library, we will probably switch to =scalaz=
-before completion due to its maturity.
+Cats is a 3 year old experiment to rewrite scalaz. Cats is a member of
+the [[http://typelevel.org/about.html][Typelevel]] sociopolitical project, which has moderators who enforce
+a Code of Conduct to ensure that their spaces are welcoming and
+inclusive.
 
-There will be a second book made available (at a discount to those who
-buy this book) covering the /other/ library, whatever that may be.
+Although this book uses scalaz, a second book will be available - at a
+discount to those who buy this book - covering the cats library.
 #+END_ASIDE
 
 ** Copyleft Notice
@@ -88,25 +86,24 @@ license.
 ** Thanks
 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
-degrees for their help with understanding the principles of FP, cats
-and freestyle. Yi Lin Wei and Zainab Ali for their tutorials at Hack
-The Tower meetups.
+degrees, Rúnar Bjarnason and Tony Morris for their help explaining the
+principles of FP. Miles Sabin for implementing critical FP features in
+the scala compiler.
 
-Rory Graves, Dale Wijnand, Ani Chakraborty, Simon Souter, Sakib
-Hadziavdic, for giving feedback on early drafts of this text.
+The readers who gave feedback on early drafts of this text.
 
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
 John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in
-Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Rob
-Norris for the [[https://github.com/tpolecat/cats-infographic][Cats Infographic]], Adam Rosien for the [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Scalaz
-Cheatsheet]].
+Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Adam
+Rosien for the [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Scalaz Cheatsheet]], Yi Lin Wei and Zainab Ali for their
+tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
 Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
-Daniel Spiewak.
+Daniel Spiewak, Stephen Compall.
 
 ** Practicalities
 
@@ -121,27 +118,17 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ypartial-unification",
   "-Xfatal-warnings"
 )
-#+END_SRC
 
-and add the following dependencies to your project's settings:
-
-#+BEGIN_SRC scala
-
-val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
-  "io.circe"      %% "circe-core"    % circeVersion,
-  "io.circe"      %% "circe-generic" % circeVersion,
-  "io.circe"      %% "circe-parser"  % circeVersion,
-  "io.circe"      %% "circe-fs2"     % circeVersion,
-  "org.typelevel" %% "cats"          % "0.9.0",
-  "org.typelevel" %% "kittens"       % "1.0.0-M10",
-  "com.spinoco"   %% "fs2-http"      % "0.1.7",
-  "io.frees"      %% "freestyle"     % "0.3.1"
+  "com.github.mpilquist" %% "simulacrum"  % "0.10.0",
+  "com.chuusai"          %% "shapeless"   % "2.3.2" ,
+  "org.typelevel"        %% "export-hook" % "1.2.0" ,
+  "org.scalaz"           %% "scalaz"      % "7.2.15"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
 addCompilerPlugin(
-  "org.scalameta" % "paradise" % "3.0.0-M10" cross CrossVersion.patch
+  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
 )
 #+END_SRC
 
@@ -150,11 +137,8 @@ section. Unless told otherwise, assume that all snippets have the
 following imports:
 
 #+BEGIN_SRC scala
-import cats._
-import cats.implicits._
-import freestyle._
-import freestyle.implicits._
-import fs2._
+import scalaz._
+import Scalaz._
 #+END_SRC
 
 ** Giving Feedback
@@ -438,10 +422,10 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   } yield in
 #+END_SRC
 
-Our =Execution= has the same signature as a trait in the cats library
-called =Monad= (except =doAndThen= is =flatMap= and =create= is =pure=).
-We say that =C= is /monadic/ when there is an implicit =Monad[C]=
-available. In addition, cats has the =Id= type alias.
+Our =Execution= has the same signature as a trait in scalaz called
+=Monad=, except =doAndThen= is =flatMap= and =create= is =pure=. We
+say that =C= is /monadic/ when there is an implicit =Monad[C]=
+available. In addition, scalaz has the =Id= type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write sequential code that abstracts over its execution
@@ -486,11 +470,11 @@ edges. That kind of code can use battle-tested libraries like NIO,
 Akka and Play, isolated away from the core business logic.
 
 This book expands on the FP style introduced in this chapter. We're
-going to use the traits and classes defined in the /cats/ and /fs2/
-libraries to implement streaming applications. We'll also use the
-/freestyle/ and /simulacrum/ developer tooling to eliminate some of
-the boilerplate we've already seen in this chapter, allowing you to
-focus on writing pure business logic.
+going to use the traits and classes defined in the /scalaz/ and /fs2/
+libraries to implement streaming applications. We'll also use
+developer tooling to eliminate some of the boilerplate we've already
+seen in this chapter, allowing you to focus on writing pure business
+logic.
 
 * Under Review                                                 :sample:final:
   :PROPERTIES:
@@ -500,7 +484,7 @@ focus on writing pure business logic.
 
 Scala's =for= comprehension is the ideal FP abstraction for sequential
 programs that interact with the world. Since we'll be using it a lot,
-we're going to relearn the principles of =for= and how cats can help
+we're going to relearn the principles of =for= and how scalaz can help
 us to write cleaner code.
 
 This chapter doesn't try to write pure programs and the techniques are
@@ -702,7 +686,7 @@ trait ForComprehensible[C[_]] {
 
 If the context (=C[_]=) of a =for= comprehension doesn't provide its
 own =map= and =flatMap=, all is not lost. If an implicit
-=cats.FlatMap[T]= is available for =T=, it will provide =map= and
+=scalaz.Bind[T]= is available for =T=, it will provide =map= and
 =flatMap=.
 
 #+BEGIN_ASIDE
@@ -886,20 +870,6 @@ for {
 If functional programming was like this all the time, it'd be a
 nightmare. Thankfully these tricky situations are the corner cases.
 
-#+BEGIN_ASIDE
-
-We could code golf it and write
-
-#+BEGIN_SRC scala
-getFromRedis(key) orElseM getFromSql(key)
-#+END_SRC
-
-by defining https://github.com/typelevel/cats/issues/1625 but it can
-be a cognitive burden to remember all these helper methods. The level
-of verbosity of a codebase vs code reuse of trivial functions is a
-stylistic decision for each team.
-#+END_ASIDE
-
 **** Early Exit
 
 Let's say we have some condition that should exit early.
@@ -957,10 +927,10 @@ is rewritten asynchronously as
 #+BEGIN_ASIDE
 
 If there is an implicit =Monad[T]= for =T[_]= (i.e. =T= is monadic)
-then cats lets us create a =T[A]= from a value =a:A= by calling
+then scalaz lets us create a =T[A]= from a value =a:A= by calling
 =a.pure[T]=.
 
-Cats provides =Monad[Future]= and =.pure[Future]= simply calls
+Scalaz provides =Monad[Future]= and =.pure[Future]= simply calls
 =Future.successful=. Besides =pure= being slightly shorter to type, it
 is a general concept that works beyond =Future=, and is therefore
 recommended.
@@ -1013,9 +983,8 @@ scala> for {
 
 Here we want =for= to take care of the outer context and let us write
 our code on the inner =Option=. Hiding the outer context is exactly
-what a /monad transformer/ does, and cats provides implementations for
-=Option=, =Future= and =Either= named =OptionT=, =FutureT= and
-=EitherT= respectively.
+what a /monad transformer/ does, and scalaz provides implementations
+for =Option= and =Either= named =OptionT= and =EitherT= respectively.
 
 The outer context can be anything that normally works in a =for=
 comprehension, but it needs to stay the same throughout.
@@ -1031,10 +1000,10 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-=.value= returns us to the original context
+=.run= returns us to the original context
 
 #+BEGIN_SRC scala
-scala> result.value
+scala> result.run
 res: Future[Option[Int]] = Future(<not completed>)
 #+END_SRC
 
@@ -1050,7 +1019,7 @@ scala> def getC: Future[Int] = ...
 scala> val result = for {
          a <- OptionT(getA)
          b <- OptionT(getB)
-         c <- OptionT.liftF(getC)
+         c <- getC.liftM[OptionT]
        } yield a * b / c
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
@@ -1063,7 +1032,7 @@ scala> def getD: Option[Int] = ...
 scala> val result = for {
          a <- OptionT(getA)
          b <- OptionT(getB)
-         c <- OptionT.liftF(getC)
+         c <- getC.liftM[OptionT]
          d <- OptionT(getD.pure[Future])
        } yield (a * b) / (c * d)
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
@@ -1074,16 +1043,15 @@ It is messy again, but it's better than writing nested =flatMap= and
 required conversions into =OptionT[Future, _]=
 
 #+BEGIN_SRC scala
-implicit class Ops[In](in: In) {
-  def |>[Out](f: In => Out): Out = f(in)
-}
 def liftFutureOption[A](f: Future[Option[A]]) = OptionT(f)
-def liftFuture[A](f: Future[A]) = OptionT.liftF(f)
+def liftFuture[A](f: Future[A]) = f.liftM[OptionT]
 def liftOption[A](o: Option[A]) = OptionT(o.pure[Future])
 def lift[A](a: A)               = liftOption(Some(a))
 #+END_SRC
 
-which visually separates the logic from the transformers
+combined with the /thrush operator/ =|>=, which applies the function
+on the right to the value on the left, to visually separate the logic
+from the transformers
 
 #+BEGIN_SRC scala
 scala> val result = for {
@@ -1096,17 +1064,16 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-This approach also works for =EitherT= or =FutureT= as the inner
+This approach also works for =EitherT= (and others) as the inner
 context, but their lifting methods are more complex and require
-parameters. cats provides monad transformers for a lot of its own
+parameters. Scalaz provides monad transformers for a lot of its own
 types, so it's worth checking if one is available.
 
-Notably absent is =ListT= (or =TraversableT=) because it is difficult
-to create a well-behaved monad transformer for collections. It comes
-down to the unfortunate fact that grouping of the operations can
-unintentionally reorder =flatMap= calls.
-https://github.com/typelevel/cats/issues/977 aims to implement
-=ListT=. Implementing a monad transformer is an advanced topic.
+Implementing a monad transformer is an advanced topic. Although
+=ListT= exists, it should be avoided because it can unintentionally
+reorder =flatMap= calls according to
+https://github.com/scalaz/scalaz/issues/921. A better alternative is
+=StreamT=, which we will visit later.
 
 ** Application Design
 
@@ -1194,42 +1161,30 @@ we define all side-effecting interactions of our system.
 There is tight iteration between writing the business logic and the
 algebra: it is a good level of abstraction to design a system.
 
-=@freestyle.free= is a macro annotation that generates boilerplate.
-The details of the boilerplate are not important right now, we will
-explain as required and go into gruelling detail in the Appendix.
-
-=@free= requires that all methods return =FS[A]=, expanded into
-something useful in a moment.
-
 #+BEGIN_SRC scala
 package algebra
 
 import java.time.ZonedDateTime
-import cats.data.NonEmptyList
-import freestyle._
+import scalaz.NonEmptyList
 
-package drone {
-  @free trait Drone {
-    def getBacklog: FS[Int]
-    def getAgents: FS[Int]
-  }
+trait Drone[F[_]] {
+  def getBacklog: F[Int]
+  def getAgents: F[Int]
 }
 
-package machines {
-  final case class Node(id: String)
-
-  @free trait Machines {
-    def getTime: FS[ZonedDateTime]
-    def getManaged: FS[NonEmptyList[Node]]
-    def getAlive: FS[Map[Node, ZonedDateTime]] // node and its start zdt
-    def start(node: Node): FS[Node]
-    def stop(node: Node): FS[Node]
-  }
+final case class MachineNode(id: String)
+trait Machines[F[_]] {
+  def getTime: F[ZonedDateTime]
+  def getManaged: F[NonEmptyList[MachineNode]]
+  def getAlive: F[Map[MachineNode, ZonedDateTime]] // with start zdt
+  def start(node: MachineNode): F[MachineNode]
+  def stop(node: MachineNode): F[MachineNode]
 }
 #+END_SRC
 
-We've used =cats.data.NonEmptyList=, a wrapper around the standard
-library's =List=, otherwise everything should be familiar.
+We've used =NonEmptyList=, easily created by calling =.toNel= on the
+standard library's =List= (returning an =Option[NonEmptyList]=),
+otherwise everything should be familiar.
 
 #+BEGIN_ASIDE
 It is good practice in FP to encode constraints in parameters *and*
@@ -1257,12 +1212,13 @@ package logic
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+
 import scala.concurrent.duration._
-import cats.data.NonEmptyList
-import cats.implicits._
-import freestyle._
-import algebra.drone._
-import algebra.machines._
+
+import scalaz._
+import Scalaz._
+
+import algebra._
 #+END_SRC
 
 We need a =WorldView= class to hold a snapshot of our knowledge of the
@@ -1276,9 +1232,9 @@ algebras, and adds a /pending/ field to track unfulfilled requests.
 final case class WorldView(
   backlog: Int,
   agents: Int,
-  managed: NonEmptyList[Node],
-  alive: Map[Node, ZonedDateTime],
-  pending: Map[Node, ZonedDateTime], // requested at zdt
+  managed: NonEmptyList[MachineNode],
+  alive: Map[MachineNode, ZonedDateTime],
+  pending: Map[MachineNode, ZonedDateTime], // requested at zdt
   time: ZonedDateTime
 )
 #+END_SRC
@@ -1289,43 +1245,19 @@ that we depend on =Drone= and =Machines=.
 We create a /module/ to contain our main business logic. A module is
 pure and depends only on other modules, algebras and pure functions.
 
-The =@freestyle.module= macro annotation generates boilerplate for
-dependency injection, we leave an unassigned =val= for each =@free= or
-=@module= dependency that we need to use. Declaring dependencies this
-way should be familiar if you've ever used Spring's =@Autowired=
-
 #+BEGIN_SRC scala
-@module trait DynAgents {
-  val d: Drone
-  val m: Machines
-
+final class DynAgents[F[_]](implicit
+                            M: Monad[F],
+                            d: Drone[F],
+                            m: Machines[F]) {
 #+END_SRC
 
-#+BEGIN_ASIDE
-At the time of writing, this =@module= code causes problems due to an
-[[https://github.com/frees-io/freestyle/issues/369][upstream bug in scala.meta]]. The workaround is to write it in the
-slighly more verbose form:
+The implicit =Monad[F]= means that =F= is /monadic/, allowing us to
+use =map=, =pure= and, of course, =flatMap= via =for= comprehensions.
 
-#+BEGIN_SRC scala
-@module trait Deps {
-  val d: Drone
-  val m: Machines
-}
-
-class DynAgents[F[_]]()(implicit D: Deps[F]) {
-  import D._
-  type FS[A] = FreeS[F, A]
-#+END_SRC
-
-This is just boilerplate and there is no need to be aware that =Deps=
-exists. Later on if we reference =DynAgents.Op=, just replace it with
-=Deps.Op=.
-#+END_ASIDE
-
-We now have access to the algebra of =Drone= and =Machines= as =d= and
-=m=, respectively, with methods returning =FS=, which is /monadic/
-(i.e. has an implicit =Monad=) and can be the context of a =for=
-comprehension.
+We have access to the algebra of =Drone= and =Machines= as =d= and
+=m=, respectively. Declaring injected dependencies this way should be
+familiar if you've ever used Spring's =@Autowired=.
 
 Our business logic will run in an infinite loop (pseudocode)
 
@@ -1337,7 +1269,7 @@ while True:
 #+END_SRC
 
 We must write three functions: =initial=, =update= and =act=, all
-returning an =FS[WorldView]=.
+returning an =F[WorldView]=.
 
 **** initial
 
@@ -1345,7 +1277,7 @@ In =initial= we call all external services and aggregate their results
 into a =WorldView=. We default the =pending= field to an empty =Map=.
 
 #+BEGIN_SRC scala
-  def initial: FS[WorldView] = for {
+  def initial: F[WorldView] = for {
     db <- d.getBacklog
     da <- d.getAgents
     mm <- m.getManaged
@@ -1356,8 +1288,8 @@ into a =WorldView=. We default the =pending= field to an empty =Map=.
 
 Recall from Chapter 1 that =flatMap= (i.e. when we use the =<-=
 generator) allows us to operate on a value that is computed at
-runtime. When we return an =FS= we are returning another program to be
-interpreted at runtime, that we can then =flatMap=. This is how we
+runtime. When we return an =F[_]= we are returning another program to
+be interpreted at runtime, that we can then =flatMap=. This is how we
 safely chain together sequential side-effecting code, whilst being
 able to provide a pure implementation for tests. FP could be described
 as Extreme Mocking.
@@ -1372,7 +1304,7 @@ pending action is taking longer than 10 minutes to do anything, we
 assume that it failed and forget that we asked to do it.
 
 #+BEGIN_SRC scala
-  def update(old: WorldView): FS[WorldView] = for {
+  def update(old: WorldView): F[WorldView] = for {
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
@@ -1414,7 +1346,7 @@ actions. We return a candidate node that we would like to start:
 
 #+BEGIN_SRC scala
   private object NeedsAgent {
-    def unapply(world: WorldView): Option[Node] = world match {
+    def unapply(world: WorldView): Option[MachineNode] = world match {
       case WorldView(backlog, 0, managed, alive, pending, _)
            if backlog > 0 && alive.isEmpty && pending.isEmpty
              => Option(managed.head)
@@ -1433,18 +1365,18 @@ As a financial safety net, all nodes should have a maximum lifetime of
 
 #+BEGIN_SRC scala
   private object Stale {
-    def unapply(world: WorldView): Option[NonEmptyList[Node]] = world match {
-      case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
-        val stale = (alive -- pending.keys).collect {
-          case (n, started)
-               if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 => n
-          case (n, started)
-               if timediff(started, time) >= 5.hours                           => n
-        }.toList
-        NonEmptyList.fromList(stale)
+    def unapply(world: WorldView): Option[NonEmptyList[MachineNode]] =
+      world match {
+        case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
+          (alive -- pending.keys).collect {
+            case (n, started)
+                if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 =>
+              n
+            case (n, started) if timediff(started, time) >= 5.hours => n
+          }.toList.toNel
 
-      case _ => None
-    }
+        case _ => None
+      }
   }
 #+END_SRC
 
@@ -1453,7 +1385,7 @@ the =act= method. When we schedule a node to be started or stopped, we
 add it to =pending= noting the time that we scheduled the action.
 
 #+BEGIN_SRC scala
-  def act(world: WorldView): FS[WorldView] = world match {
+  def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
         _ <- m.start(node)
@@ -1478,7 +1410,7 @@ we need a catch-all =case _= to do nothing. Recall from Chapter 2 that
 
 =foldM= is like =foldLeft= over =nodes=, but each iteration of the
 fold may return a monadic value. In our case, each iteration of the
-fold returns =FS[WorldView]=.
+fold returns =F[WorldView]=.
 
 The =M= is for Monadic and you will find more of these /lifted/
 methods that behave as one would expect, taking monadic values in
@@ -1502,8 +1434,8 @@ We'll start with some test data
 
 #+BEGIN_SRC scala
 object Data {
-  val node1 = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
-  val node2 = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
+  val node1   = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+  val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, List(node2))
 
   import ZonedDateTime.parse
@@ -1529,20 +1461,20 @@ state (but this is not threadsafe).
 class StaticHandlers(state: WorldView) {
   var started, stopped: Int = 0
 
-  implicit val drone: Drone.Handler[Id] = new Drone.Handler[Id] {
+  implicit val drone: Drone[Id] = new Drone[Id] {
     def getBacklog: Int = state.backlog
     def getAgents: Int = state.agents
   }
 
-  implicit val machines: Machines.Handler[Id] = new Machines.Handler[Id] {
-    def getAlive: Map[Node, ZonedDateTime] = state.alive
-    def getManaged: NonEmptyList[Node] = state.managed
+  implicit val machines: Machines[Id] = new Machines[Id] {
+    def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
+    def getManaged: NonEmptyList[MachineNode] = state.managed
     def getTime: ZonedDateTime = state.time
-    def start(node: Node): Node = { started += 1 ; node }
-    def stop(node: Node): Node = { stopped += 1 ; node }
+    def start(node: MachineNode): MachineNode = { started += 1 ; node }
+    def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
   }
 
-  val program = DynAgents[DynAgents.Op]
+  val program = DynAgents[Id]
 }
 #+END_SRC
 
@@ -1550,10 +1482,9 @@ When we write a unit test (here using =FlatSpec= from scalatest), we
 create an instance of =StaticHandlers= and then import all of its
 members.
 
-=FS= has a method =interpret=, requiring implicit handlers for all of
-its dependencies. Our implicit =drone= and =machines= both use the
-=Id= execution context and therefore interpreting this program with
-them returns an =Id[WorldView]= that we can assert on.
+Our implicit =drone= and =machines= both use the =Id= execution
+context and therefore interpreting this program with them returns an
+=Id[WorldView]= that we can assert on.
 
 In this trivial case we just check that the =initial= method returns
 the same value that we use in the static handlers:
@@ -1563,7 +1494,7 @@ the same value that we use in the static handlers:
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    program.initial.interpret[Id] shouldBe needsAgents
+    program.initial shouldBe needsAgents
   }
 #+END_SRC
 
@@ -1579,7 +1510,7 @@ helping us flush out bugs and refine the requirements:
     val old = world.copy(alive = Map.empty,
                          pending = Map(node1 -> time2),
                          time = time2)
-    program.update(old).interpret[Id] shouldBe world
+    program.update(old) shouldBe world
   }
 
   it should "request agents when needed" in {
@@ -1590,7 +1521,7 @@ helping us flush out bugs and refine the requirements:
       pending = Map(node1 -> time1)
     )
 
-    program.act(needsAgents).interpret[Id] shouldBe expected
+    program.act(needsAgents) shouldBe expected
 
     handlers.stopped shouldBe 0
     handlers.started shouldBe 1
@@ -1630,21 +1561,26 @@ be performed in parallel.
 In our definition of =initial= we could ask for all the information we
 need at the same time instead of one query at a time.
 
-As opposed to =flatMap= for sequential operations, cats uses
-=Cartesian= syntax for parallel operations:
+As opposed to =flatMap= for sequential operations, scalaz uses
+=Apply= syntax for parallel operations:
 
 #+BEGIN_SRC scala
-d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime
+^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+#+END_SRC
+
+which can also use infix notation, if you prefer:
+
+#+BEGIN_SRC scala
+(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 #+END_SRC
 
 If each of the parallel operations returns a value in the same monadic
-context, then the =Cartesian= product has a =map= method that will
-provide all of the results as a tuple. Rewriting =update= to take
-advantage of this:
+context, then the product has a =map= method that will provide all of
+the results as a tuple. Rewriting =update= to take advantage of this:
 
 #+BEGIN_SRC scala
-def initial: FS[WorldView] =
-  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).map {
+def initial: F[WorldView] =
+  ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime) {
     case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
   }
 #+END_SRC
@@ -1662,10 +1598,10 @@ reasonable tradeoff since our =update= will gracefully handle the case
 where a =node= is shut down unexpectedly.
 
 We need a method that operates on =NonEmptyList= that allows us to
-=map= each element into an =FS[Node]=, returning an
-=FS[NonEmptyList[Node]]=. The method is called =traverse=, and when we
-=flatMap= over it we get a =NonEmptyList[Node]= that we can deal with
-in a simple way:
+=map= each element into an =F[MachineNode]=, returning an
+=F[NonEmptyList[MachineNode]]=. The method is called =traverse=, and
+when we =flatMap= over it we get a =NonEmptyList[MachineNode]= that we
+can deal with in a simple way:
 
 #+BEGIN_SRC scala
       for {
@@ -1684,65 +1620,9 @@ guarantee that it will be executed in parallel: that is the
 responsibility of the handler. Not to state the obvious: parallel
 execution is supported by =Future=, but not =Id=.
 
-It is also not enough to implement a =Future= handler, it is necessary
-to
-
-#+BEGIN_SRC scala
-import freestyle.NonDeterminism._
-#+END_SRC
-
-when running the =interpret= method to ensure that the =Future=
-interpreter knows it can perform actions in a non-deterministic order.
-
 Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
-protecting internal state with concurrency locks.
-
-*** Free Monad
-
-What we've been doing in this chapter is using the /free monad/,
-=cats.free.Free=, to build up the definition of our program as a data
-type and then we interpret it. Freestyle calls it =FS=, which is just
-a type alias to =Free=, hiding an irrelevant type parameter.
-
-The reason why we use =Free= instead of just implementing =cats.Monad=
-directly (e.g. for =Id= or =Future=) is an unfortunate consequence of
-running on the JVM. Every nested call to =map= or =flatMap= adds to
-the stack, eventually resulting in a =StackOverflowError=.
-
-=Free= is a =sealed abstract class= that roughly looks like:
-
-#+BEGIN_SRC scala
-  sealed abstract class Free[S[_], A] {
-    def pure(a: A): Free[S, A] = Pure(a)
-    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
-    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
-  }
-
-  final case class Pure[S[_], A](a: A) extends Free[S, A]
-  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  final case class FlatMapped[S[_], B, C](
-                                    c: Free[S, C],
-                                    f: C => Free[S, B]) extends Free[S, B]
-#+END_SRC
-
-Its definition of =pure= / =map= / =flatMap= do not do any work, they
-just build up data types that live on the heap. Work is delayed until
-Free is /interpreted/. This technique of using heap objects to
-eliminate stack growth is known as /trampolining/.
-
-When we use the =@free= annotation, a =sealed abstract class= data
-type is generated for each of our algebras, with a =final case class=
-per method, allowing trampolining. When we write a =Handler=,
-Freestyle is converting pattern matches over heap objects into method
-calls.
-
-**** Free as in Monad
-
-=Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
-the name. However, from a practical point of view, there needs to be a
-=Monad[S]= in order to interpret it --- so it's more like an interest
-only mortgage where you still have to buy the house at the end.
+protecting internal state with concurrency locks or actors.
 
 *** Reality Check
 
@@ -1756,28 +1636,20 @@ when designing and testing applications:
 However, even if we look past the learning curve of FP, there are
 still some real challenges that remain:
 
-1. trampolining has a performance impact due to increased memory churn
-   and garbage collection pressure.
-2. there is not always IDE support for the advanced language features,
+1. there is not always IDE support for the advanced language features,
    macros or compiler plugins.
-3. implementation details --- as we have already seen with =for=
+2. implementation details --- as we have already seen with =for=
    syntax sugar, =@module=, and =Free= --- can introduce mental
    overhead and become a blocker when they don't work.
-4. the distinction between pure / side-effecting code, or stack-safe /
-   stack-unsafe, is not enforced by the scala compiler. This requires
-   developer discipline.
-5. the developer community is still small. Getting help from the
+3. the distinction between pure / side-effecting code is not enforced
+   by the scala compiler. This requires developer discipline.
+4. the developer community is still small. Getting help from the
    community can often be a slow process.
 
 As with any new technology, there are rough edges that will be fixed
 with time. Most of the problems are because there is a lack of
 commercially-funded tooling in FP scala. If you see the benefit of FP,
 you can help out by getting involved.
-
-Although FP Scala cannot be as fast as streamlined Java using
-mutation, the performance impact is unlikely to affect you if you're
-already considering targetting the JVM. Measure the impact before
-making a decision if it is important to you.
 
 In the following chapters we are going to learn some of the vast
 library of functionality provided by the ecosystem, how it is
@@ -1793,13 +1665,12 @@ and remove redundancy that we've accidentally introduced.
    /handlers/.
 2. /modules/ define pure logic and depend on algebras and other
    modules.
-3. modules are /interpreted/ by handlers in terms of the Free Monad,
-   which ensures stack safety at a modest cost to performance.
+3. modules are /interpreted/ by handlers
 4. Test handlers can mock out the side-effecting parts of the system
    with trivial implementations, enabling a high level of test
    coverage for the business logic.
 5. algebraic methods can be performed in parallel by taking their
-   =Cartesian= product or traversing sequences, caveat emptor.
+   product or traversing sequences (caveat emptor, revisited later).
 
 ** Data and Functionality
 
@@ -1910,7 +1781,7 @@ can be used to define infinitely long data types. This is an advanced
 and specialist topic that we will not cover.
 
 We will explore alternatives to these legacy methods when we discuss
-the cats library in the next chapter, at the cost of losing
+the scalaz library in the next chapter, at the cost of losing
 interoperability with some legacy Java and Scala code.
 
 **** Exhaustivity
@@ -2000,7 +1871,8 @@ final case class AcceptedBoolean(value: Boolean) extends Accepted
 Pattern matching on these forms of coproduct can be tedious, which is
 why [[https://contributors.scala-lang.org/t/733][Union Types]] are being explored in the Dotty next-generation scala
 compiler. Workarounds such as [[https://github.com/propensive/totalitarian][totalitarian]]'s =Disjunct= exist as
-another way of encoding anonymous coproducts.
+another way of encoding anonymous coproducts and [[https://github.com/fommil/stalagmite/issues/37][stalagmite]] aims to
+reduce the boilerplate for the approaches presented here.
 
 #+BEGIN_ASIDE
 We can also use a =sealed trait= in place of a =sealed abstract class=
@@ -2018,7 +1890,7 @@ types can be used to encode constraints. For example,
 final case class NonEmptyList[+T](head: T, tail: List[T])
 #+END_SRC
 
-can never be empty. This makes =cats.data.NonEmptyList= a useful data
+can never be empty. This makes =scalaz.NonEmptyList= a useful data
 type despite containing the same information as =List=.
 
 In addition, wrapping an ADT can convey information such as if it
@@ -2052,7 +1924,7 @@ for {
 #+END_SRC
 
 We will see a better way of reporting validation errors when we
-introduce =cats.data.Validated= in the next chapter.
+introduce =scalaz.Validation= in the next chapter.
 
 **** Simple to Share
 
@@ -2406,10 +2278,10 @@ def signOfTheTimes[T: Numeric](t: T): T = -(t.abs) * t
 #+END_SRC
 
 The good news is that we never need to write this boilerplate because
-[[https://github.com/mpilquist/simulacrum][Simulacrum]] (included with cats) provides a =@typeclass= macro
-annotation to have the companion =apply= and =ops= automatically
-generated. It even allows us to define alternative (usually symbolic)
-names for common methods. In full:
+[[https://github.com/mpilquist/simulacrum][Simulacrum]] provides a =@typeclass= macro annotation to have the
+companion =apply= and =ops= automatically generated. It even allows us
+to define alternative (usually symbolic) names for common methods. In
+full:
 
 #+BEGIN_SRC scala
 import simulacrum._
@@ -2790,7 +2662,17 @@ final case class JObject(value: JsonObject) extends Json
 #+END_SRC
 
 where =JsonNumber= and =JsonObject= are optimised specialisations of
-roughly =java.math.BigDecimal= and =Map[String, Json]=.
+roughly =java.math.BigDecimal= and =Map[String, Json]=. To depend on
+circe in your project we must add the following to =build.sbt=:
+
+#+BEGIN_SRC scala
+val circeVersion = "0.8.0"
+libraryDependencies ++= Seq(
+  "io.circe"             %% "circe-core"    % circeVersion,
+  "io.circe"             %% "circe-generic" % circeVersion,
+  "io.circe"             %% "circe-parser"  % circeVersion
+)
+#+END_SRC
 
 #+BEGIN_WARNING
 =java.math.BigDecimal= and especially =java.math.BigInteger= are not
@@ -2859,31 +2741,31 @@ We need to provide typeclass instances for basic types:
 import java.net.URLEncoder
 import spinoco.protocol.http.Uri
 
-object UrlEncoded extends UrlEncodedDefaultInstances
-trait UrlEncodedDefaultInstances {
-  implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
-    override def urlEncoded(s: String): String = URLEncoder.encode(s, "UTF-8")
+object UrlEncoded {
+  import ops._
+  def instance[A](f: A => String): UrlEncoded[A] = new UrlEncoded[A] {
+    override def urlEncoded(a: A): String = f(a)
   }
-  implicit val UrlEncodedLong: UrlEncoded[Long] = new UrlEncoded[Long] {
-    override def urlEncoded(s: Long): String = s.toString
+
+  implicit val UrlEncodedString: UrlEncoded[String] = instance { s =>
+    URLEncoder.encode(s, "UTF-8")
   }
-  import UrlEncoded.ops._
+  implicit val UrlEncodedLong: UrlEncoded[Long] = instance { n =>
+    n.toString
+  }
   implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
-    new UrlEncoded[Seq[(String, String)]] {
-      override def urlEncoded(m: Seq[(String, String)]): String =
-        m.map {
-          case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-        }.mkString("&")
+    instance { m =>
+      m.map {
+        case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
+      }.mkString("&")
     }
-  implicit val UrlEncodedUri: UrlEncoded[Uri] = new UrlEncoded[Uri] {
-    override def urlEncoded(u: Uri): String = {
-      val scheme = u.scheme.toString
-      val host   = u.host.host
-      val port   = u.host.port.fold("")(p => s":$p")
-      val path   = u.path.stringify
-      val query  = u.query.params.toSeq.urlEncoded
-      s"$scheme://$host$port$path?$query".urlEncoded
-    }
+  implicit val UrlEncodedUri: UrlEncoded[Uri] = instance { u =>
+    val scheme = u.scheme.toString
+    val host   = u.host.host
+    val port   = u.host.port.fold("")(p => s":$p")
+    val path   = u.path.stringify
+    val query  = u.query.params.toSeq.urlEncoded
+    s"$scheme://$host$port$path?$query".urlEncoded
   }
 }
 #+END_SRC
@@ -2976,9 +2858,9 @@ write the boilerplate for the types we wish to convert:
 **** Module
 
 That concludes the data and functionality modelling required to
-implement OAuth2. Recall from the previous chapter that we use =@free=
-to define mockable components that need to interact with the world in
-an impure way, and we define pure business logic in =@module=.
+implement OAuth2. Recall from the previous chapter that we define
+mockable components that need to interact with the world as algebras,
+and we define pure business logic in a module.
 
 We define our dependency algebras, and use context bounds to show that
 our responses must have a =Decoder= and our =POST= payload must have a
@@ -2990,36 +2872,36 @@ import java.time.LocalDateTime
 package http.client.algebra {
   final case class Response[T](header: HttpResponseHeader, body: T)
 
-  @free trait JsonHttpClient {
+  trait JsonHttpClient[F[_]] {
     def get[B: Decoder](
       uri: Uri,
       headers: List[HttpHeader] = Nil
-    ): FS[Response[B]]
+    ): F[Response[B]]
 
     def postUrlencoded[A: UrlEncoded, B: Decoder](
       uri: Uri,
       payload: A,
       headers: List[HttpHeader] = Nil
-    ): FS[Response[B]]
+    ): F[Response[B]]
   }
 }
 
 package http.oauth2.client.algebra {
   final case class CodeToken(token: String, redirect_uri: Uri)
 
-  @free trait UserInteraction {
+  trait UserInteraction[F[_]] {
     /** returns the Uri of the local server */
-    def start: FS[Uri]
+    def start: F[Uri]
 
     /** prompts the user to open this Uri */
-    def open(uri: Uri): FS[Unit]
+    def open(uri: Uri): F[Unit]
 
     /** recover the code from the callback */
-    def stop: FS[CodeToken]
+    def stop: F[CodeToken]
   }
 
-  @free trait LocalClock {
-    def now: FS[LocalDateTime]
+  trait LocalClock[F[_]] {
+    def now: F[LocalDateTime]
   }
 }
 #+END_SRC
@@ -3047,12 +2929,15 @@ package logic {
   import io.circe.generic.auto._
   import http.encoding.QueryEncoded.ops._
 
-  @module class OAuth2Client(config: ServerConfig) {
-    val user: UserInteraction
-    val server: JsonHttpClient
-    val clock: LocalClock
-  
-    def authenticate: FS[CodeToken] =
+  class OAuth2Client[F[_]: Monad](
+    config: ServerConfig
+  )(
+    implicit
+    user: UserInteraction[F],
+    server: JsonHttpClient[F],
+    clock: LocalClock[F]
+  ) { 
+    def authenticate: F[CodeToken] =
       for {
         callback <- user.start
         params   = AuthRequest(callback, config.scope, config.clientId)
@@ -3060,7 +2945,7 @@ package logic {
         code     <- user.stop
       } yield code
 
-    def access(code: CodeToken): FS[(RefreshToken, BearerToken)] =
+    def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
       for {
         request <- AccessRequest(code.token,
                                  code.redirect_uri,
@@ -3078,7 +2963,7 @@ package logic {
         bearer  = BearerToken(msg.access_token, expires)
       } yield (refresh, bearer)
 
-    def bearer(refresh: RefreshToken): FS[BearerToken] =
+    def bearer(refresh: RefreshToken): F[BearerToken] =
       for {
         request <- RefreshRequest(config.clientSecret,
                                   refresh.token,
@@ -3118,7 +3003,9 @@ package logic {
   :PROPERTIES:
   :EXPORT_FILE_NAME: main-text.md
   :END:
-** Cats
+** Scalaz Core
+
+- FIXME rewrite
 
 In this chapter we will tour the data types and typeclasses in cats
 and its related ecosystem. We don't use everything in
@@ -3696,7 +3583,69 @@ Category, etc
 
 **** TODO Other
 *** Laws
+** Free Monad
+
+- FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
+
+What we've been doing in this chapter is using the /free monad/,
+=cats.free.Free=, to build up the definition of our program as a data
+type and then we interpret it. Freestyle calls it =FS=, which is just
+a type alias to =Free=, hiding an irrelevant type parameter.
+
+The reason why we use =Free= instead of just implementing =cats.Monad=
+directly (e.g. for =Id= or =Future=) is an unfortunate consequence of
+running on the JVM. Every nested call to =map= or =flatMap= adds to
+the stack, eventually resulting in a =StackOverflowError=.
+
+=Free= is a =sealed abstract class= that roughly looks like:
+
+#+BEGIN_SRC scala
+  sealed abstract class Free[S[_], A] {
+    def pure(a: A): Free[S, A] = Pure(a)
+    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
+    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
+  }
+
+  final case class Pure[S[_], A](a: A) extends Free[S, A]
+  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  final case class FlatMapped[S[_], B, C](
+                                    c: Free[S, C],
+                                    f: C => Free[S, B]) extends Free[S, B]
+#+END_SRC
+
+Its definition of =pure= / =map= / =flatMap= do not do any work, they
+just build up data types that live on the heap. Work is delayed until
+Free is /interpreted/. This technique of using heap objects to
+eliminate stack growth is known as /trampolining/.
+
+When we use the =@free= annotation, a =sealed abstract class= data
+type is generated for each of our algebras, with a =final case class=
+per method, allowing trampolining. When we write a =Handler=,
+Freestyle is converting pattern matches over heap objects into method
+calls.
+
+**** Free as in Monad
+
+=Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
+the name. However, from a practical point of view, there needs to be a
+=Monad[S]= in order to interpret it --- so it's more like an interest
+only mortgage where you still have to buy the house at the end.
+
 ** TODO Effects
+
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+
+https://www.irccloud.com/pastebin/dx1r05od/
+
+#+BEGIN_SRC scala
+trait ApMonad[F[_], G[_]] {
+  def to[A](fa: F[A]): G[A]
+  def from[A](ga: G[A]): F[A]
+  implicit val fmonad: Monad[F]
+  implicit val gap: Applicative[G]
+}
+#+END_SRC
+
 ** TODO FS2
 
 Task, Stream
