@@ -43,7 +43,7 @@ final case class WorldView(
 final class DynAgents[F[_]: Monad](implicit d: Drone[F], m: Machines[F]) {
 
   def initial: F[WorldView] =
-    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled.map {
+    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime) {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 
