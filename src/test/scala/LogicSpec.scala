@@ -5,12 +5,12 @@ package tests
 import java.time.ZonedDateTime
 
 import scala.Int
-import scala.collection.immutable.{ List, Map }
+import scala.collection.immutable.Map
 
 import scala.Predef.ArrowAssoc
 
-import cats._
-import cats.data.NonEmptyList
+import scalaz._
+import Scalaz._
 import org.scalatest._
 import org.scalatest.Matchers._
 
@@ -18,9 +18,9 @@ import algebra._
 import logic._
 
 object Data {
-  val node1   = Node("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
-  val node2   = Node("550c4943-229e-47b0-b6be-3d686c5f013f")
-  val managed = NonEmptyList(node1, List(node2))
+  val node1   = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+  val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
+  val managed = NonEmptyList(node1, node2)
 
   val time1 =
     ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
@@ -48,11 +48,11 @@ final class StaticHandlers(state: WorldView) {
   }
 
   implicit val machines: Machines[Id] = new Machines[Id] {
-    def getAlive: Map[Node, ZonedDateTime] = state.alive
-    def getManaged: NonEmptyList[Node]     = state.managed
-    def getTime: ZonedDateTime             = state.time
-    def start(node: Node): Node            = { started += 1; node }
-    def stop(node: Node): Node             = { stopped += 1; node }
+    def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
+    def getManaged: NonEmptyList[MachineNode]     = state.managed
+    def getTime: ZonedDateTime                    = state.time
+    def start(node: MachineNode): MachineNode     = { started += 1; node }
+    def stop(node: MachineNode): MachineNode      = { stopped += 1; node }
   }
 
   val program = new DynAgents[Id]

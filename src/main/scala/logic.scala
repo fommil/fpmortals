@@ -11,11 +11,10 @@ import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.Predef.ArrowAssoc
 
-import cats.Monad
-import cats.data.NonEmptyList
-import cats.implicits._
+import scalaz._
+import Scalaz._
 
-import algebra._
+import _root_.algebra._
 
 /**
  * @param backlog how many builds are waiting to be run on the ci
@@ -35,16 +34,16 @@ import algebra._
 final case class WorldView(
   backlog: Int,
   agents: Int,
-  managed: NonEmptyList[Node],
-  alive: Map[Node, ZonedDateTime],
-  pending: Map[Node, ZonedDateTime],
+  managed: NonEmptyList[MachineNode],
+  alive: Map[MachineNode, ZonedDateTime],
+  pending: Map[MachineNode, ZonedDateTime],
   time: ZonedDateTime
 )
 
 final class DynAgents[F[_]: Monad]()(implicit d: Drone[F], m: Machines[F]) {
 
   def initial: F[WorldView] =
-    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).map {
+    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled.map {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 
@@ -83,7 +82,7 @@ final class DynAgents[F[_]: Monad]()(implicit d: Drone[F], m: Machines[F]) {
 
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
-    def unapply(world: WorldView): Option[Node] = world match {
+    def unapply(world: WorldView): Option[MachineNode] = world match {
       case WorldView(backlog, 0, managed, alive, pending, _)
           if backlog > 0 && alive.isEmpty && pending.isEmpty =>
         Option(managed.head)
@@ -101,18 +100,18 @@ final class DynAgents[F[_]: Monad]()(implicit d: Drone[F], m: Machines[F]) {
   //
   // Safety net: even if there is a backlog, stop older agents.
   private object Stale {
-    def unapply(world: WorldView): Option[NonEmptyList[Node]] = world match {
-      case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
-        val stale = (alive -- pending.keys).collect {
-          case (n, started)
-              if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 =>
-            n
-          case (n, started) if timediff(started, time) >= 5.hours => n
-        }.toList
-        NonEmptyList.fromList(stale)
+    def unapply(world: WorldView): Option[NonEmptyList[MachineNode]] =
+      world match {
+        case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
+          (alive -- pending.keys).collect {
+            case (n, started)
+                if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 =>
+              n
+            case (n, started) if timediff(started, time) >= 5.hours => n
+          }.toList.toNel
 
-      case _ => None
-    }
+        case _ => None
+      }
   }
 
 }

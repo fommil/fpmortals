@@ -11,7 +11,7 @@ import scala.{ Array, StringContext }
 import scala.collection.immutable.Map
 import scala.Predef.???
 
-import cats.data._
+import scalaz._
 import fs2._
 import _root_.io.circe
 import circe._
@@ -44,11 +44,11 @@ object Resources {
 // https://cloud.google.com/container-engine/docs/
 // https://cloud.google.com/container-engine/reference/rest/
 final class GceFs2Machine extends Machines[Task] {
-  def getTime: Task[ZonedDateTime]             = ???
-  def getManaged: Task[NonEmptyList[Node]]     = ???
-  def getAlive: Task[Map[Node, ZonedDateTime]] = ???
-  def start(node: Node): Task[Node]            = ???
-  def stop(node: Node): Task[Node]             = ???
+  def getTime: Task[ZonedDateTime]                    = ???
+  def getManaged: Task[NonEmptyList[MachineNode]]     = ???
+  def getAlive: Task[Map[MachineNode, ZonedDateTime]] = ???
+  def start(node: MachineNode): Task[MachineNode]     = ???
+  def stop(node: MachineNode): Task[MachineNode]      = ???
 }
 
 final class GceFs2(config: GceConfig) {

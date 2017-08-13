@@ -112,8 +112,8 @@ import java.time.LocalDateTime
 import scala.{ Long, Unit }
 import scala.language.higherKinds
 
-import cats.Monad
-import cats.implicits._
+import scalaz._
+import Scalaz._
 import spinoco.protocol.http.Uri
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
