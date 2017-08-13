@@ -14,7 +14,7 @@ import scala.Predef.ArrowAssoc
 import scalaz._
 import Scalaz._
 
-import _root_.algebra._
+import algebra._
 
 /**
  * @param backlog how many builds are waiting to be run on the ci
@@ -40,7 +40,7 @@ final case class WorldView(
   time: ZonedDateTime
 )
 
-final class DynAgents[F[_]: Monad]()(implicit d: Drone[F], m: Machines[F]) {
+final class DynAgents[F[_]: Monad](implicit d: Drone[F], m: Machines[F]) {
 
   def initial: F[WorldView] =
     (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled.map {

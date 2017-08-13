@@ -8,13 +8,15 @@ inThisBuild(
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "export-hook"   % "1.2.0",
-  "io.circe"      %% "circe-core"    % circeVersion,
-  "io.circe"      %% "circe-generic" % circeVersion,
-  "io.circe"      %% "circe-parser"  % circeVersion,
-  "io.circe"      %% "circe-fs2"     % circeVersion,
-  "org.scalaz"    %% "scalaz-core"   % "7.2.15",
-  "com.spinoco"   %% "fs2-http"      % "0.1.7"
+  "com.github.mpilquist" %% "simulacrum"    % "0.10.0",
+  "com.chuusai"          %% "shapeless"     % "2.3.2",
+  "org.typelevel"        %% "export-hook"   % "1.2.0",
+  "io.circe"             %% "circe-core"    % circeVersion,
+  "io.circe"             %% "circe-generic" % circeVersion,
+  "io.circe"             %% "circe-parser"  % circeVersion,
+  "io.circe"             %% "circe-fs2"     % circeVersion,
+  "org.scalaz"           %% "scalaz-core"   % "7.2.15",
+  "com.spinoco"          %% "fs2-http"      % "0.1.7"
 )
 
 scalacOptions ++= Seq(

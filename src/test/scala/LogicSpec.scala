@@ -22,17 +22,11 @@ object Data {
   val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, node2)
 
-  val time1 =
-    ZonedDateTime.parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
-  val time2 = ZonedDateTime.parse(
-    "2017-03-03T18:59:00.000+01:00[Europe/London]"
-  ) // +52 mins
-  val time3 = ZonedDateTime.parse(
-    "2017-03-03T19:06:00.000+01:00[Europe/London]"
-  ) // +59 mins
-  val time4 = ZonedDateTime.parse(
-    "2017-03-03T23:07:00.000+01:00[Europe/London]"
-  ) // +5 hours
+  import ZonedDateTime.parse
+  val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
+  val time2 = parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
+  val time3 = parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
+  val time4 = parse("2017-03-03T23:07:00.000+01:00[Europe/London]") // +5 hours
 
   val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 
