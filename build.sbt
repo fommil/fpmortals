@@ -8,6 +8,7 @@ inThisBuild(
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
+  "org.typelevel" %% "export-hook"   % "1.2.0",
   "io.circe"      %% "circe-core"    % circeVersion,
   "io.circe"      %% "circe-generic" % circeVersion,
   "io.circe"      %% "circe-parser"  % circeVersion,
@@ -33,6 +34,10 @@ scalacOptions ++= Seq(
 )
 
 scalacOptions += "-Ywarn-unused:implicits,imports,locals,params,patvars,privates"
+
+addCompilerPlugin(
+  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+)
 
 wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
   Wart.FinalCaseClass,

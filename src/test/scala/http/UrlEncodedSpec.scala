@@ -13,7 +13,7 @@ import org.scalatest.Matchers._
 import spinoco.protocol.http.Uri
 
 import UrlEncoded.ops._
-import http.encoding.generic._
+import DerivedUrlEncoded.exports._
 
 final case class Foo(apple: String, bananas: Long, pears: String)
 
