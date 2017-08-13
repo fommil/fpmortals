@@ -51,13 +51,14 @@ scalafmtVersion in ThisBuild := "1.2.0"
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(
-  "scala._",
-  "scala.Predef._",
-  "scala.collection.immutable._",
-  "shapeless._",
+  "java.lang.String",
+  "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Symbol,Unit,Null,Nothing,Option,Some,None,Either,Left,Right,StringContext}",
+  "scala.annotation.tailrec",
+  "scala.collection.immutable.{Map,Seq,List,::,Nil,Set,Vector}",
+  "scala.util.{Try,Success,Failure}",
+  "scala.Predef.{???,ArrowAssoc,identity,implicitly,<:<,=:=}",
+  "shapeless.{ :: => :*:, _ }",
   "_root_.io.circe",
-  "circe._",
-  "circe.generic.auto._",
   "scalaz._",
   "Scalaz._"
 ).mkString("import ", ",", "")
