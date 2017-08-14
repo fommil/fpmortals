@@ -35,13 +35,16 @@ write an FP library in Scala from first principles.
 A> Scalaz is a principled Functional Programming library that has evolved
 A> over a decade of industry use.
 A> 
-A> Cats is a 3 year old experiment to rewrite scalaz. Cats is a member of
-A> the [Typelevel](http://typelevel.org/about.html) sociopolitical project, which has moderators who enforce
-A> a Code of Conduct to ensure that their spaces are welcoming and
-A> inclusive.
+A> Cats is an experiment to rewrite scalaz. Cats is a member of the
+A> [Typelevel](http://typelevel.org/about.html) community of projects and people organised around functional
+A> programming in Scala, which has moderators who enforce a Code of
+A> Conduct to ensure that their spaces are welcoming, inclusive and safe.
 A> 
-A> Although this book uses scalaz, a second book will be available - at a
-A> discount to those who buy this book - covering the cats library.
+A> Although this book uses scalaz, a variant using cats will be created
+A> (subject to demand). In the meantime, you can obtain a gratis copy of
+A> [Advanced Scala with Cats](http://underscore.io/books/advanced-scala/) by Underscore Consultants. At this point,
+A> cats is mostly a clone of scalaz, so this book is relevant for either
+A> library.
 
 # Copyleft Notice
 

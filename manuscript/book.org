@@ -52,13 +52,16 @@ write an FP library in Scala from first principles.
 Scalaz is a principled Functional Programming library that has evolved
 over a decade of industry use.
 
-Cats is a 3 year old experiment to rewrite scalaz. Cats is a member of
-the [[http://typelevel.org/about.html][Typelevel]] sociopolitical project, which has moderators who enforce
-a Code of Conduct to ensure that their spaces are welcoming and
-inclusive.
+Cats is an experiment to rewrite scalaz. Cats is a member of the
+[[http://typelevel.org/about.html][Typelevel]] community of projects and people organised around functional
+programming in Scala, which has moderators who enforce a Code of
+Conduct to ensure that their spaces are welcoming, inclusive and safe.
 
-Although this book uses scalaz, a second book will be available - at a
-discount to those who buy this book - covering the cats library.
+Although this book uses scalaz, a variant using cats will be created
+(subject to demand). In the meantime, you can obtain a gratis copy of
+[[http://underscore.io/books/advanced-scala/][Advanced Scala with Cats]] by Underscore Consultants. At this point,
+cats is mostly a clone of scalaz, so this book is relevant for either
+library.
 #+END_ASIDE
 
 ** Copyleft Notice
@@ -1012,7 +1015,8 @@ methods, taking =Int= and =Future[Int]= respectively, returning a
 =Future[Int]=.
 
 The monad transformer also allows us to mix =Future[Option[_]]= calls
-with methods that just return plain =Future= via =OptionT.liftF=
+with methods that just return plain =Future= via =.liftM[OptionT]=
+(provided by scalaz when an implicit =Monad= is available):
 
 #+BEGIN_SRC scala
 scala> def getC: Future[Int] = ...
@@ -1436,7 +1440,7 @@ We'll start with some test data
 object Data {
   val node1   = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
   val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
-  val managed = NonEmptyList(node1, List(node2))
+  val managed = NonEmptyList(node1, node2)
 
   import ZonedDateTime.parse
   val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
@@ -1449,9 +1453,8 @@ object Data {
 import Data._
 #+END_SRC
 
-We implement algebras by creating /handlers/ that extend from the
-=.Handler= that =@free= generates for us. We don't extend =Drone= and
-=Machines= directly.
+We implement algebras by creating /handlers/ that extend =Drone= and
+=Machines= with a specific monadic context, =Id= being the simplest.
 
 Our "mock" implementations simply play back a fixed =WorldView=. We've
 isolated the state of our system, so we can use =var= to store the
@@ -1575,8 +1578,8 @@ which can also use infix notation, if you prefer:
 #+END_SRC
 
 If each of the parallel operations returns a value in the same monadic
-context, then the product has a =map= method that will provide all of
-the results as a tuple. Rewriting =update= to take advantage of this:
+context, we can apply a function to the results when they all return.
+Rewriting =update= to take advantage of this:
 
 #+BEGIN_SRC scala
 def initial: F[WorldView] =
@@ -1624,41 +1627,6 @@ Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
 protecting internal state with concurrency locks or actors.
 
-*** Reality Check
-
-In this chapter we've experienced some of the practical benefits of FP
-when designing and testing applications:
-
-1. clean separation of components
-2. isolated, fast and reproducible tests of business logic: extreme mocking
-3. easy parallelisation
-
-However, even if we look past the learning curve of FP, there are
-still some real challenges that remain:
-
-1. there is not always IDE support for the advanced language features,
-   macros or compiler plugins.
-2. implementation details --- as we have already seen with =for=
-   syntax sugar, =@module=, and =Free= --- can introduce mental
-   overhead and become a blocker when they don't work.
-3. the distinction between pure / side-effecting code is not enforced
-   by the scala compiler. This requires developer discipline.
-4. the developer community is still small. Getting help from the
-   community can often be a slow process.
-
-As with any new technology, there are rough edges that will be fixed
-with time. Most of the problems are because there is a lack of
-commercially-funded tooling in FP scala. If you see the benefit of FP,
-you can help out by getting involved.
-
-In the following chapters we are going to learn some of the vast
-library of functionality provided by the ecosystem, how it is
-organised and how you can find what you need (e.g. how did we know to
-use =foldM= or =traverse= when we implemented =act=?). This will allow
-us to complete the implementation of our application by building
-additional layers of =@module=, use better alternatives to =Future=,
-and remove redundancy that we've accidentally introduced.
-
 *** Summary
 
 1. /algebras/ define the boundaries between systems, implemented by
@@ -1699,24 +1667,21 @@ The fundamental building blocks of data types are
 
 - =final case class= also known as /products/
 - =sealed abstract class= also known as /coproducts/
-- =case object= /singletons/ and /values/ (=Int=, =Double=, =String=, etc)
+- =case object= and =Int=, =Double=, =String= (etc) /values/ 
 
 with no methods or fields other than the constructor parameters.
 
-A =sealed abstract class= containing only singletons is equivalent to an =enum=
-in Java and is a more descriptive replacement for =Boolean= or =Int=
-feature flags. Singletons are just value types in disguise, so we can
-think about data in terms of /products/, /coproducts/ and /values/.
+The collective name for /products/, /coproducts/ and /values/ is
+/Algebraic Data Type/ (ADT).
 
-The collective name is /Algebraic Data Type/ (ADT). We compose data
-types from the =AND= and =XOR= algebra: a product always has every
-type, but a coproduct can be only one of the possible types. For
-example
+We compose data types from the =AND= and =XOR= (exclusive =OR=)
+Boolean algebra: a product contains every type that it is composed of,
+but a coproduct can be only one. For example
 
-- product: =a AND b AND c=
-- coproduct: =x XOR y XOR z=
+- product: =ABC = a AND b AND c=
+- coproduct: =XYZ = x XOR y XOR z=
 
-and in Scala (remembering that =.type= is the type of a singleton):
+written in Scala
 
 #+BEGIN_SRC scala
 // values
@@ -1739,49 +1704,49 @@ final case class Z(b: B) extends XYZ
 When we introduce a type parameter into an ADT, we call it a
 /Generalised Algebraic Data Type/ (GADT).
 
-=List= is a GADT:
+=scalaz.IList=, a safe invariant alternative to the standard library
+=List=, is a GADT:
 
 #+BEGIN_SRC scala
-sealed abstract class List[+T]
-case object Nil extends List[Nothing]
-final case class ::[+T](head: T, tail: List[T]) extends List[T]
+sealed abstract class IList[A]
+case object INil extends IList[Nothing]
+final case class ICons[A](head: A, tail: IList[A]) extends IList[A]
 #+END_SRC
 
-If an ADT refers to itself, we call it a /recursive type/. Scala's
-=List= is recursive because the =::= (pronounced "cons", as in
-"constructor cell") contains a reference to =List=.
+If an ADT refers to itself, we call it a /recursive type/. =IList= is
+recursive because =ICons= contains a reference to =IList=.
 
-ADTs can contain pure functions. In fact we have already seen this in
-the previous chapter when we encountered =Free=, look again at the =f=
-parameter in =FlatMapped=
+**** Functions on ADTs
+
+ADTs can contain /pure functions/
 
 #+BEGIN_SRC scala
-sealed abstract class Free[S[_], A]
-final case class Pure[S[_], A](a: A) extends Free[S, A]
-final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-final case class FlatMapped[S[_], B, C](
-                                  c: Free[S, C],
-                                  f: C => Free[S, B]) extends Free[S, B]
+final case class UserConfiguration(accepts: Int => Boolean)
 #+END_SRC
 
-Functions on ADTs come with some caveats as they don't translate
-perfectly onto the JVM. For example, legacy =Serializable=,
+But ADTs that contain functions come with some caveats as they don't
+translate perfectly onto the JVM. For example, legacy =Serializable=,
 =hashCode=, =equals= and =toString= do not behave as one might
 reasonably expect.
 
-In particular, =Serializable= may attempt to serialise the entire
-closure of a function, and has been known to crash production servers.
-A similar caveat applies to legacy Java classes such as =Throwable=,
-which can carry references to arbitrary objects. This is one of the
-reasons why we restrict what can live on an ADT.
+Unfortunately, =Serializable= is used by popular frameworks, despite
+far superior alternatives. A common pitfall is forgetting that
+=Serializable= may attempt to serialise the entire closure of a
+function, which can crash production servers. A similar caveat applies
+to legacy Java classes such as =Throwable=, which can carry references
+to arbitrary objects. This is one of the reasons why we restrict what
+can live on an ADT.
 
-A similar caveat applies to /by name/ parameters, e.g. =foo:=>String=,
-which are equivalent to functions taking no parameter. Lazy parameters
-can be used to define infinitely long data types. This is an advanced
-and specialist topic that we will not cover.
+A similar caveat applies to /by name/, known as /lazy/ parameters
 
-We will explore alternatives to these legacy methods when we discuss
-the scalaz library in the next chapter, at the cost of losing
+#+BEGIN_SRC scala
+final case class UserConfiguration(vip: => Boolean)
+#+END_SRC
+
+which are equivalent to functions that take no parameter.
+
+We will explore alternatives to the legacy methods when we discuss the
+scalaz library in the next chapter, at the cost of losing
 interoperability with some legacy Java and Scala code.
 
 **** Exhaustivity
@@ -1831,9 +1796,11 @@ improvement to perform additional pattern matcher checks.
 **** Alternative Products and Coproducts
 
 Another form of product is a tuple, which is like an unlabelled =final
-case class=. The =(A.type, B, C)= is equivalent to =ABC= in the above
-example. It's best to use =final case class= when part of an ADT
-because the lack of names is awkward to deal with.
+case class=.
+
+=(A.type, B, C)= is equivalent to =ABC= in the above example but it is
+best to use =final case class= when part of an ADT because the lack of
+names is awkward to deal with.
 
 Another form of coproduct is when we nest =Either= types. e.g.
 
@@ -1887,7 +1854,7 @@ Besides being a container for necessary business information, data
 types can be used to encode constraints. For example,
 
 #+BEGIN_SRC scala
-final case class NonEmptyList[+T](head: T, tail: List[T])
+final case class NonEmptyList[A](head: A, tail: IList[A])
 #+END_SRC
 
 can never be empty. This makes =scalaz.NonEmptyList= a useful data
@@ -3006,6 +2973,7 @@ package logic {
 ** Scalaz Core
 
 - FIXME rewrite
+- https://github.com/scalaz/scalaz/blob/v7.3.0-M15/project/GenTypeClass.scala#L18
 
 In this chapter we will tour the data types and typeclasses in cats
 and its related ecosystem. We don't use everything in
@@ -3712,6 +3680,49 @@ not sure what the relevance to this project would be yet.
 
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
+
+*** Reality Check
+
+In this chapter we've experienced some of the practical benefits of FP
+when designing and testing applications:
+
+1. clean separation of components
+2. isolated, fast and reproducible tests of business logic: extreme mocking
+3. easy parallelisation
+
+However, even if we look past the learning curve of FP, there are
+still some real challenges that remain:
+
+1. trampolining has a performance impact due to increased memory churn
+   and garbage collection pressure.
+2. there is not always IDE support for the advanced language features,
+   macros or compiler plugins.
+3. implementation details --- as we have already seen with =for=
+   syntax sugar, =@module=, and =Free= --- can introduce mental
+   overhead and become a blocker when they don't work.
+4. the distinction between pure / side-effecting code, or stack-safe /
+   stack-unsafe, is not enforced by the scala compiler. This requires
+   developer discipline.
+5. the developer community is still small. Getting help from the
+   community can often be a slow process.
+
+As with any new technology, there are rough edges that will be fixed
+with time. Most of the problems are because there is a lack of
+commercially-funded tooling in FP scala. If you see the benefit of FP,
+you can help out by getting involved.
+
+Although FP Scala cannot be as fast as streamlined Java using
+mutation, the performance impact is unlikely to affect you if you're
+already considering targetting the JVM. Measure the impact before
+making a decision if it is important to you.
+
+In the following chapters we are going to learn some of the vast
+library of functionality provided by the ecosystem, how it is
+organised and how you can find what you need (e.g. how did we know to
+use =foldM= or =traverse= when we implemented =act=?). This will allow
+us to complete the implementation of our application by building
+additional layers of =@module=, use better alternatives to =Future=,
+and remove redundancy that we've accidentally introduced.
 
 * Backmatter                                                          :final:
 :PROPERTIES:

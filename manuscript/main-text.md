@@ -3,6 +3,7 @@
 # Scalaz Core
 
 -   FIXME rewrite
+-   <https://github.com/scalaz/scalaz/blob/v7.3.0-M15/project/GenTypeClass.scala#L18>
 
 In this chapter we will tour the data types and typeclasses in cats
 and its related ecosystem. We don't use everything in
@@ -740,5 +741,48 @@ not sure what the relevance to this project would be yet.
 
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
+
+## Reality Check
+
+In this chapter we've experienced some of the practical benefits of FP
+when designing and testing applications:
+
+1.  clean separation of components
+2.  isolated, fast and reproducible tests of business logic: extreme mocking
+3.  easy parallelisation
+
+However, even if we look past the learning curve of FP, there are
+still some real challenges that remain:
+
+1.  trampolining has a performance impact due to increased memory churn
+    and garbage collection pressure.
+2.  there is not always IDE support for the advanced language features,
+    macros or compiler plugins.
+3.  implementation details --- as we have already seen with `for`
+    syntax sugar, `@module`, and `Free` --- can introduce mental
+    overhead and become a blocker when they don't work.
+4.  the distinction between pure / side-effecting code, or stack-safe /
+    stack-unsafe, is not enforced by the scala compiler. This requires
+    developer discipline.
+5.  the developer community is still small. Getting help from the
+    community can often be a slow process.
+
+As with any new technology, there are rough edges that will be fixed
+with time. Most of the problems are because there is a lack of
+commercially-funded tooling in FP scala. If you see the benefit of FP,
+you can help out by getting involved.
+
+Although FP Scala cannot be as fast as streamlined Java using
+mutation, the performance impact is unlikely to affect you if you're
+already considering targetting the JVM. Measure the impact before
+making a decision if it is important to you.
+
+In the following chapters we are going to learn some of the vast
+library of functionality provided by the ecosystem, how it is
+organised and how you can find what you need (e.g. how did we know to
+use `foldM` or `traverse` when we implemented `act`?). This will allow
+us to complete the implementation of our application by building
+additional layers of `@module`, use better alternatives to `Future`,
+and remove redundancy that we've accidentally introduced.
 
 
