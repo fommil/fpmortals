@@ -932,7 +932,7 @@ add it to `pending` noting the time that we scheduled the action.
         } yield update
       }
   
-    case _ => world.pure[FS]
+    case _ => world.pure[F]
   }
 ~~~~~~~~
 
@@ -2491,7 +2491,7 @@ and then write an OAuth2 client:
           request <- AccessRequest(code.token,
                                    code.redirect_uri,
                                    config.clientId,
-                                   config.clientSecret).pure[FS]
+                                   config.clientSecret).pure[F]
           response <- server
                        .postUrlencoded[AccessRequest, AccessResponse](
                          config.access,
@@ -2508,7 +2508,7 @@ and then write an OAuth2 client:
         for {
           request <- RefreshRequest(config.clientSecret,
                                     refresh.token,
-                                    config.clientId).pure[FS]
+                                    config.clientId).pure[F]
           response <- server
                        .postUrlencoded[RefreshRequest, RefreshResponse](
                          config.refresh,

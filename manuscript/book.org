@@ -1404,7 +1404,7 @@ add it to =pending= noting the time that we scheduled the action.
         } yield update
       }
 
-    case _ => world.pure[FS]
+    case _ => world.pure[F]
   }
 #+END_SRC
 
@@ -2917,7 +2917,7 @@ package logic {
         request <- AccessRequest(code.token,
                                  code.redirect_uri,
                                  config.clientId,
-                                 config.clientSecret).pure[FS]
+                                 config.clientSecret).pure[F]
         response <- server
                      .postUrlencoded[AccessRequest, AccessResponse](
                        config.access,
@@ -2934,7 +2934,7 @@ package logic {
       for {
         request <- RefreshRequest(config.clientSecret,
                                   refresh.token,
-                                  config.clientId).pure[FS]
+                                  config.clientId).pure[F]
         response <- server
                      .postUrlencoded[RefreshRequest, RefreshResponse](
                        config.refresh,
@@ -3550,6 +3550,12 @@ Or should this live in the Effects chapter?
 Category, etc
 
 **** TODO Other
+*** Monad Transformers
+
+maybe a separate chapter?
+
+functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
+
 *** Laws
 ** Free Monad
 

@@ -606,6 +606,12 @@ Category, etc
 
 ### TODO Other
 
+## Monad Transformers
+
+maybe a separate chapter?
+
+functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
+
 ## Laws
 
 # Free Monad
