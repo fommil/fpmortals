@@ -54,8 +54,9 @@ over a decade of industry use.
 
 Cats is an experiment to rewrite scalaz. Cats is a member of the
 [[http://typelevel.org/about.html][Typelevel]] community of projects and people organised around functional
-programming in Scala, which has moderators who enforce a Code of
-Conduct to ensure that their spaces are welcoming, inclusive and safe.
+programming in Scala. Typelevel is a political organisation with
+moderators who enforce a Code of Conduct to ensure that their spaces
+are welcoming, inclusive and safe.
 
 Although this book uses scalaz, a variant using cats will be created
 (subject to demand). In the meantime, you can obtain a gratis copy of
