@@ -1,0 +1,84 @@
+// dot scalaz.dot -Tpng > scalaz.png ; open scalaz.png
+// https://github.com/scalaz/scalaz/blob/v7.2.15/project/GenTypeClass.scala
+digraph G {
+    subgraph "scalaz-core.jar" {
+        label="scalaz-core";
+        
+        Semigroup
+        Monoid -> Semigroup
+        Band -> Semigroup
+        Equal
+        Show
+        Order -> Equal
+        Enum -> Order
+
+        InvariantFunctor
+        Functor -> InvariantFunctor
+        Apply -> Functor
+        Applicative -> Apply
+        Align -> Functor
+        Zip
+        Unzip
+        Bind -> Apply
+        Monad -> Applicative
+        Monad -> Bind
+        Foldable
+        Foldable1 -> Foldable
+        Traverse -> Functor
+        Traverse -> Foldable
+        Traverse1 -> Traverse
+        Traverse1 -> Foldable1
+
+        Contravariant -> InvariantFunctor
+        Divide -> Contravariant
+        Divisible -> Divide
+        Cobind -> Functor
+        Comonad -> Cobind
+        Cozip
+
+        Plus
+        PlusEmpty -> Plus
+        IsEmpty -> PlusEmpty
+        Optional
+
+        ApplicativePlus -> Applicative
+        ApplicativePlus -> PlusEmpty
+        MonadPlus -> Monad
+        MonadPlus -> ApplicativePlus
+
+        Associative 
+        Bifunctor 
+        Bifoldable 
+        Bitraverse -> Bifunctor
+        Bitraverse -> Bifoldable
+        Compose 
+        Catchable ->
+        Nondeterminism -> Monad
+        Category -> Compose
+        Choice -> Category
+        Split -> Compose
+        Profunctor ->
+        Strong -> Profunctor
+        ProChoice -> Profunctor
+        Arrow ->Split
+        Arrow -> Strong
+        Arrow -> Category
+
+        LiftIO
+        MonadIO -> LiftIO
+        MonadIO -> Monad
+        LiftControlIO
+        MonadControlIO -> LiftControlIO
+        MonadControlIO -> Monad
+        Resource
+
+        MonadState -> Monad 
+        MonadError -> Monad
+        MonadTell -> Monad
+        MonadReader -> Monad 
+        ComonadStore -> Comonad 
+
+        BindRec -> Bind
+    }
+    
+}

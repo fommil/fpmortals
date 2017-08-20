@@ -1744,7 +1744,17 @@ work to compiletime instead of leaving it to runtime.
 The syntax for writing `signOfTheTimes` is clunky, there are some
 things we can do to clean it up.
 
-If we define boilerplate on the companion of the typeclass,
+Downstream users will prefer to see our method use *context bounds*,
+since the signature reads cleanly as "takes a `T` that has a
+`Numeric`"
+
+{lang="text"}
+~~~~~~~~
+  def signOfTheTimes[T: Numeric](t: T): T = ...
+~~~~~~~~
+
+but now we have to use `implicitly[Numeric[T]]` everywhere. By
+defining boilerplate on the companion of the typeclass
 
 {lang="text"}
 ~~~~~~~~
@@ -1753,9 +1763,7 @@ If we define boilerplate on the companion of the typeclass,
   }
 ~~~~~~~~
 
-it allows the use of *context bounds*, much nicer for downstream users
-since the method signature reads cleanly as "takes a `T` that has a
-`Numeric`"
+we can obtain the implicit with less noise
 
 {lang="text"}
 ~~~~~~~~
@@ -1766,9 +1774,9 @@ since the method signature reads cleanly as "takes a `T` that has a
   }
 ~~~~~~~~
 
-But that's made things worse for us as the implementors. We still have
-the syntactic problem of inside-out static methods vs class methods.
-We deal with this by introducing `ops` on the typeclass companion:
+But it is still worse for us as the implementors. We have the
+syntactic problem of inside-out static methods vs class methods. We
+deal with this by introducing `ops` on the typeclass companion:
 
 {lang="text"}
 ~~~~~~~~

@@ -1,30 +1,27 @@
 
 
-# Scalaz Core
+# Scalaz Core Typeclasses
 
--   FIXME rewrite
--   <https://github.com/scalaz/scalaz/blob/v7.3.0-M15/project/GenTypeClass.scala#L18>
+In this chapter we will tour the typeclasses in `scalaz-core`. We
+don't use everything in `drone-dynamic-agents` so we will give
+standalone examples when appropriate.
 
-In this chapter we will tour the data types and typeclasses in cats
-and its related ecosystem. We don't use everything in
-`drone-dynamic-agents` so we will give standalone examples when
-appropriate.
+There has been criticism of the naming in scalaz, and functional
+programming in general. Most names follow the conventions introduced
+in the Haskell programming language, based on *Category Theory*.
 
-There has been criticism of the naming in cats, and functional
-programming in general. Cats is a word play on *Category Theory* and
-the concepts originate from academia, much like object oriented
-programming originated from academic research in the 1960s (with their
-high falutin words like *polymorphism*, *subtyping*, *generics* and
-*aspects*). We'll use the cats names in this book, but feel free to
-set up `type` aliases if you would prefer to use names based on the
-primary functionality of the typeclass.
+We will use the scalaz names in this book, but feel free to set up
+`type` aliases in your own codebase if you would prefer to use verb
+names based on the primary functionality of the typeclass (e.g.
+`Mappable`, `Pureable`, `FlatMappable`) until you are comfortable with
+the standard names.
 
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important methods from a control flow perspective,
 which live on: `Functor`, `Applicative` and `Monad` (each extending
 the former).
 
-| Typeclass     | Method    | From   |               | To     |
+| Typeclass     | Method    | From   | Given         | To     |
 |------------- |--------- |------ |------------- |------ |
 | `Functor`     | `map`     | `F[A]` | `(A => B)`    | `F[B]` |
 | `Applicative` | `pure`    | `A`    |               | `F[A]` |
@@ -52,125 +49,17 @@ In between `Monad` and `Functor` is `Applicative`, defining `pure`
 that lets us elevate a value into an effect, or create a data
 structure from a single value.
 
-## Data Types
-
-### TODO NonEmptyList
-
-### TODO NonEmptyVector
-
-### TODO Validated
-
-A> This ADT has methods on it, but in Chapter 4 we said that ADTs
-A> shouldn't have methods on them and that the functionality should live
-A> on typeclasses! You caught us red handed. There are several reasons
-A> for doing it this way.
-A> 
-A> Sorry, but there are more methods than the `value` and `memoize` on
-A> `Eval` shown here: it also has `map` and `flatMap`. The reason they
-A> live on the ADT and not in an instance of `Monad` is because it is
-A> slightly more efficient for the compiler to find these methods instead
-A> of looking for `Monad.ops._`, and it is slightly more efficient at
-A> runtime. This is an optimisation step that is absolutely vital in a
-A> core library such as cats, but please do not perform these
-A> optimisations in user code unless you have profiled and found a
-A> performance bottleneck. There is a significant cost to code
-A> readability.
-
-### Eval
-
-`Eval` is a monadic effect (i.e. there is an instance of
-`Monad[Eval]`) which controls evaluation. It wraps a value or
-computation and produces the result when `value` is called.
-
-There are three evaluation strategies:
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Eval[+A] {
-    def value: A
-    def memoize: Eval[A]
-  }
-  final case class Now[A](value: A) extends Eval[A] {
-    def memoize: Eval[A] = this
-  }
-  final case class Later[A](f: () => A) extends Eval[A] {
-    lazy val value: A = f()
-    def memoize: Eval[A] = this
-  }
-  final case class Always[A](f: () => A) extends Eval[A] {
-    def value: A = f()
-    def memoize: Eval[A] = Later(f)
-  }
-~~~~~~~~
-
-`Later` and `Always` are lazy strategies while `Now` is eager. `Later`
-will run the computation at most once whereas `Always` will run
-computations every time they are requested. Calling `.memoize` will
-return an `Eval` with "at most once" semantics.
-
-`Eval` supports stack-safe computation via `map` and `flatMap` methods
-(not shown here), which trampoline to avoid stack overflows.
-Computation within `map` and `flatMap` is always lazy, even when
-applied to a `Now` instance.
-
-There is no need for a standalone example of `Eval` as we will use it
-in many of the typeclasses of this chapter. It's primary use is to
-ensure that calculations are not needlessly re-performed and so that
-non `@tailrec` recursive methods do not result in
-`StackOverflowError`.
-
-`Eval` has instances of `Bimonad`, `Reducible`, `Order` and `Group`.
-
-A> `Eval` is quite naughty and breaks a few more Chapter 4 rules about
-A> what can live on a data type: it is necessary to use a `lazy val`
-A> inside `Later` to get the required semantics. It would not be possible
-A> to do this in a typeclass, because it requires managing state.
-A> 
-A> Not shown are two more children of `Eval`: `Call` and `Compute`, which
-A> are used to do the trampolining. `Eval` should therefore not be
-A> pattern-matched, despite being a sealed coproduct.
-A> 
-A> If you find yourself reading the actual implementation of `Later`, you
-A> might be surprised to see a `var`. Functional Programmers will get
-A> their hands dirty in JVM details to squeeze extra performance out of
-A> core components of their toolbox, so long as the really dirty hacks do
-A> not leak into the API.
-
-#### TODO The Lambda Calculus
-
-### TODO Ior
-
-### TODO Esoteric / Advanced
-
-Maybe leave until after typeclasses
-
--   Cokleisli
--   Const
--   Coproduct
--   Func
--   Kleisli
--   Nested
--   OneAnd
--   Prod
-
-### TODO Monad Transformers
-
--   EitherT
--   IdT
--   OptionT
--   StateT
--   WriterT
-
 ## Typeclasses
 
-There is an overwhelming number of typeclasses, so we will [visualise
-the clusters](https://github.com/tpolecat/cats-infographic) and discuss, with simplified definitions. We'll gloss
-over the more esoteric typeclasses.
+There is an overwhelming number of typeclasses, so we will visualise
+the clusters and discuss, with simplified definitions. Note that
+scalaz does not use simulacrum, but instead uses code generation.
+We'll present the typeclasses as if simulacrum was used.
 
 ### Combinable Things
 
 {width=60%}
-![](images/cats-monoid.png)
+![](images/scalaz-combinable.png)
 
 Defined roughly as:
 
@@ -606,13 +495,166 @@ Category, etc
 
 ### TODO Other
 
-## Monad Transformers
+# Data Types
+
+Adjunction
+Alpha
+Alter
+Ap
+Band
+Bias
+BijectionT
+CaseInsensitive
+Codensity
+Cofree
+Cokleisli
+ComonadTrans
+Composition
+Const
+ContravariantCoyoneda
+Coproduct
+Cord
+CorecursiveList
+Coyoneda
+Dequeue
+Diev
+Digit
+Distributive
+DList
+Dual
+Either3
+Either
+EitherT
+Endomorphic
+Endo
+EphemeralStream
+FingerTree
+Forall
+FreeAp
+Free
+FreeT
+Generator
+Heap
+Id
+IdT
+IList
+ImmutableArray
+IndexedContsT
+Injective
+Inject
+ISet
+Isomorphism
+Kan
+Kleisli
+LazyEither
+LazyEitherT
+LazyOption
+LazyOptionT
+LazyTuple
+Leibniz
+Lens
+Liskov
+ListT
+Map
+Maybe
+MaybeT
+Memo
+MonadListen
+MonadTrans
+MonoidCoproduct
+Name
+NaturalTransformation
+NonEmptyList
+NotNothing
+NullArgument
+NullResult
+OneAnd
+OneOr
+OptionT
+Ordering
+PLens
+Product
+ReaderWriterStateT
+Reducer
+Representable
+State
+StateT
+StoreT
+StreamT
+StrictTree
+Tag
+Tags
+These
+TheseT
+TracedT
+TreeLoc
+Tree
+Unapply
+UnwriterT
+Validation
+WriterT
+Yoneda
+Zap
+Zipper
+
+### TODO NonEmptyList
+
+### TODO NonEmptyVector
+
+### TODO Validated
+
+A> This ADT has methods on it, but in Chapter 4 we said that ADTs
+A> shouldn't have methods on them and that the functionality should live
+A> on typeclasses! You caught us red handed. There are several reasons
+A> for doing it this way.
+A> 
+A> Sorry, but there are more methods than the `value` and `memoize` on
+A> `Eval` shown here: it also has `map` and `flatMap`. The reason they
+A> live on the ADT and not in an instance of `Monad` is because it is
+A> slightly more efficient for the compiler to find these methods instead
+A> of looking for `Monad.ops._`, and it is slightly more efficient at
+A> runtime. This is an optimisation step that is absolutely vital in a
+A> core library such as cats, but please do not perform these
+A> optimisations in user code unless you have profiled and found a
+A> performance bottleneck. There is a significant cost to code
+A> readability.
+
+### TODO Ior
+
+### TODO Esoteric / Advanced
+
+Maybe leave until after typeclasses
+
+-   Cokleisli
+-   Const
+-   Coproduct
+-   Func
+-   Kleisli
+-   Nested
+-   OneAnd
+-   Prod
+
+### TODO Monad Transformers
+
+-   EitherT
+-   IdT
+-   OptionT
+-   StateT
+-   WriterT
+
+# TODO Monad Transformers
 
 maybe a separate chapter?
 
 functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
 
-## Laws
+# TODO Laws
+
+# TODO Utilities
+
+e.g. conversion utilities between things
+
+# TODO Extensions
 
 # Free Monad
 
@@ -656,14 +698,16 @@ per method, allowing trampolining. When we write a `Handler`,
 Freestyle is converting pattern matches over heap objects into method
 calls.
 
-### Free as in Monad
+## Free as in Monad
 
 `Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
 the name. However, from a practical point of view, there needs to be a
 `Monad[S]` in order to interpret it --- so it's more like an interest
 only mortgage where you still have to buy the house at the end.
 
-# TODO Effects
+# TODO Advanced Monads
+
+i.e. Effects
 
 And also the issue of parallelisation of applicatives vs the sequential nature of Monad
 
