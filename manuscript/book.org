@@ -3293,6 +3293,16 @@ digraph G {
       ApplicativePlus -> PlusEmpty
       MonadPlus -> Monad
       MonadPlus -> ApplicativePlus
+
+      Nondeterminism -> Monad
+      MonadState -> Monad
+      MonadError -> Monad
+      MonadTell -> Monad
+      MonadReader -> Monad
+
+      ComonadStore -> Comonad
+
+      BindRec -> Bind
     }
 }
 #+END_SRC
