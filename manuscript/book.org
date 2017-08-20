@@ -3060,6 +3060,7 @@ digraph G {
 }
 #+END_SRC
 
+#+CAPTION: 30
 #+RESULTS:
 [[file:images/scalaz-semigroup.png]]
 

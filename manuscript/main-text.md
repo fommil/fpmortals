@@ -69,7 +69,7 @@ If you wish to check the source code for the ops, look in the
 
 ### Appendable Things
 
-{width=60%}
+{width=30%}
 ![](images/scalaz-semigroup.png)
 
 Defined roughly as:
