@@ -3249,7 +3249,7 @@ users can make use of the guarantee for performance optimisation.
 **** Mappable Things
 
 We're focussing on things that can be "mapped over" in some sense,
-shaded in this diagram:
+highlighted in this diagram:
 
 #+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
 digraph G {
@@ -3308,7 +3308,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 100
+#+CAPTION: 110
 #+RESULTS:
 [[file:images/scalaz-mappable.png]]
 
