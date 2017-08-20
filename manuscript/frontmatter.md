@@ -63,11 +63,14 @@ own version, you must also pass these freedoms to its recipients.
 This book uses the [Creative Commons Attribution ShareAlike 4.0
 International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC BY-SA 4.0) license.
 
-All code samples in this book are separately [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) licensed,
-which is Libre but not Copyleft. Note that the example application
-`drone-dynamic-agents` is distributed under the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html):
-only the snippets in this book are available under the permissive
-license.
+All original code snippets in this book are separately [CC0](https://wiki.creativecommons.org/wiki/CC0) licensed,
+you may use them without restriction. Excerpts from `scalaz` and
+related libraries maintain their license, reproduced in full in the
+appendix.
+
+The example application `drone-dynamic-agents` is distributed under
+the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html): only the snippets in this book are available
+without restriction.
 
 # Thanks
 

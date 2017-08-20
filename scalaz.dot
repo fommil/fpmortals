@@ -1,6 +1,7 @@
 // dot scalaz.dot -Tpng > scalaz.png ; open scalaz.png
 // https://github.com/scalaz/scalaz/blob/v7.2.15/project/GenTypeClass.scala
 digraph G {
+    rankdir = BT;
     subgraph "scalaz-core.jar" {
         label="scalaz-core";
         

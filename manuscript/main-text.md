@@ -42,8 +42,8 @@ least specific abstraction, our code can work for `List`, `Either`,
 If we only need to transform the output from an effect or contents of
 a data structure, that's just `map`, introduced by `Functor`. In
 Chapter 3, we ran effects in parallel by creating a product and
-mapping over them. In Functional Programming, parallel computations
-are considered **less** powerful than sequential ones.
+mapping over them. In Functional Programming, parallelisable
+computations are considered **less** powerful than sequential ones.
 
 In between `Monad` and `Functor` is `Applicative`, defining `pure`
 that lets us elevate a value into an effect, or create a data
@@ -52,40 +52,48 @@ structure from a single value.
 ## Typeclasses
 
 There is an overwhelming number of typeclasses, so we will visualise
-the clusters and discuss, with simplified definitions. Note that
-scalaz does not use simulacrum, but instead uses code generation.
-We'll present the typeclasses as if simulacrum was used.
+the clusters and discuss, with simplified definitions.
 
-### Combinable Things
+Scalaz does not use simulacrum, instead using code generation to
+accomplish the same thing. We'll present the typeclasses as if
+simulacrum was used, but note that there is no `.ops.` to import from.
+All ops are provided along with the classes and traits when writing
+
+{lang="text"}
+~~~~~~~~
+  import scalaz._, Scalaz._
+~~~~~~~~
+
+If you wish to check the source code for the ops, look in the
+`scalaz.syntax` package.
+
+### Appendable Things
 
 {width=60%}
-![](images/scalaz-combinable.png)
+![](images/scalaz-semigroup.png)
 
 Defined roughly as:
 
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Semigroup {
-    @op("|+|") def combine(x: A, y: A): A
+    @op("|+|", "mappend", "⊹") def append(x: A, y: => A): A
+  
+    @noop def multiply1(value: F, n: Int): F = ...
   }
   
   @typeclass trait Monoid extends Semigroup[A] {
-    def empty: A
+    def zero: A
   
-    def combineAll(as: Seq[A]): A = as.foldLeft(empty)(combine)
-  }
-  
-  @typeclass trait Group extends Monoid[A] {
-    def inverse(a: A): A
-  
-    @op("|-|") def remove(a: A, b: A): A = combine(a, inverse(b))
+    def multiply(value: F, n: Int): F =
+      if (n <= 0) zero else multiply1(value, n - 1)
   }
 ~~~~~~~~
 
 A `Semigroup` should exist for a set of elements that have an
 *associative* operation `|+|`.
 
-A> It is common to use `|+|` instead of `combine`, known as the TIE
+A> It is common to use `|+|` instead of `mappend`, known as the TIE
 A> Fighter operator. There is an Advanced TIE Fighter in the next
 A> section, which is very exciting.
 
@@ -99,35 +107,37 @@ i.e.
   (1 |+| 2) |+| 3 == 1 |+| (2 |+| 3)
 ~~~~~~~~
 
-A `Monoid` is a `Semigroup` with an *empty* element (also called
-*zero* or *identity*). Combining `empty` with any other `a` should
+A `Monoid` is a `Semigroup` with an *zero* element (also called
+*empty* or *identity*). Combining `zero` with any other `a` should
 give `a`.
 
 {lang="text"}
 ~~~~~~~~
-  a |+| empty == a
+  a |+| zero == a
   
   a |+| 0 == a
 ~~~~~~~~
 
-A `Group` is a `Monoid` where every element has an *inverse* such that
-adding any element and its inverse should give the empty. For numbers,
-`remove` is synonymous with `minus`:
+This is probably bringing back memories of `Numeric` from Chapter 4,
+which tried to do too much and was unusable beyond the most basic of
+number types. There are implementations of `Monoid` for all the
+primitive numbers, but the concept of *appendable* things is useful
+beyond numbers.
 
 {lang="text"}
 ~~~~~~~~
-  a |+| (a.inverse) == empty
-  a |-| a == empty
+  scala> "hello" |+| " " |+| "world!"
+  res: String = "hello world!"
   
-  1 |-| 1 == 0
-  3 |-| 2 == 1
+  scala> List(1, 2) |+| List(3, 4)
+  res: List[Int] = List(1, 2, 3, 4)
+  
+  scala> IList(1, 2) |+| IList(3, 4)
+  res: scalaz.IList[Int] = [1,2,3,4]
+  
+  scala> NonEmptyList(1, 2) |+| NonEmptyList(3, 4)
+  res: scalaz.NonEmptyList[Int] = NonEmpty[1,2,3,4]
 ~~~~~~~~
-
-This is probably bringing back memories of `Numeric` from Chapter 4,
-which tried to do too much and was unusable beyond the most basic of
-number types. There are implementations of `Group` for all the
-primitive numbers, but the concept to *combinable* things is useful
-beyond numbers.
 
 As a realistic example, consider a trading system that has a large
 database of reusable trade templates. Creating the default values for
@@ -146,31 +156,42 @@ within nested `case class`.
   case object USD extends Currency
   
   final case class TradeTemplate(
-    payments: Seq[java.time.LocalDate],
+    payments: List[java.time.LocalDate],
     ccy: Option[Currency],
     otc: Option[Boolean]
   )
 ~~~~~~~~
 
-If we write a method that takes `templates: Seq[TradeTemplate]`, we
-only need to call `combineAll` and our job is done!
-
-But to call `combineAll` we must have an instance of
-`Monoid[TradeTemplate]`. Cats provides generic instances, so we do not
-need to write one manually.
+If we write a method that takes `templates:
+NonEmptyList[TradeTemplate]`, we only need to call
 
 {lang="text"}
 ~~~~~~~~
-  import cats._
-  import cats.implicits._
-  import cats.derived._, monoid._, legacy._
-  import java.time.LocalDate
+  templates.foldLeft(Monoid[TradeTemplate].zero)(_ |+| _)
 ~~~~~~~~
 
-However, generic derivation will fail because `Monoid[Option[T]]`
-defers to `Monoid[T]` and we have neither a `Monoid[Currency]` (cats
-cannot derive a `Monoid` for a coproduct) nor a `Monoid[Boolean]`
-(inclusive or exclusive logic must be explicitly chosen).
+and our job is done!
+
+But to get `zero` or call `|+|` we must have an instance of
+`Monoid[TradeTemplate]`. Although we can generically derive this
+later, for now we'll create an explicit instance on the companion:
+
+{lang="text"}
+~~~~~~~~
+  implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+   (a, b) => TradeTemplate(
+               a.payments |+| b.payments,
+               a.ccy |+| b.ccy,
+               a.otc |+| b.otc
+             ),
+   TradeTemplate(Nil, None, None) 
+  )
+~~~~~~~~
+
+However, this fails to compile because `Monoid[Option[T]]` defers to
+`Monoid[T]` and we have neither a `Monoid[Currency]` (we did not
+provide one) nor a `Monoid[Boolean]` (inclusive or exclusive logic
+must be explicitly chosen).
 
 To explain what we mean by "defers to", consider
 `Monoid[Option[Int]]`:
@@ -183,7 +204,7 @@ To explain what we mean by "defers to", consider
   res: Option[Int] = Some(3)
 ~~~~~~~~
 
-We can see the content's `combine` has been called, which for `Int` is
+We can see the content's `append` has been called, which for `Int` is
 integer addition.
 
 But our business rules state that we use "last rule wins" on
@@ -193,30 +214,31 @@ instead of the default one:
 
 {lang="text"}
 ~~~~~~~~
-  implicit def lastWins[A]: Monoid[Option[A]] = new Monoid[Option[A]] {
-    def combine(x: Option[A], y: Option[A]): Option[A] = (x, y) match {
-      case (Some(_)     , winner@Some(_)) => winner
-      case (only@Some(_),              _) => only
-      case (           _,   only@Some(_)) => only
-      case _                              => None
-    }
-    def empty: Option[A] = None
-  }
+  implicit def lastWins[A]: Monoid[Option[A]] = Monoid.instance(
+    { 
+      case (None, None)   => None
+      case (only, None)   => only
+      case (None, only)   => only
+      case (_   , winner) => winner
+    },
+    None
+  )
 ~~~~~~~~
 
 Let's try it out...
 
 {lang="text"}
 ~~~~~~~~
+  scala> import java.time.{LocalDate => LD}
   scala> val templates = List(
-           TradeTemplate(Nil,                            None,      None),
-           TradeTemplate(Nil,                            Some(EUR), None),
-           TradeTemplate(List(LocalDate.of(2017, 8, 5)), Some(USD), None),
-           TradeTemplate(List(LocalDate.of(2017, 9, 5)), None,      Some(true)),
-           TradeTemplate(Nil,                            None,      Some(false))
+           TradeTemplate(Nil,                     None,      None),
+           TradeTemplate(Nil,                     Some(EUR), None),
+           TradeTemplate(List(LD.of(2017, 8, 5)), Some(USD), None),
+           TradeTemplate(List(LD.of(2017, 9, 5)), None,      Some(true)),
+           TradeTemplate(Nil,                     None,      Some(false))
          )
   
-  scala> Monoid[TradeTemplate].combineAll(templates)
+  scala> templates.foldLeft(Monoid[TradeTemplate].zero)(_ |+| _)
   res: TradeTemplate = TradeTemplate(
                          List(2017-08-05,2017-09-05),
                          Some(USD),
@@ -224,41 +246,21 @@ Let's try it out...
 ~~~~~~~~
 
 All we needed to do was implement one piece of business logic and
-`Monoid` took care of everything else for us! Can you imagine doing
-this without using a generically derived typeclass? It could easily be
-thousands of lines of code to do it manually for realistic sized
-cases.
+`Monoid` took care of everything else for us!
 
 Note that the list of `payments` are concatenated. This is because the
 default `Monoid[Seq]` uses concatenation of elements and happens to be
 the desired behaviour. If the business requirement was different, it
 would be a simple case of providing a custom `Monoid[Seq[LocalDate]]`.
 Recall from Chapter 4 that with compiletime polymorphism we can have a
-different implementation of `combine` depending on the `E` in
-`Seq[E]`, not just the base runtime class `Seq`.
+different implementation of `append` depending on the `E` in `Seq[E]`,
+not just the base runtime class `Seq`.
 
-#### Esoterics
-
-The `Commutative*` variants have an additional requirement / law
-imposed upon them that the order of parameters to `combine` does not
-matter, i.e.
-
-{lang="text"}
-~~~~~~~~
-  a |+| b == b |+| a
-~~~~~~~~
-
-Our trading example is most definitely **non** commutative, since the
-order of application is important, however this is a useful property
-to require if you are building a distributed system where there are
-efficiencies to be gained by reordering your calculations.
-
-`Band`, `Semilattice` and `BoundedSemilattice` have the additional law
-that the `combine` operation of the same two elements is *idempotent*,
-i.e. gives the same value. An example is anything that can only be one
-value, such as `Unit`, or if the `combine` is a least upper bound.
-These exist so that niche downstream mathematics libraries `spire` and
-`algebird` can share common definitions.
+`Band` has the law that the `append` operation of the same two
+elements is *idempotent*, i.e. gives the same value. An example is
+anything that can only be one value, such as `Unit`, if the `append`
+is a least upper bound, or a `Set`. It provides no further methods yet
+users can make use of the guarantee for performance optimisation.
 
 ### Mappable Things
 
