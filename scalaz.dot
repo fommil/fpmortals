@@ -52,15 +52,15 @@ digraph G {
         Bitraverse -> Bifunctor
         Bitraverse -> Bifoldable
         Compose 
-        Catchable ->
+        Catchable
         Nondeterminism -> Monad
         Category -> Compose
         Choice -> Category
         Split -> Compose
-        Profunctor ->
+        Profunctor
         Strong -> Profunctor
         ProChoice -> Profunctor
-        Arrow ->Split
+        Arrow -> Split
         Arrow -> Strong
         Arrow -> Category
 
