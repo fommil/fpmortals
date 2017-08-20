@@ -3051,7 +3051,7 @@ If you wish to check the source code for the ops, look in the
 
 #+BEGIN_SRC dot :file images/scalaz-semigroup.png :exports results
 digraph G {
-    rankdir = BT;
+    graph [dpi=200, rankdir=BT];
     node [fontname=Hack];
 
     Semigroup
@@ -3252,7 +3252,7 @@ shaded in this diagram:
 
 #+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
 digraph G {
-    rankdir = BT;
+    graph [dpi=200, rankdir=BT];
     node [fontname=Hack];
 
     subgraph mappable {

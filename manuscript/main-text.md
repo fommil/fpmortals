@@ -264,11 +264,11 @@ users can make use of the guarantee for performance optimisation.
 
 ### Mappable Things
 
-{width=60%}
-![](/images/cats-mappable.png)
+We're focussing on things that can be "mapped over" in some sense,
+shaded in this diagram:
 
-This is only a partial view of the full typeclass hierarchy. We're
-focussing on things that can be "mapped over" in some sense.
+{width=60%}
+![](images/scalaz-mappable.png)
 
 #### Functor
 
@@ -364,16 +364,7 @@ Fold is for data structures that can be walked to produce a summary
 value. It is a one-trait army that can provide much of what you'd
 expect to see in a Collections API.
 
-#### TODO Traversable
-
-#### TODO Reducible
-
-#### TODO Esoteric
-
--   FunctorFilter
--   TraverseFilter
--   CoflatMap
--   Comonad
+#### TODO Traverse
 
 ### Variance
 
