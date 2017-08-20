@@ -76,18 +76,20 @@ Defined roughly as:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait Semigroup {
+  @typeclass trait Semigroup[A] {
     @op("|+|", "mappend", "⊹") def append(x: A, y: => A): A
   
     @noop def multiply1(value: F, n: Int): F = ...
   }
   
-  @typeclass trait Monoid extends Semigroup[A] {
+  @typeclass trait Monoid[A] extends Semigroup[A] {
     def zero: A
   
     def multiply(value: F, n: Int): F =
       if (n <= 0) zero else multiply1(value, n - 1)
   }
+  
+  @typeclass trait Band[A] extends Semigroup[A]
 ~~~~~~~~
 
 A `Semigroup` should exist for a set of elements that have an
@@ -107,9 +109,8 @@ i.e.
   (1 |+| 2) |+| 3 == 1 |+| (2 |+| 3)
 ~~~~~~~~
 
-A `Monoid` is a `Semigroup` with an *zero* element (also called
-*empty* or *identity*). Combining `zero` with any other `a` should
-give `a`.
+A `Monoid` is a `Semigroup` with a *zero* element (also called *empty*
+or *identity*). Combining `zero` with any other `a` should give `a`.
 
 {lang="text"}
 ~~~~~~~~
@@ -131,19 +132,19 @@ beyond numbers.
   
   scala> List(1, 2) |+| List(3, 4)
   res: List[Int] = List(1, 2, 3, 4)
-  
-  scala> IList(1, 2) |+| IList(3, 4)
-  res: scalaz.IList[Int] = [1,2,3,4]
-  
-  scala> NonEmptyList(1, 2) |+| NonEmptyList(3, 4)
-  res: scalaz.NonEmptyList[Int] = NonEmpty[1,2,3,4]
 ~~~~~~~~
 
-As a realistic example, consider a trading system that has a large
-database of reusable trade templates. Creating the default values for
-a new trade involves picking a sequence of off-the-shelf templates and
-combining them with a "last rule wins" merge policy in case of
-conflict.
+`Band` has the law that the `append` operation of the same two
+elements is *idempotent*, i.e. gives the same value. An example is
+anything that can only be one value, such as `Unit`, if the `append`
+is a least upper bound, or a `Set`. It provides no further methods yet
+users can make use of the guarantee for performance optimisation.
+
+As a realistic example for `Monoid`, consider a trading system that
+has a large database of reusable trade templates. Creating the default
+values for a new trade involves picking a sequence of off-the-shelf
+templates and combining them with a "last rule wins" merge policy in
+case of conflict.
 
 We'll create a simple template to demonstrate the principle, but keep
 in mind that a realistic system would have hundreds of parameters
@@ -255,12 +256,6 @@ would be a simple case of providing a custom `Monoid[Seq[LocalDate]]`.
 Recall from Chapter 4 that with compiletime polymorphism we can have a
 different implementation of `append` depending on the `E` in `Seq[E]`,
 not just the base runtime class `Seq`.
-
-`Band` has the law that the `append` operation of the same two
-elements is *idempotent*, i.e. gives the same value. An example is
-anything that can only be one value, such as `Unit`, if the `append`
-is a least upper bound, or a `Set`. It provides no further methods yet
-users can make use of the guarantee for performance optimisation.
 
 ### Mappable Things
 
