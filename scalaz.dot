@@ -8,6 +8,7 @@ digraph G {
         Semigroup
         Monoid -> Semigroup
         Band -> Semigroup
+
         Equal
         Show
         Order -> Equal

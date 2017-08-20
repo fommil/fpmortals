@@ -3052,6 +3052,8 @@ If you wish to check the source code for the ops, look in the
 #+BEGIN_SRC dot :file images/scalaz-semigroup.png :exports results
 digraph G {
     rankdir = BT;
+    node [fontname=Hack];
+
     Semigroup
     Monoid -> Semigroup
     Band -> Semigroup
@@ -3245,10 +3247,58 @@ users can make use of the guarantee for performance optimisation.
 
 **** Mappable Things
 
-[[file:/images/cats-mappable.png]]
+We're focussing on things that can be "mapped over" in some sense,
+shaded in this diagram:
 
-This is only a partial view of the full typeclass hierarchy. We're
-focussing on things that can be "mapped over" in some sense.
+#+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
+digraph G {
+    rankdir = BT;
+    node [fontname=Hack];
+
+    subgraph mappable {
+      Functor
+      Foldable
+      Foldable1
+      Traverse
+      Traverse1
+      Foldable1 -> Foldable
+      Traverse -> Functor
+      Traverse -> Foldable
+      Traverse1 -> Traverse
+      Traverse1 -> Foldable1
+    }
+
+    subgraph {
+      node [fontcolor=lightgrey,color=lightgrey];
+      edge [color=lightgrey];
+
+      Functor -> InvariantFunctor
+      Apply -> Functor
+      Applicative -> Apply
+      Align -> Functor
+      Bind -> Apply
+      Monad -> Applicative
+      Monad -> Bind
+
+      Contravariant -> InvariantFunctor
+      Divide -> Contravariant
+      Divisible -> Divide
+      Cobind -> Functor
+      Comonad -> Cobind
+
+      PlusEmpty -> Plus
+      IsEmpty -> PlusEmpty
+
+      ApplicativePlus -> Applicative
+      ApplicativePlus -> PlusEmpty
+      MonadPlus -> Monad
+      MonadPlus -> ApplicativePlus
+    }
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/scalaz-mappable.png]]
 
 ***** Functor
 
@@ -3339,14 +3389,7 @@ Fold is for data structures that can be walked to produce a summary
 value. It is a one-trait army that can provide much of what you'd
 expect to see in a Collections API.
 
-***** TODO Traversable
-***** TODO Reducible
-***** TODO Esoteric
-
-- FunctorFilter
-- TraverseFilter
-- CoflatMap
-- Comonad
+***** TODO Traverse
 
 **** Variance
 
