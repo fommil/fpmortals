@@ -267,7 +267,7 @@ users can make use of the guarantee for performance optimisation.
 We're focussing on things that can be "mapped over" in some sense,
 shaded in this diagram:
 
-{width=60%}
+{width=100%}
 ![](images/scalaz-mappable.png)
 
 #### Functor

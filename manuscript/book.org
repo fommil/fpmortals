@@ -3308,6 +3308,7 @@ digraph G {
 }
 #+END_SRC
 
+#+CAPTION: 100
 #+RESULTS:
 [[file:images/scalaz-mappable.png]]
 
