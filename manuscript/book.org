@@ -3068,7 +3068,7 @@ Defined roughly as:
 
 #+BEGIN_SRC scala
 @typeclass trait Semigroup[A] {
-  @op("|+|", "mappend", "⊹") def append(x: A, y: => A): A
+  @op("|+|") def append(x: A, y: => A): A
 
   @noop def multiply1(value: F, n: Int): F = ...
 }
@@ -3125,10 +3125,10 @@ res: List[Int] = List(1, 2, 3, 4)
 #+END_SRC
 
 =Band= has the law that the =append= operation of the same two
-elements is /idempotent/, i.e. gives the same value. An example is
-anything that can only be one value, such as =Unit=, if the =append=
-is a least upper bound, or a =Set=. It provides no further methods yet
-users can make use of the guarantee for performance optimisation.
+elements is /idempotent/, i.e. gives the same value. Examples are
+anything that can only be one value, such as =Unit=, least upper
+bounds, or a =Set=. =Band= provides no further methods yet users can
+make use of the guarantees for performance optimisation.
 
 As a realistic example for =Monoid=, consider a trading system that
 has a large database of reusable trade templates. Creating the default
@@ -3152,11 +3152,12 @@ final case class TradeTemplate(
 )
 #+END_SRC
 
-If we write a method that takes =templates:
-NonEmptyList[TradeTemplate]=, we only need to call
+If we write a method that takes =templates: List[TradeTemplate]=, we
+only need to call
 
 #+BEGIN_SRC scala
-templates.foldLeft(Monoid[TradeTemplate].zero)(_ |+| _)
+val zero = Monoid[TradeTemplate].zero
+templates.foldLeft(zero)(_ |+| _)
 #+END_SRC
 
 and our job is done!
@@ -3234,12 +3235,13 @@ All we needed to do was implement one piece of business logic and
 =Monoid= took care of everything else for us!
 
 Note that the list of =payments= are concatenated. This is because the
-default =Monoid[Seq]= uses concatenation of elements and happens to be
-the desired behaviour. If the business requirement was different, it
-would be a simple case of providing a custom =Monoid[Seq[LocalDate]]=.
-Recall from Chapter 4 that with compiletime polymorphism we can have a
-different implementation of =append= depending on the =E= in =Seq[E]=,
-not just the base runtime class =Seq=.
+default =Monoid[List]= uses concatenation of elements and happens to
+be the desired behaviour. If the business requirement was different,
+it would be a simple case of providing a custom
+=Monoid[List[LocalDate]]=. Recall from Chapter 4 that with compiletime
+polymorphism we can have a different implementation of =append=
+depending on the =E= in =List[E]=, not just the base runtime class
+=List=.
 
 **** Mappable Things
 
