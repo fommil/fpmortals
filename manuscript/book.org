@@ -60,9 +60,9 @@ are welcoming, inclusive and safe.
 
 Although this book uses scalaz, a variant using cats will be created
 (subject to demand). In the meantime, you can obtain a gratis copy of
-[[http://underscore.io/books/advanced-scala/][Advanced Scala with Cats]] by Underscore Consultants. At this point,
-cats is mostly a clone of scalaz, so this book is relevant for either
-library.
+[[http://underscore.io/books/advanced-scala/][Advanced Scala with Cats]] by Underscore Consultants. At this point, the
+cats API is mostly a clone of scalaz, so this book is relevant for
+either library.
 #+END_ASIDE
 
 ** Copyleft Notice

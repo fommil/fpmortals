@@ -43,9 +43,9 @@ A> are welcoming, inclusive and safe.
 A> 
 A> Although this book uses scalaz, a variant using cats will be created
 A> (subject to demand). In the meantime, you can obtain a gratis copy of
-A> [Advanced Scala with Cats](http://underscore.io/books/advanced-scala/) by Underscore Consultants. At this point,
-A> cats is mostly a clone of scalaz, so this book is relevant for either
-A> library.
+A> [Advanced Scala with Cats](http://underscore.io/books/advanced-scala/) by Underscore Consultants. At this point, the
+A> cats API is mostly a clone of scalaz, so this book is relevant for
+A> either library.
 
 # Copyleft Notice
 
