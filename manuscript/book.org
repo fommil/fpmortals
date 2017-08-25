@@ -2997,6 +2997,10 @@ names based on the primary functionality of the typeclass (e.g.
 =Mappable=, =Pureable=, =FlatMappable=) until you are comfortable with
 the standard names.
 
+*** FIXME do we really want to introduce these things here?
+*** TODO https://twitter.com/ValentinKasas/status/879414703340081156
+*** TODO https://github.com/vil1/single_page_fp_book
+
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important methods from a control flow perspective,
 which live on: =Functor=, =Applicative= and =Monad= (each extending

@@ -1,5 +1,4 @@
 
-
 # Scalaz Core Typeclasses
 
 In this chapter we will tour the typeclasses in `scalaz-core`. We
@@ -15,6 +14,15 @@ We will use the scalaz names in this book, but feel free to set up
 names based on the primary functionality of the typeclass (e.g.
 `Mappable`, `Pureable`, `FlatMappable`) until you are comfortable with
 the standard names.
+
+
+## FIXME do we really want to introduce these things here?
+
+
+## <https://twitter.com/ValentinKasas/status/879414703340081156>
+
+
+## <https://github.com/vil1/single_page_fp_book>
 
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important methods from a control flow perspective,
@@ -49,6 +57,7 @@ In between `Monad` and `Functor` is `Applicative`, defining `pure`
 that lets us elevate a value into an effect, or create a data
 structure from a single value.
 
+
 ## Typeclasses
 
 There is an overwhelming number of typeclasses, so we will visualise
@@ -66,6 +75,7 @@ All ops are provided along with the classes and traits when writing
 
 If you wish to check the source code for the ops, look in the
 `scalaz.syntax` package.
+
 
 ### Appendable Things
 
@@ -259,6 +269,7 @@ polymorphism we can have a different implementation of `append`
 depending on the `E` in `List[E]`, not just the base runtime class
 `List`.
 
+
 ### Mappable Things
 
 We're focussing on things that can be "mapped over" in some sense,
@@ -266,6 +277,7 @@ highlighted in this diagram:
 
 {width=110%}
 ![](images/scalaz-mappable.png)
+
 
 #### Functor
 
@@ -355,13 +367,16 @@ without changing the two structures:
 This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
-#### TODO Foldable
+
+#### Foldable
 
 Fold is for data structures that can be walked to produce a summary
 value. It is a one-trait army that can provide much of what you'd
 expect to see in a Collections API.
 
-#### TODO Traverse
+
+#### Traverse
+
 
 ### Variance
 
@@ -455,6 +470,7 @@ the sub typing relationship does make sense, functors answer the question: "what
 1.  invariant: you need both an A => B, and a B => A
 
 2 ) covariant: you only need an A => B
+
 1.  contravariant: you only need a B => A
 
 The requirements for 2) are a subset of the requirements for 1), so 2) is a subtype of 1)
@@ -469,21 +485,28 @@ The requirements for 3) are a subset of the requirements for 1) so 3) is a subty
 
 -   Invariant
 
-### TODO Bifunctor
 
-### TODO Applicative Things
+### Bifunctor
 
-### TODO Monads
+
+### Applicative Things
+
+
+### Monads
 
 Or should this live in the Effects chapter?
 
-### TODO Comparable Things
 
-### TODO Very Abstract Things
+### Comparable Things
+
+
+### Very Abstract Things
 
 Category, etc
 
-### TODO Other
+
+### Other
+
 
 # Data Types
 
@@ -587,11 +610,14 @@ Yoneda
 Zap
 Zipper
 
-### TODO NonEmptyList
 
-### TODO NonEmptyVector
+### NonEmptyList
 
-### TODO Validated
+
+### NonEmptyVector
+
+
+### Validated
 
 A> This ADT has methods on it, but in Chapter 4 we said that ADTs
 A> shouldn't have methods on them and that the functionality should live
@@ -609,9 +635,11 @@ A> optimisations in user code unless you have profiled and found a
 A> performance bottleneck. There is a significant cost to code
 A> readability.
 
-### TODO Ior
 
-### TODO Esoteric / Advanced
+### Ior
+
+
+### Esoteric / Advanced
 
 Maybe leave until after typeclasses
 
@@ -624,7 +652,8 @@ Maybe leave until after typeclasses
 -   OneAnd
 -   Prod
 
-### TODO Monad Transformers
+
+### Monad Transformers
 
 -   EitherT
 -   IdT
@@ -632,19 +661,24 @@ Maybe leave until after typeclasses
 -   StateT
 -   WriterT
 
-# TODO Monad Transformers
+
+# Monad Transformers
 
 maybe a separate chapter?
 
 functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
 
-# TODO Laws
 
-# TODO Utilities
+# Laws
+
+
+# Utilities
 
 e.g. conversion utilities between things
 
-# TODO Extensions
+
+# Extensions
+
 
 # Free Monad
 
@@ -688,6 +722,7 @@ per method, allowing trampolining. When we write a `Handler`,
 Freestyle is converting pattern matches over heap objects into method
 calls.
 
+
 ## Free as in Monad
 
 `Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
@@ -695,7 +730,8 @@ the name. However, from a practical point of view, there needs to be a
 `Monad[S]` in order to interpret it --- so it's more like an interest
 only mortgage where you still have to buy the house at the end.
 
-# TODO Advanced Monads
+
+# Advanced Monads
 
 i.e. Effects
 
@@ -713,7 +749,8 @@ And also the issue of parallelisation of applicatives vs the sequential nature o
   }
 ~~~~~~~~
 
-# TODO FS2
+
+# FS2
 
 Task, Stream
 
@@ -728,7 +765,8 @@ for a perf test?
 Rewrite our business logic to be streaming, convert our GET api into a
 `Stream` by polling.
 
-# TODO Implementing the Application
+
+# Implementing the Application
 
 Pad out the application implementation with everything we've learnt.
 
@@ -737,26 +775,31 @@ May need union types, see <https://github.com/propensive/totalitarian>
 Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
-## TODO Spotting patterns, refactoring
+
+## Spotting patterns, refactoring
 
 Note that some of our algebras are actually common things and can be
 rewritten: reader / writer / state / error / indexed monad. It's ok
 that this is a step you can do later.
 
-### RESEARCH perf numbers
 
-# TODO Dependent Types
+### perf numbers
+
+
+# Dependent Types
 
 Jons talks are usually good for this <https://www.youtube.com/watch?v=a1whaMzrtsY>
 
-# TODO Type Refinement
+
+# Type Refinement
 
 instead of needing those `error` calls in the first place, just don't
 allow them to happen at your layer if you can get away with it.
 
 Protect yourself from mistyping
 
-# TODO Generic Programming
+
+# Generic Programming
 
 -   a mini Shapeless for Mortals
 -   typeclass derivation (UrlEncoding, QueryEncoding)
@@ -771,16 +814,20 @@ Protect yourself from mistyping
 -   gotchas with nested `object` and knownSubclasses
 -   semi-auto
 
-# TODO Recursion Schemes
 
-# TODO Optics
+# Recursion Schemes
+
+
+# Optics
 
 not sure what the relevance to this project would be yet.
 
-# TODO Category Theory
+
+# Category Theory
 
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
+
 
 ## Reality Check
 

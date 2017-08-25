@@ -1,4 +1,3 @@
-
 {frontmatter}
 
 > "Love is wise; hatred is foolish. In this world, which is getting more
@@ -10,6 +9,7 @@
 > continuation of human life on this planet."
 > 
 > ― Bertrand Russell
+
 
 # About This Book
 
@@ -47,6 +47,7 @@ A> [Advanced Scala with Cats](http://underscore.io/books/advanced-scala/) by Und
 A> cats API is mostly a clone of scalaz, so this book is relevant for
 A> either library.
 
+
 # Copyleft Notice
 
 This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you
@@ -72,6 +73,7 @@ The example application `drone-dynamic-agents` is distributed under
 the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html): only the snippets in this book are available
 without restriction.
 
+
 # Thanks
 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
@@ -93,6 +95,7 @@ the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynam
 Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
 Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
 Daniel Spiewak, Stephen Compall.
+
 
 # Practicalities
 
@@ -131,6 +134,7 @@ following imports:
   import scalaz._
   import Scalaz._
 ~~~~~~~~
+
 
 # Giving Feedback
 

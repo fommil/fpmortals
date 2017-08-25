@@ -1,5 +1,4 @@
 
-
 # For Comprehensions
 
 Scala's `for` comprehension is the ideal FP abstraction for sequential
@@ -9,6 +8,7 @@ us to write cleaner code.
 
 This chapter doesn't try to write pure programs and the techniques are
 applicable to non-FP codebases.
+
 
 ## Syntax Sugar
 
@@ -52,6 +52,7 @@ code so that it doesn't become a distraction.
 The rule of thumb is that every `<-` (called a *generator*) is a
 nested `flatMap` call, with the final generator a `map` containing the
 `yield` body.
+
 
 ### Assignment
 
@@ -143,6 +144,7 @@ A>   scala> val a :: tail = list
 A>   caught scala.MatchError: List()
 A> ~~~~~~~~
 
+
 ### Filter
 
 It is possible to put `if` statements after a generator to filter
@@ -186,6 +188,7 @@ hand side. But unlike assignment (which throws `MatchError` on
 failure), generators are *filtered* and will not fail at runtime.
 However, there is an inefficient double application of the pattern.
 
+
 ### For Each
 
 Finally, if there is no `yield`, the compiler will use `foreach`
@@ -197,6 +200,7 @@ instead of `flatMap`, which is only useful for side-effects.
   
   a.foreach { i => b.foreach { j => println(s"$i $j") } }
 ~~~~~~~~
+
 
 ### Summary
 
@@ -248,6 +252,7 @@ A>
 A> `for` comprehensions are fundamentally for defining sequential
 A> programs. We will show a far superior way of defining parallel
 A> computations in a later chapter.
+
 
 ## Unhappy path
 
@@ -334,12 +339,14 @@ responsibility for unexpected error recovery and resource cleanup onto
 the context (which is usually a `Monad` as we'll see later), not the
 business logic.
 
+
 ## Gymnastics
 
 Although it's easy to rewrite simple sequential code as a `for`
 comprehension, sometimes we'll want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
+
 
 ### Fallback Logic
 
@@ -405,6 +412,7 @@ We need to create a `Future` from the `cache`
 
 If functional programming was like this all the time, it'd be a
 nightmare. Thankfully these tricky situations are the corner cases.
+
 
 ### Early Exit
 
@@ -481,6 +489,7 @@ A>     c <- if (a <= 0) 0.pure[Future]
 A>          else for { b <- getB } yield a * b
 A>   } yield c
 A> ~~~~~~~~
+
 
 ## Incomprehensible
 
@@ -622,10 +631,12 @@ reorder `flatMap` calls according to
 <https://github.com/scalaz/scalaz/issues/921>. A better alternative is
 `StreamT`, which we will visit later.
 
+
 # Application Design
 
 In this chapter we will write the business logic and tests for a
 purely functional server application.
+
 
 ## Specification
 
@@ -673,6 +684,7 @@ The failure mode should always be to take the least costly option.
 
 Both Drone and GKE have a JSON over REST API with OAuth 2.0
 authentication.
+
 
 ## Interfaces / Algebras
 
@@ -722,6 +734,7 @@ A> empty `Seq`, otherwise the only course of action would be to
 A> exception, breaking totality and causing a side effect. We prefer
 A> `NonEmptyList`, not because it is a `List`, but because of its
 A> non-empty property.
+
 
 ## Business Logic
 
@@ -798,6 +811,7 @@ Our business logic will run in an infinite loop (pseudocode)
 We must write three functions: `initial`, `update` and `act`, all
 returning an `F[WorldView]`.
 
+
 ### initial
 
 In `initial` we call all external services and aggregate their results
@@ -821,6 +835,7 @@ be interpreted at runtime, that we can then `flatMap`. This is how we
 safely chain together sequential side-effecting code, whilst being
 able to provide a pure implementation for tests. FP could be described
 as Extreme Mocking.
+
 
 ### update
 
@@ -855,6 +870,7 @@ explicit inputs and outputs, so you could move all pure code into
 standalone methods on a stateless `object`, testable in isolation.
 We're happy testing only the public methods, preferring that our
 business logic is easy to read.
+
 
 ### act
 
@@ -947,6 +963,7 @@ fold returns `F[WorldView]`.
 The `M` is for Monadic and you will find more of these *lifted*
 methods that behave as one would expect, taking monadic values in
 place of values.
+
 
 ## Unit Tests
 
@@ -1085,11 +1102,13 @@ overstated. Consider that 90% of an application developer's time
 interacting with the customer is in refining, updating and fixing
 these business rules. Everything else is implementation detail.
 
+
 ## Parallel
 
 The application that we have designed runs each of its algebraic
 methods sequentially. But there are some obvious places where work can
 be performed in parallel.
+
 
 ### initial
 
@@ -1123,6 +1142,7 @@ Rewriting `update` to take advantage of this:
     }
 ~~~~~~~~
 
+
 ### act
 
 In the current logic for `act`, we are stopping each node
@@ -1152,6 +1172,7 @@ can deal with in a simple way:
 
 Arguably, this is easier to understand than the sequential version.
 
+
 ### Parallel Interpretation
 
 Marking something as suitable for parallel execution does not
@@ -1162,6 +1183,7 @@ execution is supported by `Future`, but not `Id`.
 Of course, we need to be careful when implementing handlers such that
 they can perform operations safely in parallel, perhaps requiring
 protecting internal state with concurrency locks or actors.
+
 
 ## Summary
 
@@ -1175,6 +1197,7 @@ protecting internal state with concurrency locks or actors.
     coverage for the business logic.
 5.  algebraic methods can be performed in parallel by taking their
     product or traversing sequences (caveat emptor, revisited later).
+
 
 # Data and Functionality
 
@@ -1193,6 +1216,7 @@ and the advantages of constraining ourselves to a subset of the Scala
 language. We will also discover *typeclasses* as a way to achieve
 compiletime polymorphism: thinking about functionality of a data
 structure in terms of "has a" rather than "is a" relationships.
+
 
 ## Data
 
@@ -1236,6 +1260,7 @@ written in Scala
   final case class Z(b: B) extends XYZ
 ~~~~~~~~
 
+
 ### Generalised ADTs
 
 When we introduce a type parameter into an ADT, we call it a
@@ -1253,6 +1278,7 @@ When we introduce a type parameter into an ADT, we call it a
 
 If an ADT refers to itself, we call it a *recursive type*. `IList` is
 recursive because `ICons` contains a reference to `IList`.
+
 
 ### Functions on ADTs
 
@@ -1288,6 +1314,7 @@ which are equivalent to functions that take no parameter.
 We will explore alternatives to the legacy methods when we discuss the
 scalaz library in the next chapter, at the cost of losing
 interoperability with some legacy Java and Scala code.
+
 
 ### Exhaustivity
 
@@ -1334,6 +1361,7 @@ To remain safe, [don't use guards on `sealed` types](https://github.com/wartremo
 
 The [`-Xstrict-patmat-analysis`](https://github.com/scala/scala/pull/5617) flag has been proposed as a language
 improvement to perform additional pattern matcher checks.
+
 
 ### Alternative Products and Coproducts
 
@@ -1392,6 +1420,7 @@ A> but there are binary compatibility advantages to using `abstract
 A> class`. A `sealed trait` is only needed if you need to create a
 A> complicated ADT with multiple inheritance.
 
+
 ### Convey Information
 
 Besides being a container for necessary business information, data
@@ -1440,6 +1469,7 @@ and protect invalid instances from propagating:
 We will see a better way of reporting validation errors when we
 introduce `scalaz.Validation` in the next chapter.
 
+
 ### Simple to Share
 
 By not providing any functionality, ADTs can have a minimal set of
@@ -1451,6 +1481,7 @@ hand written document as the source of truth.
 
 Furthermore, tooling can be more easily written to produce or consume
 schemas from other programming languages and wire protocols.
+
 
 ### Counting Complexity
 
@@ -1513,6 +1544,7 @@ chapter later in the book. It allows the compiler to keep track of
 more information than is in the bytecode, e.g. if a number is within a
 specific bound.
 
+
 ### Prefer Coproduct over Product
 
 An archetypal modelling problem that comes up a lot is when there are
@@ -1540,6 +1572,7 @@ it is easy to test a sample of values with the [scalacheck](https://www.scalache
 a random sample of a data type has a low probability of being valid,
 it's a sign that the data is modelled incorrectly.
 
+
 ### Optimisations
 
 A big advantage of using a simplified subset of the Scala language to
@@ -1555,6 +1588,7 @@ matching, and much more. [iota](https://www.47deg.com/blog/iota-v0-1-0-release/)
 These optimisations are not applicable to OOP `class` hierarchies that
 may be managing state, throwing exceptions, or providing adhoc method
 implementations.
+
 
 ### Generic Representation
 
@@ -1597,6 +1631,7 @@ that work **for every** `final case class` and `sealed abstract class`.
 It is not necessary to know how to write generic code to be able to
 make use of shapeless. However, it is an important part of FP Scala so
 we will return to it later with a dedicated chapter.
+
 
 ## Functionality
 
@@ -1670,6 +1705,7 @@ A>     def sin: Double = java.lang.Math.sin(x)
 A>   }
 A> ~~~~~~~~
 
+
 ### Polymorphic Functions
 
 The more common kind of function is a polymorphic function, which
@@ -1738,6 +1774,7 @@ For example, whereas the `List` class can only have one implementation
 of a method, a typeclass method allows us to have a different
 implementation depending on the `List` contents and therefore offload
 work to compiletime instead of leaving it to runtime.
+
 
 ### Syntax
 
@@ -1836,6 +1873,7 @@ full:
   def signOfTheTimes[T: Numeric](t: T): T = -(t.abs) * t
 ~~~~~~~~
 
+
 ### Instances
 
 *Instances* of `Numeric` (which are also instances of `Ordering`) are
@@ -1924,6 +1962,7 @@ number types, prefer [spire](https://github.com/non/spire) to the standard libra
 next chapter we will see that concepts such as having a zero element,
 or adding two values, are worthy of their own typeclass.
 
+
 ### Implicit Resolution
 
 We've discussed implicits a lot: this section is to clarify what
@@ -2001,6 +2040,7 @@ compiler will fail to find it. A workaround is to add implicit
 conversions to the companion of `Ordering` that up-cast more specific
 instances. [Fixed In Dotty](https://github.com/lampepfl/dotty/issues/2047).
 
+
 ## Modelling OAuth2
 
 We will finish this chapter with a practical example of data modelling
@@ -2012,6 +2052,7 @@ Drone and Google Cloud using JSON over REST. Both services use [OAuth2](https://
 for authentication. Although there are many ways to interpret OAuth2,
 we'll focus on the version that works for Google Cloud (the Drone
 version is even simpler).
+
 
 ### Description
 
@@ -2107,6 +2148,7 @@ have a one-time setup application to obtain the refresh token and then
 include the refresh token as configuration for the user's install of
 the headless server.
 
+
 ### Data
 
 The first step is to model the data needed for OAuth2. We create an
@@ -2169,6 +2211,7 @@ W> If you must use `java.net.URL` to satisfy a legacy system, at least
 W> avoid putting it in a collection that will use `hashCode` or `equals`.
 W> If you need to perform equality checks, create your own equality
 W> function out of the raw `String` parts.
+
 
 ### Functionality
 
@@ -2401,6 +2444,7 @@ write the boilerplate for the types we wish to convert:
   }
 ~~~~~~~~
 
+
 ### Module
 
 That concludes the data and functionality modelling required to
@@ -2530,6 +2574,7 @@ and then write an OAuth2 client:
     }
   }
 ~~~~~~~~
+
 
 ## Summary
 

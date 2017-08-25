@@ -1,5 +1,4 @@
 
-
 # Introduction
 
 It is human instinct to be sceptical of a new paradigm. To put some
@@ -48,6 +47,7 @@ tests, which are now subject to arbitrary timeouts.
 
 We have a problem similar to Java 1.0: there is no way of abstracting
 over execution, much as we had no way of abstracting over collections.
+
 
 ## Abstracting over Execution
 
@@ -269,6 +269,7 @@ context. Here, we have shown an abstraction over synchronous and
 asynchronous execution but it can also be for the purpose of more
 rigorous error handling (where `C[_]` is `Either[Error, _]`), managing
 access to volatile state, performing I/O, or auditing of the session.
+
 
 ## Pure Functional Programming
 
