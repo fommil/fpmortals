@@ -275,7 +275,7 @@ depending on the `E` in `List[E]`, not just the base runtime class
 We're focussing on things that can be "mapped over" in some sense,
 highlighted in this diagram:
 
-{width=110%}
+{width=100%}
 ![](images/scalaz-mappable.png)
 
 
@@ -379,9 +379,6 @@ expect to see in a Collections API.
 
 
 ### Variance
-
-{width=60%}
-![](images/cats-variance.png)
 
 We must return to `Functor` for a moment and reveal a typeclass parent
 and method that we previously ignored:

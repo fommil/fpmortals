@@ -645,6 +645,9 @@ budget. It will listen to a [Drone](https://github.com/drone/drone) Continuous I
 spawn worker agents using [Google Container Engine](https://cloud.google.com/container-engine/) (GKE) to meet the
 demand of the work queue.
 
+
+### FIXME: redraw diagram using dot
+
 {width=60%}
 ![](images/architecture.png)
 

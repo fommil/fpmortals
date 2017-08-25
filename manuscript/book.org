@@ -1095,6 +1095,8 @@ budget. It will listen to a [[https://github.com/drone/drone][Drone]] Continuous
 spawn worker agents using [[https://cloud.google.com/container-engine/][Google Container Engine]] (GKE) to meet the
 demand of the work queue.
 
+**** FIXME: redraw diagram using dot
+
 #+BEGIN_SRC ditaa :file images/architecture.png :exports results :cmdline -T
                                     subscribe
                      /------------+----------+----------+
@@ -3055,7 +3057,7 @@ If you wish to check the source code for the ops, look in the
 
 #+BEGIN_SRC dot :file images/scalaz-semigroup.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Semigroup
@@ -3254,7 +3256,7 @@ highlighted in this diagram:
 
 #+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     subgraph mappable {
@@ -3309,7 +3311,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 110
+#+CAPTION: 100
 #+RESULTS:
 [[file:images/scalaz-mappable.png]]
 
@@ -3405,8 +3407,6 @@ expect to see in a Collections API.
 ***** TODO Traverse
 
 **** Variance
-
-[[file:images/cats-variance.png]]
 
 We must return to =Functor= for a moment and reveal a typeclass parent
 and method that we previously ignored:
