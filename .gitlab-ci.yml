@@ -1,0 +1,40 @@
+image: fommil/docker-openjdk-sbt:latest
+cache:
+  paths:
+    - project/.sbt
+variables:
+  SBT_TASK_LIMIT: "4"
+  COURSIER_CACHE: "project/.sbt/coursier"
+
+stages:
+  - verify
+  - build
+  - test
+
+verify_job:
+  stage: verify
+  script:
+    - if $(git grep -qE "TODO|FIXME" *) ; then
+        echo "Please remove TODO or FIXME." ;
+        exit 1 ;
+      fi
+    - sbt ";update ;test:update ;scalafmt::test ;test:scalafmt::test ;sbt:scalafmt::test ;createHeaders ;test:createHeaders";
+      if $(! git diff --exit-code --quiet) ; then
+        echo "Copyright header information mismatch" ;
+        git --no-pager diff ;
+        exit 1 ;
+      fi
+
+build_job:
+  stage: build
+  cache:
+    policy: pull
+  script:
+    - sbt ";test:compile ;doc";
+
+test_job:
+  stage: test
+  cache:
+    policy: pull
+  script:
+    - sbt "test"
