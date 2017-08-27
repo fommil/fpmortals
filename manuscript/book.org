@@ -3323,12 +3323,14 @@ digraph G {
   def map[A, B](fa: F[A])(f: A => B): F[B]
 
   def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
-  def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => a -> f(a))
-  def as[A, B](fa: F[A], b: B): F[B] = map(fa)(_ => b)
+  def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => (a, f(a)))
+  def fpair[A](fa: F[A]): F[(A, A)] = map(fa)(a => (a, a))
+
+  def strengthL[A, B](a: A, f: F[B]): F[(A, B)] = map(f)(b => (a, b))
+  def strengthR[A, B](f: F[A], b: B): F[(A, B)] = map(f)(a => (a, b))
 
   def lift[A, B](f: A => B): F[A] => F[B] = map(_)(f)
-  def widen[A, B >: A](fa: F[A]): F[B] = fa.asInstanceOf[F[B]]
-
+  def mapply[A, B](a: A)(f: F[A => B]): F[B] = map(f)((ff: A => B) => ff(a))
   def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
 }
 #+END_SRC
@@ -3360,26 +3362,29 @@ before reading further:
 #+BEGIN_SRC scala
   def void[A](fa: F[A]): F[Unit]
   def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)]
-  def as[A, B](fa: F[A], b: B): F[B]
+  def fpair[A](fa: F[A]): F[(A, A)]
+
+  def strengthL[A, B](a: A, f: F[B]): F[(A, B)]
+  def strengthR[A, B](f: F[A], b: B): F[(A, B)]
+
+  // harder
   def lift[A, B](f: A => B): F[A] => F[B]
-  def widen[A, B >: A](fa: F[A]): F[B]
+  def mapply[A, B](a: A)(f: F[A => B]): F[B]
 #+END_SRC
 
 1. =void= takes an instance of the =F[A]= and always returns an
    =F[Unit]=, it forgets all the values whilst preserving the
    structure.
-2. =fproduct= takes the same input as =map= but returns =F[(A, B)]=,
+1. =fproduct= takes the same input as =map= but returns =F[(A, B)]=,
    it tuples the contents of =F[A]= with the result of applying the
    function.
-3. =as= is a way of replacing every value with a constant. For
-   example, a parser may wish to =string("foo").as(true)= for a format
-   that uses the existence of the =foo= keyword to set a =Boolean=
-   flag.
-4. =lift= takes a =A => B= and returns a =F[A] => F[B]=, or in
+1. =fpair= twins all the elements of =A= into a tuple =F[(A ,A)]=
+1. =strengthL= pairs the result of an =F[B]= with a constant =A= on the left.
+1. =strengthR= pairs the result of an =F[A]= with a constant =B= on the right.
+1. =lift= takes a =A => B= and returns a =F[A] => F[B]=, or in
    English, it takes a function over the contents of an =F[A]= and
    returns a function that operates *on* the =F[A]= directly.
-5. =widen= is a safe upcast that can use =asInstanceOf= for
-   performance thanks to the no-op identity law.
+1. =mapply= TODO
 
 Finally we have =compose=, which has a complex type signature. The
 arrow syntax is a =kind-projector= /type lambda/ that says if this
@@ -3411,6 +3416,8 @@ expect to see in a Collections API.
 
 We must return to =Functor= for a moment and reveal a typeclass parent
 and method that we previously ignored:
+
+***** go back to Functor for compose / lift / xmap
 
 #+BEGIN_SRC scala
 @typeclass trait Invariant[F[_]] {
