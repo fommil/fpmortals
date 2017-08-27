@@ -25,7 +25,6 @@ final case class DroneConfig(
 import java.nio.channels.AsynchronousChannelGroup
 import java.util.concurrent.Executors
 
-// TODO: take what we need as implicits
 object Resources {
   val ES         = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
   implicit val S = Strategy.fromExecutor(ES)
@@ -36,16 +35,12 @@ object Resources {
 final class DroneFs2(config: DroneConfig) extends Drone[Task] {
   import Resources._
 
-  // TODO: take clientTask as input so we can mock
   private val clientTask: Task[HttpClient[Task]] = http.client[Task]()
 
   // doesn't quite tell us what we want...
   // http://readme.drone.io/api/build-endpoint/
   // https://github.com/drone/drone/blob/master/router/router.go#L166
 
-  // FIXME: investigate /api/info/queue
-
-  // FIXME: we don't read Backlog off the wire, we read a custom format and then convert into Backlog
   private val backlogRequest =
     HttpRequest
       .get[Task](Uri.https(config.host, "/api/builds"))

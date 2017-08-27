@@ -33,7 +33,6 @@ final case class GceConfig(
   clusterId: String // e.g. cluster-1
 )
 
-// TODO: take what we need as implicits
 object Resources {
   val ES         = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
   implicit val S = Strategy.fromExecutor(ES)
@@ -54,10 +53,8 @@ final class GceFs2Machine extends Machines[Task] {
 final class GceFs2(config: GceConfig) {
   import Resources._
 
-  // TODO: take clientTask as input so we can mock
   private val clientTask: Task[HttpClient[Task]] = http.client()
 
-  // TODO: abstract out the OAuth with an algebra
   @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
   private def get[G: Decoder](path: String): Task[G] = {
     val request = HttpRequest.get[Task](

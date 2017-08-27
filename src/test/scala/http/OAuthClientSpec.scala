@@ -6,7 +6,7 @@ import org.scalatest._
 import org.scalatest.Matchers._
 
 class OAuthClientSpec extends FlatSpec {
-  "OAuthClient" should "TODO" in {
+  "OAuthClient" should "have tests" ignore {
     fail
   }
 }
