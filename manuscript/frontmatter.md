@@ -91,7 +91,7 @@ Rosien for the [Scalaz Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/t
 tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained the concepts needed to write
-the example project [drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22): Merlin Göttlinger, Edmund
+the example project [drone-dynamic-agents](https://gitlab.com/fommil/drone-dynamic-agents) Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
 Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
 Daniel Spiewak, Stephen Compall.
@@ -149,7 +149,7 @@ you:
     out the exact part of the text that confused you at
     [fommil/fp-scala-mortals](https://github.com/fommil/fp-scala-mortals/issues)
 2.  if you are an expert in FP, please help by answering my questions
-    at [fommil/drone-dynamic-agents](https://github.com/fommil/drone-dynamic-agents/issues) and pointing out factual errors in
+    at [fommil/drone-dynamic-agents](https://gitlab.com/fommil/drone-dynamic-agents/issues) and pointing out factual errors in
     this text.
 3.  if you understood a concept, but feel that it could be explained in
     a different way, let's park that thought for now.

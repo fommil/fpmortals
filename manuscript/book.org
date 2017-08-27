@@ -107,7 +107,7 @@ Rosien for the [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Sc
 tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained the concepts needed to write
-the example project [[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]]: Merlin Göttlinger, Edmund
+the example project [[https://gitlab.com/fommil/drone-dynamic-agents][drone-dynamic-agents]] Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
 Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
 Daniel Spiewak, Stephen Compall.
@@ -161,7 +161,7 @@ you:
    out the exact part of the text that confused you at
    [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fp-scala-mortals]]
 2. if you are an expert in FP, please help by answering my questions
-   at [[https://github.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
+   at [[https://gitlab.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
    this text.
 3. if you understood a concept, but feel that it could be explained in
    a different way, let's park that thought for now.
@@ -3000,8 +3000,9 @@ names based on the primary functionality of the typeclass (e.g.
 the standard names.
 
 *** FIXME do we really want to introduce these things here?
-*** TODO https://twitter.com/ValentinKasas/status/879414703340081156
-*** TODO https://github.com/vil1/single_page_fp_book
+
+# *** TODO https://twitter.com/ValentinKasas/status/879414703340081156
+# *** TODO https://github.com/vil1/single_page_fp_book
 
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important methods from a control flow perspective,

@@ -18,12 +18,6 @@ the standard names.
 
 ## FIXME do we really want to introduce these things here?
 
-
-## <https://twitter.com/ValentinKasas/status/879414703340081156>
-
-
-## <https://github.com/vil1/single_page_fp_book>
-
 Before we introduce the complete typeclass hierarchy, we will look at
 the three most important methods from a control flow perspective,
 which live on: `Functor`, `Applicative` and `Monad` (each extending
