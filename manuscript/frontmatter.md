@@ -36,13 +36,12 @@ A> Scalaz is a principled Functional Programming library that has evolved
 A> over a decade of industry use.
 A> 
 A> Cats is an experiment to rewrite scalaz. Cats is a member of the
-A> [Typelevel](http://typelevel.org/about.html) community of projects and people organised around functional
-A> programming in Scala. Typelevel is a political organisation with
-A> moderators who enforce a Code of Conduct to ensure that their spaces
-A> are welcoming, inclusive and safe.
+A> [Typelevel](http://typelevel.org/about.html) community, organised around functional programming in Scala.
+A> Typelevel is a political organisation who enforce a Code of Conduct to
+A> ensure that their spaces are welcoming, inclusive and safe.
 A> 
-A> Although this book uses scalaz, a variant using cats will be created
-A> (subject to demand). In the meantime, you can obtain a gratis copy of
+A> Although this book uses scalaz, a variant using cats will be created,
+A> subject to demand. In the meantime, you can obtain a gratis copy of
 A> [Advanced Scala with Cats](http://underscore.io/books/advanced-scala/) by Underscore Consultants. At this point, the
 A> cats API is mostly a clone of scalaz, so this book is relevant for
 A> either library.

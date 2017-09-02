@@ -53,13 +53,12 @@ Scalaz is a principled Functional Programming library that has evolved
 over a decade of industry use.
 
 Cats is an experiment to rewrite scalaz. Cats is a member of the
-[[http://typelevel.org/about.html][Typelevel]] community of projects and people organised around functional
-programming in Scala. Typelevel is a political organisation with
-moderators who enforce a Code of Conduct to ensure that their spaces
-are welcoming, inclusive and safe.
+[[http://typelevel.org/about.html][Typelevel]] community, organised around functional programming in Scala.
+Typelevel is a political organisation who enforce a Code of Conduct to
+ensure that their spaces are welcoming, inclusive and safe.
 
-Although this book uses scalaz, a variant using cats will be created
-(subject to demand). In the meantime, you can obtain a gratis copy of
+Although this book uses scalaz, a variant using cats will be created,
+subject to demand. In the meantime, you can obtain a gratis copy of
 [[http://underscore.io/books/advanced-scala/][Advanced Scala with Cats]] by Underscore Consultants. At this point, the
 cats API is mostly a clone of scalaz, so this book is relevant for
 either library.
@@ -1095,29 +1094,27 @@ budget. It will listen to a [[https://github.com/drone/drone][Drone]] Continuous
 spawn worker agents using [[https://cloud.google.com/container-engine/][Google Container Engine]] (GKE) to meet the
 demand of the work queue.
 
-**** FIXME: redraw diagram using dot
+#+BEGIN_SRC dot :cmd circo :file images/architecture.png :exports results
+digraph G {
+    graph [dpi=300, rankdir=BT];
+    node [fontname=Palatino, shape=box];
+    
+    Agents [shape=doubleoctagon]
+    Google
+    Drone
+    App [shape=trapezium]
+    Github
 
-#+BEGIN_SRC ditaa :file images/architecture.png :exports results :cmdline -T
-                                    subscribe
-                     /------------+----------+----------+
-                     |            |          |          |
-                     |      +--------+  +--------+  +--------+
-                     |      | Agent1 |  | Agent2 |  | Agent3 |
-                     |      +----+---+  +----+---+  +----+---+
-                     |           |           |           |
-                     |           \-----------+-----------/
-                     v                       |
-            +--------++              +-------+-+
-            |  Drone  |              | Google  |
-            +-+------++              ++--------+
-              ^      ^                ^
-           PR |      | backlog        | start / stop
-              |      | agents         | status
-              |      |                | 
-   +----+---+ |      |   +--------+   | current time
-   | github +-/      \-->+  app   +<--/
-   +--------+            +--------+
+    Google -> Agents
 
+    Github -> Drone
+    App -> Drone [label = "backlog\nagents"]
+    App -> Google [label = "start/stop\nstatus\ncurrent time"]
+    Drone -> App
+    Google -> App
+
+    Agents -> Drone [label = "subscribe"]
+}
 #+END_SRC
 
 #+RESULTS:
@@ -2999,24 +2996,19 @@ names based on the primary functionality of the typeclass (e.g.
 =Mappable=, =Pureable=, =FlatMappable=) until you are comfortable with
 the standard names.
 
-*** FIXME do we really want to introduce these things here?
+Before we introduce the complete typeclass hierarchy, we will peek at
+the four most important methods from a control flow perspective: the
+methods we will use the most in typical FP applications:
 
-# *** TODO https://twitter.com/ValentinKasas/status/879414703340081156
-# *** TODO https://github.com/vil1/single_page_fp_book
+| Typeclass     | Method     | From   | Given         | To        |
+|---------------+------------+--------+---------------+-----------|
+| =Functor=     | =map=      | =F[A]= | =(A => B)=    | =F[B]=    |
+| =Applicative= | =pure=     | =A=    |               | =F[A]=    |
+| =Monad=       | =flatMap=  | =F[A]= | =(A => F[B])= | =F[B]=    |
+| =Traverse=    | =traverse= | =F[A]= | =(A => G[B])= | =G[F[B]]= |
 
-Before we introduce the complete typeclass hierarchy, we will look at
-the three most important methods from a control flow perspective,
-which live on: =Functor=, =Applicative= and =Monad= (each extending
-the former).
-
-| Typeclass     | Method    | From   | Given         | To     |
-|---------------+-----------+--------+---------------+--------|
-| =Functor=     | =map=     | =F[A]= | =(A => B)=    | =F[B]= |
-| =Applicative= | =pure=    | =A=    |               | =F[A]= |
-| =Monad=       | =flatMap= | =F[A]= | =(A => F[B])= | =F[B]= |
-
-We know that operations which return a =F[_]= can be sequenced in a
-=for= comprehension by =.flatMap=, defined on its =Monad[F]=. The
+We know that operations which return a =F[_]= can be run sequentially
+in a =for= comprehension by =.flatMap=, defined on its =Monad[F]=. The
 context =F[_]= can be thought of as a container for an intentional
 /effect/ with =A= as the output: =flatMap= allows us to generate new
 effects =F[B]= at runtime based on the results of evaluating previous
@@ -3027,32 +3019,38 @@ they have a =Monad[F]=. Often they are data structures. By using the
 least specific abstraction, our code can work for =List=, =Either=,
 =Future= and more, without us needing to know.
 
-If we only need to transform the output from an effect or contents of
-a data structure, that's just =map=, introduced by =Functor=. In
-Chapter 3, we ran effects in parallel by creating a product and
-mapping over them. In Functional Programming, parallelisable
-computations are considered *less* powerful than sequential ones.
+If we only need to transform the output from an =F[_]=, that's just
+=map=, introduced by =Functor=. In Chapter 3, we ran effects in
+parallel by creating a product and mapping over them. In Functional
+Programming, parallelisable computations are considered *less*
+powerful than sequential ones.
 
 In between =Monad= and =Functor= is =Applicative=, defining =pure=
-that lets us elevate a value into an effect, or create a data
-structure from a single value.
+that lets us lift a value into an effect, or create a data structure
+from a single value.
+
+=traverse= is useful for rearranging Higher Kinded Types (HKTs). If
+you find yourself with an =F[G[_]]= but you really need a =G[F[_]]=
+then you need =Traverse=. For example, say you have a
+=List[Future[Int]]= but you need it to be a =Future[List[Int]]=, just
+call =.traverse(identity)=, or its simpler sibling =.sequence=.
 
 *** Typeclasses
 
 There is an overwhelming number of typeclasses, so we will visualise
-the clusters and discuss, with simplified definitions.
+similar clusters and discuss, with simplified definitions.
 
-Scalaz does not use simulacrum, instead using code generation to
-accomplish the same thing. We'll present the typeclasses as if
-simulacrum was used, but note that there is no =.ops.= to import from.
-All ops are provided along with the classes and traits when writing
+Scalaz uses code generation instead of simulacrum. We'll present the
+typeclasses as if simulacrum was used, but note that there are no
+=.ops.=, instead syntax is provided along with the classes and traits
+when writing
 
 #+BEGIN_SRC scala
 import scalaz._, Scalaz._
 #+END_SRC
 
-If you wish to check the source code for the ops, look in the
-=scalaz.syntax= package.
+If you wish to explore what is available for a particular typeclass,
+look under the =scalaz.syntax= package.
 
 **** Appendable Things
 
@@ -3067,6 +3065,7 @@ digraph G {
 }
 #+END_SRC
 
+#+ATTR_LATEX: :width 5cm
 #+CAPTION: 30
 #+RESULTS:
 [[file:images/scalaz-semigroup.png]]
@@ -3075,9 +3074,9 @@ Defined roughly as:
 
 #+BEGIN_SRC scala
 @typeclass trait Semigroup[A] {
-  @op("|+|") def append(x: A, y: => A): A
+  @op("|+|") @op("mappend") def append(x: A, y: => A): A
 
-  @noop def multiply1(value: F, n: Int): F = ...
+  def multiply1(value: F, n: Int): F = ...
 }
 
 @typeclass trait Monoid[A] extends Semigroup[A] {
@@ -3250,9 +3249,127 @@ polymorphism we can have a different implementation of =append=
 depending on the =E= in =List[E]=, not just the base runtime class
 =List=.
 
+**** Objecty Things
+
+In the chapter on Data and Functionality we said that the JVM's notion
+of equality breaks down for many things that you can put into an ADT.
+The problem is that the JVM was designed for Java, and =equals= is
+defined on =java.lang.Object= whether it makes sense or not. There is
+no way to erase =equals= and no way to guarantee that it is
+implemented.
+
+However, in FP we prefer typeclasses for polymorphic functionality and
+even concepts as simple equality are captured at compiletime.
+
+#+BEGIN_SRC dot :file images/scalaz-comparable.png :exports results
+digraph G {
+    graph [dpi=300, rankdir=BT];
+    node [fontname=Hack];
+
+    Equal
+    Show
+    Order -> Equal
+    Enum -> Order
+}
+#+END_SRC
+
+#+ATTR_LATEX: :width 5cm
+#+CAPTION: 30
+#+RESULTS:
+[[file:images/scalaz-comparable.png]]
+
+#+BEGIN_SRC scala
+@typeclass trait Equal[F]  {
+  @op("===") def equal(a1: F, a2: F): Boolean
+  @op("/==") def notEqual(a1: F, a2: F): Boolean = !equal(a1, a2)
+}
+#+END_SRC
+
+Indeed ~===~ (=Equal= /triple equals/) is a more typesafe than ~==~
+(=Object= /double equals/) because it can only be compiled when the
+types are the same on both sides of the comparison. This entirely
+bypasses the classic problems with equals and sub-classing as
+described in /Effective Java/ by Josh Bloch.
+
+=equal= has the same implementation requirements as =Object.equals=
+
+- /commutative/ ~f1 === f2~ implies ~f2 === f1~
+- /reflexive/ ~f === f~
+- /transitive/ ~f1 === f2 && f2 === f3~ implies ~f1 === f3~
+
+By doing away with the universal concept of =Object.equals= we don't
+take equality for granted when we construct an ADT, stopping us at
+compiletime from expecting equality where there is no such concept.
+
+Continuing the trend of replacing old Java concepts, rather than data
+/being a/ =java.lang.Comparable=, they now /have an/ =Order= according
+to:
+
+#+BEGIN_SRC scala
+@typeclass trait Order[F] extends Equal[F] {
+  @op("?|?") def order(x: F, y: F): Ordering
+
+  override  def equal(x: F, y: F): Boolean = ...
+  @op("<" ) def lessThan(x: F, y: F): Boolean = ...
+  @op("<=") def lessThanOrEqual(x: F, y: F): Boolean = ...
+  @op(">" ) def greaterThan(x: F, y: F): Boolean = ...
+  @op(">=") def greaterThanOrEqual(x: F, y: F): Boolean = ...
+
+  def max(x: F, y: F): F = ...
+  def min(x: F, y: F): F = ...
+  def sort(x: F, y: F): (F, F) = ...
+}
+
+sealed abstract class Ordering
+object Ordering {
+  case object LT extends Ordering
+  case object EQ extends Ordering
+  case object GT extends Ordering
+}
+#+END_SRC
+
+Things that have an order may also be discrete, allowing us to walk
+successors and predecessors:
+
+#+BEGIN_SRC scala
+@typeclass trait Enum[F] extends Order[F] {
+  def succ(a: F): F
+  def pred(a: F): F
+  def min: Option[F]
+  def max: Option[F]
+
+  @op("-+-") def succn(n: Int, a: F): F = ...
+  @op("---") def predn(n: Int, a: F): F = ...
+
+  @op("|->" ) def fromToL(from: F, to: F): List[F] = ...
+  @op("|-->") def fromStepToL(from: Int, step: F, to: F): List[F] = ...
+  // with variants for other collection types
+}
+#+END_SRC
+
+Similarly to =Object.equals=, the concept of a =toString= on every
+=class= does not even make sense in Java. We would like to enforce
+stringyness at compiletime. This is exactly what =Show= achieves:
+
+#+BEGIN_SRC scala
+trait Show[F] {
+  def show(f: F): Cord = Cord(shows(f))
+  def shows(f: F): String = show(f).toString
+}
+#+END_SRC
+
+We'll explore =Cord= in more detail in the chapter on data types, you
+need only know that it is an efficient data structure for storing and
+manipulating =String=.
+
+Unfortunately, due to Scala's default implicit conversions in
+=Predef=, and language level support for =toString= in interpolated
+strings, it can be incredibly hard to remember to use =shows= instead
+of =toString=.
+
 **** Mappable Things
 
-We're focussing on things that can be "mapped over" in some sense,
+We're focusing on things that can be "mapped over" in some sense,
 highlighted in this diagram:
 
 #+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
@@ -3324,8 +3441,8 @@ digraph G {
 
   def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
   def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)] = map(fa)(a => (a, f(a)))
-  def fpair[A](fa: F[A]): F[(A, A)] = map(fa)(a => (a, a))
 
+  def fpair[A](fa: F[A]): F[(A, A)] = map(fa)(a => (a, a))
   def strengthL[A, B](a: A, f: F[B]): F[(A, B)] = map(f)(b => (a, b))
   def strengthR[A, B](f: F[A], b: B): F[(A, B)] = map(f)(a => (a, b))
 
@@ -3362,8 +3479,8 @@ before reading further:
 #+BEGIN_SRC scala
   def void[A](fa: F[A]): F[Unit]
   def fproduct[A, B](fa: F[A])(f: A => B): F[(A, B)]
-  def fpair[A](fa: F[A]): F[(A, A)]
 
+  def fpair[A](fa: F[A]): F[(A, A)]
   def strengthL[A, B](a: A, f: F[B]): F[(A, B)]
   def strengthR[A, B](f: F[A], b: B): F[(A, B)]
 
@@ -3376,24 +3493,34 @@ before reading further:
    =F[Unit]=, it forgets all the values whilst preserving the
    structure.
 1. =fproduct= takes the same input as =map= but returns =F[(A, B)]=,
-   it tuples the contents of =F[A]= with the result of applying the
-   function.
-1. =fpair= twins all the elements of =A= into a tuple =F[(A ,A)]=
-1. =strengthL= pairs the result of an =F[B]= with a constant =A= on the left.
-1. =strengthR= pairs the result of an =F[A]= with a constant =B= on the right.
-1. =lift= takes a =A => B= and returns a =F[A] => F[B]=, or in
-   English, it takes a function over the contents of an =F[A]= and
+   i.e. it tuples the contents with the result of applying the
+   function. This is useful when we wish to retain the input.
+1. =fpair= twins all the elements of =A= into a tuple =F[(A, A)]=
+1. =strengthL= pairs the contents of an =F[B]= with a constant =A= on
+   the left.
+1. =strengthR= pairs the contents of an =F[A]= with a constant =B= on
+   the right.
+1. =lift= takes a function =A => B= and returns a =F[A] => F[B]=. In
+   other words, it takes a function over the contents of an =F[A]= and
    returns a function that operates *on* the =F[A]= directly.
-1. =mapply= TODO
+1. =mapply= is a mind bender. Say you have an =F[_]= of functions =A
+   => B= and a value =A=, then you can get an =F[B]=. =mapply= has a
+   similar signature to =pure= but requires the caller to provide the
+   =F[A => B]=.
 
-Finally we have =compose=, which has a complex type signature. The
-arrow syntax is a =kind-projector= /type lambda/ that says if this
-=Functor[F]= is composed with a type =G[_]= (that has a =Functor[G]=),
-we get a =Functor[F[G[_]]]= that can operate on =F[G[A]]=.
+=fpair=, =strengthL= and =strengthR= are here because they are simple
+examples of reading type signatures, but they are pretty useless in
+the wild. For the remaining typeclasses, we'll skip the niche methods.
 
-A simple example is where =F[_]= is =List= and =G[_]= is =Option=, and
-we want to be able to map over the =Int= inside a =List[Option[Int]]=
-without changing the two structures:
+Finally we have =compose=, which has the most complex type signature
+on =Functor=. The arrow syntax is a =kind-projector= /type lambda/
+that says if this =Functor[F]= is composed with a type =G[_]= (that
+has a =Functor[G]=), we get a =Functor[F[G[_]]]= that can operate on
+=F[G[A]]=.
+
+An example of =compose= is where =F[_]= is =List=, =G[_]= is =Option=,
+and we want to be able to map over the =Int= inside a
+=List[Option[Int]]= without changing the two structures:
 
 #+BEGIN_SRC scala
 scala> val lo = List(Some(1), None, Some(2))
@@ -3409,6 +3536,94 @@ function at the layer we want.
 Fold is for data structures that can be walked to produce a summary
 value. It is a one-trait army that can provide much of what you'd
 expect to see in a Collections API.
+
+****** FIXME: try to linearise? introduce Equal / Order first
+
+The scalaz typeclasses and data types begin to become entwined from
+here. We'll see typeclasses in the type signatures that we've not
+introduced yet, such as =Equal= and =Order=, but hopefully the
+intention is clear.
+
+****** FIXME: how to introduce this? It's HUGE
+
+#+BEGIN_SRC scala
+type Nel[A] = NonEmptyList[A]
+
+@typeclass trait Foldable[F[_]] {
+  def foldMap[A, B: Monoid](fa: F[A])(f: A => B): B
+  def foldRight[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B
+
+  def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B): B = ...
+  def fold[M: Monoid](t: F[M]): M = ...
+
+  def index[A](fa: F[A], i: Int): Option[A] = ...
+  def indexOr[A](fa: F[A], default: => A, i: Int): A = ...
+
+  def toList[A](fa: F[A]): List[A] = ...
+  // and conversions to other stdlib and scalaz collection data types...
+
+  def length[A](fa: F[A]): Int = ...
+  def filterLength[A](fa: F[A])(f: A => Boolean): Int = ...
+
+  def all[A](fa: F[A])(p: A => Boolean): Boolean = ...
+  def any[A](fa: F[A])(p: A => Boolean): Boolean = ...
+
+  /** Split the elements into groups that produce the same result under `f` */
+  def splitBy[A, B: Equal](fa: F[A])(f: A => B): IList[(B, Nel[A])] = ...
+  /** Split into groups that are transitively dependant by a relation */
+  def splitByRelation[A](fa: F[A])(r: (A, A) => Boolean): IList[Nel[A]] = ...
+  def splitWith[A](fa: F[A])(p: A => Boolean): List[Nel[A]] = ...
+  def selectSplit[A](fa: F[A])(p: A => Boolean): List[Nel[A]] = ...
+
+  def distinct[A: Order](fa: F[A]): IList[A] = ...
+  def distinctE[A: Equal](fa: F[A]): IList[A] = ...
+  def distinctBy[A, B: Equal](fa: F[A])(f: A => B): IList[A] =
+
+  def maximum[A: Order](fa: F[A]): Option[A] = ...
+  def maximumOf[A, B: Order](fa: F[A])(f: A => B): Option[B] = ...
+  def maximumBy[A, B: Order](fa: F[A])(f: A => B): Option[A] = ...
+
+  def minimum[A: Order](fa: F[A]): Option[A] = ...
+  def minimumOf[A, B: Order](fa: F[A])(f: A => B): Option[B] = ...
+  def minimumBy[A, B: Order](fa: F[A])(f: A => B): Option[A] = ...
+
+  /** smallest and largest elements, or None if `fa` is empty */
+  def extrema[A: Order](fa: F[A]): Option[(A, A)] = ...
+  /** like `extrema` but first converting unordered A to ordered Bs */
+  def extremaOf[A, B: Order](fa: F[A])(f: A => B): Option[(B, B)] = ...
+  /** like `extrema` but using a custom ordering */
+  def extremaBy[A, B: Order](fa: F[A])(f: A => B): Option[(A, A)] =
+
+  def sumr[A: Monoid](fa: F[A]): A = ...
+  def suml[A: Monoid](fa: F[A]): A = ...
+
+  def empty[A](fa: F[A]): Boolean = ...
+  def element[A: Equal](fa: F[A], a: A): Boolean = ...
+
+  def intercalate[A: Monoid](fa: F[A], a: A): A = ...
+
+  def findLeft[A](fa: F[A])(f: A => Boolean): Option[A] = ...
+  def findRight[A](fa: F[A])(f: A => Boolean): Option[A] = ...
+
+  def fold1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
+  def foldMap1Opt[A, B: Semigroup](fa: F[A])(f: A => B): Option[B] = ...
+  def sumr1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
+  def suml1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
+
+  def foldMapM[G[_]: Monad, A, B: Monoid](fa: F[A])(f: A => G[B]): G[B] = ...
+  def foldRightM[G[_]: Monad, A, B](fa: F[A], z: => B)
+                                   (f: (A, => B) => G[B]): G[B] = ...
+  def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)
+                                  (f: (B, A) => G[B]): G[B] = ...
+  def findMapM[M[_]: Monad, A, B](fa: F[A])
+                                 (f: A => M[Option[B]]): M[Option[B]] = ...
+  def allM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
+  def anyM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
+
+}
+#+END_SRC
+
+
 
 ***** TODO Traverse
 
@@ -3515,6 +3730,14 @@ case class Baz[A](f: A => Int) extends Foo[A]
 
 **** TODO Bifunctor
 **** TODO Applicative Things
+
+These were cut from Foldable, revisit them...
+
+#+BEGIN_SRC scala
+  def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
+  def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
+#+END_SRC
+
 **** TODO Monads
 
 Or should this live in the Effects chapter?
@@ -3522,6 +3745,9 @@ Or should this live in the Effects chapter?
 **** TODO Comparable Things
 **** TODO Very Abstract Things
 Category, etc
+
+**** TODO [[https://github.com/vil1/single_page_fp_book][single page fp book]]
+**** TODO cheat sheet
 
 **** TODO Other
 
@@ -3548,7 +3774,7 @@ Category, etc
  Coyoneda
  Dequeue
  Diev
- Digit
+ Digit  // revisit the Foldable method
  Distributive
  DList
  Dual
