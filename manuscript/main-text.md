@@ -504,79 +504,187 @@ beginning with the abstract methods:
   @typeclass trait Foldable[F[_]] {
     def foldMap[A, B: Monoid](fa: F[A])(f: A => B): B
     def foldRight[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B
+    def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B): B = ...
 ~~~~~~~~
 
 An instance of `Foldable` need only implement `foldMap` and
 `foldRight` to get all of the functionality in this typeclass,
 although methods are typically optimised for specific data structures.
 
-You may know `foldMap` by its marketing hype name, **MapReduce**. Given
-an `F[A]`, a function from `A` to `B`, and a way to combine and
-default `B` (provided by the `Monoid`), we can produce a summary value
-of type `B`. There is no enforced order to operation evaluation,
-allowing for parallel computations.
+You might recognise `foldMap` by its marketing buzzword name,
+**MapReduce**. Given an `F[A]`, a function from `A` to `B`, a zero `B`
+and a way to combine `B` (provided by the `Monoid`), we can produce a
+summary value of type `B`. There is no enforced order to operation
+evaluation, allowing for parallel computation.
 
-`foldRight` does not require its type parameters to have a `Monoid`,
+`foldRight` does not require its parameters to have a `Monoid`,
 meaning that it needs a starting value `z` and a way to combine each
-element of the data structure with the summary value.
+element of the data structure with the summary value. The order for
+traversing the elements in the data structure from right to left and
+therefore cannot be parallelised.
 
-FIXME FIXME FIXME
+\#+BEGIN<sub>ASIDE</sub>
 
-`foldRight` is conceptually the same as the `foldRight` on the
-collections in the Scala standard library: the order for traversing
-the elements in the collection is from right to left and at every new
-element the `f` is called to produce a new element.
-
-. However, to avoid stack overflows, the 
-
-{lang="text"}
-~~~~~~~~
-  def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B): B = ...
-  def fold[M: Monoid](t: F[M]): M = ...
-~~~~~~~~
-
-With `f` as the `identity` this is the natural sum of a
-collection. 
+`foldRight` is conceptually the same as the `foldRight` in the Scala
+stdlib. However, there is a problem with the `foldRight` API, solved
+in scalaz: very large data structures can stack overflow.
+`List.foldRight` cheats by implementing `foldRight` as a reversed
+`foldLeft`
 
 {lang="text"}
 ~~~~~~~~
+  override def foldRight[B](z: B)(op: (A, B) => B): B =
+    reverse.foldLeft(z)((right, left) => op(left, right))
+~~~~~~~~
+
+but the concept of reversing is not universal and this workaround
+cannot be used for all data structures.
+
+{lang="text"}
+~~~~~~~~
+  scala> (1 until 100000).toStream.foldRight(0L)(_ + _)
+  java.lang.StackOverflowError
+    at scala.collection.Iterator.toStream(Iterator.scala:1403)
+    ...
+~~~~~~~~
+
+Scalaz solves the problem by taking a *byname* parameter for the
+aggregate value and moving the computation to the heap with a
+technique known as *trampolining*.
+
+
+##### FIXME example of a trampolined foldRight
+
+We'll explore scalaz's data types and trampolining in the next
+chapter. It is worth baring in mind that not all data structures have
+a stack safe `foldRight`, [even within scalaz](https://github.com/scalaz/scalaz/issues/1447).
+
+\#+END<sub>ASIDE</sub>
+
+`foldLeft` traverses elements from left to right. `foldLeft` can be
+implemented in terms of `foldMap`, so it is not left abstract, but
+most instances choose to implement it since it is such a basic
+operation within the `Foldable` feature set. Since it is usually
+implemented with tail recursion, there are no *byname* parameters.
+
+The only law for `Foldable` is that `foldLeft` and `foldRight` should
+each be consistent with `foldMap` for monoidal operations. e.g.
+appending an element to a list for `foldLeft` and prepending an
+element to a list for `foldRight`. However, `foldLeft` and `foldRight`
+do not need to be consistent with each other: in fact they often
+produce the reverse of each other.
+
+The simplest thing to do with `Foldable` is to use the `identity`
+function, giving us `fold`
+
+{lang="text"}
+~~~~~~~~
+  def fold[A: Monoid](t: F[A]): A = ...
+  
   def sumr[A: Monoid](fa: F[A]): A = ...
   def suml[A: Monoid](fa: F[A]): A = ...
+~~~~~~~~
+
+This is the natural sum of monoidal elements. Variants for doing this
+from the left or right are provided for when order matters for
+performance reasons (but it should always produce the same result).
+
+The strangely named `intercalate` inserts a specific `A` between each
+element before performing the `fold`
+
+{lang="text"}
+~~~~~~~~
   def intercalate[A: Monoid](fa: F[A], a: A): A = ...
 ~~~~~~~~
+
+which is a generalised version of the stdlib's `mkString`:
+
+{lang="text"}
+~~~~~~~~
+  scala> List("foo", "bar").intercalate(",")
+  res: String = "foo,bar"
+~~~~~~~~
+
+The `foldLeft` provides the means to obtain any element by traversal
+index, including a bunch of other related methods:
 
 {lang="text"}
 ~~~~~~~~
   def index[A](fa: F[A], i: Int): Option[A] = ...
   def indexOr[A](fa: F[A], default: => A, i: Int): A = ...
   def length[A](fa: F[A]): Int = ...
-  def filterLength[A](fa: F[A])(f: A => Boolean): Int = ...
+  def count[A](fa: F[A]): Int = length(fa)
   def empty[A](fa: F[A]): Boolean = ...
   def element[A: Equal](fa: F[A], a: A): Boolean = ...
 ~~~~~~~~
 
-{lang="text"}
-~~~~~~~~
-  def toList[A](fa: F[A]): List[A] = ...
-  // and conversions to other stdlib and scalaz collection data types...
-~~~~~~~~
+Remember that scalaz is a pure library of only *Total* functions so
+`index` returns an `Option`, not an exception like the stdlib. `index`
+is like `.get`, `indexOr` is like `.getOrElse`. `element` is like
+`contains` and requires the notion of equality.
+
+These methods are *really* beginning to sound like what you'd seen in
+a Collection Library, of course anything with a `Foldable` can be
+converted into a stdlib `List`
 
 {lang="text"}
 ~~~~~~~~
+  def toList[A](fa: F[A]): List[A] = ...
+~~~~~~~~
+
+There are also conversions to other stdlib and scalaz data types such
+as `.toSet`, `.toVector`, `.toStream`, `.to[CanBuildFrom]`, `.toIList`
+and so on.
+
+There are some useful predicate checks
+
+{lang="text"}
+~~~~~~~~
+  def filterLength[A](fa: F[A])(f: A => Boolean): Int = ...
   def all[A](fa: F[A])(p: A => Boolean): Boolean = ...
   def any[A](fa: F[A])(p: A => Boolean): Boolean = ...
 ~~~~~~~~
 
+`filterLength` is a way of counting how many elements are `true` for a
+predicate, `all` and `any` return `true` if all (or any) element meets
+the predicate, and may exit early.
+
+A> We've seen the `NonEmptyList` in previous chapters despite have fully
+A> explored its feature set. For the sake of brevity we use a type alias
+A> `Nel` in place of `NonEmptyList`.
+A> 
+A> We've also seen `IList` in previous chapters, recall that it's an
+A> alternative to stdlib `List` with invariant type parameters and all
+A> the impure methods, like `apply`, removed.
+
+We can split an `F[A]` into parts that result in the same `B` with
+`splitBy`, which is the generalised stdlib `groupBy`
+
 {lang="text"}
 ~~~~~~~~
-  type Nel[A] = NonEmptyList[A]
-  /** Split the elements into groups that produce the same result under `f` */
   def splitBy[A, B: Equal](fa: F[A])(f: A => B): IList[(B, Nel[A])] = ...
-  /** Split into groups that are transitively dependant by a relation */
   def splitByRelation[A](fa: F[A])(r: (A, A) => Boolean): IList[Nel[A]] = ...
   def splitWith[A](fa: F[A])(p: A => Boolean): List[Nel[A]] = ...
   def selectSplit[A](fa: F[A])(p: A => Boolean): List[Nel[A]] = ...
+  
+  def findLeft[A](fa: F[A])(f: A => Boolean): Option[A] = ...
+  def findRight[A](fa: F[A])(f: A => Boolean): Option[A] = ...
 ~~~~~~~~
+
+`splitByRelation` avoids the need for an `Equal` but we must provide
+the comparison operator.
+
+`splitWith` splits the elements into groups that alternatively satisfy
+and don't satisfy the predicate. `selectSplit` selects groups of
+elements that satisfy the predicate, discarding others. This is one of
+those rare occasions when two methods share the same type signature
+but have different meanings.
+
+`findLeft` and `findRight` are for extracting the first element (from
+the left, or right, respectively) that matches a predicate.
+
+Making further use of `Equal` and `Order`, we have the `distinct`
+methods which return groupings.
 
 {lang="text"}
 ~~~~~~~~
@@ -584,6 +692,19 @@ collection.
   def distinctE[A: Equal](fa: F[A]): IList[A] = ...
   def distinctBy[A, B: Equal](fa: F[A])(f: A => B): IList[A] =
 ~~~~~~~~
+
+`distinct` is implemented more efficiently than `distinctE` because it
+can make use of ordering.
+
+`distinctBy` allows grouping by the result of applying a function to
+the elements. For example, grouping names by their first letter. If
+you find yourself using `splitBy` but throwing away the common data,
+you probably meant to use `distinctBy`.
+
+We can make further use of `Order` by extracting the minimum or
+maximum element (or both extrema) including variations using the `Of`
+or `By` pattern to first map to another type or to use a different
+type to do the order comparison.
 
 {lang="text"}
 ~~~~~~~~
@@ -595,19 +716,33 @@ collection.
   def minimumOf[A, B: Order](fa: F[A])(f: A => B): Option[B] = ...
   def minimumBy[A, B: Order](fa: F[A])(f: A => B): Option[A] = ...
   
-  /** smallest and largest elements, or None if `fa` is empty */
   def extrema[A: Order](fa: F[A]): Option[(A, A)] = ...
-  /** like `extrema` but first converting unordered A to ordered Bs */
   def extremaOf[A, B: Order](fa: F[A])(f: A => B): Option[(B, B)] = ...
-  /** like `extrema` but using a custom ordering */
   def extremaBy[A, B: Order](fa: F[A])(f: A => B): Option[(A, A)] =
 ~~~~~~~~
 
+for example we can ask which `String` is maximum `By` length, or what
+is the maximum length `Of` the elements.
+
 {lang="text"}
 ~~~~~~~~
-  def findLeft[A](fa: F[A])(f: A => Boolean): Option[A] = ...
-  def findRight[A](fa: F[A])(f: A => Boolean): Option[A] = ...
+  scala> List("foo", "fazz").maximumBy(_.length)
+  res: Option[String] = Some(fazz)
+  
+  scala> List("foo", "fazz").maximumOf(_.length)
+  res: Option[Int] = Some(4)
 ~~~~~~~~
+
+This concludes the key features of `Foldable`. You'd be forgiven for
+forgetting everything that is available, so the key takeaway is that
+anything you'd expect to find in a collection library is probably on
+`Foldable`.
+
+We'll conclude with a few variations on the above with weaker type
+constraints. First there are variants of some methods that take a
+`Monoid`, instead taking a `Semigroup`, returning `Option` for empty
+data structures. Note that the methods are `1` (one) `Opt` (option),
+not `10 pt`, a subtle typesetting joke for the observant.
 
 {lang="text"}
 ~~~~~~~~
@@ -616,6 +751,10 @@ collection.
   def sumr1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
   def suml1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
 ~~~~~~~~
+
+There are variants allowing for monadic return values. We already used
+`nodes.foldLeftM(world)` when we first wrote the business logic of our
+application, `Foldable` is where the methods are defined:
 
 {lang="text"}
 ~~~~~~~~
@@ -628,8 +767,19 @@ collection.
                                    (f: A => M[Option[B]]): M[Option[B]] = ...
     def allM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
     def anyM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
+  
   }
 ~~~~~~~~
+
+You may also see Curried versions of the above methods, e.g.
+
+{lang="text"}
+~~~~~~~~
+  def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
+  def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
+~~~~~~~~
+
+which are for those who prefer the Curried style.
 
 
 #### Traverse

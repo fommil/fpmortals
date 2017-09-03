@@ -720,8 +720,8 @@ algebra: it is a good level of abstraction to design a system.
 ~~~~~~~~
 
 We've used `NonEmptyList`, easily created by calling `.toNel` on the
-standard library's `List` (returning an `Option[NonEmptyList]`),
-otherwise everything should be familiar.
+stdlib's `List` (returning an `Option[NonEmptyList]`), otherwise
+everything should be familiar.
 
 A> It is good practice in FP to encode constraints in parameters **and**
 A> return types --- it means we never need to handle situations that are
@@ -941,7 +941,7 @@ add it to `pending` noting the time that we scheduled the action.
       } yield update
   
     case Stale(nodes) =>
-      nodes.foldM(world) { (world, n) =>
+      nodes.foldLeftM(world) { (world, n) =>
         for {
           _ <- m.stop(n)
           update = world.copy(pending = world.pending + (n -> world.time))
@@ -956,7 +956,7 @@ Because `NeedsAgent` and `Stale` do not cover all possible situations,
 we need a catch-all `case _` to do nothing. Recall from Chapter 2 that
 `.pure` creates the `for`'s (monadic) context from a value.
 
-`foldM` is like `foldLeft` over `nodes`, but each iteration of the
+`foldLeftM` is like `foldLeft` over `nodes`, but each iteration of the
 fold may return a monadic value. In our case, each iteration of the
 fold returns `F[WorldView]`.
 
@@ -1266,8 +1266,8 @@ written in Scala
 When we introduce a type parameter into an ADT, we call it a
 *Generalised Algebraic Data Type* (GADT).
 
-`scalaz.IList`, a safe invariant alternative to the standard library
-`List`, is a GADT:
+`scalaz.IList`, a safe invariant alternative to the stdlib `List`, is
+a GADT:
 
 {lang="text"}
 ~~~~~~~~
@@ -1717,9 +1717,8 @@ lives in a *typeclass*. A typeclass is a trait that:
 -   may contain *generalised* methods
 -   may extend other typeclasses
 
-Typeclasses are used in the Scala standard library. We'll explore a
-simplified version of `scala.math.Numeric` to demonstrate the
-principle:
+Typeclasses are used in the Scala stdlib. We'll explore a simplified
+version of `scala.math.Numeric` to demonstrate the principle:
 
 {lang="text"}
 ~~~~~~~~
@@ -1958,9 +1957,9 @@ typeclasses are often better than a monolithic collection of overly
 specific features.
 
 If you need to write generic code that works for a wide range of
-number types, prefer [spire](https://github.com/non/spire) to the standard library. Indeed, in the
-next chapter we will see that concepts such as having a zero element,
-or adding two values, are worthy of their own typeclass.
+number types, prefer [spire](https://github.com/non/spire) to the stdlib. Indeed, in the next chapter
+we will see that concepts such as having a zero element, or adding two
+values, are worthy of their own typeclass.
 
 
 ### Implicit Resolution
