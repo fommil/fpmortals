@@ -102,8 +102,8 @@ Defined roughly as:
 A `Semigroup` should exist for a set of elements that have an
 *associative* operation `|+|`.
 
-A> It is common to use `|+|` instead of `mappend`, known as the TIE
-A> Fighter operator. There is an Advanced TIE Fighter in the next
+A> It is far more common to use `|+|` than `mappend`, known as the TIE
+A> Fighter operator. There is an Advanced TIE Fighter in an upcoming
 A> section, which is very exciting.
 
 *Associative* means that the order of applications should not matter,
@@ -182,17 +182,16 @@ only need to call
 and our job is done!
 
 But to get `zero` or call `|+|` we must have an instance of
-`Monoid[TradeTemplate]`. Although we can generically derive this
-later, for now we'll create an explicit instance on the companion:
+`Monoid[TradeTemplate]`. Although we will generically derive this in a
+later chapter, for now we'll create an explicit instance on the
+companion:
 
 {lang="text"}
 ~~~~~~~~
   implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
-   (a, b) => TradeTemplate(
-               a.payments |+| b.payments,
-               a.ccy |+| b.ccy,
-               a.otc |+| b.otc
-             ),
+   (a, b) => TradeTemplate(a.payments |+| b.payments,
+                          a.ccy |+| b.ccy,
+                          a.otc |+| b.otc),
    TradeTemplate(Nil, None, None) 
   )
 ~~~~~~~~
@@ -213,13 +212,11 @@ To explain what we mean by "defers to", consider
   res: Option[Int] = Some(3)
 ~~~~~~~~
 
-We can see the content's `append` has been called, which for `Int` is
-integer addition.
+We can see the content's `append` has been called, integer addition.
 
 But our business rules state that we use "last rule wins" on
 conflicts, so we introduce a higher priority implicit
-`Monoid[Option[T]]` instance and use it during our generic derivation
-instead of the default one:
+`Monoid[Option[T]]` instance and use it instead of the default:
 
 {lang="text"}
 ~~~~~~~~
@@ -234,7 +231,7 @@ instead of the default one:
   )
 ~~~~~~~~
 
-Let's try it out...
+Now everything compiles, let's try it out...
 
 {lang="text"}
 ~~~~~~~~
@@ -247,7 +244,7 @@ Let's try it out...
            TradeTemplate(Nil,                     None,      Some(false))
          )
   
-  scala> templates.foldLeft(Monoid[TradeTemplate].zero)(_ |+| _)
+  scala> templates.foldLeft(zero)(_ |+| _)
   res: TradeTemplate = TradeTemplate(
                          List(2017-08-05,2017-09-05),
                          Some(USD),
@@ -290,11 +287,10 @@ even concepts as simple equality are captured at compiletime.
   }
 ~~~~~~~~
 
-Indeed `===` (`Equal` *triple equals*) is a more typesafe than `==`
-(`Object` *double equals*) because it can only be compiled when the
-types are the same on both sides of the comparison. This entirely
-bypasses the classic problems with equals and sub-classing as
-described in *Effective Java* by Josh Bloch.
+Indeed `===` (*triple equals*) is more typesafe than `==` (*double
+equals*) because it can only be compiled when the types are the same
+on both sides of the comparison. You'd be surprised how many bugs this
+catches.
 
 `equal` has the same implementation requirements as `Object.equals`
 
@@ -302,9 +298,9 @@ described in *Effective Java* by Josh Bloch.
 -   *reflexive* `f === f`
 -   *transitive* `f1 === f2 && f2 === f3` implies `f1 === f3`
 
-By doing away with the universal concept of `Object.equals` we don't
+By throwing away the universal concept of `Object.equals` we don't
 take equality for granted when we construct an ADT, stopping us at
-compiletime from expecting equality where there is no such concept.
+compiletime from expecting equality when there is none.
 
 Continuing the trend of replacing old Java concepts, rather than data
 *being a* `java.lang.Comparable`, they now *have an* `Order` according
@@ -316,10 +312,10 @@ to:
     @op("?|?") def order(x: F, y: F): Ordering
   
     override  def equal(x: F, y: F): Boolean = ...
-    @op("<" ) def lessThan(x: F, y: F): Boolean = ...
-    @op("<=") def lessThanOrEqual(x: F, y: F): Boolean = ...
-    @op(">" ) def greaterThan(x: F, y: F): Boolean = ...
-    @op(">=") def greaterThanOrEqual(x: F, y: F): Boolean = ...
+    @op("<" ) def lt(x: F, y: F): Boolean = ...
+    @op("<=") def lte(x: F, y: F): Boolean = ...
+    @op(">" ) def gt(x: F, y: F): Boolean = ...
+    @op(">=") def gte(x: F, y: F): Boolean = ...
   
     def max(x: F, y: F): F = ...
     def min(x: F, y: F): F = ...
@@ -349,14 +345,23 @@ successors and predecessors:
     @op("---") def predn(n: Int, a: F): F = ...
   
     @op("|->" ) def fromToL(from: F, to: F): List[F] = ...
-    @op("|-->") def fromStepToL(from: Int, step: F, to: F): List[F] = ...
+    @op("|-->") def fromStepToL(from: F, step: Int, to: F): List[F] = ...
     // with variants for other collection types
   }
 ~~~~~~~~
 
-Similarly to `Object.equals`, the concept of a `toString` on every
-`class` does not even make sense in Java. We would like to enforce
-stringyness at compiletime. This is exactly what `Show` achieves:
+{lang="text"}
+~~~~~~~~
+  scala> 10 |--> (2, 20)
+  res: List[Int] = List(10, 12, 14, 16, 18, 20)
+  
+  scala> ('m' |-> 'u')
+  res: List[Char] = List(m, n, o, p, q, r, s, t, u)
+~~~~~~~~
+
+Similarly to `Object.equals`, the concept of a `.toString` on every
+`class` does not make sense in Java. We would like to enforce
+stringyness at compiletime and this is exactly what `Show` achieves:
 
 {lang="text"}
 ~~~~~~~~
@@ -401,7 +406,6 @@ highlighted in this diagram:
   
     def lift[A, B](f: A => B): F[A] => F[B] = map(_)(f)
     def mapply[A, B](a: A)(f: F[A => B]): F[B] = map(f)((ff: A => B) => ff(a))
-    def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
   }
 ~~~~~~~~
 
@@ -460,33 +464,13 @@ before reading further:
     other words, it takes a function over the contents of an `F[A]` and
     returns a function that operates **on** the `F[A]` directly.
 7.  `mapply` is a mind bender. Say you have an `F[_]` of functions `A
-       => B` and a value `A`, then you can get an `F[B]`. `mapply` has a
-    similar signature to `pure` but requires the caller to provide the
-    `F[A => B]`.
+       => B` and a value `A`, then you can get an `F[B]`. It has a similar
+    signature to `pure` but requires the caller to provide the `F[A =>
+       B]`.
 
 `fpair`, `strengthL` and `strengthR` are here because they are simple
 examples of reading type signatures, but they are pretty useless in
 the wild. For the remaining typeclasses, we'll skip the niche methods.
-
-Finally we have `compose`, which has the most complex type signature
-on `Functor`. The arrow syntax is a `kind-projector` *type lambda*
-that says if this `Functor[F]` is composed with a type `G[_]` (that
-has a `Functor[G]`), we get a `Functor[F[G[_]]]` that can operate on
-`F[G[A]]`.
-
-An example of `compose` is where `F[_]` is `List`, `G[_]` is `Option`,
-and we want to be able to map over the `Int` inside a
-`List[Option[Int]]` without changing the two structures:
-
-{lang="text"}
-~~~~~~~~
-  scala> val lo = List(Some(1), None, Some(2))
-  scala> Functor[List].compose[Option].map(lo)(_ + 1)
-  res: List[Option[Int]] = List(Some(2), None, Some(3))
-~~~~~~~~
-
-This lets us jump into nested effects and structures and apply a
-function at the layer we want.
 
 
 #### Foldable
@@ -514,57 +498,49 @@ although methods are typically optimised for specific data structures.
 You might recognise `foldMap` by its marketing buzzword name,
 **MapReduce**. Given an `F[A]`, a function from `A` to `B`, a zero `B`
 and a way to combine `B` (provided by the `Monoid`), we can produce a
-summary value of type `B`. There is no enforced order to operation
-evaluation, allowing for parallel computation.
+summary value of type `B`. There is no enforced operation order,
+allowing for parallel computation.
 
 `foldRight` does not require its parameters to have a `Monoid`,
 meaning that it needs a starting value `z` and a way to combine each
 element of the data structure with the summary value. The order for
-traversing the elements in the data structure from right to left and
-therefore cannot be parallelised.
+traversing the elements is from right to left and therefore it cannot
+be parallelised.
 
-\#+BEGIN<sub>ASIDE</sub>
-
-`foldRight` is conceptually the same as the `foldRight` in the Scala
-stdlib. However, there is a problem with the `foldRight` API, solved
-in scalaz: very large data structures can stack overflow.
-`List.foldRight` cheats by implementing `foldRight` as a reversed
-`foldLeft`
-
-{lang="text"}
-~~~~~~~~
-  override def foldRight[B](z: B)(op: (A, B) => B): B =
-    reverse.foldLeft(z)((right, left) => op(left, right))
-~~~~~~~~
-
-but the concept of reversing is not universal and this workaround
-cannot be used for all data structures.
-
-{lang="text"}
-~~~~~~~~
-  scala> (1 until 100000).toStream.foldRight(0L)(_ + _)
-  java.lang.StackOverflowError
-    at scala.collection.Iterator.toStream(Iterator.scala:1403)
-    ...
-~~~~~~~~
-
-Scalaz solves the problem by taking a *byname* parameter for the
-aggregate value and moving the computation to the heap with a
-technique known as *trampolining*.
-
-
-##### FIXME example of a trampolined foldRight
-
-We'll explore scalaz's data types and trampolining in the next
-chapter. It is worth baring in mind that not all data structures have
-a stack safe `foldRight`, [even within scalaz](https://github.com/scalaz/scalaz/issues/1447).
-
-\#+END<sub>ASIDE</sub>
+A> `foldRight` is conceptually the same as the `foldRight` in the Scala
+A> stdlib. However, there is a problem with the stdlib `foldRight`
+A> signature, solved in scalaz: very large data structures can stack
+A> overflow. `List.foldRight` cheats by implementing `foldRight` as a
+A> reversed `foldLeft`
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   override def foldRight[B](z: B)(op: (A, B) => B): B =
+A>     reverse.foldLeft(z)((right, left) => op(left, right))
+A> ~~~~~~~~
+A> 
+A> but the concept of reversing is not universal and this workaround
+A> cannot be used for all data structures.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   scala> (1 until 100000).toStream.foldRight(0L)(_ + _)
+A>   java.lang.StackOverflowError
+A>     at scala.collection.Iterator.toStream(Iterator.scala:1403)
+A>     ...
+A> ~~~~~~~~
+A> 
+A> Scalaz solves the problem by taking a *byname* parameter for the
+A> aggregate value and moving the computation to the heap with a
+A> technique known as *trampolining*.
+A> 
+A> We'll explore scalaz's data types and trampolining in the next
+A> chapter. It is worth baring in mind that not all data structures have
+A> a stack safe `foldRight`, [even within scalaz](https://github.com/scalaz/scalaz/issues/1447).
 
 `foldLeft` traverses elements from left to right. `foldLeft` can be
-implemented in terms of `foldMap`, so it is not left abstract, but
-most instances choose to implement it since it is such a basic
-operation within the `Foldable` feature set. Since it is usually
+implemented in terms of `foldMap`, but most instances choose to
+implement it because it is such a basic operation. Since it is usually
 implemented with tail recursion, there are no *byname* parameters.
 
 The only law for `Foldable` is that `foldLeft` and `foldRight` should
@@ -575,19 +551,33 @@ do not need to be consistent with each other: in fact they often
 produce the reverse of each other.
 
 The simplest thing to do with `Foldable` is to use the `identity`
-function, giving us `fold`
+function, the natural sum of the monoidal elements, giving us `fold`
+(and left/right variants):
 
 {lang="text"}
 ~~~~~~~~
   def fold[A: Monoid](t: F[A]): A = ...
-  
   def sumr[A: Monoid](fa: F[A]): A = ...
   def suml[A: Monoid](fa: F[A]): A = ...
 ~~~~~~~~
 
-This is the natural sum of monoidal elements. Variants for doing this
-from the left or right are provided for when order matters for
-performance reasons (but it should always produce the same result).
+Recall that when we learnt about `Monoid`, we wrote this:
+
+{lang="text"}
+~~~~~~~~
+  scala> templates.foldLeft(Monoid[TradeTemplate].zero)(_ |+| _)
+~~~~~~~~
+
+We now know this is silly and we should have written:
+
+{lang="text"}
+~~~~~~~~
+  scala> templates.fold
+  res: TradeTemplate = TradeTemplate(
+                         List(2017-08-05,2017-09-05),
+                         Some(USD),
+                         Some(false))
+~~~~~~~~
 
 The strangely named `intercalate` inserts a specific `A` between each
 element before performing the `fold`
@@ -618,14 +608,13 @@ index, including a bunch of other related methods:
   def element[A: Equal](fa: F[A], a: A): Boolean = ...
 ~~~~~~~~
 
-Remember that scalaz is a pure library of only *Total* functions so
-`index` returns an `Option`, not an exception like the stdlib. `index`
-is like `.get`, `indexOr` is like `.getOrElse`. `element` is like
-`contains` and requires the notion of equality.
+Remember that scalaz is a pure library of only *total functions* so
+`index` returns an `Option`, not an exception like `.apply` in the
+stdlib. `index` is like `.get`, `indexOr` is like `.getOrElse` and
+`element` is like `contains` (requiring an `Equal`).
 
-These methods are *really* beginning to sound like what you'd seen in
-a Collection Library, of course anything with a `Foldable` can be
-converted into a stdlib `List`
+These methods *really* sound like a collections API. And, of course,
+anything with a `Foldable` can be converted into a `List`
 
 {lang="text"}
 ~~~~~~~~
@@ -633,10 +622,10 @@ converted into a stdlib `List`
 ~~~~~~~~
 
 There are also conversions to other stdlib and scalaz data types such
-as `.toSet`, `.toVector`, `.toStream`, `.to[CanBuildFrom]`, `.toIList`
-and so on.
+as `.toSet`, `.toVector`, `.toStream`, `.to[T <: TraversableLike]`,
+`.toIList` and so on.
 
-There are some useful predicate checks
+There are useful predicate checks
 
 {lang="text"}
 ~~~~~~~~
@@ -649,9 +638,8 @@ There are some useful predicate checks
 predicate, `all` and `any` return `true` if all (or any) element meets
 the predicate, and may exit early.
 
-A> We've seen the `NonEmptyList` in previous chapters despite have fully
-A> explored its feature set. For the sake of brevity we use a type alias
-A> `Nel` in place of `NonEmptyList`.
+A> We've seen the `NonEmptyList` in previous chapters. For the sake of
+A> brevity we use a type alias `Nel` in place of `NonEmptyList`.
 A> 
 A> We've also seen `IList` in previous chapters, recall that it's an
 A> alternative to stdlib `List` with invariant type parameters and all
@@ -694,12 +682,13 @@ methods which return groupings.
 ~~~~~~~~
 
 `distinct` is implemented more efficiently than `distinctE` because it
-can make use of ordering.
+can make use of ordering and therefore use a quicksort-esque algorithm
+that is much faster than the stdlib's naive `List.distinct`. Data
+structures (such as sets) can implement `distinct` in their `Foldable`
+without doing any work.
 
 `distinctBy` allows grouping by the result of applying a function to
-the elements. For example, grouping names by their first letter. If
-you find yourself using `splitBy` but throwing away the common data,
-you probably meant to use `distinctBy`.
+the elements. For example, grouping names by their first letter.
 
 We can make further use of `Order` by extracting the minimum or
 maximum element (or both extrema) including variations using the `Of`
@@ -721,7 +710,7 @@ type to do the order comparison.
   def extremaBy[A, B: Order](fa: F[A])(f: A => B): Option[(A, A)] =
 ~~~~~~~~
 
-for example we can ask which `String` is maximum `By` length, or what
+For example we can ask which `String` is maximum `By` length, or what
 is the maximum length `Of` the elements.
 
 {lang="text"}
@@ -733,16 +722,14 @@ is the maximum length `Of` the elements.
   res: Option[Int] = Some(4)
 ~~~~~~~~
 
-This concludes the key features of `Foldable`. You'd be forgiven for
-forgetting everything that is available, so the key takeaway is that
-anything you'd expect to find in a collection library is probably on
-`Foldable`.
+This concludes the key features of `Foldable`. You are forgiven for
+already forgetting all the methods you've just seen: the key takeaway
+is that anything you'd expect to find in a collection library is
+probably on `Foldable` and if it isn't already, it [probably should be](https://github.com/scalaz/scalaz/issues/1448).
 
-We'll conclude with a few variations on the above with weaker type
-constraints. First there are variants of some methods that take a
-`Monoid`, instead taking a `Semigroup`, returning `Option` for empty
-data structures. Note that the methods are `1` (one) `Opt` (option),
-not `10 pt`, a subtle typesetting joke for the observant.
+We'll conclude with some variations of the methods we've already seen.
+First there are variants of methods that take a `Semigroup` instead of
+a `Monoid`:
 
 {lang="text"}
 ~~~~~~~~
@@ -750,36 +737,39 @@ not `10 pt`, a subtle typesetting joke for the observant.
   def foldMap1Opt[A, B: Semigroup](fa: F[A])(f: A => B): Option[B] = ...
   def sumr1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
   def suml1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
+  ...
 ~~~~~~~~
 
-There are variants allowing for monadic return values. We already used
-`nodes.foldLeftM(world)` when we first wrote the business logic of our
-application, `Foldable` is where the methods are defined:
+returning `Option` to account for empty data structures (recall that
+`Semigroup` does not have a `zero`). Note that the methods read
+"one-Option", not `10 pt`, a subtle typesetting joke for the
+(un-)observant.
+
+Importantly, there are variants that take monadic return values. We
+already used `nodes.foldLeftM(world)` when we first wrote the business
+logic of our application, `Foldable` is where the methods are defined:
 
 {lang="text"}
 ~~~~~~~~
+  def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)(f: (B, A) => G[B]): G[B] = ...
+  def foldRightM[G[_]: Monad, A, B](fa: F[A], z: => B)(f: (A, => B) => G[B]): G[B] = ...
   def foldMapM[G[_]: Monad, A, B: Monoid](fa: F[A])(f: A => G[B]): G[B] = ...
-    def foldRightM[G[_]: Monad, A, B](fa: F[A], z: => B)
-                                     (f: (A, => B) => G[B]): G[B] = ...
-    def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)
-                                    (f: (B, A) => G[B]): G[B] = ...
-    def findMapM[M[_]: Monad, A, B](fa: F[A])
-                                   (f: A => M[Option[B]]): M[Option[B]] = ...
-    def allM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
-    def anyM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
-  
-  }
+  def findMapM[M[_]: Monad, A, B](fa: F[A])(f: A => M[Option[B]]): M[Option[B]] = ...
+  def allM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
+  def anyM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
+  ...
 ~~~~~~~~
 
-You may also see Curried versions of the above methods, e.g.
+You may also see Curried versions, e.g.
 
 {lang="text"}
 ~~~~~~~~
   def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
   def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
+  ...
 ~~~~~~~~
 
-which are for those who prefer the Curried style.
+which are elegant signatures for the more civilised hacker.
 
 
 #### Traverse
@@ -792,6 +782,31 @@ and method that we previously ignored:
 
 
 #### go back to Functor for compose / lift / xmap
+
+{lang="text"}
+~~~~~~~~
+  def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
+~~~~~~~~
+
+Finally we have `compose`, which has the most complex type signature
+on `Functor`. The arrow syntax is a `kind-projector` *type lambda*
+that says if this `Functor[F]` is composed with a type `G[_]` (that
+has a `Functor[G]`), we get a `Functor[F[G[_]]]` that can operate on
+`F[G[A]]`.
+
+An example of `compose` is where `F[_]` is `List`, `G[_]` is `Option`,
+and we want to be able to map over the `Int` inside a
+`List[Option[Int]]` without changing the two structures:
+
+{lang="text"}
+~~~~~~~~
+  scala> val lo = List(Some(1), None, Some(2))
+  scala> Functor[List].compose[Option].map(lo)(_ + 1)
+  res: List[Option[Int]] = List(Some(2), None, Some(3))
+~~~~~~~~
+
+This lets us jump into nested effects and structures and apply a
+function at the layer we want.
 
 {lang="text"}
 ~~~~~~~~
