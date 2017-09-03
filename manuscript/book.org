@@ -3594,7 +3594,8 @@ produce the reverse of each other.
 
 The simplest thing to do with =Foldable= is to use the =identity=
 function, the natural sum of the monoidal elements, giving us =fold=
-(and left/right variants):
+(and left/right variants to allow choosing specific performance
+criteria):
 
 #+BEGIN_SRC scala
   def fold[A: Monoid](t: F[A]): A = ...
@@ -3776,9 +3777,15 @@ returning =Option= to account for empty data structures (recall that
 "one-Option", not =10 pt=, a subtle typesetting joke for the
 (un-)observant.
 
-Importantly, there are variants that take monadic return values. We
-already used =nodes.foldLeftM(world)= when we first wrote the business
-logic of our application, =Foldable= is where the methods are defined:
+The typeclass =Foldable1= contains a lot more =Semigroup= variants of
+the =Monoid= methods shown here (all suffixed =1=) and makes sense for
+data structures which are never empty, without requiring a =Monoid= on
+the elements.
+
+Very importantly, there are variants that take monadic return values.
+We already used =nodes.foldLeftM(world)= when we first wrote the
+business logic of our application, now you know that =Foldable= is
+where it is defined:
 
 #+BEGIN_SRC scala
 def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)(f: (B, A) => G[B]): G[B] = ...
@@ -3800,7 +3807,47 @@ def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
 
 which are elegant signatures for the more civilised hacker.
 
-***** TODO Traverse
+***** Traverse
+
+=Traverse= is what happens when you cross a =Functor= with a =Foldable=
+
+#+BEGIN_SRC scala
+trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
+  def traverse[G[_]: Applicative, A, B](fa: F[A])(f: A => G[B]): G[F[B]]
+  def sequence[G[_]: Applicative, A](fga: F[G[A]]): G[F[A]] = ...
+
+  def reverse[A](fa: F[A]): F[A] = ...
+
+  def zipL[A, B](fa: F[A], fb: F[B]): F[(A, Option[B])] = ...
+  def zipR[A, B](fa: F[A], fb: F[B]): F[(Option[A], B)] = ...
+  def indexed[A](fa: F[A]): F[(Int, A)] = ...
+  def zipWithL[A, B, C](fa: F[A], fb: F[B])(f: (A, Option[B]) => C): F[C] = ...
+  def zipWithR[A, B, C](fa: F[A], fb: F[B])(f: (Option[A], B) => C): F[C] = ...
+
+  def mapAccumL[S, A, B](fa: F[A], z: S)(f: (S, A) => (S, B)): (S, F[B]) = ...
+  def mapAccumR[S, A, B](fa: F[A], z: S)(f: (S, A) => (S, B)): (S, F[B]) = ...
+}
+#+END_SRC
+
+At the beginning of the chapter we showed the importance of =traverse=
+and =sequence= for swapping around HKTs to fit a requirement (e.g.
+=List[Future[_]]= to =Future[List[_]]=). You will use these methods
+more than you could possibly imagine.
+
+In =Foldable= we weren't able to assume that =reverse= was a universal
+concept, but now we can reverse a thing.
+
+We can also =zip= together two things that have a =Traverse=, getting
+back =None= when one side runs out of elements, using =zipL= or =zipR=
+to decide which side to truncate when the lengths don't match. A
+special case of =zip= is to add an =index= to every entry.
+
+=zipWithL= and =zipWithR= allow combining the two sides of a =zip=
+into a new type, and then returning just an =F[C]=.
+
+=mapAccumL= and =mapAccumR= ??? maps with an accumulated value
+
+***** TODO Traverse1
 
 **** Variance
 
