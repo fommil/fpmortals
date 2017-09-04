@@ -829,10 +829,46 @@ special case of `zip` is to add an index to every entry with
 `zipWithL` and `zipWithR` allow combining the two sides of a `zip`
 into a new type, and then returning just an `F[C]`.
 
-`mapAccumL` and `mapAccumR` ??? maps with an accumulated value
+`mapAccumL` and `mapAccumR` are like regular `map` with a *state*
+variable that can be used to store some additional information. If you
+find yourself wanting to use a `var`, and refer to it from a `map`,
+you want `mapAccumL`.
 
+For example, let's say we have a list of words and we want to censor
+out words we've already seen. The filtering algorithm is not allowed
+to process the list of words a second time:
 
-#### Traverse1
+{lang="text"}
+~~~~~~~~
+  """Sometimes, some extremely common words which would appear to be of
+     little value in helping select documents matching a user need are
+     excluded from the vocabulary entirely. These words are called stop
+     words. The general strategy for determining a stop list is to sort
+     the terms by collection frequency (the total number of times each
+     term appears in the document collection), and then to take the most
+     frequent terms, often hand-filtered for their semantic content
+     relative to the domain of the documents being indexed, as a stop
+     list, the members of which are then discarded during indexing"""
+     .split("\\s+").toList
+     .mapAccumL(Set.empty[String]) { (counts, word) =>
+       val clean = word.toLowerCase.replaceAll("[,.()]+", "")
+       (counts + clean, if (counts(clean)) "_" else word)
+     }._2.intercalate(" ")
+  
+  """Sometimes, some extremely common words which would appear to be of
+     little value in helping select documents matching a user need are
+     excluded from the vocabulary entirely. These _ _ called stop _ _
+     general strategy for determining _ _ list is _ sort _ terms by
+     collection frequency _ total number _ times each term appears _ _
+     document _ and then _ take _ most frequent _ often hand-filtered _
+     their semantic content relative _ _ domain _ _ _ being indexed,
+     as _ _ _ _ members _ _ _ _ discarded during indexing"""
+~~~~~~~~
+
+Finally `Traverse1`, like `Foldable1`, provides variants of these
+methods for data structures that cannot be empty, accepting the weaker
+`Semigroup` instead of a `Monoid`, and an `Apply` instead of an
+`Applicative`.
 
 
 ### Variance
