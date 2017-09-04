@@ -850,9 +850,9 @@ to process the list of words a second time:
      relative to the domain of the documents being indexed, as a stop
      list, the members of which are then discarded during indexing"""
      .split("\\s+").toList
-     .mapAccumL(Set.empty[String]) { (counts, word) =>
+     .mapAccumL(Set.empty[String]) { (seen, word) =>
        val clean = word.toLowerCase.replaceAll("[,.()]+", "")
-       (counts + clean, if (counts(clean)) "_" else word)
+       (seen + clean, if (seen(clean)) "_" else word)
      }._2.intercalate(" ")
   
   """Sometimes, some extremely common words which would appear to be of
@@ -873,82 +873,49 @@ methods for data structures that cannot be empty, accepting the weaker
 
 ### Variance
 
-We must return to `Functor` for a moment and reveal a typeclass parent
-and method that we previously ignored:
+We must return to `Functor` for a moment and discuss an ancestor that
+we previously ignored:
 
+{width=100%}
+![](images/scalaz-variance.png)
 
-#### go back to Functor for compose / lift / xmap
-
-{lang="text"}
-~~~~~~~~
-  def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
-~~~~~~~~
-
-Finally we have `compose`, which has the most complex type signature
-on `Functor`. The arrow syntax is a `kind-projector` *type lambda*
-that says if this `Functor[F]` is composed with a type `G[_]` (that
-has a `Functor[G]`), we get a `Functor[F[G[_]]]` that can operate on
-`F[G[A]]`.
-
-An example of `compose` is where `F[_]` is `List`, `G[_]` is `Option`,
-and we want to be able to map over the `Int` inside a
-`List[Option[Int]]` without changing the two structures:
-
-{lang="text"}
-~~~~~~~~
-  scala> val lo = List(Some(1), None, Some(2))
-  scala> Functor[List].compose[Option].map(lo)(_ + 1)
-  res: List[Option[Int]] = List(Some(2), None, Some(3))
-~~~~~~~~
-
-This lets us jump into nested effects and structures and apply a
-function at the layer we want.
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait Invariant[F[_]] {
-    def imap[A, B](fa: F[A])(f: A => B)(g: B => A): F[B]
-  
-    def compose[G[_]: Invariant]: Invariant[λ[α => F[G[α]]]] = ...
-    def composeFunctor[G[_]: Functor]: Invariant[λ[α => F[G[α]]]] = ...
-    def composeContravariant[G[_]: Contravariant]: Invariant[λ[α => F[G[α]]]] = ...
-  }
-  
-  @typeclass trait Functor[F[_]] extends Invariant[F] {
-    def map[A, B](fa: F[A])(f: A => B): F[B]
-  
-    def imap[A, B](fa: F[A])(f: A => B)(fi: B => A): F[B] = map(fa)(f)
-  
-    def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
-    ...
-  }
-  
-  @typeclass trait Contravariant[F[_]] extends Invariant[F] {
-    def contramap[A, B](fa: F[A])(f: B => A): F[B]
-  
-    def imap[A, B](fa: F[A])(f: A => B)(fi: B => A): F[B] = contramap(fa)(fi)
-  
-    def narrow[A, B <: A](fa: F[A]): F[B] = fa.asInstanceOf[F[B]]
-  
-    def compose[G[_]: Contravariant]: Functor[λ[α => F[G[α]]]] = ...
-  }
-~~~~~~~~
+`InvariantFunctor`, also known as the *exponential functor*, has a
+method `xmap` which says that given a function from `A` to `B`, and a
+function from `B` to `A`, then we can convert `F[A]` to `F[B]`.
 
 `Functor` is a short name for what should be *covariant functor*. But
 since `Functor` is so popular it gets the nickname. Likewise
-`Contravariant` should really be *contravariant functor* and
-`Invariant` should be *invariant functor*.
+`Contravariant` should really be *contravariant functor*.
+
+`Functor` implements `xmap` with `map` and ignores the function from
+`B` to `A`. `Contravariant`, on the other hand, implements `xmap` with
+`contramap` and ignores the function from `A` to `B`:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait InvariantFunctor[F[_]] {
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B]
+    ...
+  }
+  
+  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
+    def map[A, B](fa: F[A])(f: A => B): F[B]
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = map(fa)(f)
+    ...
+  }
+  
+  @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
+    def contramap[A, B](fa: F[A])(f: B => A): F[B]
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(fi)
+    ...
+  }
+~~~~~~~~
 
 It is important to note that, although related at a theoretical level,
 the words *covariant*, *contravariant* and *invariant* do not directly
 refer to type variance (i.e. `+` and `-` prefixes that may be written
-in type signatures).
-
-*Invariance* here means that it is possible to map the contents of a
-structure `F[A]` into `F[B]` if we can provide a map from `A => B` and
-a map from `B => A`. A normal, covariant, functor only needs the `A =>
-B` to be able to do this, exemplified in its implementation of `imap`,
-but a bizarro contravariant functor only needs a map from `B => A`.
+in type signatures). *Invariance* here means that it is possible to
+map the contents of a structure `F[A]` into `F[B]`.
 
 This is so ridiculously abstract and seemingly impossible that it
 needs a practical example immediately, before we can continue on good
@@ -962,46 +929,139 @@ This is an expanded version:
     def encodeJson(a: A): Json
   
     def contramap[B](f: B => A): Encoder[B] = new Encoder[B] {
-      final def apply(a: B) = self(f(a))
+      def encodeJson(b: B): Json = self(f(b))
     }
   }
 ~~~~~~~~
 
 Now consider the case where we want to write an instance of an
-`Encoder[B]` in terms of another `Encoder[A]`, that's exactly what
+`Encoder[B]` in terms of another `Encoder[A]`. That's exactly what
 `contramap` is for (recall that it is safe to call `Some.get`, but not
 `Option.get`):
 
 {lang="text"}
 ~~~~~~~~
-  implicit def encodeSome[A: Encoder]: Encoder[Some[A]] =
-    Encoder[A].contramap(_.get)
+  implicit def some[A: Encoder]: Encoder[Some[A]] = Encoder[A].contramap(_.get)
 ~~~~~~~~
 
-<http://typelevel.org/blog/2016/02/04/variance-and-functors.html>
-
-A `Functor` is documented in cats as a "covariant functor". This seems
-immediately contradictory since it inherits from `Invariant`. TODO
-
-the sub typing relationship does make sense, functors answer the question: "what do I need, to go from an F[A] to an F[B]" ?
-
-1.  invariant: you need both an A => B, and a B => A
-
-2 ) covariant: you only need an A => B
-
-1.  contravariant: you only need a B => A
-
-The requirements for 2) are a subset of the requirements for 1), so 2) is a subtype of 1)
-The requirements for 3) are a subset of the requirements for 1) so 3) is a subtype of 1)
+On the other hand, a `Decoder` typically has a `CovariantFunctor`:
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait Foo[A]
-  case class Bar[A](a: A) extends Foo[A]
-  case class Baz[A](f: A => Int) extends Foo[A]
+  @typeclass trait Decoder[A] { self =>
+    def decodeJson(j: Json): Decoder.Result[A]
+  
+    def map[B](f: A => B): Decoder[B] = new Decoder[B] {
+      def decodeJson(j: Json): Decoder.Result[B] = self.decodeJson(j).map(f)
+    }
+  }
+  object Decoder {
+    type Result[A] = Either[String, A]
+  }
 ~~~~~~~~
 
--   Invariant
+Methods on a typeclass can have their type parameters in
+*contravariant position* (method parameters) or in *covariant
+position* (return type). If a typeclass has a combination of covariant
+and contravariant positions, it might have an *invariant functor*.
+
+Consider what happens if we combine `Encoder` and `Decoder` into one
+typeclass. We can no longer construct a `Format` my using `map` or
+`contramap` alone, we need `xmap`:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Format[A] extends Encoder[A] with Decoder[A] { self =>
+    def xmap[B](f: A => B, g: B => A): Format[B] = new Format[B] {
+      def encodeJson(b: B): Json = self(g(b))
+      def decodeJson(j: Json): Decoder.Result[B] = self.decodeJson(j).map(f)
+    }
+  }
+~~~~~~~~
+
+One of the most compelling uses for `xmap` is to provide typeclasses
+for *value types*. A value type is a compiletime wrapper for another
+type, that does not incur any object allocation costs (subject to some
+rules of use).
+
+For example you may provide context around some numbers to avoid
+getting them mixed up:
+
+{lang="text"}
+~~~~~~~~
+  final case class Alpha(value: Double) extends AnyVal
+  final case class Beta (value: Double) extends AnyVal
+  final case class Rho  (value: Double) extends AnyVal
+  final case class Nu   (value: Double) extends AnyVal
+~~~~~~~~
+
+If you want to put these types in a JSON message, you'd need to write
+a custom `Format` for each type, which is tedious. But our `Format`
+implements `xmap`, allowing `Format` to be constructed from a simple
+pattern:
+
+{lang="text"}
+~~~~~~~~
+  implicit val double: Format[Double] = ...
+  
+  implicit val alpha: Format[Alpha] = double.xmap(Alpha(_), _.value)
+  implicit val beta : Format[Beta]  = double.xmap(Beta(_) , _.value)
+  implicit val rho  : Format[Rho]   = double.xmap(Rho(_)  , _.value)
+  implicit val nu   : Format[Nu]    = double.xmap(Nu(_)   , _.value)
+~~~~~~~~
+
+Macros can automate the construction of these instances, so we don't
+need to write them: we'll revisit this later in a dedicated chapter on
+Typeclass Derivation.
+
+
+#### Composition
+
+Invariants can be composed via methods with intimidating type
+signatures. There are many permutations of `compose` on most
+typeclasses, we will not list them all.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Functor[F[_]] extends Invariant[F] {
+    def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
+    def icompose[G[_]: Contravariant]: Contravariant[λ[α => F[G[α]]]] = ...
+    ...
+  }
+  @typeclass trait Contravariant[F[_]] extends Invariant[F] {
+    def compose[G[_]: Contravariant]: Functor[λ[α => F[G[α]]]] = ...
+    def icompose[G[_]: Functor]: Contravariant[λ[α => F[G[α]]]] = ...
+    ...
+  }
+~~~~~~~~
+
+The arrow syntax is a `kind-projector` *type lambda* that says, for
+example, if `Functor[F]` is composed with a type `G[_]` (that has a
+`Functor[G]`), we get a `Functor[F[G[_]]]` that can operate on
+`F[G[A]]`.
+
+An example of `Functor.compose` is where `F[_]` is `List`, `G[_]` is
+`Option`, and we want to be able to map over the `Int` inside a
+`List[Option[Int]]` without changing the two structures:
+
+{lang="text"}
+~~~~~~~~
+  scala> val lo = List(Some(1), None, Some(2))
+  scala> Functor[List].compose[Option].map(lo)(_ + 1)
+  res: List[Option[Int]] = List(Some(2), None, Some(3))
+~~~~~~~~
+
+This lets us jump into nested effects and structures and apply a
+function at the layer we want.
+
+
+#### Apply
+
+
+#### Divide
+
+
+#### Divisable
 
 
 ### Bifunctor
@@ -1141,6 +1201,59 @@ WriterT
 Yoneda
 Zap
 Zipper
+
+
+#### Liskov / Subtyping
+
+<https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw>
+<https://typelevel.org/blog/2016/09/19/variance-phantom.html>
+
+After seven major releases over a decade, scalaz has concluded that
+Scala's subtyping is fundamentally broken: from subtle bugs in the
+compiler to puzzlers that are technically behaving as expected. The
+solution is to avoid using covariant and contravariant (`+` and `-`)
+type parameter markers.
+
+You'll will notice that many of the data types in scalaz are invariant
+in their type parameters. `IList` is `IList[A]` not `List[+A]` for
+this very reason.
+
+Instead, the ability to upcast is provided by `Functor`:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Functor[F[_]] extends Invariant[F] {
+    def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = ...
+    ...
+  }
+~~~~~~~~
+
+<https://issues.scala-lang.org/browse/SI-2509>
+
+{lang="text"}
+~~~~~~~~
+  (on subtyping on typeclasses)
+  
+  <aarvar> "def foo[F[_] : MonadReader[R, ?] : MonadState[S, ?]] will lead to
+           ambiguities if both MonadReader and MonadState extend Monad"
+  <aarvar> try it  [22:54]
+  <fommil> yes, and the more common problem is when you want an Applicative and
+           a Monad. I'm aware of that problem.
+  <aarvar> likewise if you have both Applicative and Traversable, the Functor
+           instance will be ambiguous, I think
+  <fommil> but what of when covariant and contravariant type parameters are
+           introduced?
+  <puffnfresh> def foo[F[_]: Monad: Traverse](fa: F[A]): F[Unit] = fa.void
+  ...
+  <fommil> but what about on ADTs? Why are all the scalaz data types invariant
+           rather than covariant?
+  <fommil> is there a similar implicit resolution problem that is being worked
+           around? Or something deeper  [23:00]
+  <aarvar> fommil: one simple reason is that then Foo[String] and Foo[Int] will
+           unify to the common super type Foo[Any], which is almost never what
+           you want  [23:02]
+  <fommil> right... or more commonly Product with Serializable with OtherCrap
+~~~~~~~~
 
 
 ### NonEmptyList
