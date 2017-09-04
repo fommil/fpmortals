@@ -97,8 +97,9 @@ without restriction.
 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
 degrees, Rúnar Bjarnason and Tony Morris for their help explaining the
-principles of FP. Miles Sabin for implementing critical FP features in
-the scala compiler.
+principles of FP. Kenji Yoshida and Jason Zaugg for being the main
+authors of scalaz, and Miles Sabin for implementing critical FP
+features in the scala compiler.
 
 The readers who gave feedback on early drafts of this text.
 
@@ -130,15 +131,15 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"  % "0.10.0",
+  "com.github.mpilquist" %% "simulacrum"  % "0.11.0",
   "com.chuusai"          %% "shapeless"   % "2.3.2" ,
-  "org.typelevel"        %% "export-hook" % "1.2.0" ,
+  "com.fommil"           %% "stalactite"  % "0.0.4" ,
   "org.scalaz"           %% "scalaz"      % "7.2.15"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
 addCompilerPlugin(
-  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+  "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )
 #+END_SRC
 
@@ -3687,9 +3688,7 @@ the impure methods, like =apply=, removed.
 #+END_ASIDE
 
 We can split an =F[A]= into parts that result in the same =B= with
-=splitBy=, which is the generalised stdlib =groupBy=
-
-****** FIXME: check this, the =B= may repeat
+=splitBy=
 
 #+BEGIN_SRC scala
   def splitBy[A, B: Equal](fa: F[A])(f: A => B): IList[(B, Nel[A])] = ...
@@ -3700,6 +3699,15 @@ We can split an =F[A]= into parts that result in the same =B= with
   def findLeft[A](fa: F[A])(f: A => Boolean): Option[A] = ...
   def findRight[A](fa: F[A])(f: A => Boolean): Option[A] = ...
 #+END_SRC
+
+for example
+
+#+BEGIN_SRC scala
+scala> IList("foo", "bar", "bar", "faz", "gaz", "baz").splitBy(_.charAt(0))
+res = [(f, [foo]), (b, [bar, bar]), (f, [faz]), (g, [gaz]), (b, [baz])]
+#+END_SRC
+
+noting that there are two parts indexed by =f=.
 
 =splitByRelation= avoids the need for an =Equal= but we must provide
 the comparison operator.
@@ -3846,7 +3854,8 @@ concept, but now we can reverse a thing.
 We can also =zip= together two things that have a =Traverse=, getting
 back =None= when one side runs out of elements, using =zipL= or =zipR=
 to decide which side to truncate when the lengths don't match. A
-special case of =zip= is to add an =index= to every entry.
+special case of =zip= is to add an index to every entry with
+=indexed=.
 
 =zipWithL= and =zipWithR= allow combining the two sides of a =zip=
 into a new type, and then returning just an =F[C]=.

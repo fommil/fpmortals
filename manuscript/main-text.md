@@ -647,10 +647,7 @@ A> alternative to stdlib `List` with invariant type parameters and all
 A> the impure methods, like `apply`, removed.
 
 We can split an `F[A]` into parts that result in the same `B` with
-`splitBy`, which is the generalised stdlib `groupBy`
-
-
-##### FIXME: check this, the `B` may repeat
+`splitBy`
 
 {lang="text"}
 ~~~~~~~~
@@ -662,6 +659,16 @@ We can split an `F[A]` into parts that result in the same `B` with
   def findLeft[A](fa: F[A])(f: A => Boolean): Option[A] = ...
   def findRight[A](fa: F[A])(f: A => Boolean): Option[A] = ...
 ~~~~~~~~
+
+for example
+
+{lang="text"}
+~~~~~~~~
+  scala> IList("foo", "bar", "bar", "faz", "gaz", "baz").splitBy(_.charAt(0))
+  res = [(f, [foo]), (b, [bar, bar]), (f, [faz]), (g, [gaz]), (b, [baz])]
+~~~~~~~~
+
+noting that there are two parts indexed by `f`.
 
 `splitByRelation` avoids the need for an `Equal` but we must provide
 the comparison operator.
@@ -816,7 +823,8 @@ concept, but now we can reverse a thing.
 We can also `zip` together two things that have a `Traverse`, getting
 back `None` when one side runs out of elements, using `zipL` or `zipR`
 to decide which side to truncate when the lengths don't match. A
-special case of `zip` is to add an `index` to every entry.
+special case of `zip` is to add an index to every entry with
+`indexed`.
 
 `zipWithL` and `zipWithR` allow combining the two sides of a `zip`
 into a new type, and then returning just an `F[C]`.

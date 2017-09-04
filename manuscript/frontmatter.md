@@ -81,8 +81,9 @@ without restriction.
 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
 degrees, Rúnar Bjarnason and Tony Morris for their help explaining the
-principles of FP. Miles Sabin for implementing critical FP features in
-the scala compiler.
+principles of FP. Kenji Yoshida and Jason Zaugg for being the main
+authors of scalaz, and Miles Sabin for implementing critical FP
+features in the scala compiler.
 
 The readers who gave feedback on early drafts of this text.
 
@@ -116,15 +117,15 @@ FP-specific features enabled (e.g. in `build.sbt`):
   )
   
   libraryDependencies ++= Seq(
-    "com.github.mpilquist" %% "simulacrum"  % "0.10.0",
+    "com.github.mpilquist" %% "simulacrum"  % "0.11.0",
     "com.chuusai"          %% "shapeless"   % "2.3.2" ,
-    "org.typelevel"        %% "export-hook" % "1.2.0" ,
+    "com.fommil"           %% "stalactite"  % "0.0.4" ,
     "org.scalaz"           %% "scalaz"      % "7.2.15"
   )
   
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
   addCompilerPlugin(
-    "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+    "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
   )
 ~~~~~~~~
 
