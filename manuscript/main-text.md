@@ -612,7 +612,7 @@ index, including a bunch of other related methods:
 Remember that scalaz is a pure library of only *total functions* so
 `index` returns an `Option`, not an exception like `.apply` in the
 stdlib. `index` is like `.get`, `indexOr` is like `.getOrElse` and
-`element` is like `contains` (requiring an `Equal`).
+`element` is like `.contains` (requiring an `Equal`).
 
 These methods *really* sound like a collections API. And, of course,
 anything with a `Foldable` can be converted into a `List`
@@ -648,6 +648,9 @@ A> the impure methods, like `apply`, removed.
 
 We can split an `F[A]` into parts that result in the same `B` with
 `splitBy`, which is the generalised stdlib `groupBy`
+
+
+##### FIXME: check this, the `B` may repeat
 
 {lang="text"}
 ~~~~~~~~

@@ -71,8 +71,12 @@ can use this book as you like, the [[https://github.com/fommil/fp-scala-mortals]
 redistribute this book and you can distribute your own version. That
 means you can print it, photocopy it, e-mail it, upload it to
 websites, change it, translate it, remix it, delete bits, and draw all
-over it. You can even sell it, although morally you should offer a
-royalty share to the author.
+over it.
+
+You can even sell this book or your own version (although, morally,
+you should offer a royalty share to the author). If you received this
+book without paying for it, I would appreciate it if you donated what
+you feel it is worth at https://leanpub.com/fp-scala-mortals.
 
 This book is *Copyleft*: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -3648,7 +3652,7 @@ index, including a bunch of other related methods:
 Remember that scalaz is a pure library of only /total functions/ so
 =index= returns an =Option=, not an exception like =.apply= in the
 stdlib. =index= is like =.get=, =indexOr= is like =.getOrElse= and
-=element= is like =contains= (requiring an =Equal=).
+=element= is like =.contains= (requiring an =Equal=).
 
 These methods /really/ sound like a collections API. And, of course,
 anything with a =Foldable= can be converted into a =List=
@@ -3684,6 +3688,8 @@ the impure methods, like =apply=, removed.
 
 We can split an =F[A]= into parts that result in the same =B= with
 =splitBy=, which is the generalised stdlib =groupBy=
+
+****** FIXME: check this, the =B= may repeat
 
 #+BEGIN_SRC scala
   def splitBy[A, B: Equal](fa: F[A])(f: A => B): IList[(B, Nel[A])] = ...

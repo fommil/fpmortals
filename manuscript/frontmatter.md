@@ -54,8 +54,12 @@ can use this book as you like, the [source is available](https://github.com/fomm
 redistribute this book and you can distribute your own version. That
 means you can print it, photocopy it, e-mail it, upload it to
 websites, change it, translate it, remix it, delete bits, and draw all
-over it. You can even sell it, although morally you should offer a
-royalty share to the author.
+over it.
+
+You can even sell this book or your own version (although, morally,
+you should offer a royalty share to the author). If you received this
+book without paying for it, I would appreciate it if you donated what
+you feel it is worth at <https://leanpub.com/fp-scala-mortals>.
 
 This book is **Copyleft**: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
