@@ -6,7 +6,7 @@ introduction.md
 
 under-review.md
 
-main-text.md
+wip.md
 
 backmatter.md
 

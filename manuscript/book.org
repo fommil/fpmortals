@@ -2980,23 +2980,21 @@ package logic {
 - /generic instances/ automatically derive instances for your data
   types.
 
-* Main Text                                                           :final:
+* WIP                                                            :final:
   :PROPERTIES:
-  :EXPORT_FILE_NAME: main-text.md
+  :EXPORT_FILE_NAME: wip.md
   :END:
-** Scalaz Core Typeclasses
+** Scalaz Typeclasses
 
-In this chapter we will tour the typeclasses in =scalaz-core=. We
-don't use everything in =drone-dynamic-agents= so we will give
+In this chapter we will tour most of the typeclasses in =scalaz-core=.
+We don't use everything in =drone-dynamic-agents= so we will give
 standalone examples when appropriate.
 
 There has been criticism of the naming in scalaz, and functional
 programming in general. Most names follow the conventions introduced
-in the Haskell programming language, based on /Category Theory/.
-
-We will use the scalaz names in this book, but feel free to set up
-=type= aliases in your own codebase if you would prefer to use verb
-names based on the primary functionality of the typeclass (e.g.
+in the Haskell programming language, based on /Category Theory/. Feel
+free to set up =type= aliases in your own codebase if you would prefer
+to use verbs based on the primary functionality of the typeclass (e.g.
 =Mappable=, =Pureable=, =FlatMappable=) until you are comfortable with
 the standard names.
 
@@ -3039,10 +3037,12 @@ then you need =Traverse=. For example, say you have a
 =List[Future[Int]]= but you need it to be a =Future[List[Int]]=, just
 call =.traverse(identity)=, or its simpler sibling =.sequence=.
 
-*** Typeclasses
+*** Agenda
 
 There is an overwhelming number of typeclasses, so we will visualise
-similar clusters and discuss, with simplified definitions.
+similar clusters and discuss, with simplified definitions. Notably
+absent are typeclasses that extend =Monad=, which get their own
+chapter.
 
 Scalaz uses code generation instead of simulacrum. We'll present the
 typeclasses as if simulacrum was used, but note that there are no
@@ -3054,9 +3054,9 @@ import scalaz._, Scalaz._
 #+END_SRC
 
 If you wish to explore what is available for a particular typeclass,
-look under the =scalaz.syntax= package.
+look under =scalaz.syntax=.
 
-**** Appendable Things
+*** Appendable Things
 
 #+BEGIN_SRC dot :file images/scalaz-semigroup.png :exports results
 digraph G {
@@ -3249,7 +3249,7 @@ polymorphism we can have a different implementation of =append=
 depending on the =E= in =List[E]=, not just the base runtime class
 =List=.
 
-**** Objecty Things
+*** Objecty Things
 
 In the chapter on Data and Functionality we said that the JVM's notion
 of equality breaks down for many things that you can put into an ADT.
@@ -3374,7 +3374,7 @@ Unfortunately, due to Scala's default implicit conversions in
 strings, it can be incredibly hard to remember to use =shows= instead
 of =toString=.
 
-**** Mappable Things
+*** Mappable Things
 
 We're focusing on things that can be "mapped over" in some sense,
 highlighted in this diagram:
@@ -3401,6 +3401,11 @@ digraph G {
       Applicative -> Apply
       Align -> Functor
       Bind -> Apply
+
+      Monad
+      "Advanced Monads" [style=dashed]
+      "Advanced Monads" -> Monad
+
       Monad -> Applicative
       Monad -> Bind
 
@@ -3415,14 +3420,6 @@ digraph G {
 
       ApplicativePlus -> Applicative
       ApplicativePlus -> PlusEmpty
-      MonadPlus -> Monad
-      MonadPlus -> ApplicativePlus
-
-      Nondeterminism -> Monad
-      MonadState -> Monad
-      MonadError -> Monad
-      MonadTell -> Monad
-      MonadReader -> Monad
 
       ComonadStore -> Comonad
 
@@ -3435,7 +3432,7 @@ digraph G {
 #+RESULTS:
 [[file:images/scalaz-mappable.png]]
 
-***** Functor
+**** Functor
 
 #+BEGIN_SRC scala
 @typeclass trait Functor[F[_]] {
@@ -3513,7 +3510,7 @@ before reading further:
 examples of reading type signatures, but they are pretty useless in
 the wild. For the remaining typeclasses, we'll skip the niche methods.
 
-***** Foldable
+**** Foldable
 
 Technically, =Foldable= is for data structures that can be walked to
 produce a summary value. However, this undersells the fact that it is
@@ -3769,8 +3766,7 @@ is that anything you'd expect to find in a collection library is
 probably on =Foldable= and if it isn't already, it [[https://github.com/scalaz/scalaz/issues/1448][probably should be]].
 
 We'll conclude with some variations of the methods we've already seen.
-First there are variants of methods that take a =Semigroup= instead of
-a =Monoid=:
+First there are methods that take a =Semigroup= instead of a =Monoid=:
 
 #+BEGIN_SRC scala
   def fold1Opt[A: Semigroup](fa: F[A]): Option[A] = ...
@@ -3791,9 +3787,8 @@ data structures which are never empty, without requiring a =Monoid= on
 the elements.
 
 Very importantly, there are variants that take monadic return values.
-We already used =nodes.foldLeftM(world)= when we first wrote the
-business logic of our application, now you know that =Foldable= is
-where it is defined:
+We already used =foldLeftM= when we first wrote the business logic of
+our application, now you know that =Foldable= is where it came from:
 
 #+BEGIN_SRC scala
 def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)(f: (B, A) => G[B]): G[B] = ...
@@ -3815,7 +3810,7 @@ def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
 
 which are elegant signatures for the more civilised hacker.
 
-***** Traverse
+**** Traverse
 
 =Traverse= is what happens when you cross a =Functor= with a =Foldable=
 
@@ -3854,39 +3849,28 @@ special case of =zip= is to add an index to every entry with
 =zipWithL= and =zipWithR= allow combining the two sides of a =zip=
 into a new type, and then returning just an =F[C]=.
 
-=mapAccumL= and =mapAccumR= are like regular =map= with a /state/
-variable that can be used to store some additional information. If you
-find yourself wanting to use a =var=, and refer to it from a =map=,
-you want =mapAccumL=.
+=mapAccumL= and =mapAccumR= are regular =map= combined with an
+accumulator. If you find your old Java sins are making you want to
+reach for a =var=, and refer to it from a =map=, you want =mapAccumL=.
 
-For example, let's say we have a list of words and we want to censor
+For example, let's say we have a list of words and we want to blank
 out words we've already seen. The filtering algorithm is not allowed
-to process the list of words a second time:
+to process the list of words a second time so it can be scaled to an
+infinite stream:
 
 #+BEGIN_SRC scala
-"""Sometimes, some extremely common words which would appear to be of
-   little value in helping select documents matching a user need are
-   excluded from the vocabulary entirely. These words are called stop
-   words. The general strategy for determining a stop list is to sort
-   the terms by collection frequency (the total number of times each
-   term appears in the document collection), and then to take the most
-   frequent terms, often hand-filtered for their semantic content
-   relative to the domain of the documents being indexed, as a stop
-   list, the members of which are then discarded during indexing"""
+"""We campaign for these freedoms because everyone deserves them.
+   With these freedoms, the users (both individually and collectively)
+   control the program and what it does for them."""
    .split("\\s+").toList
    .mapAccumL(Set.empty[String]) { (seen, word) =>
      val clean = word.toLowerCase.replaceAll("[,.()]+", "")
      (seen + clean, if (seen(clean)) "_" else word)
    }._2.intercalate(" ")
 
-"""Sometimes, some extremely common words which would appear to be of
-   little value in helping select documents matching a user need are
-   excluded from the vocabulary entirely. These _ _ called stop _ _
-   general strategy for determining _ _ list is _ sort _ terms by
-   collection frequency _ total number _ times each term appears _ _
-   document _ and then _ take _ most frequent _ often hand-filtered _
-   their semantic content relative _ _ domain _ _ _ being indexed,
-   as _ _ _ _ members _ _ _ _ discarded during indexing"""
+"""We campaign for these freedoms because everyone deserves them.
+   With _ _ the users (both individually and collectively)
+   control _ program _ what it does _ _"""
 #+END_SRC
 
 Finally =Traverse1=, like =Foldable1=, provides variants of these
@@ -3894,7 +3878,7 @@ methods for data structures that cannot be empty, accepting the weaker
 =Semigroup= instead of a =Monoid=, and an =Apply= instead of an
 =Applicative=.
 
-**** Variance
+*** Variance
 
 We must return to =Functor= for a moment and discuss an ancestor that
 we previously ignored:
@@ -3905,17 +3889,17 @@ digraph G {
     node [fontname=Hack];
 
     subgraph mappable {
-      Divide -> Contravariant
-      Divisible -> Divide
       Contravariant -> InvariantFunctor
-
       Functor -> InvariantFunctor
-      Apply -> Functor
     }
 
     subgraph {
       node [fontcolor=lightgrey,color=lightgrey];
       edge [color=lightgrey];
+
+      Divide -> Contravariant
+      Divisible -> Divide
+      Apply -> Functor
 
       Foldable1 -> Foldable
       Traverse -> Functor
@@ -3926,6 +3910,11 @@ digraph G {
       Applicative -> Apply
       Align -> Functor
       Bind -> Apply
+      Monad 
+
+      "Advanced Monads" [style=dashed]
+      "Advanced Monads" -> Monad
+
       Monad -> Applicative
       Monad -> Bind
 
@@ -3937,14 +3926,6 @@ digraph G {
 
       ApplicativePlus -> Applicative
       ApplicativePlus -> PlusEmpty
-      MonadPlus -> Monad
-      MonadPlus -> ApplicativePlus
-
-      Nondeterminism -> Monad
-      MonadState -> Monad
-      MonadError -> Monad
-      MonadTell -> Monad
-      MonadReader -> Monad
 
       ComonadStore -> Comonad
 
@@ -4052,6 +4033,27 @@ typeclass. We can no longer construct a =Format= my using =map= or
 }
 #+END_SRC
 
+#+BEGIN_ASIDE
+Although =Encoder= implements =contramap=, =Decoder= implements =map=,
+and =Format= implements =xmap= we are not saying that these
+typeclasses extend =InvariantFunctor=, rather they /have an/
+=InvariantFunctor=.
+
+We could implement instances of
+
+- =Functor[Decoder]=
+- =Contravariant[Encoder]=
+- =InvariantFunctor[Format]=
+
+on our companions, and use scalaz syntax to have the exact same =map=,
+=contramap= and =xmap=.
+
+However, since we don't need anything else that the invariants provide
+(and it's a lot of boilerplate for a textbook), we just implement the
+bare minimum on the typeclasses themselves. The invariant instance
+[[https://github.com/mpilquist/simulacrum/issues/85][could be generated automatically]].
+#+END_ASIDE
+
 One of the most compelling uses for =xmap= is to provide typeclasses
 for /value types/. A value type is a compiletime wrapper for another
 type, that does not incur any object allocation costs (subject to some
@@ -4085,7 +4087,7 @@ Macros can automate the construction of these instances, so we don't
 need to write them: we'll revisit this later in a dedicated chapter on
 Typeclass Derivation.
 
-***** Composition
+**** Composition
 
 Invariants can be composed via methods with intimidating type
 signatures. There are many permutations of =compose= on most
@@ -4122,12 +4124,127 @@ res: List[Option[Int]] = List(Some(2), None, Some(3))
 This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
-***** TODO Apply
-***** TODO Divide
-***** TODO Divisable
+*** Everything but Pure
 
-**** TODO Bifunctor
-**** TODO Applicative Things
+=Apply= is =Applicative= without the =pure= method, and =Bind= is
+=Monad= without =pure=. Consider this the warm-up act, with an
+Advanced TIE Fighter for entertainment.
+
+#+BEGIN_SRC dot :file images/scalaz-applicative.png :exports results
+digraph G {
+    graph [dpi=300, rankdir=BT];
+    node [fontname=Hack];
+
+    subgraph mappable {
+      Bind -> Apply
+      BindRec -> Bind
+    }
+
+    subgraph {
+      node [fontcolor=lightgrey,color=lightgrey];
+      edge [color=lightgrey];
+
+      Contravariant -> InvariantFunctor
+      Functor -> InvariantFunctor
+
+      Divide -> Contravariant
+      Divisible -> Divide
+      Apply -> Functor
+      Applicative -> Apply
+
+      Foldable1 -> Foldable
+      Traverse -> Functor
+      Traverse -> Foldable
+      Traverse1 -> Traverse
+      Traverse1 -> Foldable1
+
+      Align -> Functor
+      Monad 
+
+      "Advanced Monads" [style=dashed]
+      "Advanced Monads" -> Monad
+
+      Monad -> Applicative
+      Monad -> Bind
+
+      Cobind -> Functor
+      Comonad -> Cobind
+
+      PlusEmpty -> Plus
+      IsEmpty -> PlusEmpty
+
+      ApplicativePlus -> Applicative
+      ApplicativePlus -> PlusEmpty
+
+      ComonadStore -> Comonad
+    }
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/scalaz-applicative.png]]
+
+**** TODO Apply
+
+#+BEGIN_SRC scala
+@typeclass trait Apply[F[_]] extends Functor[F] {
+  @op("<*>") def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
+
+  def flip: Apply[F] = ...
+  def forever[A, B](fa: F[A]): F[B] = ...
+  def discardLeft[A, B](fa: => F[A], fb: => F[B]): F[B] = ...
+  def discardRight[A, B](fa: => F[A], fb: => F[B]): F[A] = ...
+
+  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+
+  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
+  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
+  ...
+  def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] =
+  def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+  ...
+  @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
+  def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
+  ...
+  def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
+  def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+  ...
+}
+#+END_SRC
+
+#+BEGIN_SRC scala
+implicit class ApplyOps[F[_], A](val self: F[A])(implicit val F: Apply[F]) {
+  def *>[B](fb: F[B]): F[B] = F.apply2(self,fb)((_,b) => b)
+  def <*[B](fb: F[B]): F[A] = F.apply2(self,fb)((a,_) => a)
+  def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
+}
+
+class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
+  def apply[C](f: (A, B) => C): M[C] = Apply[M].apply2(a, b)(f)
+  def tupled: M[(A, B)] = apply(Tuple2.apply)
+  def |@|[C](cc: M[C]): ApplicativeBuilder3[C] = ...
+
+  sealed abstract class ApplicativeBuilder3[C](c: M[C]) {
+    ..ApplicativeBuilder4
+      ...
+        ..ApplicativeBuilder12
+}
+
+#+END_SRC
+
+#+BEGIN_SRC scala
+def ^  [F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
+def ^^ [F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+...
+#+END_SRC
+
+**** TODO Bind and BindRec
+
+*** TODO Applicative and Monad
+*** TODO Align
+*** TODO Divide and Divisable
+*** TODO Plus, PlusEmpty, IsEmpty, ApplicativePlus
 
 These were cut from Foldable, revisit them...
 
@@ -4136,19 +4253,43 @@ These were cut from Foldable, revisit them...
   def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
 #+END_SRC
 
-**** TODO Monads
+*** TODO Zip, Unzip
+*** TODO Lone Wolves
+**** TODO Optional
+**** TODO Associative
+**** TODO Catchable
+**** TODO Resource
 
-Or should this live in the Effects chapter?
+*** TODO Co-things: Cobind, Comonad, ComonadStore, Cozip
+*** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
+*** TODO Very Abstract Things
 
-**** TODO Comparable Things
-**** TODO Very Abstract Things
-Category, etc
+Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
 
-**** TODO [[https://github.com/vil1/single_page_fp_book][single page fp book]]
-**** TODO cheat sheet
+** What's Next?
 
-**** TODO Other
+You've reached the end of this Early Access book. Please check the
+website regularly for updates.
 
+You can expect to see chapters covering the following topics:
+
+- Scalaz Data Types
+- Scalaz Advanced Monads
+- Scalaz Utilities
+- Functional Streams
+- Type Refinement
+- Generic Derivation
+- Recursion Schemes
+- Dependent Types
+- Optics
+- Category Theory
+
+while continuing to build out the example application.
+
+* TODO Remaining
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: remaining.md
+  :END:
 ** Data Types
 
  Adjunction
@@ -4251,7 +4392,7 @@ Category, etc
  Zap
  Zipper
 
-***** Liskov / Subtyping
+**** Liskov / Subtyping
 
 https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw
 https://typelevel.org/blog/2016/09/19/variance-phantom.html
@@ -4302,7 +4443,6 @@ https://issues.scala-lang.org/browse/SI-2509
 #+END_SRC
 
 
-
 **** TODO NonEmptyList
 **** TODO NonEmptyVector
 **** TODO Validated
@@ -4348,19 +4488,28 @@ Maybe leave until after typeclasses
 - StateT
 - WriterT
 
-** TODO Monad Transformers
+** TODO Advanced Monads
 
-maybe a separate chapter?
+incl monad transformers
 
 functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
 
-** TODO Laws
-** TODO Utilities
+i.e. Effects
 
-e.g. conversion utilities between things
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
 
-** TODO Extensions
-** Free Monad
+https://www.irccloud.com/pastebin/dx1r05od/
+
+#+BEGIN_SRC scala
+trait ApMonad[F[_], G[_]] {
+  def to[A](fa: F[A]): G[A]
+  def from[A](ga: G[A]): F[A]
+  implicit val fmonad: Monad[F]
+  implicit val gap: Applicative[G]
+}
+#+END_SRC
+
+*** TODO Free Monad
 
 - FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
 
@@ -4401,30 +4550,24 @@ per method, allowing trampolining. When we write a =Handler=,
 Freestyle is converting pattern matches over heap objects into method
 calls.
 
-*** Free as in Monad
+**** Free as in Monad
 
 =Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
 the name. However, from a practical point of view, there needs to be a
 =Monad[S]= in order to interpret it --- so it's more like an interest
 only mortgage where you still have to buy the house at the end.
 
-** TODO Advanced Monads
+** TODO Utilities
 
-i.e. Effects
+**** TODO [[https://github.com/vil1/single_page_fp_book][single page fp book]]
+**** TODO cheat sheet
+**** TODO Other
 
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+e.g. conversion utilities between things
 
-https://www.irccloud.com/pastebin/dx1r05od/
+*** TODO Laws
 
-#+BEGIN_SRC scala
-trait ApMonad[F[_], G[_]] {
-  def to[A](fa: F[A]): G[A]
-  def from[A](ga: G[A]): F[A]
-  implicit val fmonad: Monad[F]
-  implicit val gap: Applicative[G]
-}
-#+END_SRC
-
+*** TODO Extensions
 ** TODO FS2
 
 Task, Stream
@@ -4540,11 +4683,114 @@ and remove redundancy that we've accidentally introduced.
 :EXPORT_FILE_NAME: backmatter.md
 :END:
 {backmatter}
-** TODO Free Implementation
+** Third Party Licenses
 
-detailed explanation about what =@free= / =@module= is generating and
-how that feeds into the cats =Free= implementation.
-** TODO Alternatives to Free
-** TODO Licenses
+Some of the source code in this book has been copied from free / libre
+software projects. The license of those projects require that the
+following texts are distributed with the source that is presented in
+this book.
 
-for anything with a snippet
+*** Scala License
+
+#+BEGIN_SRC
+Copyright (c) 2002-2017 EPFL
+Copyright (c) 2011-2017 Lightbend, Inc.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+  * Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+  * Neither the name of the EPFL nor the names of its contributors
+    may be used to endorse or promote products derived from this software
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#+END_SRC
+
+*** Scalaz License
+
+#+BEGIN_SRC
+Copyright (c) 2009-2014 Tony Morris, Runar Bjarnason, Tom Adams,
+                        Kristian Domagala, Brad Clow, Ricky Clarkson,
+                        Paul Chiusano, Trygve Laugstøl, Nick Partridge,
+                        Jason Zaugg
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of
+   its contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#+END_SRC
+*** Circe License
+
+Circe is released under the [[http://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] and the following =NOTICE=
+
+#+BEGIN_SRC
+Copyright (c) 2015, Ephox Pty Ltd, Mark Hibberd, Sean Parsons,
+                    Travis Brown, and other contributors.
+All rights reserved.
+
+Argonaut was initially developed to support products at Ephox.
+
+Copyright (c) 2012, Ephox Pty Ltd, Mark Hibberd, Sean Parsons
+                    and other contributors.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. The name of the author may not be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#+END_SRC

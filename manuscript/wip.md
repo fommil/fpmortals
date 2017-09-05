@@ -1,17 +1,15 @@
 
-# Scalaz Core Typeclasses
+# Scalaz Typeclasses
 
-In this chapter we will tour the typeclasses in `scalaz-core`. We
-don't use everything in `drone-dynamic-agents` so we will give
+In this chapter we will tour most of the typeclasses in `scalaz-core`.
+We don't use everything in `drone-dynamic-agents` so we will give
 standalone examples when appropriate.
 
 There has been criticism of the naming in scalaz, and functional
 programming in general. Most names follow the conventions introduced
-in the Haskell programming language, based on *Category Theory*.
-
-We will use the scalaz names in this book, but feel free to set up
-`type` aliases in your own codebase if you would prefer to use verb
-names based on the primary functionality of the typeclass (e.g.
+in the Haskell programming language, based on *Category Theory*. Feel
+free to set up `type` aliases in your own codebase if you would prefer
+to use verbs based on the primary functionality of the typeclass (e.g.
 `Mappable`, `Pureable`, `FlatMappable`) until you are comfortable with
 the standard names.
 
@@ -55,10 +53,12 @@ then you need `Traverse`. For example, say you have a
 call `.traverse(identity)`, or its simpler sibling `.sequence`.
 
 
-## Typeclasses
+## Agenda
 
 There is an overwhelming number of typeclasses, so we will visualise
-similar clusters and discuss, with simplified definitions.
+similar clusters and discuss, with simplified definitions. Notably
+absent are typeclasses that extend `Monad`, which get their own
+chapter.
 
 Scalaz uses code generation instead of simulacrum. We'll present the
 typeclasses as if simulacrum was used, but note that there are no
@@ -71,10 +71,10 @@ when writing
 ~~~~~~~~
 
 If you wish to explore what is available for a particular typeclass,
-look under the `scalaz.syntax` package.
+look under `scalaz.syntax`.
 
 
-### Appendable Things
+## Appendable Things
 
 {width=30%}
 ![](images/scalaz-semigroup.png)
@@ -264,7 +264,7 @@ depending on the `E` in `List[E]`, not just the base runtime class
 `List`.
 
 
-### Objecty Things
+## Objecty Things
 
 In the chapter on Data and Functionality we said that the JVM's notion
 of equality breaks down for many things that you can put into an ADT.
@@ -381,7 +381,7 @@ strings, it can be incredibly hard to remember to use `shows` instead
 of `toString`.
 
 
-### Mappable Things
+## Mappable Things
 
 We're focusing on things that can be "mapped over" in some sense,
 highlighted in this diagram:
@@ -390,7 +390,7 @@ highlighted in this diagram:
 ![](images/scalaz-mappable.png)
 
 
-#### Functor
+### Functor
 
 {lang="text"}
 ~~~~~~~~
@@ -473,7 +473,7 @@ examples of reading type signatures, but they are pretty useless in
 the wild. For the remaining typeclasses, we'll skip the niche methods.
 
 
-#### Foldable
+### Foldable
 
 Technically, `Foldable` is for data structures that can be walked to
 produce a summary value. However, this undersells the fact that it is
@@ -739,8 +739,7 @@ is that anything you'd expect to find in a collection library is
 probably on `Foldable` and if it isn't already, it [probably should be](https://github.com/scalaz/scalaz/issues/1448).
 
 We'll conclude with some variations of the methods we've already seen.
-First there are variants of methods that take a `Semigroup` instead of
-a `Monoid`:
+First there are methods that take a `Semigroup` instead of a `Monoid`:
 
 {lang="text"}
 ~~~~~~~~
@@ -762,9 +761,8 @@ data structures which are never empty, without requiring a `Monoid` on
 the elements.
 
 Very importantly, there are variants that take monadic return values.
-We already used `nodes.foldLeftM(world)` when we first wrote the
-business logic of our application, now you know that `Foldable` is
-where it is defined:
+We already used `foldLeftM` when we first wrote the business logic of
+our application, now you know that `Foldable` is where it came from:
 
 {lang="text"}
 ~~~~~~~~
@@ -789,7 +787,7 @@ You may also see Curried versions, e.g.
 which are elegant signatures for the more civilised hacker.
 
 
-#### Traverse
+### Traverse
 
 `Traverse` is what happens when you cross a `Functor` with a `Foldable`
 
@@ -829,40 +827,29 @@ special case of `zip` is to add an index to every entry with
 `zipWithL` and `zipWithR` allow combining the two sides of a `zip`
 into a new type, and then returning just an `F[C]`.
 
-`mapAccumL` and `mapAccumR` are like regular `map` with a *state*
-variable that can be used to store some additional information. If you
-find yourself wanting to use a `var`, and refer to it from a `map`,
-you want `mapAccumL`.
+`mapAccumL` and `mapAccumR` are regular `map` combined with an
+accumulator. If you find your old Java sins are making you want to
+reach for a `var`, and refer to it from a `map`, you want `mapAccumL`.
 
-For example, let's say we have a list of words and we want to censor
+For example, let's say we have a list of words and we want to blank
 out words we've already seen. The filtering algorithm is not allowed
-to process the list of words a second time:
+to process the list of words a second time so it can be scaled to an
+infinite stream:
 
 {lang="text"}
 ~~~~~~~~
-  """Sometimes, some extremely common words which would appear to be of
-     little value in helping select documents matching a user need are
-     excluded from the vocabulary entirely. These words are called stop
-     words. The general strategy for determining a stop list is to sort
-     the terms by collection frequency (the total number of times each
-     term appears in the document collection), and then to take the most
-     frequent terms, often hand-filtered for their semantic content
-     relative to the domain of the documents being indexed, as a stop
-     list, the members of which are then discarded during indexing"""
+  """We campaign for these freedoms because everyone deserves them.
+     With these freedoms, the users (both individually and collectively)
+     control the program and what it does for them."""
      .split("\\s+").toList
      .mapAccumL(Set.empty[String]) { (seen, word) =>
        val clean = word.toLowerCase.replaceAll("[,.()]+", "")
        (seen + clean, if (seen(clean)) "_" else word)
      }._2.intercalate(" ")
   
-  """Sometimes, some extremely common words which would appear to be of
-     little value in helping select documents matching a user need are
-     excluded from the vocabulary entirely. These _ _ called stop _ _
-     general strategy for determining _ _ list is _ sort _ terms by
-     collection frequency _ total number _ times each term appears _ _
-     document _ and then _ take _ most frequent _ often hand-filtered _
-     their semantic content relative _ _ domain _ _ _ being indexed,
-     as _ _ _ _ members _ _ _ _ discarded during indexing"""
+  """We campaign for these freedoms because everyone deserves them.
+     With _ _ the users (both individually and collectively)
+     control _ program _ what it does _ _"""
 ~~~~~~~~
 
 Finally `Traverse1`, like `Foldable1`, provides variants of these
@@ -871,7 +858,7 @@ methods for data structures that cannot be empty, accepting the weaker
 `Applicative`.
 
 
-### Variance
+## Variance
 
 We must return to `Functor` for a moment and discuss an ancestor that
 we previously ignored:
@@ -979,6 +966,25 @@ typeclass. We can no longer construct a `Format` my using `map` or
   }
 ~~~~~~~~
 
+A> Although `Encoder` implements `contramap`, `Decoder` implements `map`,
+A> and `Format` implements `xmap` we are not saying that these
+A> typeclasses extend `InvariantFunctor`, rather they *have an*
+A> `InvariantFunctor`.
+A> 
+A> We could implement instances of
+A> 
+A> -   `Functor[Decoder]`
+A> -   `Contravariant[Encoder]`
+A> -   `InvariantFunctor[Format]`
+A> 
+A> on our companions, and use scalaz syntax to have the exact same `map`,
+A> `contramap` and `xmap`.
+A> 
+A> However, since we don't need anything else that the invariants provide
+A> (and it's a lot of boilerplate for a textbook), we just implement the
+A> bare minimum on the typeclasses themselves. The invariant instance
+A> [could be generated automatically](https://github.com/mpilquist/simulacrum/issues/85).
+
 One of the most compelling uses for `xmap` is to provide typeclasses
 for *value types*. A value type is a compiletime wrapper for another
 type, that does not incur any object allocation costs (subject to some
@@ -1015,7 +1021,7 @@ need to write them: we'll revisit this later in a dedicated chapter on
 Typeclass Derivation.
 
 
-#### Composition
+### Composition
 
 Invariants can be composed via methods with intimidating type
 signatures. There are many permutations of `compose` on most
@@ -1055,19 +1061,86 @@ This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
 
-#### Apply
+## Everything but Pure
+
+`Apply` is `Applicative` without the `pure` method, and `Bind` is
+`Monad` without `pure`. Consider this the warm-up act, with an
+Advanced TIE Fighter for entertainment.
+
+{width=100%}
+![](images/scalaz-applicative.png)
 
 
-#### Divide
+### Apply
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Apply[F[_]] extends Functor[F] {
+    @op("<*>") def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
+  
+    def flip: Apply[F] = ...
+    def forever[A, B](fa: F[A]): F[B] = ...
+    def discardLeft[A, B](fa: => F[A], fb: => F[B]): F[B] = ...
+    def discardRight[A, B](fa: => F[A], fb: => F[B]): F[A] = ...
+  
+    def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+  
+    def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
+    def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
+    ...
+    def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] =
+    def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+    ...
+    @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
+    def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
+    ...
+    def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
+    def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+    ...
+  }
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  implicit class ApplyOps[F[_], A](val self: F[A])(implicit val F: Apply[F]) {
+    def *>[B](fb: F[B]): F[B] = F.apply2(self,fb)((_,b) => b)
+    def <*[B](fb: F[B]): F[A] = F.apply2(self,fb)((a,_) => a)
+    def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
+  }
+  
+  class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
+    def apply[C](f: (A, B) => C): M[C] = Apply[M].apply2(a, b)(f)
+    def tupled: M[(A, B)] = apply(Tuple2.apply)
+    def |@|[C](cc: M[C]): ApplicativeBuilder3[C] = ...
+  
+    sealed abstract class ApplicativeBuilder3[C](c: M[C]) {
+      ..ApplicativeBuilder4
+        ...
+          ..ApplicativeBuilder12
+  }
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  def ^  [F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
+  def ^^ [F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+  ...
+~~~~~~~~
 
 
-#### Divisable
+### Bind and BindRec
 
 
-### Bifunctor
+## Applicative and Monad
 
 
-### Applicative Things
+## Align
+
+
+## Divide and Divisable
+
+
+## Plus, PlusEmpty, IsEmpty, ApplicativePlus
 
 These were cut from Foldable, revisit them...
 
@@ -1078,443 +1151,53 @@ These were cut from Foldable, revisit them...
 ~~~~~~~~
 
 
-### Monads
-
-Or should this live in the Effects chapter?
-
-
-### Comparable Things
-
-
-### Very Abstract Things
-
-Category, etc
-
-
-### [single page fp book](https://github.com/vil1/single_page_fp_book)
-
-
-### cheat sheet
-
-
-### Other
-
-
-# Data Types
-
-Adjunction
-Alpha
-Alter
-Ap
-Band
-Bias
-BijectionT
-CaseInsensitive
-Codensity
-Cofree
-Cokleisli
-ComonadTrans
-Composition
-Const
-ContravariantCoyoneda
-Coproduct
-Cord
-CorecursiveList
-Coyoneda
-Dequeue
-Diev
-Digit  // revisit the Foldable method
-Distributive
-DList
-Dual
-Either3
-Either
-EitherT
-Endomorphic
-Endo
-EphemeralStream
-FingerTree
-Forall
-FreeAp
-Free
-FreeT
-Generator
-Heap
-Id
-IdT
-IList
-ImmutableArray
-IndexedContsT
-Injective
-Inject
-ISet
-Isomorphism
-Kan
-Kleisli
-LazyEither
-LazyEitherT
-LazyOption
-LazyOptionT
-LazyTuple
-Leibniz
-Lens
-Liskov
-ListT
-Map
-Maybe
-MaybeT
-Memo
-MonadListen
-MonadTrans
-MonoidCoproduct
-Name
-NaturalTransformation
-NonEmptyList
-NotNothing
-NullArgument
-NullResult
-OneAnd
-OneOr
-OptionT
-Ordering
-PLens
-Product
-ReaderWriterStateT
-Reducer
-Representable
-State
-StateT
-StoreT
-StreamT
-StrictTree
-Tag
-Tags
-These
-TheseT
-TracedT
-TreeLoc
-Tree
-Unapply
-UnwriterT
-Validation
-WriterT
-Yoneda
-Zap
-Zipper
-
-
-#### Liskov / Subtyping
-
-<https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw>
-<https://typelevel.org/blog/2016/09/19/variance-phantom.html>
-
-After seven major releases over a decade, scalaz has concluded that
-Scala's subtyping is fundamentally broken: from subtle bugs in the
-compiler to puzzlers that are technically behaving as expected. The
-solution is to avoid using covariant and contravariant (`+` and `-`)
-type parameter markers.
-
-You'll will notice that many of the data types in scalaz are invariant
-in their type parameters. `IList` is `IList[A]` not `List[+A]` for
-this very reason.
-
-Instead, the ability to upcast is provided by `Functor`:
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait Functor[F[_]] extends Invariant[F] {
-    def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = ...
-    ...
-  }
-~~~~~~~~
+## Zip, Unzip
 
-<https://issues.scala-lang.org/browse/SI-2509>
 
-{lang="text"}
-~~~~~~~~
-  (on subtyping on typeclasses)
-  
-  <aarvar> "def foo[F[_] : MonadReader[R, ?] : MonadState[S, ?]] will lead to
-           ambiguities if both MonadReader and MonadState extend Monad"
-  <aarvar> try it  [22:54]
-  <fommil> yes, and the more common problem is when you want an Applicative and
-           a Monad. I'm aware of that problem.
-  <aarvar> likewise if you have both Applicative and Traversable, the Functor
-           instance will be ambiguous, I think
-  <fommil> but what of when covariant and contravariant type parameters are
-           introduced?
-  <puffnfresh> def foo[F[_]: Monad: Traverse](fa: F[A]): F[Unit] = fa.void
-  ...
-  <fommil> but what about on ADTs? Why are all the scalaz data types invariant
-           rather than covariant?
-  <fommil> is there a similar implicit resolution problem that is being worked
-           around? Or something deeper  [23:00]
-  <aarvar> fommil: one simple reason is that then Foo[String] and Foo[Int] will
-           unify to the common super type Foo[Any], which is almost never what
-           you want  [23:02]
-  <fommil> right... or more commonly Product with Serializable with OtherCrap
-~~~~~~~~
-
-
-### NonEmptyList
-
-
-### NonEmptyVector
-
-
-### Validated
-
-A> This ADT has methods on it, but in Chapter 4 we said that ADTs
-A> shouldn't have methods on them and that the functionality should live
-A> on typeclasses! You caught us red handed. There are several reasons
-A> for doing it this way.
-A> 
-A> Sorry, but there are more methods than the `value` and `memoize` on
-A> `Eval` shown here: it also has `map` and `flatMap`. The reason they
-A> live on the ADT and not in an instance of `Monad` is because it is
-A> slightly more efficient for the compiler to find these methods instead
-A> of looking for `Monad.ops._`, and it is slightly more efficient at
-A> runtime. This is an optimisation step that is absolutely vital in a
-A> core library such as cats, but please do not perform these
-A> optimisations in user code unless you have profiled and found a
-A> performance bottleneck. There is a significant cost to code
-A> readability.
+## Lone Wolves
 
 
-### Ior
+### Optional
 
 
-### Esoteric / Advanced
+### Associative
 
-Maybe leave until after typeclasses
 
--   Cokleisli
--   Const
--   Coproduct
--   Func
--   Kleisli
--   Nested
--   OneAnd
--   Prod
+### Catchable
 
 
-### Monad Transformers
+### Resource
 
--   EitherT
--   IdT
--   OptionT
--   StateT
--   WriterT
 
+## Co-things: Cobind, Comonad, ComonadStore, Cozip
 
-# Monad Transformers
 
-maybe a separate chapter?
+## Bi-things: Bifunctor, Bifoldable, Bitraverse
 
-functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
 
+## Very Abstract Things
 
-# Laws
+Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
 
 
-# Utilities
+# What's Next?
 
-e.g. conversion utilities between things
+You've reached the end of this Early Access book. Please check the
+website regularly for updates.
 
+You can expect to see chapters covering the following topics:
 
-# Extensions
+-   Scalaz Data Types
+-   Scalaz Advanced Monads
+-   Scalaz Utilities
+-   Functional Streams
+-   Type Refinement
+-   Generic Derivation
+-   Recursion Schemes
+-   Dependent Types
+-   Optics
+-   Category Theory
 
-
-# Free Monad
-
--   FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
-
-What we've been doing in this chapter is using the *free monad*,
-`cats.free.Free`, to build up the definition of our program as a data
-type and then we interpret it. Freestyle calls it `FS`, which is just
-a type alias to `Free`, hiding an irrelevant type parameter.
-
-The reason why we use `Free` instead of just implementing `cats.Monad`
-directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
-running on the JVM. Every nested call to `map` or `flatMap` adds to
-the stack, eventually resulting in a `StackOverflowError`.
-
-`Free` is a `sealed abstract class` that roughly looks like:
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Free[S[_], A] {
-    def pure(a: A): Free[S, A] = Pure(a)
-    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
-    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
-  }
-  
-  final case class Pure[S[_], A](a: A) extends Free[S, A]
-  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  final case class FlatMapped[S[_], B, C](
-                                    c: Free[S, C],
-                                    f: C => Free[S, B]) extends Free[S, B]
-~~~~~~~~
-
-Its definition of `pure` / `map` / `flatMap` do not do any work, they
-just build up data types that live on the heap. Work is delayed until
-Free is *interpreted*. This technique of using heap objects to
-eliminate stack growth is known as *trampolining*.
-
-When we use the `@free` annotation, a `sealed abstract class` data
-type is generated for each of our algebras, with a `final case class`
-per method, allowing trampolining. When we write a `Handler`,
-Freestyle is converting pattern matches over heap objects into method
-calls.
-
-
-## Free as in Monad
-
-`Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
-the name. However, from a practical point of view, there needs to be a
-`Monad[S]` in order to interpret it --- so it's more like an interest
-only mortgage where you still have to buy the house at the end.
-
-
-# Advanced Monads
-
-i.e. Effects
-
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
-
-<https://www.irccloud.com/pastebin/dx1r05od/>
-
-{lang="text"}
-~~~~~~~~
-  trait ApMonad[F[_], G[_]] {
-    def to[A](fa: F[A]): G[A]
-    def from[A](ga: G[A]): F[A]
-    implicit val fmonad: Monad[F]
-    implicit val gap: Applicative[G]
-  }
-~~~~~~~~
-
-
-# FS2
-
-Task, Stream
-
-The basics, and covering the Effect, which can be our free monad.
-
-Why streams are so awesome. I'd like a simple example here of reading
-from a huge data source, doing parallel work and then writing out in
-order to a (slower) device to demonstrate backpressure and constant
-memory overhead. Maybe compare this vs hand rolled and akka streams
-for a perf test?
-
-Rewrite our business logic to be streaming, convert our GET api into a
-`Stream` by polling.
-
-
-# Implementing the Application
-
-Pad out the application implementation with everything we've learnt.
-
-May need union types, see <https://github.com/propensive/totalitarian>
-
-Will probably be a big chapter. Maybe best to leave it for a final
-part of the book?
-
-
-## Spotting patterns, refactoring
-
-Note that some of our algebras are actually common things and can be
-rewritten: reader / writer / state / error / indexed monad. It's ok
-that this is a step you can do later.
-
-
-### perf numbers
-
-
-# Dependent Types
-
-Jons talks are usually good for this <https://www.youtube.com/watch?v=a1whaMzrtsY>
-
-
-# Type Refinement
-
-instead of needing those `error` calls in the first place, just don't
-allow them to happen at your layer if you can get away with it.
-
-Protect yourself from mistyping
-
-
-# Generic Programming
-
--   a mini Shapeless for Mortals
--   typeclass derivation (UrlEncoding, QueryEncoding)
--   scalacheck-shapeless
--   cachedImplicit into a val
--   downside is compile time speeds for ADTs of 50+
--   alternative is <https://github.com/propensive/magnolia>
--   export-hook
--   some advanced cases, e.g. spray-json-shapeless stuff, typeclass
-    hierarchy / ambiguities
--   <https://issues.scala-lang.org/browse/SI-2509>
--   gotchas with nested `object` and knownSubclasses
--   semi-auto
-
-
-# Recursion Schemes
-
-
-# Optics
-
-not sure what the relevance to this project would be yet.
-
-
-# Category Theory
-
-Just some of the high level concepts, where to get started if you're interested.
-Not needed to write FP but it is needed if you want to read any academic papers.
-
-
-## Reality Check
-
-In this chapter we've experienced some of the practical benefits of FP
-when designing and testing applications:
-
-1.  clean separation of components
-2.  isolated, fast and reproducible tests of business logic: extreme mocking
-3.  easy parallelisation
-
-However, even if we look past the learning curve of FP, there are
-still some real challenges that remain:
-
-1.  trampolining has a performance impact due to increased memory churn
-    and garbage collection pressure.
-2.  there is not always IDE support for the advanced language features,
-    macros or compiler plugins.
-3.  implementation details --- as we have already seen with `for`
-    syntax sugar, `@module`, and `Free` --- can introduce mental
-    overhead and become a blocker when they don't work.
-4.  the distinction between pure / side-effecting code, or stack-safe /
-    stack-unsafe, is not enforced by the scala compiler. This requires
-    developer discipline.
-5.  the developer community is still small. Getting help from the
-    community can often be a slow process.
-
-As with any new technology, there are rough edges that will be fixed
-with time. Most of the problems are because there is a lack of
-commercially-funded tooling in FP scala. If you see the benefit of FP,
-you can help out by getting involved.
-
-Although FP Scala cannot be as fast as streamlined Java using
-mutation, the performance impact is unlikely to affect you if you're
-already considering targetting the JVM. Measure the impact before
-making a decision if it is important to you.
-
-In the following chapters we are going to learn some of the vast
-library of functionality provided by the ecosystem, how it is
-organised and how you can find what you need (e.g. how did we know to
-use `foldM` or `traverse` when we implemented `act`?). This will allow
-us to complete the implementation of our application by building
-additional layers of `@module`, use better alternatives to `Future`,
-and remove redundancy that we've accidentally introduced.
+while continuing to build out the example application.
 
 
