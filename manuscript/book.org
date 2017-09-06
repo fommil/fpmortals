@@ -1101,7 +1101,7 @@ demand of the work queue.
 
 #+BEGIN_SRC dot :cmd circo :file images/architecture.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Palatino, shape=box];
     
     Agents [shape=doubleoctagon]
@@ -3054,7 +3054,7 @@ import scalaz._, Scalaz._
 
 #+BEGIN_SRC dot :file images/scalaz-core-tree.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph {
@@ -3102,7 +3102,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-core-cliques.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph {
@@ -3134,7 +3134,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-core-loners.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph {
@@ -3160,7 +3160,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-semigroup.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     Monoid -> Semigroup
@@ -3358,7 +3358,7 @@ even concepts as simple equality are captured at compiletime.
 
 #+BEGIN_SRC dot :file images/scalaz-comparable.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     Equal
@@ -3476,7 +3476,7 @@ some sense:
 
 #+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph mappable {
@@ -3980,7 +3980,7 @@ we previously ignored:
 
 #+BEGIN_SRC dot :file images/scalaz-variance.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph mappable {
@@ -4227,7 +4227,7 @@ Advanced TIE Fighter for entertainment.
 
 #+BEGIN_SRC dot :file images/scalaz-applicative.png :exports results
 digraph G {
-    graph [dpi=300, rankdir=BT];
+    graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph mappable {
