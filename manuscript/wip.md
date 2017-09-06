@@ -55,7 +55,7 @@ call `.traverse(identity)`, or its simpler sibling `.sequence`.
 
 ## Agenda
 
-There is an overwhelming number of typeclasses, so we will cluster
+There are an overwhelming number of typeclasses, so we will cluster
 them by common themes. Notably absent are typeclasses that extend
 `Monad`, which get their own chapter.
 
@@ -105,10 +105,10 @@ and datatypes when writing
 A> `|+|` is known as the TIE Fighter operator. There is an Advanced TIE
 A> Fighter in an upcoming section, which is very exciting.
 
-A `Semigroup` should exist for a type if two elements of that type can
-be combined to produce another element of the that type. The operation
-must be *associative*, meaning that the order of nested operations
-should not matter, i.e.
+A `Semigroup` should exist for a type if two elements can be combined
+to produce another element of the same type. The operation must be
+*associative*, meaning that the order of nested operations should not
+matter, i.e.
 
 {lang="text"}
 ~~~~~~~~
@@ -383,8 +383,8 @@ of `toString`.
 
 ## Mappable Things
 
-We're focusing on things that can be "mapped over", or traversed, in
-some sense, highlighted in this diagram:
+We're focusing on things that can be mapped over, or traversed, in
+some sense:
 
 {width=100%}
 ![](images/scalaz-mappable.png)
