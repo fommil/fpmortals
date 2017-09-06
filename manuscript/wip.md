@@ -13,9 +13,9 @@ to use verbs based on the primary functionality of the typeclass (e.g.
 `Mappable`, `Pureable`, `FlatMappable`) until you are comfortable with
 the standard names.
 
-Before we introduce the complete typeclass hierarchy, we will peek at
-the four most important methods from a control flow perspective: the
-methods we will use the most in typical FP applications:
+Before we introduce the typeclass hierarchy, we will peek at the four
+most important methods from a control flow perspective: the methods we
+will use the most in typical FP applications:
 
 | Typeclass     | Method     | From   | Given         | To        |
 |------------- |---------- |------ |------------- |--------- |
@@ -33,8 +33,8 @@ effects.
 
 Of course, not all Higher Kinded Types `F[_]` are effectful, even if
 they have a `Monad[F]`. Often they are data structures. By using the
-least specific abstraction, our code can work for `List`, `Either`,
-`Future` and more, without us needing to know.
+least specific abstraction, we can reuse code for `List`, `Either`,
+`Future` and more.
 
 If we only need to transform the output from an `F[_]`, that's just
 `map`, introduced by `Functor`. In Chapter 3, we ran effects in
@@ -55,23 +55,28 @@ call `.traverse(identity)`, or its simpler sibling `.sequence`.
 
 ## Agenda
 
-There is an overwhelming number of typeclasses, so we will visualise
-similar clusters and discuss, with simplified definitions. Notably
-absent are typeclasses that extend `Monad`, which get their own
-chapter.
+There is an overwhelming number of typeclasses, so we will cluster
+them by common themes. Notably absent are typeclasses that extend
+`Monad`, which get their own chapter.
 
 Scalaz uses code generation instead of simulacrum. We'll present the
 typeclasses as if simulacrum was used, but note that there are no
-`.ops.`, instead syntax is provided along with the classes and traits
-when writing
+`ops` on the companions. All syntax is provided along with typeclasses
+and datatypes when writing
 
 {lang="text"}
 ~~~~~~~~
   import scalaz._, Scalaz._
 ~~~~~~~~
 
-If you wish to explore what is available for a particular typeclass,
-look under `scalaz.syntax`.
+{width=100%}
+![](images/scalaz-core-tree.png)
+
+{width=100%}
+![](images/scalaz-core-cliques.png)
+
+{width=100%}
+![](images/scalaz-core-loners.png)
 
 
 ## Appendable Things
@@ -79,12 +84,10 @@ look under `scalaz.syntax`.
 {width=30%}
 ![](images/scalaz-semigroup.png)
 
-Defined roughly as:
-
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Semigroup[A] {
-    @op("|+|") @op("mappend") def append(x: A, y: => A): A
+    @op("|+|") def append(x: A, y: => A): A
   
     def multiply1(value: F, n: Int): F = ...
   }
@@ -99,15 +102,13 @@ Defined roughly as:
   @typeclass trait Band[A] extends Semigroup[A]
 ~~~~~~~~
 
-A `Semigroup` should exist for a set of elements that have an
-*associative* operation `|+|`.
+A> `|+|` is known as the TIE Fighter operator. There is an Advanced TIE
+A> Fighter in an upcoming section, which is very exciting.
 
-A> It is far more common to use `|+|` than `mappend`, known as the TIE
-A> Fighter operator. There is an Advanced TIE Fighter in an upcoming
-A> section, which is very exciting.
-
-*Associative* means that the order of applications should not matter,
-i.e.
+A `Semigroup` should exist for a type if two elements of that type can
+be combined to produce another element of the that type. The operation
+must be *associative*, meaning that the order of nested operations
+should not matter, i.e.
 
 {lang="text"}
 ~~~~~~~~
@@ -149,13 +150,13 @@ make use of the guarantees for performance optimisation.
 
 As a realistic example for `Monoid`, consider a trading system that
 has a large database of reusable trade templates. Creating the default
-values for a new trade involves picking a sequence of off-the-shelf
-templates and combining them with a "last rule wins" merge policy in
-case of conflict.
+values for a new trade involves selecting and combining templates with
+a "last rule wins" merge policy (e.g. if templates have a value for
+the same field).
 
-We'll create a simple template to demonstrate the principle, but keep
-in mind that a realistic system would have hundreds of parameters
-within nested `case class`.
+We'll create a simple template schema to demonstrate the principle,
+but keep in mind that a realistic system would have a more complicated
+ADT.
 
 {lang="text"}
 ~~~~~~~~
@@ -183,15 +184,14 @@ and our job is done!
 
 But to get `zero` or call `|+|` we must have an instance of
 `Monoid[TradeTemplate]`. Although we will generically derive this in a
-later chapter, for now we'll create an explicit instance on the
-companion:
+later chapter, for now we'll create an instance on the companion:
 
 {lang="text"}
 ~~~~~~~~
   implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
-   (a, b) => TradeTemplate(a.payments |+| b.payments,
-                          a.ccy |+| b.ccy,
-                          a.otc |+| b.otc),
+    (a, b) => TradeTemplate(a.payments |+| b.payments,
+                            a.ccy |+| b.ccy,
+                            a.otc |+| b.otc),
    TradeTemplate(Nil, None, None) 
   )
 ~~~~~~~~
@@ -267,7 +267,7 @@ depending on the `E` in `List[E]`, not just the base runtime class
 ## Objecty Things
 
 In the chapter on Data and Functionality we said that the JVM's notion
-of equality breaks down for many things that you can put into an ADT.
+of equality breaks down for many things that we can put into an ADT.
 The problem is that the JVM was designed for Java, and `equals` is
 defined on `java.lang.Object` whether it makes sense or not. There is
 no way to erase `equals` and no way to guarantee that it is
@@ -355,7 +355,7 @@ successors and predecessors:
   scala> 10 |--> (2, 20)
   res: List[Int] = List(10, 12, 14, 16, 18, 20)
   
-  scala> ('m' |-> 'u')
+  scala> 'm' |-> 'u'
   res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 ~~~~~~~~
 
@@ -383,8 +383,8 @@ of `toString`.
 
 ## Mappable Things
 
-We're focusing on things that can be "mapped over" in some sense,
-highlighted in this diagram:
+We're focusing on things that can be "mapped over", or traversed, in
+some sense, highlighted in this diagram:
 
 {width=100%}
 ![](images/scalaz-mappable.png)

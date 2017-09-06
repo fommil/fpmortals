@@ -208,6 +208,9 @@ Maybe leave until after typeclasses
 
 # Advanced Monads
 
+You have to know things like Advanced Monads in order to be
+an advanced functional programmer.
+
 incl monad transformers
 
 functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
