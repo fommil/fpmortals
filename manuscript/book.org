@@ -1579,10 +1579,10 @@ As opposed to =flatMap= for sequential operations, scalaz uses
 ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
 #+END_SRC
 
-which can also use infix notation, if you prefer:
+which can also use infix notation:
 
 #+BEGIN_SRC scala
-(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
 #+END_SRC
 
 If each of the parallel operations returns a value in the same monadic
@@ -3437,7 +3437,8 @@ successors and predecessors:
 
   @op("|->" ) def fromToL(from: F, to: F): List[F] = ...
   @op("|-->") def fromStepToL(from: F, step: Int, to: F): List[F] = ...
-  // with variants for other collection types
+  @op("|=>" ) def fromToL(from: F, to: F): EphemeralStream[F] = ...
+  @op("|==>") def fromStepToL(from: F, step: Int, to: F): EphemeralStream[F] = ...
 }
 #+END_SRC
 
@@ -3448,6 +3449,10 @@ res: List[Int] = List(10, 12, 14, 16, 18, 20)
 scala> 'm' |-> 'u'
 res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 #+END_SRC
+
+We'll discuss =EphemeralStream= in the next chapter, for now you just
+need to know that it is a potentially infinite data structure that
+avoids memory retention problems in the stdlib =Stream=.
 
 Similarly to =Object.equals=, the concept of a =.toString= on every
 =class= does not make sense in Java. We would like to enforce
@@ -3652,23 +3657,39 @@ override def foldRight[B](z: B)(op: (A, B) => B): B =
 #+END_SRC
 
 but the concept of reversing is not universal and this workaround
-cannot be used for all data structures.
+cannot be used for all data structures. Let's say we want to find
+out if there is a small number in a =Stream=, with an early exit:
 
 #+BEGIN_SRC scala
-scala> (1 until 100000).toStream.foldRight(0L)(_ + _)
+scala> def isSmall(i: Int): Boolean = i < 10
+scala> (1 until 100000).toStream.foldRight(false) {
+         (el, acc) => isSmall(el) || acc
+       }
 java.lang.StackOverflowError
   at scala.collection.Iterator.toStream(Iterator.scala:1403)
   ...
 #+END_SRC
 
 Scalaz solves the problem by taking a /byname/ parameter for the
-aggregate value and moving the computation to the heap with a
-technique known as /trampolining/.
+aggregate value
 
-We'll explore scalaz's data types and trampolining in the next
-chapter. It is worth baring in mind that not all data structures have
-a stack safe =foldRight=, [[https://github.com/scalaz/scalaz/issues/1447][even within scalaz]].
+#+BEGIN_SRC scala
+scala> (1 |=> 100000).foldRight(false)(el => acc => isSmall(el) || acc )
+res: Boolean = true
+#+END_SRC
 
+which means that the =acc= is not evaluated unless it is needed.
+
+It is worth baring in mind that not all operations are stack safe in
+=foldRight=. If we were to require evaluation of all elements, we can
+also get a =StackOverflowError= with scalaz's =EphemeralStream=
+
+#+BEGIN_SRC scala
+scala> (1L |=> 100000L).foldRight(0L)(el => acc => el |+| acc )
+java.lang.StackOverflowError
+  at scalaz.Foldable.$anonfun$foldr$1(Foldable.scala:100)
+  ...
+#+END_SRC
 #+END_ASIDE
 
 =foldLeft= traverses elements from left to right. =foldLeft= can be
@@ -3954,15 +3975,24 @@ to process the list of words a second time so it can be scaled to an
 infinite stream:
 
 #+BEGIN_SRC scala
+scala> val freedom =
 """We campaign for these freedoms because everyone deserves them.
    With these freedoms, the users (both individually and collectively)
    control the program and what it does for them."""
-   .split("\\s+").toList
-   .mapAccumL(Set.empty[String]) { (seen, word) =>
-     val clean = word.toLowerCase.replaceAll("[,.()]+", "")
-     (seen + clean, if (seen(clean)) "_" else word)
-   }._2.intercalate(" ")
+   .split("\\s+")
+   .toList
 
+scala> def clean(s: String): String = s.toLowerCase.replaceAll("[,.()]+", "")
+
+scala> freedom
+       .mapAccumL(Set.empty[String]) { (seen, word) =>
+         val cleaned = clean(word)
+         (seen + cleaned, if (seen(cleaned)) "_" else word)
+       }
+       ._2
+       .intercalate(" ")
+
+res: String =
 """We campaign for these freedoms because everyone deserves them.
    With _ _ the users (both individually and collectively)
    control _ program _ what it does _ _"""
@@ -4095,7 +4125,7 @@ Now consider the case where we want to write an instance of an
 implicit def some[A: Encoder]: Encoder[Some[A]] = Encoder[A].contramap(_.get)
 #+END_SRC
 
-On the other hand, a =Decoder= typically has a =CovariantFunctor=:
+On the other hand, a =Decoder= typically has a =Functor=:
 
 #+BEGIN_SRC scala
 @typeclass trait Decoder[A] { self =>
@@ -4116,7 +4146,7 @@ position/ (return type). If a typeclass has a combination of covariant
 and contravariant positions, it might have an /invariant functor/.
 
 Consider what happens if we combine =Encoder= and =Decoder= into one
-typeclass. We can no longer construct a =Format= my using =map= or
+typeclass. We can no longer construct a =Format= by using =map= or
 =contramap= alone, we need =xmap=:
 
 #+BEGIN_SRC scala
@@ -4154,7 +4184,7 @@ for /value types/. A value type is a compiletime wrapper for another
 type, that does not incur any object allocation costs (subject to some
 rules of use).
 
-For example you may provide context around some numbers to avoid
+For example we can provide context around some numbers to avoid
 getting them mixed up:
 
 #+BEGIN_SRC scala
@@ -4164,8 +4194,8 @@ final case class Rho  (value: Double) extends AnyVal
 final case class Nu   (value: Double) extends AnyVal
 #+END_SRC
 
-If you want to put these types in a JSON message, you'd need to write
-a custom =Format= for each type, which is tedious. But our =Format=
+If we want to put these types in a JSON message, we'd need to write a
+custom =Format= for each type, which is tedious. But our =Format=
 implements =xmap=, allowing =Format= to be constructed from a simple
 pattern:
 
@@ -4280,33 +4310,38 @@ digraph G {
 #+RESULTS:
 [[file:images/scalaz-applicative.png]]
 
-**** TODO Apply
+**** Apply
+
+=Apply= extends =Functor= by adding a method named =ap= which is
+similar to =map= in that it applies a function to values. However,
+with =ap=, the function is in the same context as the values.
 
 #+BEGIN_SRC scala
 @typeclass trait Apply[F[_]] extends Functor[F] {
   @op("<*>") def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
 
-  def flip: Apply[F] = ...
-  def forever[A, B](fa: F[A]): F[B] = ...
-  def discardLeft[A, B](fa: => F[A], fb: => F[B]): F[B] = ...
-  def discardRight[A, B](fa: => F[A], fb: => F[B]): F[A] = ...
-
-  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
-
-  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
-  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
-  ...
-  def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] =
+  def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
   def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
   ...
+  def apply12[...]
+
   @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
   def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
   ...
-  def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
-  def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
-  ...
-}
+  def tuple12[...]
 #+END_SRC
+
+The =applyX= boilerplate allows us to combine parallel functions and
+then access their combined result as a tuple. Although it's /possible/
+to use =<*>= on data structures, it is far more valuable when
+operating on /effects/ like the drone and google algebras we created
+in Chapter 3.
+
+If we only want the tuple, then we can use the =tupleX= methods
+instead of =applyX=.
+
+However, recall that when we performed effects in parallel that we
+used a different notation. =Apply= has some special syntax:
 
 #+BEGIN_SRC scala
 implicit class ApplyOps[F[_], A](val self: F[A])(implicit val F: Apply[F]) {
@@ -4316,8 +4351,7 @@ implicit class ApplyOps[F[_], A](val self: F[A])(implicit val F: Apply[F]) {
 }
 
 class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
-  def apply[C](f: (A, B) => C): M[C] = Apply[M].apply2(a, b)(f)
-  def tupled: M[(A, B)] = apply(Tuple2.apply)
+  def tupled: M[(A, B)] = Apply[M].apply2(a, b)(f)
   def |@|[C](cc: M[C]): ApplicativeBuilder3[C] = ...
 
   sealed abstract class ApplicativeBuilder3[C](c: M[C]) {
@@ -4325,13 +4359,67 @@ class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
       ...
         ..ApplicativeBuilder12
 }
-
 #+END_SRC
 
+In Chapter 3 we used this syntax:
+
 #+BEGIN_SRC scala
-def ^  [F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
-def ^^ [F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
+#+END_SRC
+
+#+BEGIN_ASIDE
+The =|@|= operator has many names. Some call it the /Cartesian Product
+Syntax/, others call it the /Cinnamon Bun/, the /Admiral Ackbar/ or
+the /Macaulay Culkin/. We prefer to call it /The Scream/ operator,
+after the Munch painting, because it is also the sound your CPU makes
+when it is parallelising All The Things.
+#+END_ASIDE
+
+The syntax =*>= and =<*= offer a convenient way to ignore the output
+from one of two parallel effects.
+
+Unfortunately, although the =|@|= syntax is clear there is a problem
+in that a new =ApplicativeBuilder= object is allocated for each
+additional effect. If the work is I/O-bound, the memory allocation
+cost is insignificant. However, when performing CPU-bound work use the
+alternative /lifting with arity/ syntax:
+
+#+BEGIN_SRC scala
+def ^[F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
+def ^^[F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
 ...
+def ^^^^^^[F[_]: Apply, ...]
+#+END_SRC
+
+used like
+
+#+BEGIN_SRC scala
+^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+#+END_SRC
+
+or directly call =applyX=
+
+#+BEGIN_SRC scala
+Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+#+END_SRC
+
+which do not construct intermediate objects.
+
+FIXME FIXME FIXME
+
+#+BEGIN_SRC scala
+  def flip: Apply[F] = ...
+  def forever[A, B](fa: F[A]): F[B] = ...
+
+  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+
+  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
+  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
+  ...
+  def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
+  def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+  ...
+}
 #+END_SRC
 
 **** TODO Bind and BindRec

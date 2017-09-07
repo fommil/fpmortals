@@ -346,7 +346,8 @@ successors and predecessors:
   
     @op("|->" ) def fromToL(from: F, to: F): List[F] = ...
     @op("|-->") def fromStepToL(from: F, step: Int, to: F): List[F] = ...
-    // with variants for other collection types
+    @op("|=>" ) def fromToL(from: F, to: F): EphemeralStream[F] = ...
+    @op("|==>") def fromStepToL(from: F, step: Int, to: F): EphemeralStream[F] = ...
   }
 ~~~~~~~~
 
@@ -358,6 +359,10 @@ successors and predecessors:
   scala> 'm' |-> 'u'
   res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 ~~~~~~~~
+
+We'll discuss `EphemeralStream` in the next chapter, for now you just
+need to know that it is a potentially infinite data structure that
+avoids memory retention problems in the stdlib `Stream`.
 
 Similarly to `Object.equals`, the concept of a `.toString` on every
 `class` does not make sense in Java. We would like to enforce
@@ -520,23 +525,42 @@ A>     reverse.foldLeft(z)((right, left) => op(left, right))
 A> ~~~~~~~~
 A> 
 A> but the concept of reversing is not universal and this workaround
-A> cannot be used for all data structures.
+A> cannot be used for all data structures. Let's say we want to find
+A> out if there is a small number in a `Stream`, with an early exit:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   scala> (1 until 100000).toStream.foldRight(0L)(_ + _)
+A>   scala> def isSmall(i: Int): Boolean = i < 10
+A>   scala> (1 until 100000).toStream.foldRight(false) {
+A>            (el, acc) => isSmall(el) || acc
+A>          }
 A>   java.lang.StackOverflowError
 A>     at scala.collection.Iterator.toStream(Iterator.scala:1403)
 A>     ...
 A> ~~~~~~~~
 A> 
 A> Scalaz solves the problem by taking a *byname* parameter for the
-A> aggregate value and moving the computation to the heap with a
-A> technique known as *trampolining*.
+A> aggregate value
 A> 
-A> We'll explore scalaz's data types and trampolining in the next
-A> chapter. It is worth baring in mind that not all data structures have
-A> a stack safe `foldRight`, [even within scalaz](https://github.com/scalaz/scalaz/issues/1447).
+A> {lang="text"}
+A> ~~~~~~~~
+A>   scala> (1 |=> 100000).foldRight(false)(el => acc => isSmall(el) || acc )
+A>   res: Boolean = true
+A> ~~~~~~~~
+A> 
+A> which means that the `acc` is not evaluated unless it is needed.
+A> 
+A> It is worth baring in mind that not all operations are stack safe in
+A> `foldRight`. If we were to require evaluation of all elements, we can
+A> also get a `StackOverflowError` with scalaz's `EphemeralStream`
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   scala> (1L |=> 100000L).foldRight(0L)(el => acc => el |+| acc )
+A>   java.lang.StackOverflowError
+A>     at scalaz.Foldable.$anonfun$foldr$1(Foldable.scala:100)
+A>     ...
+A> ~~~~~~~~
 
 `foldLeft` traverses elements from left to right. `foldLeft` can be
 implemented in terms of `foldMap`, but most instances choose to
@@ -838,15 +862,24 @@ infinite stream:
 
 {lang="text"}
 ~~~~~~~~
+  scala> val freedom =
   """We campaign for these freedoms because everyone deserves them.
      With these freedoms, the users (both individually and collectively)
      control the program and what it does for them."""
-     .split("\\s+").toList
-     .mapAccumL(Set.empty[String]) { (seen, word) =>
-       val clean = word.toLowerCase.replaceAll("[,.()]+", "")
-       (seen + clean, if (seen(clean)) "_" else word)
-     }._2.intercalate(" ")
+     .split("\\s+")
+     .toList
   
+  scala> def clean(s: String): String = s.toLowerCase.replaceAll("[,.()]+", "")
+  
+  scala> freedom
+         .mapAccumL(Set.empty[String]) { (seen, word) =>
+           val cleaned = clean(word)
+           (seen + cleaned, if (seen(cleaned)) "_" else word)
+         }
+         ._2
+         .intercalate(" ")
+  
+  res: String =
   """We campaign for these freedoms because everyone deserves them.
      With _ _ the users (both individually and collectively)
      control _ program _ what it does _ _"""
@@ -931,7 +964,7 @@ Now consider the case where we want to write an instance of an
   implicit def some[A: Encoder]: Encoder[Some[A]] = Encoder[A].contramap(_.get)
 ~~~~~~~~
 
-On the other hand, a `Decoder` typically has a `CovariantFunctor`:
+On the other hand, a `Decoder` typically has a `Functor`:
 
 {lang="text"}
 ~~~~~~~~
@@ -953,7 +986,7 @@ position* (return type). If a typeclass has a combination of covariant
 and contravariant positions, it might have an *invariant functor*.
 
 Consider what happens if we combine `Encoder` and `Decoder` into one
-typeclass. We can no longer construct a `Format` my using `map` or
+typeclass. We can no longer construct a `Format` by using `map` or
 `contramap` alone, we need `xmap`:
 
 {lang="text"}
@@ -990,7 +1023,7 @@ for *value types*. A value type is a compiletime wrapper for another
 type, that does not incur any object allocation costs (subject to some
 rules of use).
 
-For example you may provide context around some numbers to avoid
+For example we can provide context around some numbers to avoid
 getting them mixed up:
 
 {lang="text"}
@@ -1001,8 +1034,8 @@ getting them mixed up:
   final case class Nu   (value: Double) extends AnyVal
 ~~~~~~~~
 
-If you want to put these types in a JSON message, you'd need to write
-a custom `Format` for each type, which is tedious. But our `Format`
+If we want to put these types in a JSON message, we'd need to write a
+custom `Format` for each type, which is tedious. But our `Format`
 implements `xmap`, allowing `Format` to be constructed from a simple
 pattern:
 
@@ -1073,32 +1106,37 @@ Advanced TIE Fighter for entertainment.
 
 ### Apply
 
+`Apply` extends `Functor` by adding a method named `ap` which is
+similar to `map` in that it applies a function to values. However,
+with `ap`, the function is in the same context as the values.
+
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Apply[F[_]] extends Functor[F] {
     @op("<*>") def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
   
-    def flip: Apply[F] = ...
-    def forever[A, B](fa: F[A]): F[B] = ...
-    def discardLeft[A, B](fa: => F[A], fb: => F[B]): F[B] = ...
-    def discardRight[A, B](fa: => F[A], fb: => F[B]): F[A] = ...
-  
-    def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
-  
-    def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
-    def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
-    ...
-    def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] =
+    def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
     def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
     ...
+    def apply12[...]
+  
     @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
     def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
     ...
-    def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
-    def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
-    ...
-  }
+    def tuple12[...]
 ~~~~~~~~
+
+The `applyX` boilerplate allows us to combine parallel functions and
+then access their combined result as a tuple. Although it's *possible*
+to use `<*>` on data structures, it is far more valuable when
+operating on *effects* like the drone and google algebras we created
+in Chapter 3.
+
+If we only want the tuple, then we can use the `tupleX` methods
+instead of `applyX`.
+
+However, recall that when we performed effects in parallel that we
+used a different notation. `Apply` has some special syntax:
 
 {lang="text"}
 ~~~~~~~~
@@ -1109,8 +1147,7 @@ Advanced TIE Fighter for entertainment.
   }
   
   class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
-    def apply[C](f: (A, B) => C): M[C] = Apply[M].apply2(a, b)(f)
-    def tupled: M[(A, B)] = apply(Tuple2.apply)
+    def tupled: M[(A, B)] = Apply[M].apply2(a, b)(f)
     def |@|[C](cc: M[C]): ApplicativeBuilder3[C] = ...
   
     sealed abstract class ApplicativeBuilder3[C](c: M[C]) {
@@ -1120,11 +1157,68 @@ Advanced TIE Fighter for entertainment.
   }
 ~~~~~~~~
 
+In Chapter 3 we used this syntax:
+
 {lang="text"}
 ~~~~~~~~
-  def ^  [F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
-  def ^^ [F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
+~~~~~~~~
+
+A> The `|@|` operator has many names. Some call it the *Cartesian Product
+A> Syntax*, others call it the *Cinnamon Bun*, the *Admiral Ackbar* or
+A> the *Macaulay Culkin*. We prefer to call it *The Scream* operator,
+A> after the Munch painting, because it is also the sound your CPU makes
+A> when it is parallelising All The Things.
+
+The syntax `*>` and `<*` offer a convenient way to ignore the output
+from one of two parallel effects.
+
+Unfortunately, although the `|@|` syntax is clear there is a problem
+in that a new `ApplicativeBuilder` object is allocated for each
+additional effect. If the work is I/O-bound, the memory allocation
+cost is insignificant. However, when performing CPU-bound work use the
+alternative *lifting with arity* syntax:
+
+{lang="text"}
+~~~~~~~~
+  def ^[F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
+  def ^^[F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
   ...
+  def ^^^^^^[F[_]: Apply, ...]
+~~~~~~~~
+
+used like
+
+{lang="text"}
+~~~~~~~~
+  ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+~~~~~~~~
+
+or directly call `applyX`
+
+{lang="text"}
+~~~~~~~~
+  Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+~~~~~~~~
+
+which do not construct intermediate objects.
+
+FIXME FIXME FIXME
+
+{lang="text"}
+~~~~~~~~
+  def flip: Apply[F] = ...
+    def forever[A, B](fa: F[A]): F[B] = ...
+  
+    def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+  
+    def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
+    def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
+    ...
+    def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
+    def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+    ...
+  }
 ~~~~~~~~
 
 

@@ -1123,11 +1123,11 @@ As opposed to `flatMap` for sequential operations, scalaz uses
   ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
 ~~~~~~~~
 
-which can also use infix notation, if you prefer:
+which can also use infix notation:
 
 {lang="text"}
 ~~~~~~~~
-  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
 ~~~~~~~~
 
 If each of the parallel operations returns a value in the same monadic
