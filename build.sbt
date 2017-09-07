@@ -37,7 +37,7 @@ scalacOptions ++= Seq(
 scalacOptions += "-Ywarn-unused:implicits,imports,locals,params,patvars,privates"
 
 addCompilerPlugin(
-  "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+  "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )
 
 wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
@@ -58,7 +58,7 @@ initialCommands in (Compile, console) := Seq(
   "scala.annotation.tailrec",
   "scala.collection.immutable.{Map,Seq,List,::,Nil,Set,Vector}",
   "scala.util.{Try,Success,Failure}",
-  "scala.Predef.{???,ArrowAssoc,identity,implicitly,<:<,=:=}",
+  "scala.Predef.{???,ArrowAssoc,identity,implicitly,<:<,=:=,augmentString,genericArrayOps}",
   "shapeless.{ :: => :*:, _ }",
   "_root_.io.circe",
   "scalaz._",
