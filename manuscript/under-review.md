@@ -1993,8 +1993,8 @@ Another use for implicit conversion is *typeclass derivation*. In the
 previous section we wrote an `implicit def` that derived a
 `Numeric[Complex[T]]` if a `Numeric[T]` is in the implicit scope. It
 is possible to chain together many `implicit def` (including
-recursively) which is the basis of *typelevel programming*, allowing
-for computations to be performed at compiletime rather than runtime.
+recursively) which is the basis of *typeful programming*, allowing for
+computations to be performed at compiletime rather than runtime.
 
 The glue that combines implicit parameters (receivers) with implicit
 conversion (providers) is implicit resolution.

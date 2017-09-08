@@ -48,22 +48,6 @@ A computer is not necessary to follow along.
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
 write an FP library in Scala from first principles.
 
-#+BEGIN_ASIDE
-Scalaz is a principled Functional Programming library that has evolved
-over a decade of industry use.
-
-Cats is an experiment to rewrite scalaz. Cats is a member of the
-[[http://typelevel.org/about.html][Typelevel]] community, organised around functional programming in Scala.
-Typelevel is a political organisation who enforce a Code of Conduct to
-ensure that their spaces are welcoming, inclusive and safe.
-
-Although this book uses scalaz, a variant using cats will be created,
-subject to demand. In the meantime, you can obtain a gratis copy of
-[[http://underscore.io/books/advanced-scala/][Advanced Scala with Cats]] by Underscore Consultants. At this point, the
-cats API is mostly a clone of scalaz, so this book is relevant for
-either library.
-#+END_ASIDE
-
 ** Copyleft Notice
 
 This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]]: you
@@ -2399,8 +2383,8 @@ Another use for implicit conversion is /typeclass derivation/. In the
 previous section we wrote an =implicit def= that derived a
 =Numeric[Complex[T]]= if a =Numeric[T]= is in the implicit scope. It
 is possible to chain together many =implicit def= (including
-recursively) which is the basis of /typelevel programming/, allowing
-for computations to be performed at compiletime rather than runtime.
+recursively) which is the basis of /typeful programming/, allowing for
+computations to be performed at compiletime rather than runtime.
 
 The glue that combines implicit parameters (receivers) with implicit
 conversion (providers) is implicit resolution.
