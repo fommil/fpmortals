@@ -9,7 +9,7 @@
 
 # Σ ⊣ Δ ⊣ Π
 
-* Frontmatter                                                  :sample:final:
+* Frontmatter                                                         :final:
 :PROPERTIES:
 :EXPORT_FILE_NAME: frontmatter.md
 :END:
@@ -43,7 +43,9 @@ presented, with a rest between chapters. To ensure that the book is
 concise, important concepts are not always repeated. Re-read sections
 that are confusing, they will be important later.
 
-A computer is not necessary to follow along.
+A computer is not necessary to follow along, although we hope that you
+will gain the confidence to independently study the scalaz source
+code.
 
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
 write an FP library in Scala from first principles.
@@ -132,15 +134,19 @@ section. Unless told otherwise, assume that all snippets have the
 following imports:
 
 #+BEGIN_SRC scala
-import scalaz._
-import Scalaz._
+import scalaz._, Scalaz._
+import simulacrum._
+import stalactite._
 #+END_SRC
 
 ** Giving Feedback
 
-Please help raise awareness of this book by retweeting [[https://twitter.com/fommil/status/855877100296953862][the
-announcement]] and buying it when it becomes available for Early Access
-purchase.
+You are reading an Early Access version of this book. You will have
+access to the final version of the book, expected in 2018, at no
+additional cost.
+
+Please help raise awareness of this book by telling your friends,
+especially the most sceptical.
 
 If you would like to give feedback on this book, thank you! I ask of
 you:
@@ -153,13 +159,10 @@ you:
    this text.
 3. if you understood a concept, but feel that it could be explained in
    a different way, let's park that thought for now.
+4. grammatical errors and typos will (eventually) be corrected by an
+   editor, they do not need to be reported.
 
-* Sample                                                             :sample:
-:PROPERTIES:
-:EXPORT_FILE_NAME: sample.md
-:END:
-
-* Mainmatter                                                   :sample:final:
+* Mainmatter                                                          :final:
 :PROPERTIES:
 :EXPORT_FILE_NAME: mainmatter.md
 :END:
@@ -471,9 +474,9 @@ developer tooling to eliminate some of the boilerplate we've already
 seen in this chapter, allowing you to focus on writing pure business
 logic.
 
-* Under Review                                                 :sample:final:
+* Complete                                                            :final:
   :PROPERTIES:
-  :EXPORT_FILE_NAME: under-review.md
+  :EXPORT_FILE_NAME: complete.md
   :END:
 ** For Comprehensions
 
@@ -1566,7 +1569,7 @@ As opposed to =flatMap= for sequential operations, scalaz uses
 which can also use infix notation:
 
 #+BEGIN_SRC scala
-(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
+(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 #+END_SRC
 
 If each of the parallel operations returns a value in the same monadic
@@ -2964,7 +2967,7 @@ package logic {
 - /generic instances/ automatically derive instances for your data
   types.
 
-* WIP                                                            :final:
+* WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
   :END:
@@ -3030,7 +3033,7 @@ them by common themes. Notably absent are typeclasses that extend
 Scalaz uses code generation instead of simulacrum. We'll present the
 typeclasses as if simulacrum was used, but note that there are no
 =ops= on the companions. All syntax is provided along with typeclasses
-and datatypes when writing
+and data types when writing
 
 #+BEGIN_SRC scala
 import scalaz._, Scalaz._
@@ -4233,7 +4236,7 @@ res: List[Option[Int]] = List(Some(2), None, Some(3))
 This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
-*** Everything but Pure
+*** Everything But Pure
 
 =Apply= is =Applicative= without the =pure= method, and =Bind= is
 =Monad= without =pure=. Consider this the warm-up act, with an
@@ -4308,47 +4311,37 @@ with =ap=, the function is in the same context as the values.
   def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
   ...
   def apply12[...]
-
-  @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
-  def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
-  ...
-  def tuple12[...]
 #+END_SRC
 
 The =applyX= boilerplate allows us to combine parallel functions and
-then access their combined result as a tuple. Although it's /possible/
-to use =<*>= on data structures, it is far more valuable when
-operating on /effects/ like the drone and google algebras we created
-in Chapter 3.
+then map over their combined output. Although it's /possible/ to use
+=<*>= on data structures, it is far more valuable when operating on
+/effects/ like the drone and google algebras we created in Chapter 3.
 
-If we only want the tuple, then we can use the =tupleX= methods
-instead of =applyX=.
-
-However, recall that when we performed effects in parallel that we
-used a different notation. =Apply= has some special syntax:
+=Apply= has special syntax:
 
 #+BEGIN_SRC scala
-implicit class ApplyOps[F[_], A](val self: F[A])(implicit val F: Apply[F]) {
-  def *>[B](fb: F[B]): F[B] = F.apply2(self,fb)((_,b) => b)
-  def <*[B](fb: F[B]): F[A] = F.apply2(self,fb)((a,_) => a)
+implicit class ApplyOps[F[_]: Apply, A](val self: F[A]) {
+  def *>[B](fb: F[B]): F[B] = Apply[F].apply2(self,fb)((_,b) => b)
+  def <*[B](fb: F[B]): F[A] = Apply[F].apply2(self,fb)((a,_) => a)
   def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
 }
 
-class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
-  def tupled: M[(A, B)] = Apply[M].apply2(a, b)(f)
-  def |@|[C](cc: M[C]): ApplicativeBuilder3[C] = ...
+class ApplicativeBuilder[F[_]: Apply, A, B](a: F[A], b: F[B]) {
+  def tupled: F[(A, B)] = Apply[F].apply2(a, b)(f)
+  def |@|[C](cc: F[C]): ApplicativeBuilder3[C] = ...
 
-  sealed abstract class ApplicativeBuilder3[C](c: M[C]) {
+  sealed abstract class ApplicativeBuilder3[C](c: F[C]) {
     ..ApplicativeBuilder4
       ...
         ..ApplicativeBuilder12
 }
 #+END_SRC
 
-In Chapter 3 we used this syntax:
+In Chapter 3 we used this:
 
 #+BEGIN_SRC scala
-(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
+(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 #+END_SRC
 
 #+BEGIN_ASIDE
@@ -4365,8 +4358,9 @@ from one of two parallel effects.
 Unfortunately, although the =|@|= syntax is clear there is a problem
 in that a new =ApplicativeBuilder= object is allocated for each
 additional effect. If the work is I/O-bound, the memory allocation
-cost is insignificant. However, when performing CPU-bound work use the
-alternative /lifting with arity/ syntax:
+cost is insignificant. However, when performing CPU-bound work, use
+the alternative /lifting with arity/ syntax, which does not produce
+any intermediate objects:
 
 #+BEGIN_SRC scala
 def ^[F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
@@ -4387,51 +4381,95 @@ or directly call =applyX=
 Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
 #+END_SRC
 
-which do not construct intermediate objects.
-
-FIXME FIXME FIXME
+Despite being of most value for dealing with effects, =Apply= provides
+convenient syntax for dealing with data structures. It is quite common
+to have to deal with multiple =Option= values. Consider rewriting
 
 #+BEGIN_SRC scala
-  def flip: Apply[F] = ...
-  def forever[A, B](fa: F[A]): F[B] = ...
+  for {
+    foo <- data.foo: Option[String]
+    bar <- data.bar: Option[Int]
+  } yield foo + bar.shows
+#+END_SRC
 
-  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+as
 
+#+BEGIN_SRC scala
+(data.foo |@| data.bar)(_ + _.shows) : Option[String]
+
+#+END_SRC
+
+If we only want the combined output as a tuple, methods exist to do
+just that:
+
+#+BEGIN_SRC scala
+  @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
+  def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
+  ...
+  def tuple12[...]
+#+END_SRC
+
+#+BEGIN_SRC scala
+(data.foo tuple data.bar) : Option[(String, Int)]
+#+END_SRC
+
+There are also the generalised versions of =ap= for more than two
+parameters:
+
+#+BEGIN_SRC scala
   def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
   def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
   ...
+  def ap12[...]
+#+END_SRC
+
+along with =lift= methods that take normal functions and lift them into the
+=F[_]= context, the generalisation of =Functor.lift=
+
+#+BEGIN_SRC scala
   def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
   def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
   ...
-}
+  def lift12[...]
 #+END_SRC
 
-**** TODO Bind and BindRec
-
-*** TODO Applicative and Monad
-*** TODO Align
-*** TODO Divide and Divisable
-*** TODO Plus, PlusEmpty, IsEmpty, ApplicativePlus
-
-These were cut from Foldable, revisit them...
+and =apF=, a partially applied syntax for =ap=
 
 #+BEGIN_SRC scala
-  def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
-  def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
+  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
 #+END_SRC
 
-*** TODO Zip, Unzip
-*** TODO Lone Wolves
-**** TODO Optional
-**** TODO Associative
-**** TODO Catchable
-**** TODO Resource
+Finally =forever=
 
-*** TODO Co-things: Cobind, Comonad, ComonadStore, Cozip
-*** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
-*** TODO Very Abstract Things
+#+BEGIN_SRC scala
+  def forever[A, B](fa: F[A]): F[B] = ...
+#+END_SRC
 
-Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
+repeating an effect without stopping. The instance of =Apply= must be
+stack safe or we'll get =StackOverflowError=.
+
+# **** TODO Bind and BindRec
+# *** TODO Applicative and Monad
+# *** TODO Align
+# *** TODO Divide and Divisable
+# *** TODO Plus, PlusEmpty, IsEmpty, ApplicativePlus
+
+# These were cut from Foldable, revisit them...
+# #+BEGIN_SRC scala
+#   def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
+#   def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
+# #+END_SRC
+
+# *** TODO Zip, Unzip
+# *** TODO Lone Wolves
+# **** TODO Optional
+# **** TODO Associative
+# **** TODO Catchable
+# **** TODO Resource
+# *** TODO Co-things: Cobind, Comonad, ComonadStore, Cozip
+# *** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
+# *** TODO Very Abstract Things
+# Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
 
 ** What's Next?
 
@@ -4440,6 +4478,7 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
+- Scalaz Typeclasses (completed)
 - Scalaz Data Types
 - Scalaz Advanced Monads
 - Scalaz Utilities

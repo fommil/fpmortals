@@ -27,7 +27,9 @@ presented, with a rest between chapters. To ensure that the book is
 concise, important concepts are not always repeated. Re-read sections
 that are confusing, they will be important later.
 
-A computer is not necessary to follow along.
+A computer is not necessary to follow along, although we hope that you
+will gain the confidence to independently study the scalaz source
+code.
 
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
 write an FP library in Scala from first principles.
@@ -121,16 +123,20 @@ following imports:
 
 {lang="text"}
 ~~~~~~~~
-  import scalaz._
-  import Scalaz._
+  import scalaz._, Scalaz._
+  import simulacrum._
+  import stalactite._
 ~~~~~~~~
 
 
 # Giving Feedback
 
-Please help raise awareness of this book by retweeting [the
-announcement](https://twitter.com/fommil/status/855877100296953862) and buying it when it becomes available for Early Access
-purchase.
+You are reading an Early Access version of this book. You will have
+access to the final version of the book, expected in 2018, at no
+additional cost.
+
+Please help raise awareness of this book by telling your friends,
+especially the most sceptical.
 
 If you would like to give feedback on this book, thank you! I ask of
 you:
@@ -143,5 +149,7 @@ you:
     this text.
 3.  if you understood a concept, but feel that it could be explained in
     a different way, let's park that thought for now.
+4.  grammatical errors and typos will (eventually) be corrected by an
+    editor, they do not need to be reported.
 
 

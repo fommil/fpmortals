@@ -1127,7 +1127,7 @@ which can also use infix notation:
 
 {lang="text"}
 ~~~~~~~~
-  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 ~~~~~~~~
 
 If each of the parallel operations returns a value in the same monadic

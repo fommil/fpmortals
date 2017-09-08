@@ -62,7 +62,7 @@ them by common themes. Notably absent are typeclasses that extend
 Scalaz uses code generation instead of simulacrum. We'll present the
 typeclasses as if simulacrum was used, but note that there are no
 `ops` on the companions. All syntax is provided along with typeclasses
-and datatypes when writing
+and data types when writing
 
 {lang="text"}
 ~~~~~~~~
@@ -1094,7 +1094,7 @@ This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
 
-## Everything but Pure
+## Everything But Pure
 
 `Apply` is `Applicative` without the `pure` method, and `Bind` is
 `Monad` without `pure`. Consider this the warm-up act, with an
@@ -1119,49 +1119,39 @@ with `ap`, the function is in the same context as the values.
     def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
     ...
     def apply12[...]
-  
-    @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
-    def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
-    ...
-    def tuple12[...]
 ~~~~~~~~
 
 The `applyX` boilerplate allows us to combine parallel functions and
-then access their combined result as a tuple. Although it's *possible*
-to use `<*>` on data structures, it is far more valuable when
-operating on *effects* like the drone and google algebras we created
-in Chapter 3.
+then map over their combined output. Although it's *possible* to use
+`<*>` on data structures, it is far more valuable when operating on
+*effects* like the drone and google algebras we created in Chapter 3.
 
-If we only want the tuple, then we can use the `tupleX` methods
-instead of `applyX`.
-
-However, recall that when we performed effects in parallel that we
-used a different notation. `Apply` has some special syntax:
+`Apply` has special syntax:
 
 {lang="text"}
 ~~~~~~~~
-  implicit class ApplyOps[F[_], A](val self: F[A])(implicit val F: Apply[F]) {
-    def *>[B](fb: F[B]): F[B] = F.apply2(self,fb)((_,b) => b)
-    def <*[B](fb: F[B]): F[A] = F.apply2(self,fb)((a,_) => a)
+  implicit class ApplyOps[F[_]: Apply, A](val self: F[A]) {
+    def *>[B](fb: F[B]): F[B] = Apply[F].apply2(self,fb)((_,b) => b)
+    def <*[B](fb: F[B]): F[A] = Apply[F].apply2(self,fb)((a,_) => a)
     def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
   }
   
-  class ApplicativeBuilder[M[_]: Apply, A, B](a: M[A], b: M[B]) {
-    def tupled: M[(A, B)] = Apply[M].apply2(a, b)(f)
-    def |@|[C](cc: M[C]): ApplicativeBuilder3[C] = ...
+  class ApplicativeBuilder[F[_]: Apply, A, B](a: F[A], b: F[B]) {
+    def tupled: F[(A, B)] = Apply[F].apply2(a, b)(f)
+    def |@|[C](cc: F[C]): ApplicativeBuilder3[C] = ...
   
-    sealed abstract class ApplicativeBuilder3[C](c: M[C]) {
+    sealed abstract class ApplicativeBuilder3[C](c: F[C]) {
       ..ApplicativeBuilder4
         ...
           ..ApplicativeBuilder12
   }
 ~~~~~~~~
 
-In Chapter 3 we used this syntax:
+In Chapter 3 we used this:
 
 {lang="text"}
 ~~~~~~~~
-  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime).tupled
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 ~~~~~~~~
 
 A> The `|@|` operator has many names. Some call it the *Cartesian Product
@@ -1176,8 +1166,9 @@ from one of two parallel effects.
 Unfortunately, although the `|@|` syntax is clear there is a problem
 in that a new `ApplicativeBuilder` object is allocated for each
 additional effect. If the work is I/O-bound, the memory allocation
-cost is insignificant. However, when performing CPU-bound work use the
-alternative *lifting with arity* syntax:
+cost is insignificant. However, when performing CPU-bound work, use
+the alternative *lifting with arity* syntax, which does not produce
+any intermediate objects:
 
 {lang="text"}
 ~~~~~~~~
@@ -1201,77 +1192,79 @@ or directly call `applyX`
   Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
 ~~~~~~~~
 
-which do not construct intermediate objects.
-
-FIXME FIXME FIXME
-
-{lang="text"}
-~~~~~~~~
-  def flip: Apply[F] = ...
-    def forever[A, B](fa: F[A]): F[B] = ...
-  
-    def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
-  
-    def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
-    def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
-    ...
-    def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
-    def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
-    ...
-  }
-~~~~~~~~
-
-
-### Bind and BindRec
-
-
-## Applicative and Monad
-
-
-## Align
-
-
-## Divide and Divisable
-
-
-## Plus, PlusEmpty, IsEmpty, ApplicativePlus
-
-These were cut from Foldable, revisit them...
+Despite being of most value for dealing with effects, `Apply` provides
+convenient syntax for dealing with data structures. It is quite common
+to have to deal with multiple `Option` values. Consider rewriting
 
 {lang="text"}
 ~~~~~~~~
-  def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
-  def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
+  for {
+    foo <- data.foo: Option[String]
+    bar <- data.bar: Option[Int]
+  } yield foo + bar.shows
 ~~~~~~~~
 
+as
 
-## Zip, Unzip
+{lang="text"}
+~~~~~~~~
+  (data.foo |@| data.bar)(_ + _.shows) : Option[String]
+~~~~~~~~
 
+If we only want the combined output as a tuple, methods exist to do
+just that:
 
-## Lone Wolves
+{lang="text"}
+~~~~~~~~
+  @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
+  def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
+  ...
+  def tuple12[...]
+~~~~~~~~
 
+{lang="text"}
+~~~~~~~~
+  (data.foo tuple data.bar) : Option[(String, Int)]
+~~~~~~~~
 
-### Optional
+There are also the generalised versions of `ap` for more than two
+parameters:
 
+{lang="text"}
+~~~~~~~~
+  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
+  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
+  ...
+  def ap12[...]
+~~~~~~~~
 
-### Associative
+along with `lift` methods that take normal functions and lift them into the
+`F[_]` context, the generalisation of `Functor.lift`
 
+{lang="text"}
+~~~~~~~~
+  def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
+  def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+  ...
+  def lift12[...]
+~~~~~~~~
 
-### Catchable
+and `apF`, a partially applied syntax for `ap`
 
+{lang="text"}
+~~~~~~~~
+  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+~~~~~~~~
 
-### Resource
+Finally `forever`
 
+{lang="text"}
+~~~~~~~~
+  def forever[A, B](fa: F[A]): F[B] = ...
+~~~~~~~~
 
-## Co-things: Cobind, Comonad, ComonadStore, Cozip
-
-
-## Bi-things: Bifunctor, Bifoldable, Bitraverse
-
-
-## Very Abstract Things
-
-Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
+repeating an effect without stopping. The instance of `Apply` must be
+stack safe or we'll get `StackOverflowError`.
 
 
 # What's Next?
@@ -1281,6 +1274,7 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
+-   Scalaz Typeclasses (completed)
 -   Scalaz Data Types
 -   Scalaz Advanced Monads
 -   Scalaz Utilities
