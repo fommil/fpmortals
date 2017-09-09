@@ -926,7 +926,7 @@ since `Functor` is so popular it gets the nickname. Likewise
   
   @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
     def contramap[A, B](fa: F[A])(f: B => A): F[B]
-    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(fi)
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(f)
     ...
   }
 ~~~~~~~~
@@ -1147,7 +1147,7 @@ then map over their combined output. Although it's *possible* to use
   }
 ~~~~~~~~
 
-In Chapter 3 we used this:
+which is exactly what we used in Chapter 3:
 
 {lang="text"}
 ~~~~~~~~
@@ -1193,8 +1193,7 @@ or directly call `applyX`
 ~~~~~~~~
 
 Despite being of most value for dealing with effects, `Apply` provides
-convenient syntax for dealing with data structures. It is quite common
-to have to deal with multiple `Option` values. Consider rewriting
+convenient syntax for dealing with data structures. Consider rewriting
 
 {lang="text"}
 ~~~~~~~~
@@ -1265,6 +1264,79 @@ Finally `forever`
 
 repeating an effect without stopping. The instance of `Apply` must be
 stack safe or we'll get `StackOverflowError`.
+
+
+### Bind and BindRec
+
+`Bind` introduces `bind`, synonymous with `flatMap`, which allows
+functions on values to return a value in a context, which is then
+bound to original context.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bind[F[_]] extends Apply[F] {
+  
+    @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+    def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = bind(fa)(f)
+  
+    def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
+  
+    def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
+    def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
+  
+  }
+~~~~~~~~
+
+The `join` may be familiar if you have ever used `flatten` in the
+stdlib, it takes nested contexts and squashes then into one.
+
+`ifM` is a convenient and optimised way to construct a conditional
+data structure or effect:
+
+{lang="text"}
+~~~~~~~~
+  scala> List(true, false, true).ifM(List(0), List(1, 1))
+  res: List[Int] = List(0, 1, 1, 0)
+~~~~~~~~
+
+Note that, as is the case with `bind`, results are joined. Although
+not necessarily implemented as such, you can think of `bind` as being
+a `Functor.map` followed by `join`
+
+{lang="text"}
+~~~~~~~~
+  def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
+~~~~~~~~
+
+`ifM` is optimised to cache and reuse the branches as they are used,
+compare to the longer form
+
+{lang="text"}
+~~~~~~~~
+  scala> List(true, false, true).flatMap { b => if (b) List(0) else List(1, 1) }
+~~~~~~~~
+
+which produces a fresh `List(0)` or `List(1, 1)` every time the branch
+is invoked. `ap` is optimised in the name manner.
+
+A> These kinds of optimisations are possible in FP because all methods
+A> are deterministic, also known as *referentially transparent*.
+A> 
+A> If a method returns a different value every time it is called, it is
+A> *impure* and breaks the reasoning and optimisations that we can
+A> otherwise make.
+A> 
+A> If the `F` is an effect, perhaps one of our drone or Google algebras,
+A> it does not mean that the output of the call to the algebra is cached.
+A> Rather the reference to the operation is cached. The performance
+A> optimisation of `ifM` is only noticeable for data structures, and more
+A> pronounced with the difficulty of the work in each branch.
+A> 
+A> We will explore the concept of determinism in more detail in the next
+A> chapter.
+
+TODO: mproduct
+TODO: BindRec
 
 
 # What's Next?

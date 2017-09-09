@@ -120,7 +120,7 @@ libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"  % "0.11.0",
   "com.chuusai"          %% "shapeless"   % "2.3.2" ,
   "com.fommil"           %% "stalactite"  % "0.0.4" ,
-  "org.scalaz"           %% "scalaz"      % "7.2.15"
+  "org.scalaz"           %% "scalaz-core" % "7.2.15"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
@@ -4076,7 +4076,7 @@ since =Functor= is so popular it gets the nickname. Likewise
 
 @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
   def contramap[A, B](fa: F[A])(f: B => A): F[B]
-  def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(fi)
+  def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(f)
   ...
 }
 #+END_SRC
@@ -4338,7 +4338,7 @@ class ApplicativeBuilder[F[_]: Apply, A, B](a: F[A], b: F[B]) {
 }
 #+END_SRC
 
-In Chapter 3 we used this:
+which is exactly what we used in Chapter 3:
 
 #+BEGIN_SRC scala
 (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
@@ -4382,8 +4382,7 @@ Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
 #+END_SRC
 
 Despite being of most value for dealing with effects, =Apply= provides
-convenient syntax for dealing with data structures. It is quite common
-to have to deal with multiple =Option= values. Consider rewriting
+convenient syntax for dealing with data structures. Consider rewriting
 
 #+BEGIN_SRC scala
   for {
@@ -4448,7 +4447,76 @@ Finally =forever=
 repeating an effect without stopping. The instance of =Apply= must be
 stack safe or we'll get =StackOverflowError=.
 
-# **** TODO Bind and BindRec
+**** Bind and BindRec
+
+=Bind= introduces =bind=, synonymous with =flatMap=, which allows
+functions on values to return a value in a context, which is then
+bound to original context.
+
+#+BEGIN_SRC scala
+@typeclass trait Bind[F[_]] extends Apply[F] {
+
+  @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+  def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = bind(fa)(f)
+
+  def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
+
+  def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
+  def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
+
+}
+#+END_SRC
+
+The =join= may be familiar if you have ever used =flatten= in the
+stdlib, it takes nested contexts and squashes then into one.
+
+=ifM= is a convenient and optimised way to construct a conditional
+data structure or effect:
+
+#+BEGIN_SRC scala
+scala> List(true, false, true).ifM(List(0), List(1, 1))
+res: List[Int] = List(0, 1, 1, 0)
+#+END_SRC
+
+Note that, as is the case with =bind=, results are joined. Although
+not necessarily implemented as such, you can think of =bind= as being
+a =Functor.map= followed by =join=
+
+#+BEGIN_SRC scala
+def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
+#+END_SRC
+
+=ifM= is optimised to cache and reuse the branches as they are used,
+compare to the longer form
+
+#+BEGIN_SRC scala
+scala> List(true, false, true).flatMap { b => if (b) List(0) else List(1, 1) }
+#+END_SRC
+
+which produces a fresh =List(0)= or =List(1, 1)= every time the branch
+is invoked. =ap= is optimised in the name manner.
+
+#+BEGIN_ASIDE
+These kinds of optimisations are possible in FP because all methods
+are deterministic, also known as /referentially transparent/.
+
+If a method returns a different value every time it is called, it is
+/impure/ and breaks the reasoning and optimisations that we can
+otherwise make.
+
+If the =F= is an effect, perhaps one of our drone or Google algebras,
+it does not mean that the output of the call to the algebra is cached.
+Rather the reference to the operation is cached. The performance
+optimisation of =ifM= is only noticeable for data structures, and more
+pronounced with the difficulty of the work in each branch.
+
+We will explore the concept of determinism in more detail in the next
+chapter.
+#+END_ASIDE
+
+TODO: mproduct
+TODO: BindRec
+
 # *** TODO Applicative and Monad
 # *** TODO Align
 # *** TODO Divide and Divisable
