@@ -1,8 +1,7 @@
-#+TITLE: Functional Programming in Scala for Mortals
+#+TITLE: Functional Programming for Mortals with Scalaz
 #+AUTHOR: Sam Halliday
 #+DATE: 2017
 
-# https://lakshminp.com/publishing-book-using-org-mode
 #+TAGS: ME OTHER
 #+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
 #+OPTIONS: toc:nil
@@ -62,7 +61,7 @@ over it.
 You can even sell this book or your own version (although, morally,
 you should offer a royalty share to the author). If you received this
 book without paying for it, I would appreciate it if you donated what
-you feel it is worth at https://leanpub.com/fp-scala-mortals.
+you feel it is worth at https://leanpub.com/fpmortals.
 
 This book is *Copyleft*: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -153,7 +152,7 @@ you:
 
 1. if you are an FP beginner and something confused you, please point
    out the exact part of the text that confused you at
-   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fp-scala-mortals]]
+   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fpmortals]]
 2. if you are an expert in FP, please help by answering my questions
    at [[https://gitlab.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
    this text.
@@ -4514,8 +4513,8 @@ We will explore the concept of determinism in more detail in the next
 chapter.
 #+END_ASIDE
 
-TODO: mproduct
-TODO: BindRec
+# TODO: mproduct
+# TODO: BindRec
 
 # *** TODO Applicative and Monad
 # *** TODO Align

@@ -1335,9 +1335,6 @@ A>
 A> We will explore the concept of determinism in more detail in the next
 A> chapter.
 
-TODO: mproduct
-TODO: BindRec
-
 
 # What's Next?
 

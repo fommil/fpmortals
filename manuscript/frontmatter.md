@@ -47,7 +47,7 @@ over it.
 You can even sell this book or your own version (although, morally,
 you should offer a royalty share to the author). If you received this
 book without paying for it, I would appreciate it if you donated what
-you feel it is worth at <https://leanpub.com/fp-scala-mortals>.
+you feel it is worth at <https://leanpub.com/fpmortals>.
 
 This book is **Copyleft**: if you change the book and distribute your
 own version, you must also pass these freedoms to its recipients.
@@ -143,7 +143,7 @@ you:
 
 1.  if you are an FP beginner and something confused you, please point
     out the exact part of the text that confused you at
-    [fommil/fp-scala-mortals](https://github.com/fommil/fp-scala-mortals/issues)
+    [fommil/fpmortals](https://github.com/fommil/fp-scala-mortals/issues)
 2.  if you are an expert in FP, please help by answering my questions
     at [fommil/drone-dynamic-agents](https://gitlab.com/fommil/drone-dynamic-agents/issues) and pointing out factual errors in
     this text.
