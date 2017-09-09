@@ -168,7 +168,7 @@ you:
 :END:
 {mainmatter}
 
-* Introduction                                                 :sample:final:
+* Introduction                                                        :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: introduction.md
   :END:
