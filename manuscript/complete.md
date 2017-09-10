@@ -436,7 +436,7 @@ can be rewritten as async
 ~~~~~~~~
   def getA: Future[Int] = ...
   def error(msg: String): Future[Nothing] =
-    Future.fail(new RuntimeException(msg))
+    Future.failed(new RuntimeException(msg))
   
   for {
     a <- getA
