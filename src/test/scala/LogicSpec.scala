@@ -4,7 +4,7 @@ package tests
 
 import java.time.ZonedDateTime
 
-import scala.Int
+import scala.{ Int, Unit }
 import scala.collection.immutable.Map
 
 import scala.Predef.ArrowAssoc
@@ -45,8 +45,8 @@ final class StaticHandlers(state: WorldView) {
     def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
     def getManaged: NonEmptyList[MachineNode]     = state.managed
     def getTime: ZonedDateTime                    = state.time
-    def start(node: MachineNode): MachineNode     = { started += 1; node }
-    def stop(node: MachineNode): MachineNode      = { stopped += 1; node }
+    def start(node: MachineNode): Unit            = started += 1
+    def stop(node: MachineNode): Unit             = stopped += 1
   }
 
   val program = new DynAgents[Id]

@@ -5,7 +5,7 @@ package algebra
 import java.lang.String
 import java.time.ZonedDateTime
 
-import scala.Int
+import scala.{ Int, Unit }
 import scala.collection.immutable.Map
 import scala.language.higherKinds
 
@@ -22,6 +22,6 @@ trait Machines[F[_]] {
   def getTime: F[ZonedDateTime]
   def getManaged: F[NonEmptyList[MachineNode]]
   def getAlive: F[Map[MachineNode, ZonedDateTime]]
-  def start(node: MachineNode): F[MachineNode]
-  def stop(node: MachineNode): F[MachineNode]
+  def start(node: MachineNode): F[Unit]
+  def stop(node: MachineNode): F[Unit]
 }
