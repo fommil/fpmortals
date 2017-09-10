@@ -477,6 +477,40 @@ before reading further:
 examples of reading type signatures, but they are pretty useless in
 the wild. For the remaining typeclasses, we'll skip the niche methods.
 
+`Functor` also has some special syntax
+
+{lang="text"}
+~~~~~~~~
+  final class FunctorOps[F[_]: Functor, A](val self: F[A]) {
+    def as[B](b: => B): F[B] = Functor[F].map(self)(_ => b)
+    def >|[B](b: => B): F[B] = as(b)
+  }
+~~~~~~~~
+
+`as` and `>|` are a way of replacing the output with a constant. For
+example, in our application we could rewrite
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _      <- m.start(node)
+    update = world.copy(pending = Map(node -> world.time))
+  } yield update
+~~~~~~~~
+
+as
+
+{lang="text"}
+~~~~~~~~
+  m.start(node) >| world.copy(pending = Map(node -> world.time))
+~~~~~~~~
+
+However, this kind of code can be indecipherable to somebody who is
+not acquainted with scalaz. Please apply good judgement when using
+symbolic syntax and only use the terser forms if your team has agreed
+that they are comfortable with it. Or find a team that you prefer
+working with.
+
 
 ### Foldable
 
@@ -1269,8 +1303,9 @@ stack safe or we'll get `StackOverflowError`.
 ### Bind and BindRec
 
 `Bind` introduces `bind`, synonymous with `flatMap`, which allows
-functions on values to return a value in a context, which is then
-bound to original context.
+functions over the result of an effect to return a new effect, or for
+functions over the values of a data structure to return new data
+structures that are then joined.
 
 {lang="text"}
 ~~~~~~~~
@@ -1281,8 +1316,8 @@ bound to original context.
   
     def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
   
-    def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
     def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
+    def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
   
   }
 ~~~~~~~~
@@ -1290,8 +1325,18 @@ bound to original context.
 The `join` may be familiar if you have ever used `flatten` in the
 stdlib, it takes nested contexts and squashes then into one.
 
-`ifM` is a convenient and optimised way to construct a conditional
-data structure or effect:
+Although not necessarily implemented as such, we can think of `bind`
+as being a `Functor.map` followed by `join`
+
+{lang="text"}
+~~~~~~~~
+  def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
+~~~~~~~~
+
+`mproduct` is like `Functor.product` and pairs the function's input
+with its output, inside the `F`.
+
+`ifM` is a way to construct a conditional data structure or effect:
 
 {lang="text"}
 ~~~~~~~~
@@ -1299,17 +1344,8 @@ data structure or effect:
   res: List[Int] = List(0, 1, 1, 0)
 ~~~~~~~~
 
-Note that, as is the case with `bind`, results are joined. Although
-not necessarily implemented as such, you can think of `bind` as being
-a `Functor.map` followed by `join`
-
-{lang="text"}
-~~~~~~~~
-  def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
-~~~~~~~~
-
-`ifM` is optimised to cache and reuse the branches as they are used,
-compare to the longer form
+`ifM` and `ap` are optimised to cache and reuse code branches, compare
+to the longer form
 
 {lang="text"}
 ~~~~~~~~
@@ -1317,7 +1353,7 @@ compare to the longer form
 ~~~~~~~~
 
 which produces a fresh `List(0)` or `List(1, 1)` every time the branch
-is invoked. `ap` is optimised in the name manner.
+is invoked.
 
 A> These kinds of optimisations are possible in FP because all methods
 A> are deterministic, also known as *referentially transparent*.
@@ -1332,8 +1368,68 @@ A> Rather the reference to the operation is cached. The performance
 A> optimisation of `ifM` is only noticeable for data structures, and more
 A> pronounced with the difficulty of the work in each branch.
 A> 
-A> We will explore the concept of determinism in more detail in the next
-A> chapter.
+A> We will explore the concept of determinism and value caching in more
+A> detail in the next chapter.
+
+`Bind` also has some special syntax
+
+{lang="text"}
+~~~~~~~~
+  final class BindOps[F[_]: Bind, A] (val self: F[A]) {
+    def >>[B](b: => F[B]): F[B] = Bind[F].bind(self)(_ => b)
+    def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => F.map(f(a))(_ => a))
+  }
+~~~~~~~~
+
+`>>` is when we wish to discard the input to `bind` and `>>!` is when
+we want to run an effect but discard its output.
+
+In our example application we are running `nodes.traverse(m.stop)` on
+a `NonEmptyList[Node]`. As a nasty hack (which we didn't even admit to
+until now), we defined `stop` to return its input:
+
+{lang="text"}
+~~~~~~~~
+  def stop(node: MachineNode): F[MachineNode]
+~~~~~~~~
+
+which, unfortunately, pushes unnecessary complexity into the
+interpreters to let us have simpler business logic.
+
+We could redefine `stop` to return `F[Unit]`, reducing the burden on
+our interpreters, and instead write
+
+{lang="text"}
+~~~~~~~~
+  nodes.traverse(_.pure[F] >>! m.stop)
+~~~~~~~~
+
+Admittedly, it would be nice if `Traverse` [had an equivalent syntax](https://github.com/scalaz/scalaz/issues/1459).
+
+
+### BindRec
+
+`BindRec` is a `Bind` that must use constant stack space when doing
+recursive `bind`. i.e. it's stack safe and can loop `forever` without
+blowing up the stack:
+
+{lang="text"}
+~~~~~~~~
+  trait BindRec[F[_]] extends Bind[F] {
+    def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
+  
+    override def forever[A, B](fa: F[A]): F[B] = ...
+  }
+~~~~~~~~
+
+Arguably `forever` should only be introduced by `BindRec`, not `Apply`
+or `Bind`.
+
+This is what we need to be able to implement the "loop forever" logic
+of our application.
+
+`\/`, called *disjunction*, is a data structure that we will discuss
+in the next chapter. It is an improvement of stdlib's `Either`.
 
 
 # What's Next?

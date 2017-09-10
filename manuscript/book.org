@@ -3597,6 +3597,37 @@ before reading further:
 examples of reading type signatures, but they are pretty useless in
 the wild. For the remaining typeclasses, we'll skip the niche methods.
 
+=Functor= also has some special syntax
+
+#+BEGIN_SRC scala
+final class FunctorOps[F[_]: Functor, A](val self: F[A]) {
+  def as[B](b: => B): F[B] = Functor[F].map(self)(_ => b)
+  def >|[B](b: => B): F[B] = as(b)
+}
+#+END_SRC
+
+=as= and =>|= are a way of replacing the output with a constant. For
+example, in our application we could rewrite
+
+#+BEGIN_SRC scala
+for {
+  _      <- m.start(node)
+  update = world.copy(pending = Map(node -> world.time))
+} yield update
+#+END_SRC
+
+as
+
+#+BEGIN_SRC scala
+m.start(node) >| world.copy(pending = Map(node -> world.time))
+#+END_SRC
+
+However, this kind of code can be indecipherable to somebody who is
+not acquainted with scalaz. Please apply good judgement when using
+symbolic syntax and only use the terser forms if your team has agreed
+that they are comfortable with it. Or find a team that you prefer
+working with.
+
 **** Foldable
 
 Technically, =Foldable= is for data structures that can be walked to
@@ -4450,8 +4481,9 @@ stack safe or we'll get =StackOverflowError=.
 **** Bind and BindRec
 
 =Bind= introduces =bind=, synonymous with =flatMap=, which allows
-functions on values to return a value in a context, which is then
-bound to original context.
+functions over the result of an effect to return a new effect, or for
+functions over the values of a data structure to return new data
+structures that are then joined.
 
 #+BEGIN_SRC scala
 @typeclass trait Bind[F[_]] extends Apply[F] {
@@ -4461,8 +4493,8 @@ bound to original context.
 
   def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
 
-  def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
   def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
+  def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
 
 }
 #+END_SRC
@@ -4470,31 +4502,32 @@ bound to original context.
 The =join= may be familiar if you have ever used =flatten= in the
 stdlib, it takes nested contexts and squashes then into one.
 
-=ifM= is a convenient and optimised way to construct a conditional
-data structure or effect:
+Although not necessarily implemented as such, we can think of =bind=
+as being a =Functor.map= followed by =join=
+
+#+BEGIN_SRC scala
+def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
+#+END_SRC
+
+=mproduct= is like =Functor.product= and pairs the function's input
+with its output, inside the =F=.
+
+=ifM= is a way to construct a conditional data structure or effect:
 
 #+BEGIN_SRC scala
 scala> List(true, false, true).ifM(List(0), List(1, 1))
 res: List[Int] = List(0, 1, 1, 0)
 #+END_SRC
 
-Note that, as is the case with =bind=, results are joined. Although
-not necessarily implemented as such, you can think of =bind= as being
-a =Functor.map= followed by =join=
-
-#+BEGIN_SRC scala
-def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
-#+END_SRC
-
-=ifM= is optimised to cache and reuse the branches as they are used,
-compare to the longer form
+=ifM= and =ap= are optimised to cache and reuse code branches, compare
+to the longer form
 
 #+BEGIN_SRC scala
 scala> List(true, false, true).flatMap { b => if (b) List(0) else List(1, 1) }
 #+END_SRC
 
 which produces a fresh =List(0)= or =List(1, 1)= every time the branch
-is invoked. =ap= is optimised in the name manner.
+is invoked.
 
 #+BEGIN_ASIDE
 These kinds of optimisations are possible in FP because all methods
@@ -4510,12 +4543,65 @@ Rather the reference to the operation is cached. The performance
 optimisation of =ifM= is only noticeable for data structures, and more
 pronounced with the difficulty of the work in each branch.
 
-We will explore the concept of determinism in more detail in the next
-chapter.
+We will explore the concept of determinism and value caching in more
+detail in the next chapter.
 #+END_ASIDE
 
-# TODO: mproduct
-# TODO: BindRec
+=Bind= also has some special syntax
+
+#+BEGIN_SRC scala
+final class BindOps[F[_]: Bind, A] (val self: F[A]) {
+  def >>[B](b: => F[B]): F[B] = Bind[F].bind(self)(_ => b)
+  def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => F.map(f(a))(_ => a))
+}
+#+END_SRC
+
+=>>= is when we wish to discard the input to =bind= and =>>!= is when
+we want to run an effect but discard its output.
+
+In our example application we are running =nodes.traverse(m.stop)= on
+a =NonEmptyList[Node]=. As a nasty hack (which we didn't even admit to
+until now), we defined =stop= to return its input:
+
+#+BEGIN_SRC scala
+  def stop(node: MachineNode): F[MachineNode]
+#+END_SRC
+
+which, unfortunately, pushes unnecessary complexity into the
+interpreters to let us have simpler business logic.
+
+We could redefine =stop= to return =F[Unit]=, reducing the burden on
+our interpreters, and instead write
+
+#+BEGIN_SRC scala
+nodes.traverse(_.pure[F] >>! m.stop)
+#+END_SRC
+
+Admittedly, it would be nice if =Traverse= [[https://github.com/scalaz/scalaz/issues/1459][had an equivalent syntax]].
+
+**** BindRec
+
+=BindRec= is a =Bind= that must use constant stack space when doing
+recursive =bind=. i.e. it's stack safe and can loop =forever= without
+blowing up the stack:
+
+#+BEGIN_SRC scala
+trait BindRec[F[_]] extends Bind[F] {
+  def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
+
+  override def forever[A, B](fa: F[A]): F[B] = ...
+}
+#+END_SRC
+
+Arguably =forever= should only be introduced by =BindRec=, not =Apply=
+or =Bind=.
+# https://github.com/scalaz/scalaz/issues/1460
+
+This is what we need to be able to implement the "loop forever" logic
+of our application.
+
+=\/=, called /disjunction/, is a data structure that we will discuss
+in the next chapter. It is an improvement of stdlib's =Either=.
 
 # *** TODO Applicative and Monad
 # *** TODO Align
