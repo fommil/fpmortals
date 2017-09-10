@@ -5,13 +5,13 @@ scalaVersion in ThisBuild := "2.12.3"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-Ypartial-unification",
-  "-Xfatal-warnings"
+  "-deprecation"
 )
 
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"  % "0.11.0",
-  "com.chuusai"          %% "shapeless"   % "2.3.2" ,
-  "com.fommil"           %% "stalactite"  % "0.0.4" ,
+  "com.chuusai"          %% "shapeless"   % "2.3.2",
+  "com.fommil"           %% "stalactite"  % "0.0.4",
   "org.scalaz"           %% "scalaz-core" % "7.2.15"
 )
 
@@ -26,3 +26,7 @@ initialCommands in (Compile, console) := Seq(
   "scalaz._",
   "Scalaz._"
 ).mkString("import ", ",", "")
+
+scalafmtOnCompile in ThisBuild := true
+scalafmtConfig in ThisBuild := file("project/scalafmt.conf")
+scalafmtVersion in ThisBuild := "1.2.0"
