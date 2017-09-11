@@ -481,7 +481,7 @@ the wild. For the remaining typeclasses, we'll skip the niche methods.
 
 {lang="text"}
 ~~~~~~~~
-  final class FunctorOps[F[_]: Functor, A](val self: F[A]) {
+  implicit class FunctorOps[F[_]: Functor, A](val self: F[A]) {
     def as[B](b: => B): F[B] = Functor[F].map(self)(_ => b)
     def >|[B](b: => B): F[B] = as(b)
   }
@@ -504,6 +504,9 @@ as
 ~~~~~~~~
   m.start(node) >| world.copy(pending = Map(node -> world.time))
 ~~~~~~~~
+
+meaning that we are using the less powerful `Functor` instead of
+`Monad`.
 
 However, this kind of code can be indecipherable to somebody who is
 not acquainted with scalaz. Please apply good judgement when using
@@ -1197,7 +1200,7 @@ A> when it is parallelising All The Things.
 The syntax `*>` and `<*` offer a convenient way to ignore the output
 from one of two parallel effects.
 
-Unfortunately, although the `|@|` syntax is clear there is a problem
+Unfortunately, although the `|@|` syntax is clear, there is a problem
 in that a new `ApplicativeBuilder` object is allocated for each
 additional effect. If the work is I/O-bound, the memory allocation
 cost is insignificant. However, when performing CPU-bound work, use
@@ -1323,7 +1326,7 @@ structures that are then joined.
 ~~~~~~~~
 
 The `join` may be familiar if you have ever used `flatten` in the
-stdlib, it takes nested contexts and squashes then into one.
+stdlib, it takes nested contexts and squashes them into one.
 
 Although not necessarily implemented as such, we can think of `bind`
 as being a `Functor.map` followed by `join`
@@ -1375,9 +1378,9 @@ A> detail in the next chapter.
 
 {lang="text"}
 ~~~~~~~~
-  final class BindOps[F[_]: Bind, A] (val self: F[A]) {
+  implicit class BindOps[F[_]: Bind, A] (val self: F[A]) {
     def >>[B](b: => F[B]): F[B] = Bind[F].bind(self)(_ => b)
-    def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => F.map(f(a))(_ => a))
+    def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => f(a).map(_ => a))
   }
 ~~~~~~~~
 
