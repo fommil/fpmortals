@@ -120,7 +120,7 @@ scalacOptions in ThisBuild ++= Seq(
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"  % "0.11.0",
   "com.chuusai"          %% "shapeless"   % "2.3.2" ,
-  "com.fommil"           %% "stalactite"  % "0.0.4" ,
+  "com.fommil"           %% "stalactite"  % "0.0.5" ,
   "org.scalaz"           %% "scalaz-core" % "7.2.15"
 )
 
@@ -3438,6 +3438,10 @@ scala> 'm' |-> 'u'
 res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 #+END_SRC
 
+~|==>~ is scalaz's Lightsaber. This is the syntax of a Functional
+Programmer. Not as clumsy or random as =fromStepToL=. An elegant
+syntax... for a more civilised age.
+
 We'll discuss =EphemeralStream= in the next chapter, for now you just
 need to know that it is a potentially infinite data structure that
 avoids memory retention problems in the stdlib =Stream=.
@@ -3970,8 +3974,6 @@ def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
 def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
 ...
 #+END_SRC
-
-which are elegant signatures for the more civilised hacker.
 
 **** Traverse
 

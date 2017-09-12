@@ -360,6 +360,10 @@ successors and predecessors:
   res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 ~~~~~~~~
 
+`|==>` is scalaz's Lightsaber. This is the syntax of a Functional
+Programmer. Not as clumsy or random as `fromStepToL`. An elegant
+syntax... for a more civilised age.
+
 We'll discuss `EphemeralStream` in the next chapter, for now you just
 need to know that it is a potentially infinite data structure that
 avoids memory retention problems in the stdlib `Stream`.
@@ -872,8 +876,6 @@ You may also see Curried versions, e.g.
   def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
   ...
 ~~~~~~~~
-
-which are elegant signatures for the more civilised hacker.
 
 
 ### Traverse
