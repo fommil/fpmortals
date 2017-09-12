@@ -276,7 +276,7 @@ implemented.
 However, in FP we prefer typeclasses for polymorphic functionality and
 even concepts as simple equality are captured at compiletime.
 
-{width=30%}
+{width=20%}
 ![](images/scalaz-comparable.png)
 
 {lang="text"}
@@ -666,12 +666,15 @@ We now know this is silly and we should have written:
 
 {lang="text"}
 ~~~~~~~~
-  scala> templates.fold
+  scala> templates.toIList.fold
   res: TradeTemplate = TradeTemplate(
                          List(2017-08-05,2017-09-05),
                          Some(USD),
                          Some(false))
 ~~~~~~~~
+
+`.fold` doesn't work on stdlib `List` because it already has a method
+called `fold` that does it's own thing in its own special way.
 
 The strangely named `intercalate` inserts a specific `A` between each
 element before performing the `fold`
@@ -1168,7 +1171,7 @@ function at the layer we want.
 Advanced TIE Fighter for entertainment.
 
 {width=100%}
-![](images/scalaz-applicative.png)
+![](images/scalaz-apply.png)
 
 
 ### Apply
@@ -1441,6 +1444,138 @@ of our application.
 
 `\/`, called *disjunction*, is a data structure that we will discuss
 in the next chapter. It is an improvement of stdlib's `Either`.
+
+
+## Applicative and Monad
+
+From a functionality point of view, `Applicative` is `Apply` with a
+`pure` method, and `Monad` is an `Applicative` and a `Bind`.
+
+{width=100%}
+![](images/scalaz-applicative.png)
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Applicative[F[_]] extends Apply[F] {
+    def point[A](a: => A): F[A]
+    def pure[A](a: => A): F[A] = point(a)
+  }
+  
+  @typeclass trait Monad[F[_]] extends Applicative[F] with Bind[F]
+~~~~~~~~
+
+In many ways, `Applicative` and `Monad` are the culmination of
+everything we've seen in this chapter. `pure` (or `point` as it is
+more commonly known for data structures) allows us to create data
+structures or effects from values where we can then operate over those
+values in a safe way.
+
+Instances of `Applicative` must meet some laws, effectively asserting
+that all the methods are consistent:
+
+-   **Identity**: `ap(fa)(point(identity)) === fa`, i.e. applying
+    `point(identity)` does nothing.
+-   **Homomorphism**: `ap(point(a))(point(ab)) === point(ab(a))` (where
+    `ab` is a `A => B`), i.e. applying a `pure` function to a `pure`
+    value is the same as applying the function to the value and then
+    using `pure` on the result.
+-   **Interchange**: `ap(point(a))(ab) === ap(ab)(point(f => f(a)))`
+    (i.e. `point` is a left and right identity)
+-   **Mappy**: `map(fa)(f) === ap(fa)(point(f))`
+
+`Monad` adds additional laws:
+
+-   **Left Identity**: `flatMap(point(a))(f) === f(a)`
+-   **Right Identity**: `flatMap(a)(point(_)) === a`
+-   **Associativity**: `flatMap(flatMap(fa)(fab))(g) === flatMap(fa)(a =>
+      flatMap(fab(a))(g))` where `fa` is a `F[A]` and `fab` is an `F[A =>
+      B]`
+
+`Bind` also requires *associativity*, it can be rewritten symbolically
+as
+
+{lang="text"}
+~~~~~~~~
+  (fa >>= fab) >>= g     ===     fa >>= (a => (fab(a) >>= g))
+~~~~~~~~
+
+or, in other words, the order of evaluation of two `flatMap` (`bind`)
+calls does not matter so long as the second takes the output of the
+first as an input.
+
+In practical terms, unless you have access to a time machine, this
+means that nested `flatMap` must be interpreted in sequential order. A
+wacky, and plausible, line of thought is that an interpreter could
+predict what the outcome of the first `flatMap` will be, and eagerly
+calculate likely next steps. But that's nothing new, it's exactly what
+CPU branch prediction is.
+
+Although the computation of the pure functions can be rearranged,
+thanks to the *associativity* law, it does not mean that we can
+rearrange the order of interpretation of the effects. For example, we
+cannot rearrange
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.start(node1)
+    _ <- machine.stop(node1)
+  } yield true
+~~~~~~~~
+
+as
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.stop(node1)
+    _ <- machine.start(node1)
+  } yield true
+~~~~~~~~
+
+Clearly `start` and `stop` are **non**-*commutative*, because a machine
+must be started before it can be stopped!
+
+But `start` is commutative with itself, and `stop` is commutative with
+itself, so we can rewrite the following
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.start(node1)
+    _ <- machine.start(node2)
+  } yield true
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.start(node2)
+    _ <- machine.start(node1)
+  } yield true
+~~~~~~~~
+
+which are equivalent. We're making a lot of assumptions about the
+Google Container API here, but this is a reasonable assumption to
+make.
+
+A practical consequence is that a `Monad` must be *commutative* if its
+`applyX` methods can be allowed to run in parallel. We cheated in
+Chapter 3 when we ran these effects in parallel
+
+{lang="text"}
+~~~~~~~~
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+~~~~~~~~
+
+because we know that they are commutative among themselves. When it
+comes to interpreting our application, later in the book, we will have
+to provide evidence that these effects are in fact commutative, or an
+asynchronous interpreter may choose to sequence the operations to be
+on the safe side.
+
+The subtleties of how we deal with (re)-ordering of effects, and what
+those effects are, deserves a dedicated chapter on Advanced Monads.
 
 
 # What's Next?

@@ -1092,21 +1092,18 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Palatino, shape=box];
     
-    Agents [shape=doubleoctagon]
-    Google
-    Drone
-    App [shape=trapezium]
-    Github
+    Agents [shape=doubleoctagon];
+    App [shape=trapezium];
 
-    Google -> Agents
+    Google -> Agents;
 
-    Github -> Drone
-    App -> Drone [label = "backlog\nagents"]
-    App -> Google [label = "start/stop\nstatus\ncurrent time"]
-    Drone -> App
-    Google -> App
+    Github -> Drone;
+    App -> Drone [label = "backlog\nagents"];
+    App -> Google [label = "start/stop\nstatus\ncurrent time"];
+    Drone -> App;
+    Google -> App;
 
-    Agents -> Drone [label = "subscribe"]
+    Agents -> Drone [label = "subscribe"];
 }
 #+END_SRC
 
@@ -3046,40 +3043,39 @@ digraph G {
     node [fontname=Hack];
 
     subgraph {
-      Functor -> InvariantFunctor
-      Apply -> Functor
-      Applicative -> Apply
-      Align -> Functor
-      Bind -> Apply
+      Functor -> InvariantFunctor;
+      Apply -> Functor;
+      Applicative -> Apply;
+      Align -> Functor;
+      Bind -> Apply;
 
-      Foldable1 -> Foldable
-      Traverse -> Functor
-      Traverse -> Foldable
-      Traverse1 -> Traverse
-      Traverse1 -> Foldable1
+      Foldable1 -> Foldable;
+      Traverse -> Functor;
+      Traverse -> Foldable;
+      Traverse1 -> Traverse;
+      Traverse1 -> Foldable1;
 
-      Monad
-      "Advanced Monads" [style=dashed]
-      "Advanced Monads" -> Monad
+      "Advanced Monads" [style=dashed];
+      "Advanced Monads" -> Monad;
 
-      Monad -> Applicative
-      Monad -> Bind
+      Monad -> Applicative;
+      Monad -> Bind;
 
-      Contravariant -> InvariantFunctor
-      Divide -> Contravariant
-      Divisible -> Divide
-      Cobind -> Functor
-      Comonad -> Cobind
+      Contravariant -> InvariantFunctor;
+      Divide -> Contravariant;
+      Divisible -> Divide;
+      Cobind -> Functor;
+      Comonad -> Cobind;
 
-      PlusEmpty -> Plus
-      IsEmpty -> PlusEmpty
+      PlusEmpty -> Plus;
+      IsEmpty -> PlusEmpty;
 
-      ApplicativePlus -> Applicative
-      ApplicativePlus -> PlusEmpty
+      ApplicativePlus -> Applicative;
+      ApplicativePlus -> PlusEmpty;
 
-      ComonadStore -> Comonad
+      ComonadStore -> Comonad;
 
-      BindRec -> Bind
+      BindRec -> Bind;
     }
 }
 #+END_SRC
@@ -3094,24 +3090,23 @@ digraph G {
     node [fontname=Hack];
 
     subgraph {
-        Semigroup
-        Monoid -> Semigroup
-        Band -> Semigroup
+        Monoid -> Semigroup;
+        Band -> Semigroup;
 
-        Order -> Equal
-        Enum -> Order
+        Order -> Equal;
+        Enum -> Order;
 
-        Bitraverse -> Bifunctor
-        Bitraverse -> Bifoldable
+        Bitraverse -> Bifunctor;
+        Bitraverse -> Bifoldable;
 
-        Category -> Compose
-        Choice -> Category
-        Split -> Compose
-        Strong -> Profunctor
-        ProChoice -> Profunctor
-        Arrow -> Split
-        Arrow -> Strong
-        Arrow -> Category
+        Category -> Compose;
+        Choice -> Category;
+        Split -> Compose;
+        Strong -> Profunctor;
+        ProChoice -> Profunctor;
+        Arrow -> Split;
+        Arrow -> Strong;
+        Arrow -> Category;
     }
 }
 #+END_SRC
@@ -3126,16 +3121,16 @@ digraph G {
     node [fontname=Hack];
 
     subgraph {
-        Equal
-        Show
-        Zip
-        Unzip
-        Cozip
-        Optional
-        Compose 
-        Catchable
-        Associative 
-        Resource
+        Equal;
+        Show;
+        Zip;
+        Unzip;
+        Cozip;
+        Optional;
+        Compose;
+        Catchable;
+        Associative;
+        Resource;
     }
 }
 #+END_SRC
@@ -3151,8 +3146,8 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    Monoid -> Semigroup
-    Band -> Semigroup
+    Monoid -> Semigroup;
+    Band -> Semigroup;
 }
 #+END_SRC
 
@@ -3349,15 +3344,14 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    Equal
-    Show
-    Order -> Equal
-    Enum -> Order
+    Show;
+    Order -> Equal;
+    Enum -> Order;
 }
 #+END_SRC
 
 #+ATTR_LATEX: :width 5cm
-#+CAPTION: 30
+#+CAPTION: 20
 #+RESULTS:
 [[file:images/scalaz-comparable.png]]
 
@@ -3477,45 +3471,44 @@ digraph G {
     node [fontname=Hack];
 
     subgraph mappable {
-      Foldable1 -> Foldable
-      Traverse -> Functor
-      Traverse -> Foldable
-      Traverse1 -> Traverse
-      Traverse1 -> Foldable1
+      Foldable1 -> Foldable;
+      Traverse -> Functor;
+      Traverse -> Foldable;
+      Traverse1 -> Traverse;
+      Traverse1 -> Foldable1;
     }
 
     subgraph {
       node [fontcolor=lightgrey,color=lightgrey];
       edge [color=lightgrey];
 
-      Functor -> InvariantFunctor
-      Apply -> Functor
-      Applicative -> Apply
-      Align -> Functor
-      Bind -> Apply
+      Functor -> InvariantFunctor;
+      Apply -> Functor;
+      Applicative -> Apply;
+      Align -> Functor;
+      Bind -> Apply;
 
-      Monad
-      "Advanced Monads" [style=dashed]
-      "Advanced Monads" -> Monad
+      "Advanced Monads" [style=dashed];
+      "Advanced Monads" -> Monad;
 
-      Monad -> Applicative
-      Monad -> Bind
+      Monad -> Applicative;
+      Monad -> Bind;
 
-      Contravariant -> InvariantFunctor
-      Divide -> Contravariant
-      Divisible -> Divide
-      Cobind -> Functor
-      Comonad -> Cobind
+      Contravariant -> InvariantFunctor;
+      Divide -> Contravariant;
+      Divisible -> Divide;
+      Cobind -> Functor;
+      Comonad -> Cobind;
 
-      PlusEmpty -> Plus
-      IsEmpty -> PlusEmpty
+      PlusEmpty -> Plus;
+      IsEmpty -> PlusEmpty;
 
-      ApplicativePlus -> Applicative
-      ApplicativePlus -> PlusEmpty
+      ApplicativePlus -> Applicative;
+      ApplicativePlus -> PlusEmpty;
 
-      ComonadStore -> Comonad
+      ComonadStore -> Comonad;
 
-      BindRec -> Bind
+      BindRec -> Bind;
     }
 }
 #+END_SRC
@@ -3775,12 +3768,15 @@ scala> templates.foldLeft(Monoid[TradeTemplate].zero)(_ |+| _)
 We now know this is silly and we should have written:
 
 #+BEGIN_SRC scala
-scala> templates.fold
+scala> templates.toIList.fold
 res: TradeTemplate = TradeTemplate(
                        List(2017-08-05,2017-09-05),
                        Some(USD),
                        Some(false))
 #+END_SRC
+
+=.fold= doesn't work on stdlib =List= because it already has a method
+called =fold= that does it's own thing in its own special way.
 
 The strangely named =intercalate= inserts a specific =A= between each
 element before performing the =fold=
@@ -4063,47 +4059,47 @@ digraph G {
     node [fontname=Hack];
 
     subgraph mappable {
-      Contravariant -> InvariantFunctor
-      Functor -> InvariantFunctor
+      Contravariant -> InvariantFunctor;
+      Functor -> InvariantFunctor;
     }
 
     subgraph {
       node [fontcolor=lightgrey,color=lightgrey];
       edge [color=lightgrey];
 
-      Divide -> Contravariant
-      Divisible -> Divide
-      Apply -> Functor
+      Divide -> Contravariant;
+      Divisible -> Divide;
+      Apply -> Functor;
 
-      Foldable1 -> Foldable
-      Traverse -> Functor
-      Traverse -> Foldable
-      Traverse1 -> Traverse
-      Traverse1 -> Foldable1
+      Foldable1 -> Foldable;
+      Traverse -> Functor;
+      Traverse -> Foldable;
+      Traverse1 -> Traverse;
+      Traverse1 -> Foldable1;
 
-      Applicative -> Apply
-      Align -> Functor
-      Bind -> Apply
-      Monad 
+      Applicative -> Apply;
+      Align -> Functor;
+      Bind -> Apply;
+      Monad;
 
-      "Advanced Monads" [style=dashed]
-      "Advanced Monads" -> Monad
+      "Advanced Monads" [style=dashed];
+      "Advanced Monads" -> Monad;
 
-      Monad -> Applicative
-      Monad -> Bind
+      Monad -> Applicative;
+      Monad -> Bind;
 
-      Cobind -> Functor
-      Comonad -> Cobind
+      Cobind -> Functor;
+      Comonad -> Cobind;
 
-      PlusEmpty -> Plus
-      IsEmpty -> PlusEmpty
+      PlusEmpty -> Plus;
+      IsEmpty -> PlusEmpty;
 
-      ApplicativePlus -> Applicative
-      ApplicativePlus -> PlusEmpty
+      ApplicativePlus -> Applicative;
+      ApplicativePlus -> PlusEmpty;
 
-      ComonadStore -> Comonad
+      ComonadStore -> Comonad;
 
-      BindRec -> Bind
+      BindRec -> Bind;
     }
 }
 #+END_SRC
@@ -4304,60 +4300,60 @@ function at the layer we want.
 =Monad= without =pure=. Consider this the warm-up act, with an
 Advanced TIE Fighter for entertainment.
 
-#+BEGIN_SRC dot :file images/scalaz-applicative.png :exports results
+#+BEGIN_SRC dot :file images/scalaz-apply.png :exports results
 digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
     subgraph mappable {
-      Bind -> Apply
-      BindRec -> Bind
+      Bind -> Apply;
+      BindRec -> Bind;
     }
 
     subgraph {
       node [fontcolor=lightgrey,color=lightgrey];
       edge [color=lightgrey];
 
-      Contravariant -> InvariantFunctor
-      Functor -> InvariantFunctor
+      Contravariant -> InvariantFunctor;
+      Functor -> InvariantFunctor;
 
-      Divide -> Contravariant
-      Divisible -> Divide
-      Apply -> Functor
-      Applicative -> Apply
+      Divide -> Contravariant;
+      Divisible -> Divide;
+      Apply -> Functor;
+      Applicative -> Apply;
 
-      Foldable1 -> Foldable
-      Traverse -> Functor
-      Traverse -> Foldable
-      Traverse1 -> Traverse
-      Traverse1 -> Foldable1
+      Foldable1 -> Foldable;
+      Traverse -> Functor;
+      Traverse -> Foldable;
+      Traverse1 -> Traverse;
+      Traverse1 -> Foldable1;
 
-      Align -> Functor
-      Monad 
+      Align -> Functor;
+      Monad;
 
-      "Advanced Monads" [style=dashed]
-      "Advanced Monads" -> Monad
+      "Advanced Monads" [style=dashed];
+      "Advanced Monads" -> Monad;
 
-      Monad -> Applicative
-      Monad -> Bind
+      Monad -> Applicative;
+      Monad -> Bind;
 
-      Cobind -> Functor
-      Comonad -> Cobind
+      Cobind -> Functor;
+      Comonad -> Cobind;
 
-      PlusEmpty -> Plus
-      IsEmpty -> PlusEmpty
+      PlusEmpty -> Plus;
+      IsEmpty -> PlusEmpty;
 
-      ApplicativePlus -> Applicative
-      ApplicativePlus -> PlusEmpty
+      ApplicativePlus -> Applicative;
+      ApplicativePlus -> PlusEmpty;
 
-      ComonadStore -> Comonad
+      ComonadStore -> Comonad;
     }
 }
 #+END_SRC
 
 #+CAPTION: 100
 #+RESULTS:
-[[file:images/scalaz-applicative.png]]
+[[file:images/scalaz-apply.png]]
 
 **** Apply
 
@@ -4614,7 +4610,183 @@ of our application.
 =\/=, called /disjunction/, is a data structure that we will discuss
 in the next chapter. It is an improvement of stdlib's =Either=.
 
-# *** TODO Applicative and Monad
+*** Applicative and Monad
+
+From a functionality point of view, =Applicative= is =Apply= with a
+=pure= method, and =Monad= is an =Applicative= and a =Bind=.
+
+#+BEGIN_SRC dot :file images/scalaz-applicative.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    subgraph mappable {
+      Monad -> Applicative;
+    }
+
+    subgraph {
+      node [fontcolor=lightgrey,color=lightgrey];
+      edge [color=lightgrey];
+
+      Bind -> Apply;
+      BindRec -> Bind;
+
+      Contravariant -> InvariantFunctor;
+      Functor -> InvariantFunctor;
+
+      Divide -> Contravariant;
+      Divisible -> Divide;
+      Apply -> Functor;
+      Applicative -> Apply;
+
+      Foldable1 -> Foldable;
+      Traverse -> Functor;
+      Traverse -> Foldable;
+      Traverse1 -> Traverse;
+      Traverse1 -> Foldable1;
+
+      Align -> Functor;
+      Monad;
+
+      "Advanced Monads" [style=dashed];
+      "Advanced Monads" -> Monad;
+
+      Monad -> Bind;
+
+      Cobind -> Functor;
+      Comonad -> Cobind;
+
+      PlusEmpty -> Plus;
+      IsEmpty -> PlusEmpty;
+
+      ApplicativePlus -> Applicative;
+      ApplicativePlus -> PlusEmpty;
+
+      ComonadStore -> Comonad;
+    }
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/scalaz-applicative.png]]
+
+#+BEGIN_SRC scala
+@typeclass trait Applicative[F[_]] extends Apply[F] {
+  def point[A](a: => A): F[A]
+  def pure[A](a: => A): F[A] = point(a)
+}
+
+@typeclass trait Monad[F[_]] extends Applicative[F] with Bind[F]
+#+END_SRC
+
+In many ways, =Applicative= and =Monad= are the culmination of
+everything we've seen in this chapter. =pure= (or =point= as it is
+more commonly known for data structures) allows us to create data
+structures or effects from values where we can then operate over those
+values in a safe way.
+
+Instances of =Applicative= must meet some laws, effectively asserting
+that all the methods are consistent:
+
+- *Identity*: ~ap(fa)(point(identity)) === fa~, i.e. applying
+  ~point(identity)~ does nothing.
+- *Homomorphism*: ~ap(point(a))(point(ab)) === point(ab(a))~ (where
+  ~ab~ is a ~A => B~), i.e. applying a ~pure~ function to a ~pure~
+  value is the same as applying the function to the value and then
+  using ~pure~ on the result.
+- *Interchange*: ~ap(point(a))(ab) === ap(ab)(point(f => f(a)))~
+  (i.e. ~point~ is a left and right identity)
+- *Mappy*: ~map(fa)(f) === ap(fa)(point(f))~
+
+=Monad= adds additional laws:
+
+- *Left Identity*: ~flatMap(point(a))(f) === f(a)~
+- *Right Identity*: ~flatMap(a)(point(_)) === a~
+- *Associativity*: ~flatMap(flatMap(fa)(fab))(g) === flatMap(fa)(a =>
+  flatMap(fab(a))(g))~ where ~fa~ is a ~F[A]~ and ~fab~ is an ~F[A =>
+  B]~
+
+=Bind= also requires /associativity/, it can be rewritten symbolically
+as
+
+#+BEGIN_SRC scala
+(fa >>= fab) >>= g     ===     fa >>= (a => (fab(a) >>= g))
+#+END_SRC
+
+or, in other words, the order of evaluation of two =flatMap= (=bind=)
+calls does not matter so long as the second takes the output of the
+first as an input.
+
+In practical terms, unless you have access to a time machine, this
+means that nested =flatMap= must be interpreted in sequential order. A
+wacky, and plausible, line of thought is that an interpreter could
+predict what the outcome of the first =flatMap= will be, and eagerly
+calculate likely next steps. But that's nothing new, it's exactly what
+CPU branch prediction is.
+
+Although the computation of the pure functions can be rearranged,
+thanks to the /associativity/ law, it does not mean that we can
+rearrange the order of interpretation of the effects. For example, we
+cannot rearrange
+
+#+BEGIN_SRC scala
+for {
+  _ <- machine.start(node1)
+  _ <- machine.stop(node1)
+} yield true
+#+END_SRC
+
+as
+
+#+BEGIN_SRC scala
+for {
+  _ <- machine.stop(node1)
+  _ <- machine.start(node1)
+} yield true
+#+END_SRC
+
+Clearly =start= and =stop= are *non*-/commutative/, because a machine
+must be started before it can be stopped!
+
+But =start= is commutative with itself, and =stop= is commutative with
+itself, so we can rewrite the following
+
+#+BEGIN_SRC scala
+for {
+  _ <- machine.start(node1)
+  _ <- machine.start(node2)
+} yield true
+#+END_SRC
+
+#+BEGIN_SRC scala
+for {
+  _ <- machine.start(node2)
+  _ <- machine.start(node1)
+} yield true
+#+END_SRC
+
+which are equivalent. We're making a lot of assumptions about the
+Google Container API here, but this is a reasonable assumption to
+make.
+
+A practical consequence is that a =Monad= must be /commutative/ if its
+=applyX= methods can be allowed to run in parallel. We cheated in
+Chapter 3 when we ran these effects in parallel
+
+#+BEGIN_SRC scala
+(d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+#+END_SRC
+
+because we know that they are commutative among themselves. When it
+comes to interpreting our application, later in the book, we will have
+to provide evidence that these effects are in fact commutative, or an
+asynchronous interpreter may choose to sequence the operations to be
+on the safe side.
+
+The subtleties of how we deal with (re)-ordering of effects, and what
+those effects are, deserves a dedicated chapter on Advanced Monads.
+
 # *** TODO Align
 # *** TODO Divide and Divisable
 # *** TODO Plus, PlusEmpty, IsEmpty, ApplicativePlus
