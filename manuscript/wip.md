@@ -487,8 +487,19 @@ the wild. For the remaining typeclasses, we'll skip the niche methods.
   }
 ~~~~~~~~
 
-`as` and `>|` are a way of replacing the output with a constant. For
-example, in our application we could rewrite
+`as` and `>|` are a way of replacing the output with a constant.
+
+In our example application, as a nasty hack (which we didn't even
+admit to until now), we defined `start` and `stop` to return their
+input:
+
+{lang="text"}
+~~~~~~~~
+  def start(node: MachineNode): F[MachineNode]
+  def stop (node: MachineNode): F[MachineNode]
+~~~~~~~~
+
+This allowed us to write terse business logic such as
 
 {lang="text"}
 ~~~~~~~~
@@ -498,21 +509,38 @@ example, in our application we could rewrite
   } yield update
 ~~~~~~~~
 
-as
+and
 
 {lang="text"}
 ~~~~~~~~
-  m.start(node) >| world.copy(pending = Map(node -> world.time))
+  for {
+    stopped <- nodes.traverse(m.stop)
+    updates = stopped.map(_ -> world.time).toList.toMap
+    update  = world.copy(pending = world.pending ++ updates)
+  } yield update
 ~~~~~~~~
 
-meaning that we are using the less powerful `Functor` instead of
-`Monad`.
+But this hack pushes unnecessary complexity into the interpreters. It
+is better if we let our algebras return `F[Unit]` and use `as`:
 
-However, this kind of code can be indecipherable to somebody who is
-not acquainted with scalaz. Please apply good judgement when using
-symbolic syntax and only use the terser forms if your team has agreed
-that they are comfortable with it. Or find a team that you prefer
-working with.
+{lang="text"}
+~~~~~~~~
+  m.start(node) as world.copy(pending = Map(node -> world.time))
+~~~~~~~~
+
+and
+
+{lang="text"}
+~~~~~~~~
+  for {
+    stopped <- nodes.traverse(a => m.stop(a) as a)
+    updates = stopped.map(_ -> world.time).toList.toMap
+    update  = world.copy(pending = world.pending ++ updates)
+  } yield update
+~~~~~~~~
+
+As a bonus, we are now using the less powerful `Functor` instead of
+`Monad` when starting a node.
 
 
 ### Foldable
@@ -1336,7 +1364,7 @@ as being a `Functor.map` followed by `join`
   def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
 ~~~~~~~~
 
-`mproduct` is like `Functor.product` and pairs the function's input
+`mproduct` is like `Functor.fproduct` and pairs the function's input
 with its output, inside the `F`.
 
 `ifM` is a way to construct a conditional data structure or effect:
@@ -1386,28 +1414,6 @@ A> detail in the next chapter.
 
 `>>` is when we wish to discard the input to `bind` and `>>!` is when
 we want to run an effect but discard its output.
-
-In our example application we are running `nodes.traverse(m.stop)` on
-a `NonEmptyList[Node]`. As a nasty hack (which we didn't even admit to
-until now), we defined `stop` to return its input:
-
-{lang="text"}
-~~~~~~~~
-  def stop(node: MachineNode): F[MachineNode]
-~~~~~~~~
-
-which, unfortunately, pushes unnecessary complexity into the
-interpreters to let us have simpler business logic.
-
-We could redefine `stop` to return `F[Unit]`, reducing the burden on
-our interpreters, and instead write
-
-{lang="text"}
-~~~~~~~~
-  nodes.traverse(_.pure[F] >>! m.stop)
-~~~~~~~~
-
-Admittedly, it would be nice if `Traverse` [had an equivalent syntax](https://github.com/scalaz/scalaz/issues/1459).
 
 
 ### BindRec

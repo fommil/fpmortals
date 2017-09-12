@@ -2,6 +2,7 @@
 #+AUTHOR: Sam Halliday
 #+DATE: 2017
 
+#+STARTUP: showall
 #+TAGS: ME OTHER
 #+TODO: TODO | RESEARCH | NOTES | CHART | DIAGRAM | DRAWING | CODE | VIDEO
 #+OPTIONS: toc:nil
@@ -3606,8 +3607,18 @@ implicit class FunctorOps[F[_]: Functor, A](val self: F[A]) {
 }
 #+END_SRC
 
-=as= and =>|= are a way of replacing the output with a constant. For
-example, in our application we could rewrite
+=as= and =>|= are a way of replacing the output with a constant.
+
+In our example application, as a nasty hack (which we didn't even
+admit to until now), we defined =start= and =stop= to return their
+input:
+
+#+BEGIN_SRC scala
+  def start(node: MachineNode): F[MachineNode]
+  def stop (node: MachineNode): F[MachineNode]
+#+END_SRC
+
+This allowed us to write terse business logic such as
 
 #+BEGIN_SRC scala
 for {
@@ -3616,20 +3627,35 @@ for {
 } yield update
 #+END_SRC
 
-as
+and
 
 #+BEGIN_SRC scala
-m.start(node) >| world.copy(pending = Map(node -> world.time))
+for {
+  stopped <- nodes.traverse(m.stop)
+  updates = stopped.map(_ -> world.time).toList.toMap
+  update  = world.copy(pending = world.pending ++ updates)
+} yield update
 #+END_SRC
 
-meaning that we are using the less powerful =Functor= instead of
-=Monad=.
+But this hack pushes unnecessary complexity into the interpreters. It
+is better if we let our algebras return =F[Unit]= and use =as=:
 
-However, this kind of code can be indecipherable to somebody who is
-not acquainted with scalaz. Please apply good judgement when using
-symbolic syntax and only use the terser forms if your team has agreed
-that they are comfortable with it. Or find a team that you prefer
-working with.
+#+BEGIN_SRC scala
+m.start(node) as world.copy(pending = Map(node -> world.time))
+#+END_SRC
+
+and
+
+#+BEGIN_SRC scala
+for {
+  stopped <- nodes.traverse(a => m.stop(a) as a)
+  updates = stopped.map(_ -> world.time).toList.toMap
+  update  = world.copy(pending = world.pending ++ updates)
+} yield update
+#+END_SRC
+
+As a bonus, we are now using the less powerful =Functor= instead of
+=Monad= when starting a node.
 
 **** Foldable
 
@@ -4512,7 +4538,7 @@ as being a =Functor.map= followed by =join=
 def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
 #+END_SRC
 
-=mproduct= is like =Functor.product= and pairs the function's input
+=mproduct= is like =Functor.fproduct= and pairs the function's input
 with its output, inside the =F=.
 
 =ifM= is a way to construct a conditional data structure or effect:
@@ -4561,26 +4587,6 @@ implicit class BindOps[F[_]: Bind, A] (val self: F[A]) {
 
 =>>= is when we wish to discard the input to =bind= and =>>!= is when
 we want to run an effect but discard its output.
-
-In our example application we are running =nodes.traverse(m.stop)= on
-a =NonEmptyList[Node]=. As a nasty hack (which we didn't even admit to
-until now), we defined =stop= to return its input:
-
-#+BEGIN_SRC scala
-  def stop(node: MachineNode): F[MachineNode]
-#+END_SRC
-
-which, unfortunately, pushes unnecessary complexity into the
-interpreters to let us have simpler business logic.
-
-We could redefine =stop= to return =F[Unit]=, reducing the burden on
-our interpreters, and instead write
-
-#+BEGIN_SRC scala
-nodes.traverse(_.pure[F] >>! m.stop)
-#+END_SRC
-
-Admittedly, it would be nice if =Traverse= [[https://github.com/scalaz/scalaz/issues/1459][had an equivalent syntax]].
 
 **** BindRec
 
@@ -4804,7 +4810,6 @@ https://issues.scala-lang.org/browse/SI-2509
          you want  [23:02]
 <fommil> right... or more commonly Product with Serializable with OtherCrap
 #+END_SRC
-
 
 **** TODO NonEmptyList
 **** TODO NonEmptyVector
