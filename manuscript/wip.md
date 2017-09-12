@@ -1473,20 +1473,20 @@ values in a safe way.
 Instances of `Applicative` must meet some laws, effectively asserting
 that all the methods are consistent:
 
--   **Identity**: `ap(fa)(point(identity)) === fa`, i.e. applying
-    `point(identity)` does nothing.
--   **Homomorphism**: `ap(point(a))(point(ab)) === point(ab(a))` (where
+-   **Identity**: `ap(fa)(pure(identity)) === fa`, i.e. applying
+    `pure(identity)` does nothing.
+-   **Homomorphism**: `ap(pure(a))(pure(ab)) === pure(ab(a))` (where
     `ab` is a `A => B`), i.e. applying a `pure` function to a `pure`
     value is the same as applying the function to the value and then
     using `pure` on the result.
--   **Interchange**: `ap(point(a))(ab) === ap(ab)(point(f => f(a)))`
-    (i.e. `point` is a left and right identity)
--   **Mappy**: `map(fa)(f) === ap(fa)(point(f))`
+-   **Interchange**: `ap(pure(a))(ab) === ap(ab)(pure(f => f(a)))`
+    (i.e. `pure` is a left and right identity)
+-   **Mappy**: `map(fa)(f) === ap(fa)(pure(f))`
 
 `Monad` adds additional laws:
 
--   **Left Identity**: `flatMap(point(a))(f) === f(a)`
--   **Right Identity**: `flatMap(a)(point(_)) === a`
+-   **Left Identity**: `flatMap(pure(a))(f) === f(a)`
+-   **Right Identity**: `flatMap(a)(pure(_)) === a`
 -   **Associativity**: `flatMap(flatMap(fa)(fab))(g) === flatMap(fa)(a =>
       flatMap(fab(a))(g))` where `fa` is a `F[A]` and `fab` is an `F[A =>
       B]`
