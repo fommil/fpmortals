@@ -3042,44 +3042,42 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph {
-      Bind -> Apply;
-      BindRec -> Bind;
+    Bind -> Apply;
+    BindRec -> Bind;
 
-      Contravariant -> InvariantFunctor;
-      Functor -> InvariantFunctor;
+    Contravariant -> InvariantFunctor;
+    Functor -> InvariantFunctor;
 
-      Divide -> Contravariant;
-      Divisible -> Divide;
-      Apply -> Functor;
-      Applicative -> Apply;
+    Divide -> Contravariant;
+    Divisible -> Divide;
+    Apply -> Functor;
+    Applicative -> Apply;
 
-      Foldable1 -> Foldable;
-      Traverse -> Functor;
-      Traverse -> Foldable;
-      Traverse1 -> Traverse;
-      Traverse1 -> Foldable1;
+    Foldable1 -> Foldable;
+    Traverse -> Functor;
+    Traverse -> Foldable;
+    Traverse1 -> Traverse;
+    Traverse1 -> Foldable1;
 
-      Monad -> Applicative;
+    Monad -> Applicative;
 
-      "Advanced Monads" [style=dashed];
-      "Advanced Monads" -> Monad;
+    "Advanced Monads" [style=dashed];
+    "Advanced Monads" -> Monad;
 
-      Monad -> Bind;
+    Monad -> Bind;
 
-      Cobind -> Functor;
-      Comonad -> Cobind;
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
-      PlusEmpty -> Plus;
-      IsEmpty -> PlusEmpty;
+    PlusEmpty -> Plus;
+    IsEmpty -> PlusEmpty;
 
-      ApplicativePlus -> Applicative;
-      ApplicativePlus -> PlusEmpty;
+    ApplicativePlus -> Applicative;
+    ApplicativePlus -> PlusEmpty;
 
-      ComonadStore -> Comonad;
+    ComonadStore -> Comonad;
 
-      Align -> Functor;
-    }
+    Align -> Functor;
 }
 #+END_SRC
 
@@ -3092,25 +3090,23 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph {
-        Monoid -> Semigroup;
-        Band -> Semigroup;
+    Monoid -> Semigroup;
+    Band -> Semigroup;
 
-        Order -> Equal;
-        Enum -> Order;
+    Order -> Equal;
+    Enum -> Order;
 
-        Bitraverse -> Bifunctor;
-        Bitraverse -> Bifoldable;
+    Bitraverse -> Bifunctor;
+    Bitraverse -> Bifoldable;
 
-        Category -> Compose;
-        Choice -> Category;
-        Split -> Compose;
-        Strong -> Profunctor;
-        ProChoice -> Profunctor;
-        Arrow -> Split;
-        Arrow -> Strong;
-        Arrow -> Category;
-    }
+    Category -> Compose;
+    Choice -> Category;
+    Split -> Compose;
+    Strong -> Profunctor;
+    ProChoice -> Profunctor;
+    Arrow -> Split;
+    Arrow -> Strong;
+    Arrow -> Category;
 }
 #+END_SRC
 
@@ -3123,17 +3119,15 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph {
-        Zip;
-        Unzip;
-        Cozip;
-        Show;
-        Optional;
-        Associative;
-        Compose;
-        Resource;
-        Catchable;
-    }
+    Zip;
+    Unzip;
+    Cozip;
+    Show;
+    Optional;
+    Associative;
+    Compose;
+    Resource;
+    Catchable;
 }
 #+END_SRC
 
@@ -3473,57 +3467,67 @@ some sense:
 digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
+    node [fontcolor=lightgray,color=lightgray];
+    edge [color=lightgray]
 
-    subgraph {
-      node [fontcolor=grey,color=grey];
-      edge [color=grey];
+    Bind;
+    Apply;
+    BindRec;
+    Contravariant;
+    Functor [fontcolor=black,color=black];
+    InvariantFunctor;
+    Functor;
+    Divide;
+    Divisible;
+    Apply;
+    Applicative;
+    Foldable1 [fontcolor=black,color=black];
+    Foldable [fontcolor=black,color=black];
+    Traverse [fontcolor=black,color=black];
+    Traverse1 [fontcolor=black,color=black];
+    Monad;
+    "Advanced Monads" [style=dashed];
+    Cobind;
+    Comonad;
+    PlusEmpty;
+    IsEmpty;
+    ApplicativePlus;
+    ComonadStore;
+    Align;
 
-      Bind -> Apply;
-      BindRec -> Bind;
+    Bind -> Apply;
+    BindRec -> Bind;
 
-      Contravariant -> InvariantFunctor;
-      Functor [fontcolor=black,color=black];
-      Functor -> InvariantFunctor;
+    Contravariant -> InvariantFunctor;
+    Functor -> InvariantFunctor;
 
-      Divide -> Contravariant;
-      Divisible -> Divide;
-      Apply -> Functor;
-      Applicative -> Apply;
+    Divide -> Contravariant;
+    Divisible -> Divide;
+    Apply -> Functor;
+    Applicative -> Apply;
 
-      Foldable1 [fontcolor=black,color=black];
-      Foldable [fontcolor=black,color=black];
-      Traverse [fontcolor=black,color=black];
-      Traverse1 [fontcolor=black,color=black];
+    Foldable1 -> Foldable [color=black];
+    Traverse -> Functor [color=black];
+    Traverse -> Foldable [color=black];
+    Traverse1 -> Traverse [color=black];
+    Traverse1 -> Foldable1 [color=black];
 
-      Monad -> Applicative;
+    Monad -> Applicative;
+    "Advanced Monads" -> Monad;
+    Monad -> Bind;
+ 
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
-      "Advanced Monads" [style=dashed];
-      "Advanced Monads" -> Monad;
+    PlusEmpty -> Plus;
+    IsEmpty -> PlusEmpty;
 
-      Monad -> Bind;
+    ApplicativePlus -> Applicative;
+    ApplicativePlus -> PlusEmpty;
 
-      Cobind -> Functor;
-      Comonad -> Cobind;
+    ComonadStore -> Comonad;
 
-      PlusEmpty -> Plus;
-      IsEmpty -> PlusEmpty;
-
-      ApplicativePlus -> Applicative;
-      ApplicativePlus -> PlusEmpty;
-
-      ComonadStore -> Comonad;
-
-      Align -> Functor;
-    }
-
-    subgraph mappable {
-      Foldable1 -> Foldable;
-      Traverse -> Functor;
-      Traverse -> Foldable;
-      Traverse1 -> Traverse;
-      Traverse1 -> Foldable1;
-    }
-
+    Align -> Functor;
 }
 #+END_SRC
 
@@ -4071,55 +4075,67 @@ we previously ignored:
 digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
+    node [fontcolor=lightgray,color=lightgray];
+    edge [color=lightgray]
 
-    subgraph {
-      node [fontcolor=grey,color=grey];
-      edge [color=grey];
+    Bind;
+    Apply;
+    BindRec;
+    Contravariant [fontcolor=black,color=black];
+    Functor [fontcolor=black,color=black];
+    InvariantFunctor [fontcolor=black,color=black];
+    Functor;
+    Divide;
+    Divisible;
+    Apply;
+    Applicative;
+    Foldable1 [fontcolor=lightslategray,color=lightslategray];
+    Foldable [fontcolor=lightslategray,color=lightslategray];
+    Traverse [fontcolor=lightslategray,color=lightslategray];
+    Traverse1 [fontcolor=lightslategray,color=lightslategray];
+    Monad;
+    "Advanced Monads" [style=dashed];
+    Cobind;
+    Comonad;
+    PlusEmpty;
+    IsEmpty;
+    ApplicativePlus;
+    ComonadStore;
+    Align;
 
-      Bind -> Apply;
-      BindRec -> Bind;
+    Bind -> Apply;
+    BindRec -> Bind;
 
-      Contravariant [fontcolor=black,color=black];
-      InvariantFunctor [fontcolor=black,color=black];
-      Functor [fontcolor=black,color=black];
+    Contravariant -> InvariantFunctor [color=black];
+    Functor -> InvariantFunctor [color=black];
 
-      Divide -> Contravariant;
-      Divisible -> Divide;
-      Apply -> Functor;
-      Applicative -> Apply;
+    Divide -> Contravariant;
+    Divisible -> Divide;
+    Apply -> Functor;
+    Applicative -> Apply;
 
-      Foldable1 -> Foldable;
-      Traverse -> Functor;
-      Traverse -> Foldable;
-      Traverse1 -> Traverse;
-      Traverse1 -> Foldable1;
+    Foldable1 -> Foldable [color=lightslategray];
+    Traverse -> Functor [color=lightslategray];
+    Traverse -> Foldable [color=lightslategray];
+    Traverse1 -> Traverse [color=lightslategray];
+    Traverse1 -> Foldable1 [color=lightslategray];
 
-      Monad -> Applicative;
+    Monad -> Applicative;
+    "Advanced Monads" -> Monad;
+    Monad -> Bind;
+ 
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
-      "Advanced Monads" [style=dashed];
-      "Advanced Monads" -> Monad;
+    PlusEmpty -> Plus;
+    IsEmpty -> PlusEmpty;
 
-      Monad -> Bind;
+    ApplicativePlus -> Applicative;
+    ApplicativePlus -> PlusEmpty;
 
-      Cobind -> Functor;
-      Comonad -> Cobind;
+    ComonadStore -> Comonad;
 
-      PlusEmpty -> Plus;
-      IsEmpty -> PlusEmpty;
-
-      ApplicativePlus -> Applicative;
-      ApplicativePlus -> PlusEmpty;
-
-      ComonadStore -> Comonad;
-
-      Align -> Functor;
-    }
-
-    subgraph mappable {
-      Contravariant -> InvariantFunctor;
-      Functor -> InvariantFunctor;
-    }
-
+    Align -> Functor;
 }
 #+END_SRC
 
@@ -4323,55 +4339,67 @@ Advanced TIE Fighter for entertainment.
 digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
+    node [fontcolor=lightgray,color=lightgray];
+    edge [color=lightgray]
 
-    subgraph {
-      node [fontcolor=grey,color=grey];
-      edge [color=grey];
+    Bind [fontcolor=black,color=black];
+    Apply [fontcolor=black,color=black];
+    BindRec [fontcolor=black,color=black];
+    Contravariant [fontcolor=lightslategray,color=lightslategray];
+    Functor [fontcolor=lightslategray,color=lightslategray];
+    InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
+    Functor;
+    Divide;
+    Divisible;
+    Apply;
+    Applicative;
+    Foldable1 [fontcolor=lightslategray,color=lightslategray];
+    Foldable [fontcolor=lightslategray,color=lightslategray];
+    Traverse [fontcolor=lightslategray,color=lightslategray];
+    Traverse1 [fontcolor=lightslategray,color=lightslategray];
+    Monad;
+    "Advanced Monads" [style=dashed];
+    Cobind;
+    Comonad;
+    PlusEmpty;
+    IsEmpty;
+    ApplicativePlus;
+    ComonadStore;
+    Align;
 
-      Bind [fontcolor=black,color=black];
-      Apply [fontcolor=black,color=black];
-      BindRec [fontcolor=black,color=black];
+    Bind -> Apply [color=black];
+    BindRec -> Bind [color=black];
 
-      Contravariant -> InvariantFunctor;
-      Functor -> InvariantFunctor;
+    Contravariant -> InvariantFunctor [color=lightslategray];
+    Functor -> InvariantFunctor [color=lightslategray];
 
-      Divide -> Contravariant;
-      Divisible -> Divide;
-      Apply -> Functor;
-      Applicative -> Apply;
+    Divide -> Contravariant;
+    Divisible -> Divide;
+    Apply -> Functor [color=black];
+    Applicative -> Apply;
 
-      Foldable1 -> Foldable;
-      Traverse -> Functor;
-      Traverse -> Foldable;
-      Traverse1 -> Traverse;
-      Traverse1 -> Foldable1;
+    Foldable1 -> Foldable [color=lightslategray];
+    Traverse -> Functor [color=lightslategray];
+    Traverse -> Foldable [color=lightslategray];
+    Traverse1 -> Traverse [color=lightslategray];
+    Traverse1 -> Foldable1 [color=lightslategray];
 
-      Monad -> Applicative;
+    Monad -> Applicative;
+    "Advanced Monads" -> Monad;
+    Monad -> Bind;
+ 
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
-      "Advanced Monads" [style=dashed];
-      "Advanced Monads" -> Monad;
+    PlusEmpty -> Plus;
+    IsEmpty -> PlusEmpty;
 
-      Monad -> Bind;
+    ApplicativePlus -> Applicative;
+    ApplicativePlus -> PlusEmpty;
 
-      Cobind -> Functor;
-      Comonad -> Cobind;
+    ComonadStore -> Comonad;
 
-      PlusEmpty -> Plus;
-      IsEmpty -> PlusEmpty;
-
-      ApplicativePlus -> Applicative;
-      ApplicativePlus -> PlusEmpty;
-
-      ComonadStore -> Comonad;
-
-      Align -> Functor;
-    }
-
-    subgraph mappable {
-      Bind -> Apply;
-      BindRec -> Bind;
-    }
-
+    Align -> Functor;
 }
 #+END_SRC
 
@@ -4643,54 +4671,67 @@ From a functionality point of view, =Applicative= is =Apply= with a
 digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
+    node [fontcolor=lightgray,color=lightgray];
+    edge [color=lightgray]
 
-    subgraph {
-      node [fontcolor=grey,color=grey];
-      edge [color=grey];
+    Bind [fontcolor=lightslategray,color=lightslategray];
+    Apply [fontcolor=lightslategray,color=lightslategray];
+    BindRec [fontcolor=lightslategray,color=lightslategray];
+    Contravariant [fontcolor=lightslategray,color=lightslategray];
+    Functor [fontcolor=lightslategray,color=lightslategray];
+    InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
+    Functor;
+    Divide;
+    Divisible;
+    Apply;
+    Applicative [fontcolor=black,color=black];
+    Foldable1 [fontcolor=lightslategray,color=lightslategray];
+    Foldable [fontcolor=lightslategray,color=lightslategray];
+    Traverse [fontcolor=lightslategray,color=lightslategray];
+    Traverse1 [fontcolor=lightslategray,color=lightslategray];
+    Monad [fontcolor=black,color=black];
+    "Advanced Monads" [style=dashed];
+    Cobind;
+    Comonad;
+    PlusEmpty;
+    IsEmpty;
+    ApplicativePlus;
+    ComonadStore;
+    Align;
 
-      Bind -> Apply;
-      BindRec -> Bind;
+    Bind -> Apply [color=lightslategray];
+    BindRec -> Bind [color=lightslategray];
 
-      Contravariant -> InvariantFunctor;
-      Functor -> InvariantFunctor;
+    Contravariant -> InvariantFunctor [color=lightslategray];
+    Functor -> InvariantFunctor [color=lightslategray];
 
-      Divide -> Contravariant;
-      Divisible -> Divide;
-      Apply -> Functor;
-      Applicative [fontcolor=black,color=black];
-      Applicative -> Apply;
+    Divide -> Contravariant;
+    Divisible -> Divide;
+    Apply -> Functor [color=lightslategray];
+    Applicative -> Apply [color=black];
 
-      Foldable1 -> Foldable;
-      Traverse -> Functor;
-      Traverse -> Foldable;
-      Traverse1 -> Traverse;
-      Traverse1 -> Foldable1;
+    Foldable1 -> Foldable [color=lightslategray];
+    Traverse -> Functor [color=lightslategray];
+    Traverse -> Foldable [color=lightslategray];
+    Traverse1 -> Traverse [color=lightslategray];
+    Traverse1 -> Foldable1 [color=lightslategray];
 
-      Monad [fontcolor=black,color=black];
+    Monad -> Applicative [color=black];
+    "Advanced Monads" -> Monad;
+    Monad -> Bind [color=black];
+ 
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
-      "Advanced Monads" [style=dashed];
-      "Advanced Monads" -> Monad;
+    PlusEmpty -> Plus;
+    IsEmpty -> PlusEmpty;
 
-      Monad -> Bind;
+    ApplicativePlus -> Applicative;
+    ApplicativePlus -> PlusEmpty;
 
-      Cobind -> Functor;
-      Comonad -> Cobind;
+    ComonadStore -> Comonad;
 
-      PlusEmpty -> Plus;
-      IsEmpty -> PlusEmpty;
-
-      ApplicativePlus -> Applicative;
-      ApplicativePlus -> PlusEmpty;
-
-      ComonadStore -> Comonad;
-
-      Align -> Functor;
-    }
-
-    subgraph mappable {
-      Monad -> Applicative;
-    }
-
+    Align -> Functor;
 }
 #+END_SRC
 
