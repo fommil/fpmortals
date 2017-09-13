@@ -3124,16 +3124,15 @@ digraph G {
     node [fontname=Hack];
 
     subgraph {
-        Catchable;
-        Resource;
-        Equal;
-        Show;
         Zip;
         Unzip;
         Cozip;
+        Show;
         Optional;
-        Compose;
         Associative;
+        Compose;
+        Resource;
+        Catchable;
     }
 }
 #+END_SRC
