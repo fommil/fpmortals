@@ -3043,11 +3043,16 @@ digraph G {
     node [fontname=Hack];
 
     subgraph {
+      Bind -> Apply;
+      BindRec -> Bind;
+
+      Contravariant -> InvariantFunctor;
       Functor -> InvariantFunctor;
+
+      Divide -> Contravariant;
+      Divisible -> Divide;
       Apply -> Functor;
       Applicative -> Apply;
-      Align -> Functor;
-      Bind -> Apply;
 
       Foldable1 -> Foldable;
       Traverse -> Functor;
@@ -3055,15 +3060,13 @@ digraph G {
       Traverse1 -> Traverse;
       Traverse1 -> Foldable1;
 
+      Monad -> Applicative;
+
       "Advanced Monads" [style=dashed];
       "Advanced Monads" -> Monad;
 
-      Monad -> Applicative;
       Monad -> Bind;
 
-      Contravariant -> InvariantFunctor;
-      Divide -> Contravariant;
-      Divisible -> Divide;
       Cobind -> Functor;
       Comonad -> Cobind;
 
@@ -3075,7 +3078,7 @@ digraph G {
 
       ComonadStore -> Comonad;
 
-      BindRec -> Bind;
+      Align -> Functor;
     }
 }
 #+END_SRC
@@ -3121,6 +3124,8 @@ digraph G {
     node [fontname=Hack];
 
     subgraph {
+        Catchable;
+        Resource;
         Equal;
         Show;
         Zip;
@@ -3128,9 +3133,7 @@ digraph G {
         Cozip;
         Optional;
         Compose;
-        Catchable;
         Associative;
-        Resource;
     }
 }
 #+END_SRC
@@ -3470,33 +3473,34 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph mappable {
-      Foldable1 -> Foldable;
-      Traverse -> Functor;
-      Traverse -> Foldable;
-      Traverse1 -> Traverse;
-      Traverse1 -> Foldable1;
-    }
-
     subgraph {
-      node [fontcolor=lightgrey,color=lightgrey];
-      edge [color=lightgrey];
+      node [fontcolor=grey,color=grey];
+      edge [color=grey];
 
+      Bind -> Apply;
+      BindRec -> Bind;
+
+      Contravariant -> InvariantFunctor;
+      Functor [fontcolor=black,color=black];
       Functor -> InvariantFunctor;
+
+      Divide -> Contravariant;
+      Divisible -> Divide;
       Apply -> Functor;
       Applicative -> Apply;
-      Align -> Functor;
-      Bind -> Apply;
+
+      Foldable1 [fontcolor=black,color=black];
+      Foldable [fontcolor=black,color=black];
+      Traverse [fontcolor=black,color=black];
+      Traverse1 [fontcolor=black,color=black];
+
+      Monad -> Applicative;
 
       "Advanced Monads" [style=dashed];
       "Advanced Monads" -> Monad;
 
-      Monad -> Applicative;
       Monad -> Bind;
 
-      Contravariant -> InvariantFunctor;
-      Divide -> Contravariant;
-      Divisible -> Divide;
       Cobind -> Functor;
       Comonad -> Cobind;
 
@@ -3508,8 +3512,17 @@ digraph G {
 
       ComonadStore -> Comonad;
 
-      BindRec -> Bind;
+      Align -> Functor;
     }
+
+    subgraph mappable {
+      Foldable1 -> Foldable;
+      Traverse -> Functor;
+      Traverse -> Foldable;
+      Traverse1 -> Traverse;
+      Traverse1 -> Foldable1;
+    }
+
 }
 #+END_SRC
 
@@ -4058,18 +4071,21 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph mappable {
-      Contravariant -> InvariantFunctor;
-      Functor -> InvariantFunctor;
-    }
-
     subgraph {
-      node [fontcolor=lightgrey,color=lightgrey];
-      edge [color=lightgrey];
+      node [fontcolor=grey,color=grey];
+      edge [color=grey];
+
+      Bind -> Apply;
+      BindRec -> Bind;
+
+      Contravariant [fontcolor=black,color=black];
+      InvariantFunctor [fontcolor=black,color=black];
+      Functor [fontcolor=black,color=black];
 
       Divide -> Contravariant;
       Divisible -> Divide;
       Apply -> Functor;
+      Applicative -> Apply;
 
       Foldable1 -> Foldable;
       Traverse -> Functor;
@@ -4077,15 +4093,11 @@ digraph G {
       Traverse1 -> Traverse;
       Traverse1 -> Foldable1;
 
-      Applicative -> Apply;
-      Align -> Functor;
-      Bind -> Apply;
-      Monad;
+      Monad -> Applicative;
 
       "Advanced Monads" [style=dashed];
       "Advanced Monads" -> Monad;
 
-      Monad -> Applicative;
       Monad -> Bind;
 
       Cobind -> Functor;
@@ -4099,8 +4111,14 @@ digraph G {
 
       ComonadStore -> Comonad;
 
-      BindRec -> Bind;
+      Align -> Functor;
     }
+
+    subgraph mappable {
+      Contravariant -> InvariantFunctor;
+      Functor -> InvariantFunctor;
+    }
+
 }
 #+END_SRC
 
@@ -4305,14 +4323,13 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph mappable {
-      Bind -> Apply;
-      BindRec -> Bind;
-    }
-
     subgraph {
-      node [fontcolor=lightgrey,color=lightgrey];
-      edge [color=lightgrey];
+      node [fontcolor=grey,color=grey];
+      edge [color=grey];
+
+      Bind [fontcolor=black,color=black];
+      Apply [fontcolor=black,color=black];
+      BindRec [fontcolor=black,color=black];
 
       Contravariant -> InvariantFunctor;
       Functor -> InvariantFunctor;
@@ -4328,13 +4345,11 @@ digraph G {
       Traverse1 -> Traverse;
       Traverse1 -> Foldable1;
 
-      Align -> Functor;
-      Monad;
+      Monad -> Applicative;
 
       "Advanced Monads" [style=dashed];
       "Advanced Monads" -> Monad;
 
-      Monad -> Applicative;
       Monad -> Bind;
 
       Cobind -> Functor;
@@ -4347,7 +4362,15 @@ digraph G {
       ApplicativePlus -> PlusEmpty;
 
       ComonadStore -> Comonad;
+
+      Align -> Functor;
     }
+
+    subgraph mappable {
+      Bind -> Apply;
+      BindRec -> Bind;
+    }
+
 }
 #+END_SRC
 
@@ -4620,13 +4643,9 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    subgraph mappable {
-      Monad -> Applicative;
-    }
-
     subgraph {
-      node [fontcolor=lightgrey,color=lightgrey];
-      edge [color=lightgrey];
+      node [fontcolor=grey,color=grey];
+      edge [color=grey];
 
       Bind -> Apply;
       BindRec -> Bind;
@@ -4637,6 +4656,7 @@ digraph G {
       Divide -> Contravariant;
       Divisible -> Divide;
       Apply -> Functor;
+      Applicative [fontcolor=black,color=black];
       Applicative -> Apply;
 
       Foldable1 -> Foldable;
@@ -4645,8 +4665,7 @@ digraph G {
       Traverse1 -> Traverse;
       Traverse1 -> Foldable1;
 
-      Align -> Functor;
-      Monad;
+      Monad [fontcolor=black,color=black];
 
       "Advanced Monads" [style=dashed];
       "Advanced Monads" -> Monad;
@@ -4663,7 +4682,14 @@ digraph G {
       ApplicativePlus -> PlusEmpty;
 
       ComonadStore -> Comonad;
+
+      Align -> Functor;
     }
+
+    subgraph mappable {
+      Monad -> Applicative;
+    }
+
 }
 #+END_SRC
 
@@ -4689,27 +4715,28 @@ values in a safe way.
 Instances of =Applicative= must meet some laws, effectively asserting
 that all the methods are consistent:
 
-- *Identity*: ~fa <*> pure(identity) === fa~, i.e. applying
-  ~pure(identity)~ does nothing.
+- *Identity*: ~fa <*> pure(identity) === fa~, (where ~fa~ is an
+  ~F[A]~) i.e. applying ~pure(identity)~ does nothing.
 - *Homomorphism*: ~pure(a) <*> pure(ab) === pure(ab(a))~ (where ~ab~
   is an ~A => B~), i.e. applying a ~pure~ function to a ~pure~ value
   is the same as applying the function to the value and then using
   ~pure~ on the result.
-- *Interchange*: ~pure(a) <*> ab === ab <*> pure(f => f(a))~
-  (i.e. ~pure~ is a left and right identity)
+- *Interchange*: ~pure(a) <*> ab === ab <*> pure(f => f(a))~, (where
+  ~fab~ is an ~F[A => B]~), i.e. ~pure~ is a left and right identity
 - *Mappy*: ~map(fa)(f) === fa <*> pure(f)~
 
 =Monad= adds additional laws:
 
-- *Left Identity*: ~pure(a).flatMap(f) === f(a)~
-- *Right Identity*: ~a.flatMap(pure(_)) === a~
-- *Associativity*: ~fa.flatMap(f).flatMap(g) === fa.flatMap(a =>
-  f(a).flatMap(g))~ where ~fa~ is an ~F[A]~, ~f~ is an ~A => F[B]~ and
+- *Left Identity*: ~pure(a).bind(f) === f(a)~
+- *Right Identity*: ~a.bind(pure(_)) === a~
+- *Associativity*: ~fa.bind(f).bind(g) === fa.bind(a =>
+  f(a).bind(g))~ where ~fa~ is an ~F[A]~, ~f~ is an ~A => F[B]~ and
   ~g~ is a ~B => F[C]~.
 
-Associativity says that chained =flatMap= calls must agree with nested
-=flatMap=. However, it does not mean that we can rearrange the order,
-which would be /commutativity/. For example, we cannot rearrange
+Associativity says that chained =bind= calls must agree with nested
+=bind=. However, it does not mean that we can rearrange the order,
+which would be /commutativity/. For example, recalling that =flatMap=
+is an alias to =bind=, we cannot rearrange
 
 #+BEGIN_SRC scala
 for {
@@ -4727,8 +4754,9 @@ for {
 } yield true
 #+END_SRC
 
-=start= and =stop= are *non*-/commutative/, because starting then
-stopping is different to stopping then starting!
+=start= and =stop= are *non*-/commutative/, because the intended
+effect of starting then stopping a node is different to stopping then
+starting it!
 
 But =start= is commutative with itself, and =stop= is commutative with
 itself, so we can rewrite

@@ -1473,27 +1473,28 @@ values in a safe way.
 Instances of `Applicative` must meet some laws, effectively asserting
 that all the methods are consistent:
 
--   **Identity**: `fa <*> pure(identity) === fa`, i.e. applying
-    `pure(identity)` does nothing.
+-   **Identity**: `fa <*> pure(identity) === fa`, (where `fa` is an
+    `F[A]`) i.e. applying `pure(identity)` does nothing.
 -   **Homomorphism**: `pure(a) <*> pure(ab) === pure(ab(a))` (where `ab`
     is an `A => B`), i.e. applying a `pure` function to a `pure` value
     is the same as applying the function to the value and then using
     `pure` on the result.
--   **Interchange**: `pure(a) <*> ab === ab <*> pure(f => f(a))`
-    (i.e. `pure` is a left and right identity)
+-   **Interchange**: `pure(a) <*> ab === ab <*> pure(f => f(a))`, (where
+    `fab` is an `F[A => B]`), i.e. `pure` is a left and right identity
 -   **Mappy**: `map(fa)(f) === fa <*> pure(f)`
 
 `Monad` adds additional laws:
 
--   **Left Identity**: `pure(a).flatMap(f) === f(a)`
--   **Right Identity**: `a.flatMap(pure(_)) === a`
--   **Associativity**: `fa.flatMap(f).flatMap(g) === fa.flatMap(a =>
-      f(a).flatMap(g))` where `fa` is an `F[A]`, `f` is an `A => F[B]` and
+-   **Left Identity**: `pure(a).bind(f) === f(a)`
+-   **Right Identity**: `a.bind(pure(_)) === a`
+-   **Associativity**: `fa.bind(f).bind(g) === fa.bind(a =>
+      f(a).bind(g))` where `fa` is an `F[A]`, `f` is an `A => F[B]` and
     `g` is a `B => F[C]`.
 
-Associativity says that chained `flatMap` calls must agree with nested
-`flatMap`. However, it does not mean that we can rearrange the order,
-which would be *commutativity*. For example, we cannot rearrange
+Associativity says that chained `bind` calls must agree with nested
+`bind`. However, it does not mean that we can rearrange the order,
+which would be *commutativity*. For example, recalling that `flatMap`
+is an alias to `bind`, we cannot rearrange
 
 {lang="text"}
 ~~~~~~~~
@@ -1513,8 +1514,9 @@ as
   } yield true
 ~~~~~~~~
 
-`start` and `stop` are **non**-*commutative*, because starting then
-stopping is different to stopping then starting!
+`start` and `stop` are **non**-*commutative*, because the intended
+effect of starting then stopping a node is different to stopping then
+starting it!
 
 But `start` is commutative with itself, and `stop` is commutative with
 itself, so we can rewrite
