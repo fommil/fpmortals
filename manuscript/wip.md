@@ -1473,47 +1473,27 @@ values in a safe way.
 Instances of `Applicative` must meet some laws, effectively asserting
 that all the methods are consistent:
 
--   **Identity**: `ap(fa)(pure(identity)) === fa`, i.e. applying
+-   **Identity**: `fa <*> pure(identity) === fa`, i.e. applying
     `pure(identity)` does nothing.
--   **Homomorphism**: `ap(pure(a))(pure(ab)) === pure(ab(a))` (where
-    `ab` is a `A => B`), i.e. applying a `pure` function to a `pure`
-    value is the same as applying the function to the value and then
-    using `pure` on the result.
--   **Interchange**: `ap(pure(a))(ab) === ap(ab)(pure(f => f(a)))`
+-   **Homomorphism**: `pure(a) <*> pure(ab) === pure(ab(a))` (where `ab`
+    is an `A => B`), i.e. applying a `pure` function to a `pure` value
+    is the same as applying the function to the value and then using
+    `pure` on the result.
+-   **Interchange**: `pure(a) <*> ab === ab <*> pure(f => f(a))`
     (i.e. `pure` is a left and right identity)
--   **Mappy**: `map(fa)(f) === ap(fa)(pure(f))`
+-   **Mappy**: `map(fa)(f) === fa <*> pure(f)`
 
 `Monad` adds additional laws:
 
--   **Left Identity**: `flatMap(pure(a))(f) === f(a)`
--   **Right Identity**: `flatMap(a)(pure(_)) === a`
--   **Associativity**: `flatMap(flatMap(fa)(fab))(g) === flatMap(fa)(a =>
-      flatMap(fab(a))(g))` where `fa` is a `F[A]` and `fab` is an `F[A =>
-      B]`
+-   **Left Identity**: `pure(a).flatMap(f) === f(a)`
+-   **Right Identity**: `a.flatMap(pure(_)) === a`
+-   **Associativity**: `fa.flatMap(f).flatMap(g) === fa.flatMap(a =>
+      f(a).flatMap(g))` where `fa` is an `F[A]`, `f` is an `A => F[B]` and
+    `g` is a `B => F[C]`.
 
-`Bind` also requires *associativity*, it can be rewritten symbolically
-as
-
-{lang="text"}
-~~~~~~~~
-  (fa >>= fab) >>= g     ===     fa >>= (a => (fab(a) >>= g))
-~~~~~~~~
-
-or, in other words, the order of evaluation of two `flatMap` (`bind`)
-calls does not matter so long as the second takes the output of the
-first as an input.
-
-In practical terms, unless you have access to a time machine, this
-means that nested `flatMap` must be interpreted in sequential order. A
-wacky, and plausible, line of thought is that an interpreter could
-predict what the outcome of the first `flatMap` will be, and eagerly
-calculate likely next steps. But that's nothing new, it's exactly what
-CPU branch prediction is.
-
-Although the computation of the pure functions can be rearranged,
-thanks to the *associativity* law, it does not mean that we can
-rearrange the order of interpretation of the effects. For example, we
-cannot rearrange
+Associativity says that chained `flatMap` calls must agree with nested
+`flatMap`. However, it does not mean that we can rearrange the order,
+which would be *commutativity*. For example, we cannot rearrange
 
 {lang="text"}
 ~~~~~~~~
@@ -1533,11 +1513,11 @@ as
   } yield true
 ~~~~~~~~
 
-Clearly `start` and `stop` are **non**-*commutative*, because a machine
-must be started before it can be stopped!
+`start` and `stop` are **non**-*commutative*, because starting then
+stopping is different to stopping then starting!
 
 But `start` is commutative with itself, and `stop` is commutative with
-itself, so we can rewrite the following
+itself, so we can rewrite
 
 {lang="text"}
 ~~~~~~~~
@@ -1546,6 +1526,8 @@ itself, so we can rewrite the following
     _ <- machine.start(node2)
   } yield true
 ~~~~~~~~
+
+as
 
 {lang="text"}
 ~~~~~~~~
@@ -1556,8 +1538,7 @@ itself, so we can rewrite the following
 ~~~~~~~~
 
 which are equivalent. We're making a lot of assumptions about the
-Google Container API here, but this is a reasonable assumption to
-make.
+Google Container API here, but this is a reasonable choice to make.
 
 A practical consequence is that a `Monad` must be *commutative* if its
 `applyX` methods can be allowed to run in parallel. We cheated in
