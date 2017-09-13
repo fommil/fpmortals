@@ -1449,7 +1449,7 @@ in the next chapter. It is an improvement of stdlib's `Either`.
 ## Applicative and Monad
 
 From a functionality point of view, `Applicative` is `Apply` with a
-`pure` method, and `Monad` is an `Applicative` and a `Bind`.
+`pure` method, and `Monad` extends `Applicative` with `Bind`.
 
 {width=100%}
 ![](images/scalaz-applicative.png)
@@ -1466,9 +1466,8 @@ From a functionality point of view, `Applicative` is `Apply` with a
 
 In many ways, `Applicative` and `Monad` are the culmination of
 everything we've seen in this chapter. `pure` (or `point` as it is
-more commonly known for data structures) allows us to create data
-structures or effects from values where we can then operate over those
-values in a safe way.
+more commonly known for data structures) allows us to create effects
+or data structures from values.
 
 Instances of `Applicative` must meet some laws, effectively asserting
 that all the methods are consistent:
