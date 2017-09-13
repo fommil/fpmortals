@@ -360,9 +360,9 @@ successors and predecessors:
   res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 ~~~~~~~~
 
-`|==>` is scalaz's Lightsaber. This is the syntax of a Functional
-Programmer. Not as clumsy or random as `fromStepToL`. An elegant
-syntax... for a more civilised age.
+A> `|==>` is scalaz's Lightsaber. This is the syntax of a Functional
+A> Programmer. Not as clumsy or random as `fromStepToL`. An elegant
+A> syntax... for a more civilised age.
 
 We'll discuss `EphemeralStream` in the next chapter, for now you just
 need to know that it is a potentially infinite data structure that

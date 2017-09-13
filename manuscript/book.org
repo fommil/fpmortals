@@ -3434,9 +3434,11 @@ scala> 'm' |-> 'u'
 res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 #+END_SRC
 
+#+BEGIN_ASIDE
 ~|==>~ is scalaz's Lightsaber. This is the syntax of a Functional
 Programmer. Not as clumsy or random as =fromStepToL=. An elegant
 syntax... for a more civilised age.
+#+END_ASIDE
 
 We'll discuss =EphemeralStream= in the next chapter, for now you just
 need to know that it is a potentially infinite data structure that
