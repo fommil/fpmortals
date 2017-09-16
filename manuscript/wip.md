@@ -1687,8 +1687,8 @@ we're given an `F[A]` and an `F[B]`, then we can get an `F[C]`. Hence,
 
 This is a great way to generate typeclass instances by breaking their
 type parameter into smaller pieces. Scalaz comes with an instance of
-`Divide[Equal]` so let's use `Equal` as an example to construct an
-`Equal` for a new product type `Foo`
+`Divide[Equal]`, let's construct an `Equal` for a new product type
+`Foo`
 
 {lang="text"}
 ~~~~~~~~
@@ -1742,6 +1742,139 @@ Generally, if encoder typeclasses provide an instance of `Divisible`,
 rather than stopping at `Contravariant`, it makes it easy to derive
 instances for arbitrary ADTs. Similarly, decoder typeclasses could
 provide an `Apply` instance.
+
+
+## Plus
+
+{width=100%}
+![](images/scalaz-plus.png)
+
+`Plus` is `Semigroup` but for HKTs, and `PlusEmpty` is the equivalent
+of `Monoid` (they even have the same laws) whereas `IsEmpty` is novel
+and allows us to query if an `F[A]` is empty:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Plus[F[_]] {
+    @op("<+>") def plus[A](a: F[A], b: => F[A]): F[A]
+  
+    def semigroup[A]: Semigroup[F[A]] = ...
+  }
+  @typeclass trait PlusEmpty[F[_]] extends Plus[F] {
+    def empty[A]: F[A]
+  
+    def monoid[A]: Monoid[F[A]] = ...
+  }
+  @typeclass trait IsEmpty[F[_]] extends PlusEmpty[F] {
+    def isEmpty[A](fa: F[A]): Boolean
+  }
+~~~~~~~~
+
+A> `<+>` is the TIE Interceptor, and now we're almost out of TIE
+A> Fighters...
+
+Although it may look on the surface as if `<+>` behaves like `|+|`
+
+{lang="text"}
+~~~~~~~~
+  scala> List(2,3) |+| List(7)
+  res = List(2, 3, 7)
+  
+  scala> List(2,3) <+> List(7)
+  res = List(2, 3, 7)
+~~~~~~~~
+
+it is best to think of it as operating only at the `F[_]` level, never
+looking into the `A`
+
+{lang="text"}
+~~~~~~~~
+  scala> Option(1) |+| Option(2)
+  res = Some(3)
+  
+  scala> Option(1) <+> Option(2)
+  res = Some(1)
+  
+  scala> Option.empty[Int] <+> Option(1)
+  res = Some(1)
+~~~~~~~~
+
+So whereas `List` can be concatenated at the data structure level,
+`Option` must choose one value and discard the rest, using a "first
+wins" policy.
+
+This also means that we didn't needs to define our own
+`Monoid[Option[A]]` when combining our `TradeTemplate`, we could have
+defined
+
+{lang="text"}
+~~~~~~~~
+  implicit def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
+~~~~~~~~
+
+and used `foldRight` instead of `foldLeft`.
+
+`<+>` can therefore be used as a mechanism for early exit and fallback
+logic.
+
+`Applicative` and `Monad` allow for specialised versions of `PlusEmpty`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait ApplicativePlus[F[_]] extends Applicative[F] with PlusEmpty[F]
+  
+  @typeclass trait MonadPlus[F[_]] extends Monad[F] with ApplicativePlus[F] {
+    def unite[T[_]: Foldable, A](ts: F[T[A]]): F[A] = ...
+  
+    def withFilter[A](fa: F[A])(f: A => Boolean): F[A] = ...
+  }
+~~~~~~~~
+
+`unite` looks like `Foldable.fold` but is using the
+`PlusEmpty[F].monoid[A]` (not the `Monoid[T[A]]`) and skips anything
+that is `empty` under that definition. For example, uniting a
+`List[Either]` means that `Left` are converted into `Nil` and the
+`Right` are converted into `List`, then the `Nil` are filtered away:
+
+{lang="text"}
+~~~~~~~~
+  scala> List(Right(1), Left("boo"), Right(2)).unite
+  res: List[Int] = List(1, 2)
+~~~~~~~~
+
+`withFilter` allows us to make use of `for` comprehension language
+support as discussed in Chapter 2. It is fair to say that the Scala
+language has built-in language support for `MonadPlus`, not just
+`Monad`!
+
+Returning to `Foldable` for a moment, we can reveal some methods that
+we did not discuss earlier
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Foldable[F[_]] {
+    ...
+    def msuml[G[_], A](fa: F[G[A]])(implicit G: PlusEmpty[G]): G[A] = ...
+    def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
+    ...
+  }
+~~~~~~~~
+
+`msuml` does a `fold` using the `Monoid` from the inner container's
+`PlusEmpty` and `collapse` does a `foldRight` using the `PlusEmpty` of
+the target type, exiting early:
+
+{lang="text"}
+~~~~~~~~
+  scala> IList(Option(1), Option.empty[Int], Option(2)).fold
+  res: Option[Int] = Some(3) // uses Monoid[Option[Int]]
+  
+  scala> IList(Option(1), Option.empty[Int], Option(2)).msuml
+  res: Option[Int] = Some(1) // uses PlusEmpty[Option].monoid
+  
+  scala> IList(1, 2).collapse[Option]
+  res: Option[Int] = Some(1)
+~~~~~~~~
 
 
 # What's Next?
