@@ -1799,25 +1799,23 @@ looking into the `A`
   res = Some(1)
 ~~~~~~~~
 
-So whereas `List` can be concatenated at the data structure level,
+Whereas `List` can be concatenated at the data structure level,
 `Option` must choose one value and discard the rest, using a "first
-wins" policy.
+wins" policy. `<+>` can therefore be used as a mechanism for early
+exit and fallback logic.
 
-This also means that we didn't needs to define our own
-`Monoid[Option[A]]` when combining our `TradeTemplate`, we could have
-defined
+That also means we didn't need to define our own `Monoid[Option[A]]`
+when combining our `TradeTemplate`, we could have defined
 
 {lang="text"}
 ~~~~~~~~
   implicit def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
 ~~~~~~~~
 
-and used `foldRight` instead of `foldLeft`.
+and `.reverse` the templates before using `foldLeft` (to get the
+`lastWins` behaviour we want).
 
-`<+>` can therefore be used as a mechanism for early exit and fallback
-logic.
-
-`Applicative` and `Monad` allow for specialised versions of `PlusEmpty`
+`Applicative` and `Monad` have specialised versions of `PlusEmpty`
 
 {lang="text"}
 ~~~~~~~~
@@ -1862,7 +1860,7 @@ we did not discuss earlier
 
 `msuml` does a `fold` using the `Monoid` from the inner container's
 `PlusEmpty` and `collapse` does a `foldRight` using the `PlusEmpty` of
-the target type, exiting early:
+the target type:
 
 {lang="text"}
 ~~~~~~~~
