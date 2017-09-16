@@ -989,8 +989,8 @@ i.e. it's a data encoding of `XOR` (eXclusive `OR`).
     def padWith[A, B, C](f: (Option[A], Option[B]) => C): (F[A], F[B]) => F[C] = ...
 ~~~~~~~~
 
-Hopefully by this point you are becoming more capable of reading the
-type signatures to understand the purpose of the method.
+Hopefully by this point you are becoming more capable of reading type
+signatures to understand the purpose of a method.
 
 `alignWith` takes a function from either an `A` or a `B` (or both) to
 a `C` and returns a lifted function from a tuple of `F[A]` and `F[B]`
@@ -1008,22 +1008,22 @@ practical example is the merging of multi-maps and independent tallies
   res = Map(foo -> 2, bar -> 2)
 ~~~~~~~~
 
-`pad` and `padWith` are for creating lifted functions that can merge
-two data structures that might run out of values, for example if we
-wanted to aggregate some independent votes in a bucket and retain
-the knowledge of where the votes came from. e.g. in
+`pad` and `padWith` are for partially merging two data structures that
+might be missing values on one side. For example if we wanted to
+aggregate independent votes and retain the knowledge of where the
+votes came from
 
 {lang="text"}
 ~~~~~~~~
   scala> Map("foo" -> 1) pad Map("foo" -> 1, "bar" -> 2)
   res = Map(foo -> (Some(1),Some(1)), bar -> (None,Some(2)))
+  
+  scala> Map("foo" -> 1, "bar" -> 2) pad Map("foo" -> 1) 
+  res = Map(foo -> (Some(1),Some(1)), bar -> (Some(2),None))
 ~~~~~~~~
 
-we have access to all the votes for `bar` and we also know that the
-first bucket had no votes for `bar`.
-
-There are some variants of `align` that make use of the structure of
-`\&/`
+There are convenient variants of `align` that make use of the
+structure of `\&/`
 
 {lang="text"}
 ~~~~~~~~
@@ -1060,9 +1060,9 @@ which should make sense from their type signatures. Examples:
   res = List(Some((1,4)), Some((2,5)), None)
 ~~~~~~~~
 
-`alignThis` and `alignThat` perhaps require the reminder that they are
-exclusive, so return `None` if there is a value in both sides, or no
-value on either side.
+It is worth noting that the `A` and `B` variants use inclusive `OR`,
+whereas the `This` and `That` variants are exclusive, so return `None`
+if there is a value in both sides, or no value on either side.
 
 
 ## Variance
