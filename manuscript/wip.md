@@ -961,6 +961,109 @@ methods for data structures that cannot be empty, accepting the weaker
 `Applicative`.
 
 
+### Align
+
+`Align` is about merging and padding anything with a `Functor`. Before
+looking at `Align`, meet the `\&/` data type (spoken as *These*, or
+*hurray!*).
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class \&/[+A, +B]
+  final case class This[A](aa: A) extends (A \&/ Nothing)
+  final case class That[B](bb: B) extends (Nothing \&/ B)
+  final case class Both[A, B](aa: A, bb: B) extends (A \&/ B)
+~~~~~~~~
+
+i.e. it's a data encoding of `XOR` (eXclusive `OR`).
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Align[F[_]] extends Functor[F] {
+    def alignWith[A, B, C](f: A \&/ B => C): (F[A], F[B]) => F[C]
+    def align[A, B](a: F[A], b: F[B]): F[A \&/ B] = ...
+  
+    def merge[A: Semigroup](a1: F[A], a2: F[A]): F[A] = ...
+  
+    def pad[A, B]: (F[A], F[B]) => F[(Option[A], Option[B])] = ...
+    def padWith[A, B, C](f: (Option[A], Option[B]) => C): (F[A], F[B]) => F[C] = ...
+~~~~~~~~
+
+Hopefully by this point you are becoming more capable of reading the
+type signatures to understand the purpose of the method.
+
+`alignWith` takes a function from either an `A` or a `B` (or both) to
+a `C` and returns a lifted function from a tuple of `F[A]` and `F[B]`
+to an `F[C]`. `align` constructs a `\&/` out of two `F[_]`.
+
+`merge` allows us to combine two `F[A]` when `A` has a `Semigroup`. A
+practical example is the merging of multi-maps and independent tallies
+
+{lang="text"}
+~~~~~~~~
+  scala> Map("foo" -> List(1)) merge Map("foo" -> List(1), "bar" -> List(2))
+  res = Map(foo -> List(1, 1), bar -> List(2))
+  
+  scala> Map("foo" -> 1) merge Map("foo" -> 1, "bar" -> 2)
+  res = Map(foo -> 2, bar -> 2)
+~~~~~~~~
+
+`pad` and `padWith` are for creating lifted functions that can merge
+two data structures that might run out of values, for example if we
+wanted to aggregate some independent votes in a bucket and retain
+the knowledge of where the votes came from. e.g. in
+
+{lang="text"}
+~~~~~~~~
+  scala> Map("foo" -> 1) pad Map("foo" -> 1, "bar" -> 2)
+  res = Map(foo -> (Some(1),Some(1)), bar -> (None,Some(2)))
+~~~~~~~~
+
+we have access to all the votes for `bar` and we also know that the
+first bucket had no votes for `bar`.
+
+There are some variants of `align` that make use of the structure of
+`\&/`
+
+{lang="text"}
+~~~~~~~~
+  def alignSwap[A, B](a: F[A], b: F[B]): F[B \&/ A] = ...
+    def alignA[A, B](a: F[A], b: F[B]): F[Option[A]] = ...
+    def alignB[A, B](a: F[A], b: F[B]): F[Option[B]] = ...
+    def alignThis[A, B](a: F[A], b: F[B]): F[Option[A]] = ...
+    def alignThat[A, B](a: F[A], b: F[B]): F[Option[B]] = ...
+    def alignBoth[A, B](a: F[A], b: F[B]): F[Option[(A, B)]] = ...
+  }
+~~~~~~~~
+
+which should make sense from their type signatures. Examples:
+
+{lang="text"}
+~~~~~~~~
+  scala> List(1,2,3) alignSwap List(4,5)
+  res = List(Both(4,1), Both(5,2), That(3))
+  
+  scala> List(1,2,3) alignA List(4,5)
+  res = List(Some(1), Some(2), Some(3))
+  
+  scala> List(1,2,3) alignB List(4,5)
+  res = List(Some(4), Some(5), None)
+  
+  scala> List(1,2,3) alignThis List(4,5)
+  res = List(None, None, Some(3))
+  
+  scala> List(1,2,3) alignThat List(4,5)
+  res = List(None, None, None)
+  
+  scala> List(1,2,3) alignBoth List(4,5)
+  res = List(Some((1,4)), Some((2,5)), None)
+~~~~~~~~
+
+`alignThis` and `alignThat` perhaps require the reminder that they are
+exclusive, so return `None` if there is a value in both sides, or no
+value on either side.
+
+
 ## Variance
 
 We must return to `Functor` for a moment and discuss an ancestor that
