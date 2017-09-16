@@ -1852,15 +1852,15 @@ we did not discuss earlier
 ~~~~~~~~
   @typeclass trait Foldable[F[_]] {
     ...
-    def msuml[G[_], A](fa: F[G[A]])(implicit G: PlusEmpty[G]): G[A] = ...
+    def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
     def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
     ...
   }
 ~~~~~~~~
 
-`msuml` does a `fold` using the `Monoid` from the inner container's
-`PlusEmpty` and `collapse` does a `foldRight` using the `PlusEmpty` of
-the target type:
+`msuml` does a `fold` using the `Monoid` from the `PlusEmpty[G]` and
+`collapse` does a `foldRight` using the `PlusEmpty` of the target
+type:
 
 {lang="text"}
 ~~~~~~~~

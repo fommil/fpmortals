@@ -5276,15 +5276,15 @@ we did not discuss earlier
 #+BEGIN_SRC scala
 @typeclass trait Foldable[F[_]] {
   ...
-  def msuml[G[_], A](fa: F[G[A]])(implicit G: PlusEmpty[G]): G[A] = ...
+  def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
   def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
   ...
 }
 #+END_SRC
 
-=msuml= does a =fold= using the =Monoid= from the inner container's
-=PlusEmpty= and =collapse= does a =foldRight= using the =PlusEmpty= of
-the target type:
+=msuml= does a =fold= using the =Monoid= from the =PlusEmpty[G]= and
+=collapse= does a =foldRight= using the =PlusEmpty= of the target
+type:
 
 #+BEGIN_SRC scala
 scala> IList(Option(1), Option.empty[Int], Option(2)).fold
