@@ -71,8 +71,8 @@ without restriction.
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
 degrees, Rúnar Bjarnason and Tony Morris for their help explaining the
 principles of FP. Kenji Yoshida and Jason Zaugg for being the main
-authors of scalaz, and Miles Sabin for implementing critical FP
-features in the scala compiler.
+authors of scalaz, and Paul Chuisano / Miles Sabin for implementing
+critical FP features in the scala compiler.
 
 The readers who gave feedback on early drafts of this text.
 

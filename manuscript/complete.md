@@ -1302,7 +1302,7 @@ to legacy Java classes such as `Throwable`, which can carry references
 to arbitrary objects. This is one of the reasons why we restrict what
 can live on an ADT.
 
-A similar caveat applies to *by name*, known as *lazy* parameters
+A similar caveat applies to *by name* parameters
 
 {lang="text"}
 ~~~~~~~~
