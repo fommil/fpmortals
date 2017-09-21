@@ -33,7 +33,10 @@ code. Some of the more complex code snippets are available with [the
 book's source code](https://github.com/fommil/fpmortals/tree/master/src/main/scala/).
 
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
-write an FP library in Scala from first principles.
+write an FP library in Scala from first principles. Additionally,
+[Advanced Functional Programming with Scala](https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc) by John de Goes, best
+experienced by attending a Fantasyland Institute of Learning training
+course.
 
 
 # Copyleft Notice
