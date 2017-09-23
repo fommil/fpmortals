@@ -46,11 +46,12 @@ In between `Monad` and `Functor` is `Applicative`, defining `pure`
 that lets us lift a value into an effect, or create a data structure
 from a single value.
 
-`traverse` is useful for rearranging Higher Kinded Types (HKTs). If
-you find yourself with an `F[G[_]]` but you really need a `G[F[_]]`
-then you need `Traverse`. For example, say you have a
-`List[Future[Int]]` but you need it to be a `Future[List[Int]]`, just
-call `.traverse(identity)`, or its simpler sibling `.sequence`.
+`traverse` is useful for rearranging type constructors (recall these
+are types with the shape `F[_]`). If you find yourself with an
+`F[G[_]]` but you really need a `G[F[_]]` then you need `Traverse`.
+For example, say you have a `List[Future[Int]]` but you need it to be
+a `Future[List[Int]]`, just call `.traverse(identity)`, or its simpler
+sibling `.sequence`.
 
 
 ## Agenda
@@ -905,9 +906,9 @@ You may also see Curried versions, e.g.
 ~~~~~~~~
 
 At the beginning of the chapter we showed the importance of `traverse`
-and `sequence` for swapping around HKTs to fit a requirement (e.g.
-`List[Future[_]]` to `Future[List[_]]`). You will use these methods
-more than you could possibly imagine.
+and `sequence` for swapping around type constructors to fit a
+requirement (e.g. `List[Future[_]]` to `Future[List[_]]`). You will
+use these methods more than you could possibly imagine.
 
 In `Foldable` we weren't able to assume that `reverse` was a universal
 concept, but now we can reverse a thing.
@@ -1749,9 +1750,9 @@ provide an `Apply` instance.
 {width=100%}
 ![](images/scalaz-plus.png)
 
-`Plus` is `Semigroup` but for HKTs, and `PlusEmpty` is the equivalent
-of `Monoid` (they even have the same laws) whereas `IsEmpty` is novel
-and allows us to query if an `F[A]` is empty:
+`Plus` is `Semigroup` but for type constructors, and `PlusEmpty` is
+the equivalent of `Monoid` (they even have the same laws) whereas
+`IsEmpty` is novel and allows us to query if an `F[A]` is empty:
 
 {lang="text"}
 ~~~~~~~~

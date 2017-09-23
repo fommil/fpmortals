@@ -234,6 +234,9 @@ And also the issue of parallelisation of applicatives vs the sequential nature o
 
 ## Free Monad
 
+
+### [smock](https://github.com/djspiewak/smock)
+
 -   FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
 
 What we've been doing in this chapter is using the *free monad*,
@@ -286,21 +289,18 @@ only mortgage where you still have to buy the house at the end.
 # Utilities
 
 
-### [single page fp book](https://github.com/vil1/single_page_fp_book)
+## [single page fp book](https://github.com/vil1/single_page_fp_book)
 
 
-### cheat sheet
+## cheat sheet
 
 
-### Other
+## Other
 
 e.g. conversion utilities between things
 
 
 ## Laws
-
-
-## Extensions
 
 
 # FS2
