@@ -58,17 +58,13 @@ sibling `.sequence`.
 
 There are an overwhelming number of typeclasses, so we will cluster
 them by common themes. Notably absent are typeclasses that extend
-`Monad`, which get their own chapter.
+`Monad`, which get their own chapter. This chapter is longer than
+usual and jam packed with information: you may wish to take a break
+every few sections.
 
 Scalaz uses code generation instead of simulacrum. We'll present the
 typeclasses as if simulacrum was used, but note that there are no
-`ops` on the companions. All syntax is provided along with typeclasses
-and data types when writing
-
-{lang="text"}
-~~~~~~~~
-  import scalaz._, Scalaz._
-~~~~~~~~
+`ops` on the companions.
 
 {width=100%}
 ![](images/scalaz-core-tree.png)
