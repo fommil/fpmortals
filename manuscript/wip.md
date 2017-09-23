@@ -1675,9 +1675,10 @@ those effects are, deserves a dedicated chapter on Advanced Monads.
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Divide[F[_]] extends Contravariant[F] {
-    def divide[A, B, C](fa: F[A], fb: F[B])(f: C => (A, B)): F[C]
+    def divide[A, B, C](fa: F[A], fb: F[B])(f: C => (A, B)): F[C] = divide2(fa, fb)(f)
   
     def divide1[A1, Z](a1: F[A1])(f: Z => A1): F[Z] = ...
+    def divide2[A, B, C](fa: F[A], fb: F[B])(f: C => (A, B)): F[C] = ...
     ...
     def divide22[...] = ...
 ~~~~~~~~
@@ -1686,21 +1687,38 @@ those effects are, deserves a dedicated chapter on Advanced Monads.
 we're given an `F[A]` and an `F[B]`, then we can get an `F[C]`. Hence,
 *divide and conquer*.
 
-This is a great way to generate typeclass instances by breaking their
-type parameter into smaller pieces. Scalaz comes with an instance of
-`Divide[Equal]`, let's construct an `Equal` for a new product type
-`Foo`
+This is a great way to generate contravariant typeclass instances for
+product types by breaking the products into their parts. Scalaz has an
+instance of `Divide[Equal]`, let's construct an `Equal` for a new
+product type `Foo`
 
 {lang="text"}
 ~~~~~~~~
   scala> case class Foo(s: String, i: Int)
   scala> implicit val fooEqual: Divide[Foo] =
-           Divide[Equal].divide(Equal[String], Equal[Int]) {
+           Divide[Equal].divide2(Equal[String], Equal[Int]) {
              (foo: Foo) => (foo.s, foo.i)
            }
   scala> Foo("foo", 1) === Foo("bar", 1)
   res: Boolean = false
 ~~~~~~~~
+
+It is a good moment to look again at `Apply`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Apply[F[_]] extends Functor[F] {
+    ...
+    def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
+    def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+    ...
+    def lift12[...]
+    ...
+  }
+~~~~~~~~
+
+It's now easier to spot that `liftX` is how we can derive typeclasses
+for covariant typeclasses.
 
 Mirroring `Apply`, `Divide` also has terse syntax for tuples. A softer
 *divide so that you may reign* approach to world domination:
@@ -1828,6 +1846,8 @@ and `.reverse` the templates before using `foldLeft` (to get the
     def withFilter[A](fa: F[A])(f: A => Boolean): F[A] = ...
   }
 ~~~~~~~~
+
+`ApplicativePlus` is also known as `Alternative`.
 
 `unite` looks like `Foldable.fold` but is using the
 `PlusEmpty[F].monoid[A]` (not the `Monoid[T[A]]`) and skips anything
