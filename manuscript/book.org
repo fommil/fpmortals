@@ -468,15 +468,16 @@ interactions with a real console.
 
 Of course we cannot write an application devoid of interaction with
 the world. In FP we push the code that deals with side effects to the
-edges. That kind of code can use battle-tested libraries like NIO,
-Akka and Play, isolated away from the core business logic.
+edges, using battle-tested libraries like NIO, Akka and Play, isolated
+away from the core business logic.
 
 This book expands on the FP style introduced in this chapter. We're
 going to use the traits and classes defined in the /scalaz/ and /fs2/
 libraries to implement streaming applications. We'll also use
 developer tooling to eliminate some of the boilerplate we've already
 seen in this chapter, allowing you to focus on writing pure business
-logic.
+logic. We'll also discover how to write a pure implementation of
+=Terminal= that uses something much better than =Id= or =Future=.
 
 * Complete                                                            :final:
   :PROPERTIES:
