@@ -1544,7 +1544,14 @@ This is what we need to be able to implement the "loop forever" logic
 of our application.
 
 `\/`, called *disjunction*, is a data structure that we will discuss
-in the next chapter. It is an improvement of stdlib's `Either`.
+in the next chapter. It is an improvement of stdlib's `Either`
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class \/[+A, +B]
+  final case class -\/ [+A](a: A) extends (A \/ Nothing)
+  final case class  \/-[+B](b: B) extends (Nothing \/ B)
+~~~~~~~~
 
 
 ## Applicative and Monad
@@ -1962,6 +1969,63 @@ In a nutshell, `Zip` and `Unzip` are less powerful versions of
 
 
 ### Optional
+
+`Optional` is a generalisation of data structures that can optionally
+contain a value, like `Option` and `Either`.
+
+Recall that `\/` (*disjunction*) is scalaz's improvement of
+`scala.Either`. We will also see `Maybe`, scalaz's improvement of
+`scala.Option`
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Maybe[A]
+  final case class Empty[A]()    extends Maybe[A]
+  final case class Just[A](a: A) extends Maybe[A]
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Optional[F[_]] {
+    def pextract[B, A](fa: F[A]): F[B] \/ A
+  
+    def getOrElse[A](fa: F[A])(default: => A): A = ...
+    def orElse[A](fa: F[A])(alt: => F[A]): F[A] = ...
+  
+    def isDefined[A](fa: F[A]): Boolean = ...
+    def nonEmpty[A](fa: F[A]): Boolean = ...
+    def isEmpty[A](fa: F[A]): Boolean = ...
+  
+    def toOption[A](fa: F[A]): Option[A] = ...
+    def toMaybe[A](fa: F[A]): Maybe[A] = ...
+  }
+~~~~~~~~
+
+which are methods that should be very familiar. Scalaz gives a ternary
+operator to things that have an `Optional`
+
+{lang="text"}
+~~~~~~~~
+  implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
+    def ?[X](some: => X): Conditional[X] = new Conditional[X](some)
+    final class Conditional[X](some: => X) {
+      def |(none: => X): X = if (Optional[F].isDefined(fa)) some else none
+    }
+  }
+~~~~~~~~
+
+for example
+
+{lang="text"}
+~~~~~~~~
+  scala> val knock_knock: Option[String] = ...
+         knock_knock ? "who's there?" | "<tumbleweed>"
+~~~~~~~~
+
+Next time you write a function that takes an `Option`, consider
+rewriting it to take `Optional` instead: it'll make it easier to
+migrate to data structures that have better error handling without any
+loss of functionality.
 
 
 ### Associative
