@@ -1930,10 +1930,10 @@ The core method is `zip` which is a less powerful version of
 behave like `Apply.apply2`. Indeed, an `Apply[F]` can be created from
 a `Zip[F]` and a `Functor[F]` by calling `ap`.
 
-`apzip` takes an `F[A]` and a lifted function from `F[A] ~> F[B]`,
+`apzip` takes an `F[A]` and a lifted function from `F[A] => F[B]`,
 producing an `F[(A, B)]` similar to `Functor.fproduct`.
 
-A> `<*|*>`, creepy Senator Palpatine.
+A> `<*|*>` is the creepy Elf operator, or Senator Palpatine.
 
 {lang="text"}
 ~~~~~~~~
