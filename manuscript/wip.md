@@ -2028,13 +2028,36 @@ migrate to data structures that have better error handling without any
 loss of functionality.
 
 
-### Associative
-
-
 ### Catchable
 
+Our grand plans to write total functions that return a value for every
+input may be in ruins when exceptions are the norm in the Java
+standard library, the Scala standard library, and the myriad of legacy
+systems that we must interact with.
 
-### Resource
+scalaz does not magically handle exceptions automatically, but it does
+provide the mechanism to protect against bad legacy systems.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Catchable[F[_]] {
+    def attempt[A](f: F[A]): F[Throwable \/ A]
+    def fail[A](err: Throwable): F[A]
+  }
+~~~~~~~~
+
+`attempt` makes the JVM `Throwable` an explicit return type that can
+perhaps be mapped into a domain-specific ADT.
+
+`fail` allows us to throw an exception in the `F[_]` context, which is
+bad practice. Exceptions that are raised via `fail` must be later
+handled by `attempt` as it is just as bad as if the underlying
+
+Notably, `Catchable[Id]` cannot be implemented because an `Id[A]`
+cannot exist in a state that can contain an exception. However, there
+are instances for both `scala.concurrent.Future` (asynchronous) and
+`scala.Either` (synchronous), allowing `Catchable` to abstract over
+the unhappy path in both production and test code.
 
 
 # What's Next?
