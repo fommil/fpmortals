@@ -1892,6 +1892,87 @@ type:
 ~~~~~~~~
 
 
+## Lone Wolves
+
+Some of the typeclasses in scalaz are stand-alone and not part of the
+larger hierarchy. Some of the concepts here are important 
+
+{width=100%}
+![](images/scalaz-loners.png)
+
+
+### Zippy
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Zip[F[_]]  {
+    def zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+  
+    def zipWith[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C)
+                        (implicit F: Functor[F]): F[C] = ...
+  
+    def ap(implicit F: Functor[F]): Apply[F] = ...
+  
+    @op("<*|*>") def apzip[A, B](f: => F[A] => F[B], a: => F[A]): F[(A, B)] = ...
+  
+  }
+~~~~~~~~
+
+The core method is `zip` which is a less powerful version of
+`Divide.tuple2`, and if a `Functor[F]` is provide then `zipWith` can
+behave like `Apply.apply2`. Indeed, an `Apply[F]` can be created from
+a `Zip[F]` and a `Functor[F]` by calling `ap`.
+
+`apzip` takes an `F[A]` and a lifted function from `F[A] ~> F[B]`,
+producing an `F[(A, B)]` similar to `Functor.fproduct`.
+
+A> `<*|*>`, creepy Senator Palpatine.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Unzip[F[_]]  {
+    def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+  
+    def firsts[A, B](a: F[(A, B)]): F[A] = ...
+    def seconds[A, B](a: F[(A, B)]): F[B] = ...
+  
+    def unzip3[A, B, C](x: F[(A, (B, C))]): (F[A], F[B], F[C]) = ...
+    ...
+    def unzip7[A ... H](x: F[(A, (B, ... H))]): ...
+  }
+~~~~~~~~
+
+The core method is `unzip` with `firsts` and `seconds` allowing for
+selecting either the first or second element of a tuple in the `F`.
+Importantly, `unzip` is the opposite of `zip`.
+
+The methods `unzip3` to `unzip7` are repeated applications of `unzip`
+to save on boilerplate. For example, if handed a bunch of nested
+tuples, the `Unzip[Id]` is a handy way to flatten them:
+
+{lang="text"}
+~~~~~~~~
+  scala> Unzip[Id].unzip7((1, (2, (3, (4, (5, (6, 7)))))))
+  res = (1,2,3,4,5,6,7)
+~~~~~~~~
+
+In a nutshell, `Zip` and `Unzip` are less powerful versions of
+`Divide` and `Apply`, providing useful features without requiring the
+`F` to make too many promises.
+
+
+### Optional
+
+
+### Associative
+
+
+### Catchable
+
+
+### Resource
+
+
 # What's Next?
 
 You've reached the end of this Early Access book. Please check the

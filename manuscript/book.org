@@ -3129,7 +3129,6 @@ digraph G {
     Show;
     Optional;
     Associative;
-    Compose;
     Resource;
     Catchable;
 }
@@ -5318,12 +5317,94 @@ scala> IList(1, 2).collapse[Option]
 res: Option[Int] = Some(1)
 #+END_SRC
 
-# *** TODO Zip, Unzip
-# *** TODO Lone Wolves
-# **** TODO Optional
-# **** TODO Associative
-# **** TODO Catchable
-# **** TODO Resource
+*** Lone Wolves
+
+Some of the typeclasses in scalaz are stand-alone and not part of the
+larger hierarchy. Some of the concepts here are important 
+
+#+BEGIN_SRC dot :file images/scalaz-loners.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    Zip;
+    Unzip;
+    Cozip [fontcolor=lightgray,color=lightgray];
+    Show [fontcolor=lightslategray,color=lightslategray];
+    Optional;
+    Associative;
+    Resource;
+    Catchable;
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/scalaz-loners.png]]
+
+**** Zippy
+
+#+BEGIN_SRC scala
+@typeclass trait Zip[F[_]]  {
+  def zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+
+  def zipWith[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C)
+                      (implicit F: Functor[F]): F[C] = ...
+
+  def ap(implicit F: Functor[F]): Apply[F] = ...
+
+  @op("<*|*>") def apzip[A, B](f: => F[A] => F[B], a: => F[A]): F[(A, B)] = ...
+
+}
+#+END_SRC
+
+The core method is =zip= which is a less powerful version of
+=Divide.tuple2=, and if a =Functor[F]= is provide then =zipWith= can
+behave like =Apply.apply2=. Indeed, an =Apply[F]= can be created from
+a =Zip[F]= and a =Functor[F]= by calling =ap=.
+
+~apzip~ takes an ~F[A]~ and a lifted function from ~F[A] ~> F[B]~,
+producing an ~F[(A, B)]~ similar to ~Functor.fproduct~.
+
+#+BEGIN_ASIDE
+~<*|*>~, creepy Senator Palpatine.
+#+END_ASIDE
+
+#+BEGIN_SRC scala
+@typeclass trait Unzip[F[_]]  {
+  def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+
+  def firsts[A, B](a: F[(A, B)]): F[A] = ...
+  def seconds[A, B](a: F[(A, B)]): F[B] = ...
+
+  def unzip3[A, B, C](x: F[(A, (B, C))]): (F[A], F[B], F[C]) = ...
+  ...
+  def unzip7[A ... H](x: F[(A, (B, ... H))]): ...
+}
+#+END_SRC
+
+The core method is =unzip= with =firsts= and =seconds= allowing for
+selecting either the first or second element of a tuple in the =F=.
+Importantly, =unzip= is the opposite of =zip=.
+
+The methods =unzip3= to =unzip7= are repeated applications of =unzip=
+to save on boilerplate. For example, if handed a bunch of nested
+tuples, the =Unzip[Id]= is a handy way to flatten them:
+
+#+BEGIN_SRC scala
+scala> Unzip[Id].unzip7((1, (2, (3, (4, (5, (6, 7)))))))
+res = (1,2,3,4,5,6,7)
+#+END_SRC
+
+In a nutshell, =Zip= and =Unzip= are less powerful versions of
+=Divide= and =Apply=, providing useful features without requiring the
+=F= to make too many promises.
+
+**** TODO Optional
+**** TODO Associative
+**** TODO Catchable
+**** TODO Resource
+
 # *** TODO Co-things: Cobind, Comonad, ComonadStore, Cozip
 # *** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
 # *** TODO Very Abstract Things
