@@ -5476,12 +5476,15 @@ provide the mechanism to protect against bad legacy systems.
 }
 #+END_SRC
 
-=attempt= makes the JVM =Throwable= an explicit return type that can
-perhaps be mapped into a domain-specific ADT.
+=attempt= will catch any exceptions inside =F[_]= and make the JVM
+=Throwable= an explicit return type that can be mapped into an error
+reporting ADT, or left as an indicator to downstream callers that
+/Here be Dragons/.
 
 =fail= allows us to throw an exception in the =F[_]= context, which is
 bad practice. Exceptions that are raised via =fail= must be later
-handled by =attempt= as it is just as bad as if the underlying
+handled by =attempt= as it is just as bad as calling legacy code that
+throws an exception.
 
 Notably, =Catchable[Id]= cannot be implemented because an =Id[A]=
 cannot exist in a state that can contain an exception. However, there
