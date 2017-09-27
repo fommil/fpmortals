@@ -1902,7 +1902,7 @@ type:
 ## Lone Wolves
 
 Some of the typeclasses in scalaz are stand-alone and not part of the
-larger hierarchy. Some of the concepts here are important 
+larger hierarchy.
 
 {width=100%}
 ![](images/scalaz-loners.png)
@@ -2051,16 +2051,17 @@ provide the mechanism to protect against bad legacy systems.
 reporting ADT, or left as an indicator to downstream callers that
 *Here be Dragons*.
 
-`fail` allows us to throw an exception in the `F[_]` context, which is
-bad practice. Exceptions that are raised via `fail` must be later
-handled by `attempt` as it is just as bad as calling legacy code that
-throws an exception.
+`fail` permits callers to throw an exception in the `F[_]` context
+and, since this breaks purity, will be removed from scalaz. Exceptions
+that are raised via `fail` must be later handled by `attempt` since it
+is just as bad as calling legacy code that throws an exception.
 
-Notably, `Catchable[Id]` cannot be implemented because an `Id[A]`
-cannot exist in a state that can contain an exception. However, there
-are instances for both `scala.concurrent.Future` (asynchronous) and
-`scala.Either` (synchronous), allowing `Catchable` to abstract over
-the unhappy path in both production and test code.
+It is worth noting that `Catchable[Id]` cannot be implemented. An
+`Id[A]` cannot exist in a state that may contain an exception.
+However, there are instances for both `scala.concurrent.Future`
+(asynchronous) and `scala.Either` (synchronous), allowing `Catchable`
+to abstract over the unhappy path. `MonadError`, as we will see in a
+later chapter, is a superior replacement.
 
 
 # What's Next?
