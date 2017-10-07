@@ -2068,6 +2068,61 @@ to abstract over the unhappy path. `MonadError`, as we will see in a
 later chapter, is a superior replacement.
 
 
+## Co-things
+
+A *co-thing* typically has some opposite type signature to whatever
+*thing* does, but is not necessarily its inverse. To highlight the
+relationship between *thing* and *co-thing*, we will include the type
+signature of *thing* wherever we can.
+
+{width=100%}
+![](images/scalaz-cothings.png)
+
+{width=100%}
+![](images/scalaz-coloners.png)
+
+
+### Cobind
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Cobind[F[_]] extends Functor[F] {
+    def cobind[A, B](fa: F[A])(f: F[A] => B): F[B]
+  //def   bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+  
+    def cojoin[A](fa: F[A]): F[F[A]] = ...
+  //def   join[A](ffa: F[F[A]]): F[A] = ...
+  }
+~~~~~~~~
+
+`cobind` (also known as `coflatmap`) takes an *extract* function `F[A]
+=> B` that acts on the entire `F[A]` rather than its elements.
+
+`cojoin` (also known as `coflatten`) is like `.pure` but one layer
+deeper.
+
+Compelling use-cases for `Cobind` are rare. It primarily exists to
+complete the `Functor` permutation table for `F[_]`, `A` and `B`
+
+| method      | parameter          |
+|----------- |------------------ |
+| `map`       | `A => B`           |
+| `contramap` | `B => A`           |
+| `xmap`      | `(A => B, B => A)` |
+| `ap`        | `F[A => B]`        |
+| `bind`      | `A => F[B]`        |
+| `cobind`    | `F[A] => B`        |
+
+
+### Comonad
+
+
+### ComonadStore
+
+
+### Cozip
+
+
 # What's Next?
 
 You've reached the end of this Early Access book. Please check the

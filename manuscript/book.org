@@ -5499,7 +5499,142 @@ However, there are instances for both =scala.concurrent.Future=
 to abstract over the unhappy path. =MonadError=, as we will see in a
 later chapter, is a superior replacement.
 
-# *** TODO Co-things: Cobind, Comonad, ComonadStore, Cozip
+*** Co-things
+
+A /co-thing/ typically has some opposite type signature to whatever
+/thing/ does, but is not necessarily its inverse. To highlight the
+relationship between /thing/ and /co-thing/, we will include the type
+signature of /thing/ wherever we can.
+
+#+BEGIN_SRC dot :file images/scalaz-cothings.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+    node [fontcolor=lightgray,color=lightgray];
+    edge [color=lightgray]
+
+    Bind [fontcolor=lightslategray,color=lightslategray];
+    Apply [fontcolor=lightslategray,color=lightslategray];
+    BindRec [fontcolor=lightslategray,color=lightslategray];
+    Contravariant [fontcolor=lightslategray,color=lightslategray];
+    Functor [fontcolor=lightslategray,color=lightslategray];
+    InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
+    Functor [fontcolor=lightslategray,color=lightslategray];
+    Divide [fontcolor=lightslategray,color=lightslategray];
+    Divisible [fontcolor=lightslategray,color=lightslategray];
+    Apply [fontcolor=lightslategray,color=lightslategray];
+    Applicative [fontcolor=lightslategray,color=lightslategray];
+    Foldable1 [fontcolor=lightslategray,color=lightslategray];
+    Foldable [fontcolor=lightslategray,color=lightslategray];
+    Traverse [fontcolor=lightslategray,color=lightslategray];
+    Traverse1 [fontcolor=lightslategray,color=lightslategray];
+    Monad [fontcolor=lightslategray,color=lightslategray];
+    "Advanced Monads" [style=dashed];
+    Cobind [fontcolor=black,color=black];
+    Comonad [fontcolor=black,color=black];
+    Plus [fontcolor=lightslategray,color=lightslategray];
+    PlusEmpty [fontcolor=lightslategray,color=lightslategray];
+    IsEmpty [fontcolor=lightslategray,color=lightslategray];
+    ApplicativePlus [fontcolor=lightslategray,color=lightslategray];
+    MonadPlus [fontcolor=lightslategray,color=lightslategray];
+    ComonadStore [fontcolor=black,color=black];
+    Align [fontcolor=lightslategray,color=lightslategray];
+
+    Bind -> Apply [color=lightslategray];
+    BindRec -> Bind [color=lightslategray];
+
+    Contravariant -> InvariantFunctor [color=lightslategray];
+    Functor -> InvariantFunctor [color=lightslategray];
+
+    Divide -> Contravariant [color=lightslategray];
+    Divisible -> Divide [color=lightslategray];
+    Apply -> Functor [color=lightslategray];
+    Applicative -> Apply [color=lightslategray];
+
+    Foldable1 -> Foldable [color=lightslategray];
+    Traverse -> Functor [color=lightslategray];
+    Traverse -> Foldable [color=lightslategray];
+    Traverse1 -> Traverse [color=lightslategray];
+    Traverse1 -> Foldable1 [color=lightslategray];
+
+    Monad -> Applicative [color=lightslategray];
+    "Advanced Monads" -> Monad;
+    Monad -> Bind [color=lightslategray];
+ 
+    Cobind -> Functor [color=black];
+    Comonad -> Cobind [color=black];
+
+    PlusEmpty -> Plus [color=lightslategray];
+    IsEmpty -> PlusEmpty [color=lightslategray];
+
+    ApplicativePlus -> Applicative [color=lightslategray];
+    ApplicativePlus -> PlusEmpty [color=lightslategray];
+    MonadPlus -> ApplicativePlus [color=lightslategray];
+    MonadPlus -> Monad [color=lightslategray];
+
+    ComonadStore -> Comonad [color=black];
+
+    Align -> Functor [color=lightslategray];
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/scalaz-cothings.png]]
+
+#+BEGIN_SRC dot :file images/scalaz-coloners.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    Zip [fontcolor=lightslategray,color=lightslategray];
+    Unzip [fontcolor=lightslategray,color=lightslategray];
+    Cozip [fontcolor=black,color=black];
+    Show [fontcolor=lightslategray,color=lightslategray];
+    Optional [fontcolor=lightslategray,color=lightslategray];
+    Associative [fontcolor=lightgray,color=lightgray];
+    Catchable [fontcolor=lightslategray,color=lightslategray];
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/scalaz-coloners.png]]
+
+**** Cobind
+
+#+BEGIN_SRC scala
+@typeclass trait Cobind[F[_]] extends Functor[F] {
+  def cobind[A, B](fa: F[A])(f: F[A] => B): F[B]
+//def   bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+
+  def cojoin[A](fa: F[A]): F[F[A]] = ...
+//def   join[A](ffa: F[F[A]]): F[A] = ...
+}
+#+END_SRC
+
+=cobind= (also known as =coflatmap=) takes an /extract/ function ~F[A]
+=> B~ that acts on the entire =F[A]= rather than its elements.
+
+=cojoin= (also known as =coflatten=) is like =.pure= but one layer
+deeper.
+
+Compelling use-cases for =Cobind= are rare. It primarily exists to
+complete the =Functor= permutation table for =F[_]=, =A= and =B=
+
+| method      | parameter          |
+|-------------+--------------------|
+| ~map~       | ~A => B~           |
+| ~contramap~ | ~B => A~           |
+| ~xmap~      | ~(A => B, B => A)~ |
+| ~ap~        | ~F[A => B]~        |
+| ~bind~      | ~A => F[B]~        |
+| ~cobind~    | ~F[A] => B~        |
+
+**** Comonad
+**** ComonadStore
+**** Cozip
+
 # *** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
 # *** TODO Very Abstract Things
 # Associative, Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
