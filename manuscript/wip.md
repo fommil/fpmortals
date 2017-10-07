@@ -2095,8 +2095,8 @@ signature of *thing* wherever we can.
   }
 ~~~~~~~~
 
-`cobind` (also known as `coflatmap`) takes an *extract* function `F[A]
-=> B` that acts on the entire `F[A]` rather than its elements.
+`cobind` (also known as `coflatmap`) takes an `F[A] => B` that acts on
+the entire `F[A]` rather than its elements.
 
 `cojoin` (also known as `coflatten`) is like `.pure` but one layer
 deeper.
@@ -2116,11 +2116,167 @@ complete the `Functor` permutation table for `F[_]`, `A` and `B`
 
 ### Comonad
 
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Comonad[F[_]] extends Cobind[F] {
+    def copoint[A](p: F[A]): A
+  //def   point[A](a: => A): F[A]
+  }
+~~~~~~~~
+
+`copoint` (also `copure`) unwraps an element from a context. When
+interpreting an FP program, we typically require a `Comonad` to run
+the interpreter inside the `def main` method. For example,
+`Comonad[Future].copoint` will `await` the result of a `Future[A]`,
+returning an `A` (or an exception).
+
+Far more interesting is the `Comonad` of a data structure, which is a
+way to construct a view of all elements alongside their neighbours.
+Consider a *neighbourhood* data structure (`Hood` for short) for an
+list containing all the elements to the left of an element `lefts`,
+the `focus` of the neighbourhood, and all the elements to the `right`.
+
+We will use scalaz data structures `IList` and `Maybe`, instead of
+stdlib `List` and `Option`, to protect us from accidentally calling
+impure methods:
+
+{lang="text"}
+~~~~~~~~
+  final case class Hood[A](lefts: IList[A], focus: A, rights: IList[A])
+~~~~~~~~
+
+The `lefts` and `rights` should each be ordered with the nearest to
+the `focus` at the head, such that we can recover the original `IList`
+via `.toList`
+
+{lang="text"}
+~~~~~~~~
+  object Hood {
+    implicit class Ops[A](hood: Hood[A]) {
+      def toList: IList[A] = hood.lefts.reverse ::: hood.focus :: hood.rights
+  ...
+~~~~~~~~
+
+We can write methods that let us move one space to the left
+(`previous`) and one space to the right (`next`)
+
+{lang="text"}
+~~~~~~~~
+  ...
+      def previous: Maybe[Hood[A]] = hood.lefts match {
+        case INil() => Empty()
+        case ICons(head, tail) =>
+          Just(Hood(tail, head, hood.focus :: hood.rights))
+      }
+      def next: Maybe[Hood[A]] = hood.rights match {
+        case INil() => Empty()
+        case ICons(head, tail) =>
+          Just(Hood(hood.focus :: hood.lefts, head, tail))
+      }
+  ...
+~~~~~~~~
+
+By introducing `iterate` to repeatedly apply an optional function to
+`Hood`
+
+{lang="text"}
+~~~~~~~~
+  ...
+      def iterate(f: Hood[A] => Maybe[Hood[A]]): IList[Hood[A]] =
+        f(hood) match {
+          case Empty() => INil()
+          case Just(r) => ICons(r, r.iterate(f))
+        }
+  ...
+~~~~~~~~
+
+we can calculate *all* the `positions` that `Hood` can take in the list
+
+{lang="text"}
+~~~~~~~~
+  ...
+      def positions: Hood[Hood[A]] = {
+        val left  = hood.iterate(_.previous)
+        val right = hood.iterate(_.next)
+        Hood(left, hood, right)
+      }
+    }
+  ...
+~~~~~~~~
+
+We can now implement `Comonad[Hood]`
+
+{lang="text"}
+~~~~~~~~
+  ...
+    implicit val comonad: Comonad[Hood] = new Comonad[Hood] {
+      def map[A, B](fa: Hood[A])(f: A => B): Hood[B] =
+        Hood(fa.lefts.map(f), f(fa.focus), fa.rights.map(f))
+      def cobind[A, B](fa: Hood[A])(f: Hood[A] => B): Hood[B] =
+        fa.positions.map(f)
+      def copoint[A](fa: Hood[A]): A = fa.focus
+    }
+  }
+~~~~~~~~
+
+and see for ourselves that `cojoin` gives us a `Hood[Hood[IList]]`
+that contains all the neighbourhoods of our initial `IList`
+
+{lang="text"}
+~~~~~~~~
+  scala> val middle = Hood(IList(4, 3, 2, 1), 5, IList(6, 7, 8, 9))
+         println(middle.cojoin)
+  
+  res = Hood(
+          [Hood([3,2,1],4,[5,6,7,8,9]),
+           Hood([2,1],3,[4,5,6,7,8,9]),
+           Hood([1],2,[3,4,5,6,7,8,9]),
+           Hood([],1,[2,3,4,5,6,7,8,9])],
+          Hood([4,3,2,1],5,[6,7,8,9]),
+          [Hood([5,4,3,2,1],6,[7,8,9]),
+           Hood([6,5,4,3,2,1],7,[8,9]),
+           Hood([7,6,5,4,3,2,1],8,[9]),
+           Hood([8,7,6,5,4,3,2,1],9,[])])
+~~~~~~~~
+
+Indeed, `cojoin` is just `positions`! So we can `override` it with
+the more direct implementation
+
+{lang="text"}
+~~~~~~~~
+  override def cojoin[A](fa: Hood[A]): Hood[Hood[A]] = fa.positions
+~~~~~~~~
+
+`Hood` is an example of a *zipper* (unrelated to `Zip` and friends).
+Scalaz comes with a `Zipper` data type for streams (i.e. infinite 1D
+data structures), which we will revisit in the next chapter.
+
+One application of a zipper is for *cellular automata*, which compute
+the value of each cell in the next generation by performing a local
+computation based on the neighbourhood of that cell. Applying the
+
 
 ### ComonadStore
 
+{lang="text"}
+~~~~~~~~
+  @typeclass trait ComonadStore[F[_], S] extends Comonad[F] {
+    def pos[A](w: F[A]): S
+    def peek[A](s: S, w: F[A]): A
+  
+    def peeks[A](s: S => S, w: F[A]): A = ...
+    def seek[A](s: S, w: F[A]): F[A] = ...
+    def seeks[A](s: S => S, w: F[A]): F[A] = ...
+    def experiment[G[_]: Functor, A](s: S => G[S], w: F[A]): G[A] = ...
+  }
+~~~~~~~~
+
+Coming Soon!
+
 
 ### Cozip
+
+Coming Soon!
 
 
 # What's Next?

@@ -1272,7 +1272,7 @@ a GADT:
 {lang="text"}
 ~~~~~~~~
   sealed abstract class IList[A]
-  case object INil extends IList[Nothing]
+  final case class INil[A]() extends IList[A]
   final case class ICons[A](head: A, tail: IList[A]) extends IList[A]
 ~~~~~~~~
 
