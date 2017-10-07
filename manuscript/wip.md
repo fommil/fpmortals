@@ -2153,7 +2153,6 @@ via `.toList`
   object Hood {
     implicit class Ops[A](hood: Hood[A]) {
       def toList: IList[A] = hood.lefts.reverse ::: hood.focus :: hood.rights
-  ...
 ~~~~~~~~
 
 We can write methods that let us move one space to the left
@@ -2172,7 +2171,6 @@ We can write methods that let us move one space to the left
         case ICons(head, tail) =>
           Just(Hood(hood.focus :: hood.lefts, head, tail))
       }
-  ...
 ~~~~~~~~
 
 By introducing `iterate` to repeatedly apply an optional function to
@@ -2186,7 +2184,6 @@ By introducing `iterate` to repeatedly apply an optional function to
           case Empty() => INil()
           case Just(r) => ICons(r, r.iterate(f))
         }
-  ...
 ~~~~~~~~
 
 we can calculate *all* the `positions` that `Hood` can take in the list
@@ -2200,7 +2197,6 @@ we can calculate *all* the `positions` that `Hood` can take in the list
         Hood(left, hood, right)
       }
     }
-  ...
 ~~~~~~~~
 
 We can now implement `Comonad[Hood]`
@@ -2252,7 +2248,7 @@ data structures), which we will revisit in the next chapter.
 
 One application of a zipper is for *cellular automata*, which compute
 the value of each cell in the next generation by performing a local
-computation based on the neighbourhood of that cell. Applying the
+computation based on the neighbourhood of that cell.
 
 
 ### ComonadStore
