@@ -5613,8 +5613,8 @@ digraph G {
 }
 #+END_SRC
 
-=cobind= (also known as =coflatmap=) takes an /extract/ function ~F[A]
-=> B~ that acts on the entire =F[A]= rather than its elements.
+=cobind= (also known as =coflatmap=) takes an ~F[A] => B~ that acts on
+the entire =F[A]= rather than its elements.
 
 =cojoin= (also known as =coflatten=) is like =.pure= but one layer
 deeper.
@@ -5632,7 +5632,60 @@ complete the =Functor= permutation table for =F[_]=, =A= and =B=
 | ~cobind~    | ~F[A] => B~        |
 
 **** Comonad
+
+#+BEGIN_SRC scala
+@typeclass trait Comonad[F[_]] extends Cobind[F] {
+  def copoint[A](p: F[A]): A
+//def   point[A](a: => A): F[A]
+}
+#+END_SRC
+
+=copoint= (also =copure=) unwraps an element from a context. When
+interpreting an FP program, we typically require a =Comonad= to run
+the interpreter inside the =def main= method. For example,
+=Comonad[Future].copoint= will =await= the result of a =Future[A]=,
+returning an =A= (or an exception).
+
+FIXME FIXME FIXME needs a good example
+
+Also, when we see data structures pieced together from lots of small
+but similar computations, we may be dealing with a =Comonad=.
+/Cellular automata/ compute the value of each cell in the next
+generation by performing a local computation based on the
+neighbourhood of that cell, and are comonadic.
+
+
+=cojoin= turns =fa= into a /universe/ of /universes/ where each
+element is a copy of a shifted left or right a number of times
+
+http://blog.sigfpe.com/2006/12/evaluating-cellular-automata-is.html
+
+
 **** ComonadStore
+
+#+BEGIN_SRC scala
+@typeclass trait ComonadStore[F[_], S] extends Comonad[F] {
+  def pos[A](w: F[A]): S
+  def peek[A](s: S, w: F[A]): A
+
+  def peeks[A](s: S => S, w: F[A]): A = ...
+  def seek[A](s: S, w: F[A]): F[A] = ...
+  def seeks[A](s: S => S, w: F[A]): F[A] = ...
+  def experiment[G[_]: Functor, A](s: S => G[S], w: F[A]): G[A] = ...
+}
+#+END_SRC
+
+A =ComonadStore= describes some /test/ that takes a configuration =S=
+and will produce a value of type =A=, where we also have some ambient
+initial configuration of type =S= to start the experiment.
+
+https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/cellular-automata
+
+https://www.slideshare.net/davidoverton/comonad
+
+http://eed3si9n.com/learning-scalaz/Zipper.html
+
+
 **** Cozip
 
 # *** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
