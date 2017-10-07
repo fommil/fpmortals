@@ -253,8 +253,8 @@ blocking. In either case, it's a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
-parent. To do this, we need to use the /higher kinded types/ Scala
-language feature.
+parent. To do this, we need to use the /higher kinded types/ (HKT)
+Scala language feature.
 
 #+BEGIN_ASIDE
 
@@ -3005,7 +3005,7 @@ context =F[_]= can be thought of as a container for an intentional
 effects =F[B]= at runtime based on the results of evaluating previous
 effects.
 
-Of course, not all Higher Kinded Types =F[_]= are effectful, even if
+Of course, not all type constructors =F[_]= are effectful, even if
 they have a =Monad[F]=. Often they are data structures. By using the
 least specific abstraction, we can reuse code for =List=, =Either=,
 =Future= and more.
@@ -3215,6 +3215,12 @@ elements is /idempotent/, i.e. gives the same value. Examples are
 anything that can only be one value, such as =Unit=, least upper
 bounds, or a =Set=. =Band= provides no further methods yet users can
 make use of the guarantees for performance optimisation.
+
+#+BEGIN_ASIDE
+Viktor Klang, of Lightbend fame, lays claim to the phrase
+[[https://twitter.com/viktorklang/status/789036133434978304][effectively-once delivery]] for message processing with idempotent
+operations, i.e. =Band.append=.
+#+END_ASIDE
 
 As a realistic example for =Monoid=, consider a trading system that
 has a large database of reusable trade templates. Creating the default

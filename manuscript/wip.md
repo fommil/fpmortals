@@ -31,7 +31,7 @@ context `F[_]` can be thought of as a container for an intentional
 effects `F[B]` at runtime based on the results of evaluating previous
 effects.
 
-Of course, not all Higher Kinded Types `F[_]` are effectful, even if
+Of course, not all type constructors `F[_]` are effectful, even if
 they have a `Monad[F]`. Often they are data structures. By using the
 least specific abstraction, we can reuse code for `List`, `Either`,
 `Future` and more.
@@ -144,6 +144,10 @@ elements is *idempotent*, i.e. gives the same value. Examples are
 anything that can only be one value, such as `Unit`, least upper
 bounds, or a `Set`. `Band` provides no further methods yet users can
 make use of the guarantees for performance optimisation.
+
+A> Viktor Klang, of Lightbend fame, lays claim to the phrase
+A> [effectively-once delivery](https://twitter.com/viktorklang/status/789036133434978304) for message processing with idempotent
+A> operations, i.e. `Band.append`.
 
 As a realistic example for `Monoid`, consider a trading system that
 has a large database of reusable trade templates. Creating the default

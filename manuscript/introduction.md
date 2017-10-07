@@ -79,8 +79,8 @@ blocking. In either case, it's a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
-parent. To do this, we need to use the *higher kinded types* Scala
-language feature.
+parent. To do this, we need to use the *higher kinded types* (HKT)
+Scala language feature.
 
 A> **Higher Kinded Types** allow us to use a *type constructor* in our type
 A> parameters, which looks like `C[_]`. This is a way of saying that
