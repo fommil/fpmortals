@@ -5616,8 +5616,7 @@ digraph G {
 =cobind= (also known as =coflatmap=) takes an ~F[A] => B~ that acts on
 the entire =F[A]= rather than its elements.
 
-=cojoin= (also known as =coflatten=) is like =.pure= but one layer
-deeper.
+=cojoin= (also known as =coflatten=) expands a data structure.
 
 Compelling use-cases for =Cobind= are rare. It primarily exists to
 complete the =Functor= permutation table for =F[_]=, =A= and =B=
@@ -5648,7 +5647,7 @@ returning an =A= (or an exception).
 
 Far more interesting is the =Comonad= of a data structure, which is a
 way to construct a view of all elements alongside their neighbours.
-Consider a /neighbourhood/ data structure (=Hood= for short) for an
+Consider a /neighbourhood/ data structure (=Hood= for short) for a
 list containing all the elements to the left of an element =lefts=,
 the =focus= of the neighbourhood, and all the elements to the =right=.
 
