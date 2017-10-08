@@ -5377,7 +5377,7 @@ a =Zip[F]= and a =Functor[F]= by calling =ap=.
 producing an ~F[(A, B)]~ similar to ~Functor.fproduct~.
 
 #+BEGIN_ASIDE
-~<*|*>~ is the creepy Elf operator, or Senator Palpatine.
+~<*|*>~ is the creepy Jawa operator.
 #+END_ASIDE
 
 #+BEGIN_SRC scala
@@ -5781,9 +5781,26 @@ Coming Soon!
 
 # https://www.slideshare.net/davidoverton/comonad
 
-**** TODO Cozip
+# https://github.com/scalaz/scalaz/issues/1478
 
-Coming Soon!
+**** Cozip
+
+#+BEGIN_SRC scala
+@typeclass trait Cozip[F[_]] {
+  def cozip[A, B](x: F[A \/ B]): F[A] \/ F[B]
+//def   zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+//def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+
+  def cozip3[A, B, C](x: F[A \/ (B \/ C)]): F[A] \/ (F[B] \/ F[C]) = ...
+  ...
+  def cozip7[A ... H](x: F[(A \/ (... H))]): F[A] \/ (... F[H]) = ...
+}
+#+END_SRC
+
+Although named =cozip=, it is perhaps more appropriate to talk about
+its symmetry with =unzip=. Whereas =unzip= splits =F[_]= of tuples
+(products) into tuples of =F[_]=, =cozip= splits =F[_]= of
+disjunctions (coproducts) into disjunctions of =F[_]=.
 
 # *** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
 # *** TODO Very Abstract Things

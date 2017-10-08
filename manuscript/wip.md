@@ -1937,7 +1937,7 @@ a `Zip[F]` and a `Functor[F]` by calling `ap`.
 `apzip` takes an `F[A]` and a lifted function from `F[A] => F[B]`,
 producing an `F[(A, B)]` similar to `Functor.fproduct`.
 
-A> `<*|*>` is the creepy Elf operator, or Senator Palpatine.
+A> `<*|*>` is the creepy Jawa operator.
 
 {lang="text"}
 ~~~~~~~~
@@ -2267,7 +2267,23 @@ Coming Soon!
 
 ### Cozip
 
-Coming Soon!
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Cozip[F[_]] {
+    def cozip[A, B](x: F[A \/ B]): F[A] \/ F[B]
+  //def   zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+  //def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+  
+    def cozip3[A, B, C](x: F[A \/ (B \/ C)]): F[A] \/ (F[B] \/ F[C]) = ...
+    ...
+    def cozip7[A ... H](x: F[(A \/ (... H))]): F[A] \/ (... F[H]) = ...
+  }
+~~~~~~~~
+
+Although named `cozip`, it is perhaps more appropriate to talk about
+its symmetry with `unzip`. Whereas `unzip` splits `F[_]` of tuples
+(products) into tuples of `F[_]`, `cozip` splits `F[_]` of
+disjunctions (coproducts) into disjunctions of `F[_]`.
 
 
 # What's Next?
