@@ -2247,24 +2247,6 @@ the value of each cell in the next generation by performing a
 computation based on the neighbourhood of that cell.
 
 
-### ComonadStore
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait ComonadStore[F[_], S] extends Comonad[F] {
-    def pos[A](w: F[A]): S
-    def peek[A](s: S, w: F[A]): A
-  
-    def peeks[A](s: S => S, w: F[A]): A = ...
-    def seek[A](s: S, w: F[A]): F[A] = ...
-    def seeks[A](s: S => S, w: F[A]): F[A] = ...
-    def experiment[G[_]: Functor, A](s: S => G[S], w: F[A]): G[A] = ...
-  }
-~~~~~~~~
-
-Coming Soon!
-
-
 ### Cozip
 
 {lang="text"}

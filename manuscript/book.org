@@ -3081,8 +3081,6 @@ digraph G {
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
 
-    ComonadStore -> Comonad;
-
     Align -> Functor;
 }
 #+END_SRC
@@ -3504,7 +3502,6 @@ digraph G {
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    ComonadStore;
     Align [fontcolor=black,color=black];
 
     Bind -> Apply;
@@ -3538,8 +3535,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    ComonadStore -> Comonad;
 
     Align -> Functor [color=black];
 }
@@ -4213,7 +4208,6 @@ digraph G {
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    ComonadStore;
     Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply;
@@ -4247,8 +4241,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    ComonadStore -> Comonad;
 
     Align -> Functor [color=lightslategray];
 }
@@ -4481,7 +4473,6 @@ digraph G {
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    ComonadStore;
     Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=black];
@@ -4515,8 +4506,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    ComonadStore -> Comonad;
 
     Align -> Functor [color=lightslategray];
 }
@@ -4823,7 +4812,6 @@ digraph G {
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    ComonadStore;
     Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
@@ -4857,8 +4845,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    ComonadStore -> Comonad;
 
     Align -> Functor [color=lightslategray];
 }
@@ -5000,7 +4986,6 @@ digraph G {
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    ComonadStore;
     Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
@@ -5034,8 +5019,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    ComonadStore -> Comonad;
 
     Align -> Functor [color=lightslategray];
 }
@@ -5164,7 +5147,6 @@ digraph G {
     IsEmpty [fontcolor=black,color=black];
     ApplicativePlus [fontcolor=black,color=black];
     MonadPlus [fontcolor=black,color=black];
-    ComonadStore;
     Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
@@ -5198,8 +5180,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty [color=black];
     MonadPlus -> ApplicativePlus [color=black];
     MonadPlus -> Monad [color=black];
-
-    ComonadStore -> Comonad;
 
     Align -> Functor [color=lightslategray];
 }
@@ -5538,7 +5518,6 @@ digraph G {
     IsEmpty [fontcolor=lightslategray,color=lightslategray];
     ApplicativePlus [fontcolor=lightslategray,color=lightslategray];
     MonadPlus [fontcolor=lightslategray,color=lightslategray];
-    ComonadStore [fontcolor=black,color=black];
     Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
@@ -5572,8 +5551,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty [color=lightslategray];
     MonadPlus -> ApplicativePlus [color=lightslategray];
     MonadPlus -> Monad [color=lightslategray];
-
-    ComonadStore -> Comonad [color=black];
 
     Align -> Functor [color=lightslategray];
 }
@@ -5756,32 +5733,6 @@ data structures), which we will discuss in the next chapter.
 One application of a zipper is for /cellular automata/, which compute
 the value of each cell in the next generation by performing a
 computation based on the neighbourhood of that cell.
-
-**** TODO ComonadStore
-
-#+BEGIN_SRC scala
-@typeclass trait ComonadStore[F[_], S] extends Comonad[F] {
-  def pos[A](w: F[A]): S
-  def peek[A](s: S, w: F[A]): A
-
-  def peeks[A](s: S => S, w: F[A]): A = ...
-  def seek[A](s: S, w: F[A]): F[A] = ...
-  def seeks[A](s: S => S, w: F[A]): F[A] = ...
-  def experiment[G[_]: Functor, A](s: S => G[S], w: F[A]): G[A] = ...
-}
-#+END_SRC
-
-Coming Soon!
-
-# A =ComonadStore= describes some /test/ that takes a configuration =S=
-# and will produce a value of type =A=, where we also have some ambient
-# initial configuration of type =S= to start the experiment.
-
-# https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/cellular-automata
-
-# https://www.slideshare.net/davidoverton/comonad
-
-# https://github.com/scalaz/scalaz/issues/1478
 
 **** Cozip
 
