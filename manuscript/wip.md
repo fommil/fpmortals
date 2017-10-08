@@ -84,7 +84,7 @@ typeclasses as if simulacrum was used, but note that there are no
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Semigroup[A] {
-    @op("|+|") def append(x: A, y: => A): A
+    @op("|+|") def append(x: A, y: =>A): A
   
     def multiply1(value: F, n: Int): F = ...
   }
@@ -487,8 +487,8 @@ the wild. For the remaining typeclasses, we'll skip the niche methods.
 {lang="text"}
 ~~~~~~~~
   implicit class FunctorOps[F[_]: Functor, A](val self: F[A]) {
-    def as[B](b: => B): F[B] = Functor[F].map(self)(_ => b)
-    def >|[B](b: => B): F[B] = as(b)
+    def as[B](b: =>B): F[B] = Functor[F].map(self)(_ => b)
+    def >|[B](b: =>B): F[B] = as(b)
   }
 ~~~~~~~~
 
@@ -562,7 +562,7 @@ beginning with the abstract methods:
 ~~~~~~~~
   @typeclass trait Foldable[F[_]] {
     def foldMap[A, B: Monoid](fa: F[A])(f: A => B): B
-    def foldRight[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B
+    def foldRight[A, B](fa: F[A], z: =>B)(f: (A, =>B) => B): B
     def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B): B = ...
 ~~~~~~~~
 
@@ -699,7 +699,7 @@ index, including a bunch of other related methods:
 {lang="text"}
 ~~~~~~~~
   def index[A](fa: F[A], i: Int): Option[A] = ...
-  def indexOr[A](fa: F[A], default: => A, i: Int): A = ...
+  def indexOr[A](fa: F[A], default: =>A, i: Int): A = ...
   def length[A](fa: F[A]): Int = ...
   def count[A](fa: F[A]): Int = length(fa)
   def empty[A](fa: F[A]): Boolean = ...
@@ -864,7 +864,7 @@ our application, now you know that `Foldable` is where it came from:
 {lang="text"}
 ~~~~~~~~
   def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)(f: (B, A) => G[B]): G[B] = ...
-  def foldRightM[G[_]: Monad, A, B](fa: F[A], z: => B)(f: (A, => B) => G[B]): G[B] = ...
+  def foldRightM[G[_]: Monad, A, B](fa: F[A], z: =>B)(f: (A, =>B) => G[B]): G[B] = ...
   def foldMapM[G[_]: Monad, A, B: Monoid](fa: F[A])(f: A => G[B]): G[B] = ...
   def findMapM[M[_]: Monad, A, B](fa: F[A])(f: A => M[Option[B]]): M[Option[B]] = ...
   def allM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
@@ -877,7 +877,7 @@ You may also see Curried versions, e.g.
 {lang="text"}
 ~~~~~~~~
   def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
-  def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
+  def foldr[A, B](fa: F[A], z: =>B)(f: A => (=> B) => B): B = ...
   ...
 ~~~~~~~~
 
@@ -1288,7 +1288,7 @@ with `ap`, the function is in the same context as the values.
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Apply[F[_]] extends Functor[F] {
-    @op("<*>") def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
+    @op("<*>") def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B]
   
     def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
     def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
@@ -1427,7 +1427,7 @@ and `apF`, a partially applied syntax for `ap`
 
 {lang="text"}
 ~~~~~~~~
-  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+  def apF[A,B](f: =>F[A => B]): F[A] => F[B] = ...
 ~~~~~~~~
 
 Finally `forever`
@@ -1517,7 +1517,7 @@ A> detail in the next chapter.
 {lang="text"}
 ~~~~~~~~
   implicit class BindOps[F[_]: Bind, A] (val self: F[A]) {
-    def >>[B](b: => F[B]): F[B] = Bind[F].bind(self)(_ => b)
+    def >>[B](b: =>F[B]): F[B] = Bind[F].bind(self)(_ => b)
     def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => f(a).map(_ => a))
   }
 ~~~~~~~~
@@ -1569,8 +1569,8 @@ From a functionality point of view, `Applicative` is `Apply` with a
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Applicative[F[_]] extends Apply[F] {
-    def point[A](a: => A): F[A]
-    def pure[A](a: => A): F[A] = point(a)
+    def point[A](a: =>A): F[A]
+    def pure[A](a: =>A): F[A] = point(a)
   }
   
   @typeclass trait Monad[F[_]] extends Applicative[F] with Bind[F]
@@ -1782,7 +1782,7 @@ the equivalent of `Monoid` (they even have the same laws) whereas
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Plus[F[_]] {
-    @op("<+>") def plus[A](a: F[A], b: => F[A]): F[A]
+    @op("<+>") def plus[A](a: F[A], b: =>F[A]): F[A]
   
     def semigroup[A]: Semigroup[F[A]] = ...
   }
@@ -1917,14 +1917,14 @@ larger hierarchy.
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Zip[F[_]]  {
-    def zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+    def zip[A, B](a: =>F[A], b: =>F[B]): F[(A, B)]
   
-    def zipWith[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C)
+    def zipWith[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C)
                         (implicit F: Functor[F]): F[C] = ...
   
     def ap(implicit F: Functor[F]): Apply[F] = ...
   
-    @op("<*|*>") def apzip[A, B](f: => F[A] => F[B], a: => F[A]): F[(A, B)] = ...
+    @op("<*|*>") def apzip[A, B](f: =>F[A] => F[B], a: =>F[A]): F[(A, B)] = ...
   
   }
 ~~~~~~~~
@@ -1993,8 +1993,8 @@ Recall that `\/` (*disjunction*) is scalaz's improvement of
   @typeclass trait Optional[F[_]] {
     def pextract[B, A](fa: F[A]): F[B] \/ A
   
-    def getOrElse[A](fa: F[A])(default: => A): A = ...
-    def orElse[A](fa: F[A])(alt: => F[A]): F[A] = ...
+    def getOrElse[A](fa: F[A])(default: =>A): A = ...
+    def orElse[A](fa: F[A])(alt: =>F[A]): F[A] = ...
   
     def isDefined[A](fa: F[A]): Boolean = ...
     def nonEmpty[A](fa: F[A]): Boolean = ...
@@ -2011,9 +2011,9 @@ operator to things that have an `Optional`
 {lang="text"}
 ~~~~~~~~
   implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
-    def ?[X](some: => X): Conditional[X] = new Conditional[X](some)
-    final class Conditional[X](some: => X) {
-      def |(none: => X): X = if (Optional[F].isDefined(fa)) some else none
+    def ?[X](some: =>X): Conditional[X] = new Conditional[X](some)
+    final class Conditional[X](some: =>X) {
+      def |(none: =>X): X = if (Optional[F].isDefined(fa)) some else none
     }
   }
 ~~~~~~~~
@@ -2120,7 +2120,7 @@ to argue why any method should be less important than the others:
 ~~~~~~~~
   @typeclass trait Comonad[F[_]] extends Cobind[F] {
     def copoint[A](p: F[A]): A
-  //def   point[A](a: => A): F[A]
+  //def   point[A](a: =>A): F[A]
   }
 ~~~~~~~~
 
@@ -2271,7 +2271,7 @@ Coming Soon!
 ~~~~~~~~
   @typeclass trait Cozip[F[_]] {
     def cozip[A, B](x: F[A \/ B]): F[A] \/ F[B]
-  //def   zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+  //def   zip[A, B](a: =>F[A], b: =>F[B]): F[(A, B)]
   //def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
   
     def cozip3[A, B, C](x: F[A \/ (B \/ C)]): F[A] \/ (F[B] \/ F[C]) = ...
@@ -2284,6 +2284,78 @@ Although named `cozip`, it is perhaps more appropriate to talk about
 its symmetry with `unzip`. Whereas `unzip` splits `F[_]` of tuples
 (products) into tuples of `F[_]`, `cozip` splits `F[_]` of
 disjunctions (coproducts) into disjunctions of `F[_]`.
+
+
+## Bi-things
+
+Sometimes we may find ourselves with a thing with two holes that can
+be mapped over, like `Either` / `Maybe`, and we want to operate on
+both sides. The `Functor` / `Foldable` / `Traverse` typeclasses have
+these bizarro relatives that allow us to map both ways.
+
+{width=20%}
+![](images/scalaz-bithings.png)
+
+
+### Bifunctor
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bifunctor[F[_, _]] {
+    def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D]
+  
+    @op("<-:") def leftMap[A, B, C](fab: F[A, B])(f: A => C): F[C, B] = ...
+    @op(":->") def rightMap[A, B, D](fab: F[A, B])(g: B => D): F[A, D] = ...
+    @op("<:>") def umap[A, B](faa: F[A, A])(f: A => B): F[B, B] = ...
+  
+    def widen[A, B, C >: A, D >: B](fab: F[A, B]): F[C, D] = ...
+  }
+~~~~~~~~
+
+with syntax
+
+{lang="text"}
+~~~~~~~~
+  implicit class BifunctorOps[F[_, _]: Bifunctor, A, B](val self: F[A, B]) {
+    def leftAs[C](c: =>C): F[C, B] = ...
+    def rightAs[C](c: =>C): F[A, C] = ...
+  }
+~~~~~~~~
+
+Coming soon!
+
+
+### Bifoldable
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bifoldable[F[_, _]] {
+    def bifoldMap[A, B, M: Monoid](fa: F[A, B])(f: A => M)(g: B => M): M
+  
+    def bifoldRight[A,B,C](fa: F[A, B], z: =>C)(f: (A, =>C) => C)(g: (B, =>C) => C): C
+    def bifoldLeft[A,B,C](fa: F[A, B], z: C)(f: (C, A) => C)(g: (C, B) => C): C = ...
+  
+    def bifoldMap1[A, B, M: Semigrounp](fa: F[A,B])(f: A => M)(g: B => M): Option[M] = ...
+  }
+~~~~~~~~
+
+Coming soon!
+
+
+### Bitraverse
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bitraverse[F[_, _]] extends Bifunctor[F] with Bifoldable[F] {
+    def bitraverse[G[_]: Applicative, A, B, C, D](fab: F[A, B])
+                                                 (f: A => G[C])
+                                                 (g: B => G[D]): G[F[C, D]]
+  
+    def bisequence[G[_]: Applicative, A, B](x: F[G[A], G[B]]): G[F[A, B]] = ...
+  }
+~~~~~~~~
+
+Coming soon!
 
 
 # What's Next?

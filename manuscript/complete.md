@@ -1306,7 +1306,7 @@ A similar caveat applies to *by name* parameters
 
 {lang="text"}
 ~~~~~~~~
-  final case class UserConfiguration(vip: => Boolean)
+  final case class UserConfiguration(vip: =>Boolean)
 ~~~~~~~~
 
 which are equivalent to functions that take no parameter.

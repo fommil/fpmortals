@@ -46,7 +46,9 @@ that are confusing, they will be important later.
 A computer is not necessary to follow along, although we hope that you
 will gain the confidence to independently study the scalaz source
 code. Some of the more complex code snippets are available with [[https://github.com/fommil/fpmortals/tree/master/src/main/scala/][the
-book's source code]].
+book's source code]] and those who want to play along with exercises are
+encouraged to (re-)implement scalaz (and the example application)
+using the partial descriptions presented in this book.
 
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
 write an FP library in Scala from first principles. Additionally,
@@ -1737,7 +1739,7 @@ can live on an ADT.
 A similar caveat applies to /by name/ parameters
 
 #+BEGIN_SRC scala
-final case class UserConfiguration(vip: => Boolean)
+final case class UserConfiguration(vip: =>Boolean)
 #+END_SRC
 
 which are equivalent to functions that take no parameter.
@@ -3156,7 +3158,7 @@ digraph G {
 
 #+BEGIN_SRC scala
 @typeclass trait Semigroup[A] {
-  @op("|+|") def append(x: A, y: => A): A
+  @op("|+|") def append(x: A, y: =>A): A
 
   def multiply1(value: F, n: Int): F = ...
 }
@@ -3629,8 +3631,8 @@ the wild. For the remaining typeclasses, we'll skip the niche methods.
 
 #+BEGIN_SRC scala
 implicit class FunctorOps[F[_]: Functor, A](val self: F[A]) {
-  def as[B](b: => B): F[B] = Functor[F].map(self)(_ => b)
-  def >|[B](b: => B): F[B] = as(b)
+  def as[B](b: =>B): F[B] = Functor[F].map(self)(_ => b)
+  def >|[B](b: =>B): F[B] = as(b)
 }
 #+END_SRC
 
@@ -3697,7 +3699,7 @@ beginning with the abstract methods:
 #+BEGIN_SRC scala
 @typeclass trait Foldable[F[_]] {
   def foldMap[A, B: Monoid](fa: F[A])(f: A => B): B
-  def foldRight[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B
+  def foldRight[A, B](fa: F[A], z: =>B)(f: (A, =>B) => B): B
   def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B): B = ...
 #+END_SRC
 
@@ -3827,7 +3829,7 @@ index, including a bunch of other related methods:
 
 #+BEGIN_SRC scala
   def index[A](fa: F[A], i: Int): Option[A] = ...
-  def indexOr[A](fa: F[A], default: => A, i: Int): A = ...
+  def indexOr[A](fa: F[A], default: =>A, i: Int): A = ...
   def length[A](fa: F[A]): Int = ...
   def count[A](fa: F[A]): Int = length(fa)
   def empty[A](fa: F[A]): Boolean = ...
@@ -3985,7 +3987,7 @@ our application, now you know that =Foldable= is where it came from:
 
 #+BEGIN_SRC scala
 def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)(f: (B, A) => G[B]): G[B] = ...
-def foldRightM[G[_]: Monad, A, B](fa: F[A], z: => B)(f: (A, => B) => G[B]): G[B] = ...
+def foldRightM[G[_]: Monad, A, B](fa: F[A], z: =>B)(f: (A, =>B) => G[B]): G[B] = ...
 def foldMapM[G[_]: Monad, A, B: Monoid](fa: F[A])(f: A => G[B]): G[B] = ...
 def findMapM[M[_]: Monad, A, B](fa: F[A])(f: A => M[Option[B]]): M[Option[B]] = ...
 def allM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
@@ -3997,7 +3999,7 @@ You may also see Curried versions, e.g.
 
 #+BEGIN_SRC scala
 def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
-def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = ...
+def foldr[A, B](fa: F[A], z: =>B)(f: A => (=> B) => B): B = ...
 ...
 #+END_SRC
 
@@ -4532,7 +4534,7 @@ with =ap=, the function is in the same context as the values.
 
 #+BEGIN_SRC scala
 @typeclass trait Apply[F[_]] extends Functor[F] {
-  @op("<*>") def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
+  @op("<*>") def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B]
 
   def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
   def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
@@ -4662,7 +4664,7 @@ along with =lift= methods that take normal functions and lift them into the
 and =apF=, a partially applied syntax for =ap=
 
 #+BEGIN_SRC scala
-  def apF[A,B](f: => F[A => B]): F[A] => F[B] = ...
+  def apF[A,B](f: =>F[A => B]): F[A] => F[B] = ...
 #+END_SRC
 
 Finally =forever=
@@ -4747,7 +4749,7 @@ detail in the next chapter.
 
 #+BEGIN_SRC scala
 implicit class BindOps[F[_]: Bind, A] (val self: F[A]) {
-  def >>[B](b: => F[B]): F[B] = Bind[F].bind(self)(_ => b)
+  def >>[B](b: =>F[B]): F[B] = Bind[F].bind(self)(_ => b)
   def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => f(a).map(_ => a))
 }
 #+END_SRC
@@ -4868,8 +4870,8 @@ digraph G {
 
 #+BEGIN_SRC scala
 @typeclass trait Applicative[F[_]] extends Apply[F] {
-  def point[A](a: => A): F[A]
-  def pure[A](a: => A): F[A] = point(a)
+  def point[A](a: =>A): F[A]
+  def pure[A](a: =>A): F[A] = point(a)
 }
 
 @typeclass trait Monad[F[_]] extends Applicative[F] with Bind[F]
@@ -5213,7 +5215,7 @@ the equivalent of =Monoid= (they even have the same laws) whereas
 
 #+BEGIN_SRC scala
 @typeclass trait Plus[F[_]] {
-  @op("<+>") def plus[A](a: F[A], b: => F[A]): F[A]
+  @op("<+>") def plus[A](a: F[A], b: =>F[A]): F[A]
 
   def semigroup[A]: Semigroup[F[A]] = ...
 }
@@ -5356,14 +5358,14 @@ digraph G {
 
 #+BEGIN_SRC scala
 @typeclass trait Zip[F[_]]  {
-  def zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+  def zip[A, B](a: =>F[A], b: =>F[B]): F[(A, B)]
 
-  def zipWith[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C)
+  def zipWith[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C)
                       (implicit F: Functor[F]): F[C] = ...
 
   def ap(implicit F: Functor[F]): Apply[F] = ...
 
-  @op("<*|*>") def apzip[A, B](f: => F[A] => F[B], a: => F[A]): F[(A, B)] = ...
+  @op("<*|*>") def apzip[A, B](f: =>F[A] => F[B], a: =>F[A]): F[(A, B)] = ...
 
 }
 #+END_SRC
@@ -5429,8 +5431,8 @@ final case class Just[A](a: A) extends Maybe[A]
 @typeclass trait Optional[F[_]] {
   def pextract[B, A](fa: F[A]): F[B] \/ A
 
-  def getOrElse[A](fa: F[A])(default: => A): A = ...
-  def orElse[A](fa: F[A])(alt: => F[A]): F[A] = ...
+  def getOrElse[A](fa: F[A])(default: =>A): A = ...
+  def orElse[A](fa: F[A])(alt: =>F[A]): F[A] = ...
 
   def isDefined[A](fa: F[A]): Boolean = ...
   def nonEmpty[A](fa: F[A]): Boolean = ...
@@ -5446,9 +5448,9 @@ operator to things that have an =Optional=
 
 #+BEGIN_SRC scala
 implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
-  def ?[X](some: => X): Conditional[X] = new Conditional[X](some)
-  final class Conditional[X](some: => X) {
-    def |(none: => X): X = if (Optional[F].isDefined(fa)) some else none
+  def ?[X](some: =>X): Conditional[X] = new Conditional[X](some)
+  final class Conditional[X](some: =>X) {
+    def |(none: =>X): X = if (Optional[F].isDefined(fa)) some else none
   }
 }
 #+END_SRC
@@ -5636,7 +5638,7 @@ to argue why any method should be less important than the others:
 #+BEGIN_SRC scala
 @typeclass trait Comonad[F[_]] extends Cobind[F] {
   def copoint[A](p: F[A]): A
-//def   point[A](a: => A): F[A]
+//def   point[A](a: =>A): F[A]
 }
 #+END_SRC
 
@@ -5788,7 +5790,7 @@ Coming Soon!
 #+BEGIN_SRC scala
 @typeclass trait Cozip[F[_]] {
   def cozip[A, B](x: F[A \/ B]): F[A] \/ F[B]
-//def   zip[A, B](a: => F[A], b: => F[B]): F[(A, B)]
+//def   zip[A, B](a: =>F[A], b: =>F[B]): F[(A, B)]
 //def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
 
   def cozip3[A, B, C](x: F[A \/ (B \/ C)]): F[A] \/ (F[B] \/ F[C]) = ...
@@ -5802,7 +5804,81 @@ its symmetry with =unzip=. Whereas =unzip= splits =F[_]= of tuples
 (products) into tuples of =F[_]=, =cozip= splits =F[_]= of
 disjunctions (coproducts) into disjunctions of =F[_]=.
 
-# *** TODO Bi-things: Bifunctor, Bifoldable, Bitraverse
+*** TODO Bi-things
+
+Sometimes we may find ourselves with a thing with two holes that can
+be mapped over, like =Either= / =Maybe=, and we want to operate on
+both sides. The =Functor= / =Foldable= / =Traverse= typeclasses have
+these bizarro relatives that allow us to map both ways.
+
+#+BEGIN_SRC dot :file images/scalaz-bithings.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    Bitraverse -> Bifunctor;
+    Bitraverse -> Bifoldable;
+}
+#+END_SRC
+
+#+CAPTION: 20
+#+RESULTS:
+[[file:images/scalaz-bithings.png]]
+
+**** TODO Bifunctor
+
+#+BEGIN_SRC scala
+@typeclass trait Bifunctor[F[_, _]] {
+  def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D]
+
+  @op("<-:") def leftMap[A, B, C](fab: F[A, B])(f: A => C): F[C, B] = ...
+  @op(":->") def rightMap[A, B, D](fab: F[A, B])(g: B => D): F[A, D] = ...
+  @op("<:>") def umap[A, B](faa: F[A, A])(f: A => B): F[B, B] = ...
+
+  def widen[A, B, C >: A, D >: B](fab: F[A, B]): F[C, D] = ...
+}
+#+END_SRC
+
+with syntax
+
+#+BEGIN_SRC scala
+implicit class BifunctorOps[F[_, _]: Bifunctor, A, B](val self: F[A, B]) {
+  def leftAs[C](c: =>C): F[C, B] = ...
+  def rightAs[C](c: =>C): F[A, C] = ...
+}
+#+END_SRC
+
+Coming soon!
+
+**** TODO Bifoldable
+
+#+BEGIN_SRC scala
+@typeclass trait Bifoldable[F[_, _]] {
+  def bifoldMap[A, B, M: Monoid](fa: F[A, B])(f: A => M)(g: B => M): M
+
+  def bifoldRight[A,B,C](fa: F[A, B], z: =>C)(f: (A, =>C) => C)(g: (B, =>C) => C): C
+  def bifoldLeft[A,B,C](fa: F[A, B], z: C)(f: (C, A) => C)(g: (C, B) => C): C = ...
+
+  def bifoldMap1[A, B, M: Semigrounp](fa: F[A,B])(f: A => M)(g: B => M): Option[M] = ...
+}
+#+END_SRC
+
+Coming soon!
+
+**** TODO Bitraverse
+
+#+BEGIN_SRC scala
+@typeclass trait Bitraverse[F[_, _]] extends Bifunctor[F] with Bifoldable[F] {
+  def bitraverse[G[_]: Applicative, A, B, C, D](fab: F[A, B])
+                                               (f: A => G[C])
+                                               (g: B => G[D]): G[F[C, D]]
+
+  def bisequence[G[_]: Applicative, A, B](x: F[G[A], G[B]]): G[F[A, B]] = ...
+}
+#+END_SRC
+
+Coming soon!
+
 # *** TODO Very Abstract Things
 # Associative, Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
 

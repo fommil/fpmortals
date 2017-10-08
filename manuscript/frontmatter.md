@@ -30,7 +30,9 @@ that are confusing, they will be important later.
 A computer is not necessary to follow along, although we hope that you
 will gain the confidence to independently study the scalaz source
 code. Some of the more complex code snippets are available with [the
-book's source code](https://github.com/fommil/fpmortals/tree/master/src/main/scala/).
+book's source code](https://github.com/fommil/fpmortals/tree/master/src/main/scala/) and those who want to play along with exercises are
+encouraged to (re-)implement scalaz (and the example application)
+using the partial descriptions presented in this book.
 
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
 write an FP library in Scala from first principles. Additionally,
