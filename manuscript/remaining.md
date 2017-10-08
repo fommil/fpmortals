@@ -121,7 +121,7 @@ Instead, the ability to upcast is provided by `Functor`:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait Functor[F[_]] extends Invariant[F] {
+  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
     def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = ...
     ...
   }
@@ -210,6 +210,8 @@ Maybe leave until after typeclasses
 
 You have to know things like Advanced Monads in order to be
 an advanced functional programmer.
+
+incl ComonadStore
 
 incl monad transformers
 

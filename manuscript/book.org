@@ -3046,6 +3046,34 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
+    Cobind;
+    Comonad;
+    Bind;
+    BindRec;
+    Contravariant;
+    Functor;
+    InvariantFunctor;
+    Functor;
+    Divide;
+    Divisible;
+    Apply;
+    Align;
+    Applicative;
+    Foldable1;
+    Foldable;
+    Traverse;
+    Traverse1;
+    Monad;
+    "Advanced Monads" [style=dashed];
+    Plus;
+    PlusEmpty;
+    IsEmpty;
+    ApplicativePlus;
+    MonadPlus;
+
+    Cobind -> Functor;
+    Comonad -> Cobind;
+
     Bind -> Apply;
     BindRec -> Bind;
 
@@ -3063,15 +3091,14 @@ digraph G {
     Traverse1 -> Traverse;
     Traverse1 -> Foldable1;
 
+    Align -> Functor;
+
     Monad -> Applicative;
 
     "Advanced Monads" [style=dashed];
     "Advanced Monads" -> Monad;
 
     Monad -> Bind;
-
-    Cobind -> Functor;
-    Comonad -> Cobind;
 
     PlusEmpty -> Plus;
     IsEmpty -> PlusEmpty;
@@ -3081,7 +3108,6 @@ digraph G {
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
 
-    Align -> Functor;
 }
 #+END_SRC
 
@@ -3133,7 +3159,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 100
+#+CAPTION: 80
 #+RESULTS:
 [[file:images/scalaz-core-loners.png]]
 
@@ -3478,8 +3504,9 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind;
+    Comonad;
     Bind;
-    Apply;
     BindRec;
     Contravariant;
     Functor [fontcolor=black,color=black];
@@ -3488,6 +3515,7 @@ digraph G {
     Divide;
     Divisible;
     Apply;
+    Align [fontcolor=black,color=black];
     Applicative;
     Foldable1 [fontcolor=black,color=black];
     Foldable [fontcolor=black,color=black];
@@ -3495,14 +3523,14 @@ digraph G {
     Traverse1 [fontcolor=black,color=black];
     Monad;
     "Advanced Monads" [style=dashed];
-    Cobind;
-    Comonad;
     Plus;
     PlusEmpty;
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    Align [fontcolor=black,color=black];
+
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
     Bind -> Apply;
     BindRec -> Bind;
@@ -3515,6 +3543,8 @@ digraph G {
     Apply -> Functor;
     Applicative -> Apply;
 
+    Align -> Functor [color=black]; 
+
     Foldable1 -> Foldable [color=black];
     Traverse -> Functor [color=black];
     Traverse -> Foldable [color=black];
@@ -3524,9 +3554,6 @@ digraph G {
     Monad -> Applicative;
     "Advanced Monads" -> Monad;
     Monad -> Bind;
- 
-    Cobind -> Functor;
-    Comonad -> Cobind;
 
     PlusEmpty -> Plus;
     IsEmpty -> PlusEmpty;
@@ -3536,7 +3563,6 @@ digraph G {
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
 
-    Align -> Functor [color=black];
 }
 #+END_SRC
 
@@ -4184,6 +4210,8 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind;
+    Comonad;
     Bind;
     Apply;
     BindRec;
@@ -4194,6 +4222,7 @@ digraph G {
     Divide;
     Divisible;
     Apply;
+    Align [fontcolor=lightslategray,color=lightslategray];
     Applicative;
     Foldable1 [fontcolor=lightslategray,color=lightslategray];
     Foldable [fontcolor=lightslategray,color=lightslategray];
@@ -4201,14 +4230,14 @@ digraph G {
     Traverse1 [fontcolor=lightslategray,color=lightslategray];
     Monad;
     "Advanced Monads" [style=dashed];
-    Cobind;
-    Comonad;
     Plus;
     PlusEmpty;
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    Align [fontcolor=lightslategray,color=lightslategray];
+
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
     Bind -> Apply;
     BindRec -> Bind;
@@ -4221,6 +4250,8 @@ digraph G {
     Apply -> Functor;
     Applicative -> Apply;
 
+    Align -> Functor [color=lightslategray];
+
     Foldable1 -> Foldable [color=lightslategray];
     Traverse -> Functor [color=lightslategray];
     Traverse -> Foldable [color=lightslategray];
@@ -4231,9 +4262,6 @@ digraph G {
     "Advanced Monads" -> Monad;
     Monad -> Bind;
  
-    Cobind -> Functor;
-    Comonad -> Cobind;
-
     PlusEmpty -> Plus;
     IsEmpty -> PlusEmpty;
 
@@ -4241,8 +4269,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    Align -> Functor [color=lightslategray];
 }
 #+END_SRC
 
@@ -4406,12 +4432,12 @@ signatures. There are many permutations of =compose= on most
 typeclasses, we will not list them all.
 
 #+BEGIN_SRC scala
-@typeclass trait Functor[F[_]] extends Invariant[F] {
+@typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
   def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
   def icompose[G[_]: Contravariant]: Contravariant[λ[α => F[G[α]]]] = ...
   ...
 }
-@typeclass trait Contravariant[F[_]] extends Invariant[F] {
+@typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
   def compose[G[_]: Contravariant]: Functor[λ[α => F[G[α]]]] = ...
   def icompose[G[_]: Functor]: Contravariant[λ[α => F[G[α]]]] = ...
   ...
@@ -4449,6 +4475,8 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind;
+    Comonad;
     Bind [fontcolor=black,color=black];
     Apply [fontcolor=black,color=black];
     BindRec [fontcolor=black,color=black];
@@ -4459,6 +4487,7 @@ digraph G {
     Divide;
     Divisible;
     Apply;
+    Align [fontcolor=lightslategray,color=lightslategray];
     Applicative;
     Foldable1 [fontcolor=lightslategray,color=lightslategray];
     Foldable [fontcolor=lightslategray,color=lightslategray];
@@ -4466,14 +4495,14 @@ digraph G {
     Traverse1 [fontcolor=lightslategray,color=lightslategray];
     Monad;
     "Advanced Monads" [style=dashed];
-    Cobind;
-    Comonad;
     Plus;
     PlusEmpty;
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    Align [fontcolor=lightslategray,color=lightslategray];
+
+    Cobind -> Functor;
+    Comonad -> Cobind;
 
     Bind -> Apply [color=black];
     BindRec -> Bind [color=black];
@@ -4486,6 +4515,8 @@ digraph G {
     Apply -> Functor [color=black];
     Applicative -> Apply;
 
+    Align -> Functor [color=lightslategray];
+
     Foldable1 -> Foldable [color=lightslategray];
     Traverse -> Functor [color=lightslategray];
     Traverse -> Foldable [color=lightslategray];
@@ -4496,9 +4527,6 @@ digraph G {
     "Advanced Monads" -> Monad;
     Monad -> Bind;
  
-    Cobind -> Functor;
-    Comonad -> Cobind;
-
     PlusEmpty -> Plus;
     IsEmpty -> PlusEmpty;
 
@@ -4506,8 +4534,6 @@ digraph G {
     ApplicativePlus -> PlusEmpty;
     MonadPlus -> ApplicativePlus;
     MonadPlus -> Monad;
-
-    Align -> Functor [color=lightslategray];
 }
 #+END_SRC
 
@@ -4788,6 +4814,8 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind;
+    Comonad;
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
     BindRec [fontcolor=lightslategray,color=lightslategray];
@@ -4798,6 +4826,7 @@ digraph G {
     Divide;
     Divisible;
     Apply;
+    Align [fontcolor=lightslategray,color=lightslategray];
     Applicative [fontcolor=black,color=black];
     Foldable1 [fontcolor=lightslategray,color=lightslategray];
     Foldable [fontcolor=lightslategray,color=lightslategray];
@@ -4805,14 +4834,11 @@ digraph G {
     Traverse1 [fontcolor=lightslategray,color=lightslategray];
     Monad [fontcolor=black,color=black];
     "Advanced Monads" [style=dashed];
-    Cobind;
-    Comonad;
     Plus;
     PlusEmpty;
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
     BindRec -> Bind [color=lightslategray];
@@ -4962,6 +4988,8 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind;
+    Comonad;
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
     BindRec [fontcolor=lightslategray,color=lightslategray];
@@ -4972,6 +5000,7 @@ digraph G {
     Divide [fontcolor=black,color=black];
     Divisible [fontcolor=black,color=black];
     Apply;
+    Align [fontcolor=lightslategray,color=lightslategray];
     Applicative [fontcolor=lightslategray,color=lightslategray];
     Foldable1 [fontcolor=lightslategray,color=lightslategray];
     Foldable [fontcolor=lightslategray,color=lightslategray];
@@ -4979,14 +5008,11 @@ digraph G {
     Traverse1 [fontcolor=lightslategray,color=lightslategray];
     Monad [fontcolor=lightslategray,color=lightslategray];
     "Advanced Monads" [style=dashed];
-    Cobind;
-    Comonad;
     Plus;
     PlusEmpty;
     IsEmpty;
     ApplicativePlus;
     MonadPlus;
-    Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
     BindRec -> Bind [color=lightslategray];
@@ -5123,6 +5149,8 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind;
+    Comonad;
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
     BindRec [fontcolor=lightslategray,color=lightslategray];
@@ -5133,6 +5161,7 @@ digraph G {
     Divide [fontcolor=lightslategray,color=lightslategray];
     Divisible [fontcolor=lightslategray,color=lightslategray];
     Apply;
+    Align [fontcolor=lightslategray,color=lightslategray];
     Applicative [fontcolor=lightslategray,color=lightslategray];
     Foldable1 [fontcolor=lightslategray,color=lightslategray];
     Foldable [fontcolor=lightslategray,color=lightslategray];
@@ -5140,14 +5169,11 @@ digraph G {
     Traverse1 [fontcolor=lightslategray,color=lightslategray];
     Monad [fontcolor=lightslategray,color=lightslategray];
     "Advanced Monads" [style=dashed];
-    Cobind;
-    Comonad;
     Plus [fontcolor=black,color=black];
     PlusEmpty [fontcolor=black,color=black];
     IsEmpty [fontcolor=black,color=black];
     ApplicativePlus [fontcolor=black,color=black];
     MonadPlus [fontcolor=black,color=black];
-    Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
     BindRec -> Bind [color=lightslategray];
@@ -5329,7 +5355,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 100
+#+CAPTION: 80
 #+RESULTS:
 [[file:images/scalaz-loners.png]]
 
@@ -5494,6 +5520,8 @@ digraph G {
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
 
+    Cobind [fontcolor=black,color=black];
+    Comonad [fontcolor=black,color=black];
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
     BindRec [fontcolor=lightslategray,color=lightslategray];
@@ -5504,6 +5532,7 @@ digraph G {
     Divide [fontcolor=lightslategray,color=lightslategray];
     Divisible [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
+    Align [fontcolor=lightslategray,color=lightslategray];
     Applicative [fontcolor=lightslategray,color=lightslategray];
     Foldable1 [fontcolor=lightslategray,color=lightslategray];
     Foldable [fontcolor=lightslategray,color=lightslategray];
@@ -5511,14 +5540,11 @@ digraph G {
     Traverse1 [fontcolor=lightslategray,color=lightslategray];
     Monad [fontcolor=lightslategray,color=lightslategray];
     "Advanced Monads" [style=dashed];
-    Cobind [fontcolor=black,color=black];
-    Comonad [fontcolor=black,color=black];
     Plus [fontcolor=lightslategray,color=lightslategray];
     PlusEmpty [fontcolor=lightslategray,color=lightslategray];
     IsEmpty [fontcolor=lightslategray,color=lightslategray];
     ApplicativePlus [fontcolor=lightslategray,color=lightslategray];
     MonadPlus [fontcolor=lightslategray,color=lightslategray];
-    Align [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
     BindRec -> Bind [color=lightslategray];
@@ -5574,7 +5600,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 100
+#+CAPTION: 80
 #+RESULTS:
 [[file:images/scalaz-coloners.png]]
 
@@ -6010,7 +6036,7 @@ this very reason.
 Instead, the ability to upcast is provided by =Functor=:
 
 #+BEGIN_SRC scala
-@typeclass trait Functor[F[_]] extends Invariant[F] {
+@typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
   def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = ...
   ...
 }

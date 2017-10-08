@@ -72,7 +72,7 @@ typeclasses as if simulacrum was used, but note that there are no
 {width=100%}
 ![](images/scalaz-core-cliques.png)
 
-{width=100%}
+{width=80%}
 ![](images/scalaz-core-loners.png)
 
 
@@ -1237,12 +1237,12 @@ typeclasses, we will not list them all.
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait Functor[F[_]] extends Invariant[F] {
+  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
     def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
     def icompose[G[_]: Contravariant]: Contravariant[λ[α => F[G[α]]]] = ...
     ...
   }
-  @typeclass trait Contravariant[F[_]] extends Invariant[F] {
+  @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
     def compose[G[_]: Contravariant]: Functor[λ[α => F[G[α]]]] = ...
     def icompose[G[_]: Functor]: Contravariant[λ[α => F[G[α]]]] = ...
     ...
@@ -1908,7 +1908,7 @@ type:
 Some of the typeclasses in scalaz are stand-alone and not part of the
 larger hierarchy.
 
-{width=100%}
+{width=80%}
 ![](images/scalaz-loners.png)
 
 
@@ -2078,7 +2078,7 @@ signature of *thing* wherever we can.
 {width=100%}
 ![](images/scalaz-cothings.png)
 
-{width=100%}
+{width=80%}
 ![](images/scalaz-coloners.png)
 
 
