@@ -2288,16 +2288,16 @@ disjunctions (coproducts) into disjunctions of `F[_]`.
 
 ## Bi-things
 
-Sometimes we may find ourselves with a thing with two holes that can
-be mapped over, like `Either` / `Maybe`, and we want to operate on
-both sides. The `Functor` / `Foldable` / `Traverse` typeclasses have
-these bizarro relatives that allow us to map both ways.
+Sometimes we may find ourselves with a thing that has two type holes
+and we want to `map` over both sides. For example we might be tracking
+failures in the left of an `Either` and we want to do something with the
+failure messages.
+
+The `Functor` / `Foldable` / `Traverse` typeclasses have bizarro
+relatives that allow us to map both ways.
 
 {width=30%}
 ![](images/scalaz-bithings.png)
-
-
-### Bifunctor
 
 {lang="text"}
 ~~~~~~~~
@@ -2310,25 +2310,7 @@ these bizarro relatives that allow us to map both ways.
   
     def widen[A, B, C >: A, D >: B](fab: F[A, B]): F[C, D] = ...
   }
-~~~~~~~~
-
-with syntax
-
-{lang="text"}
-~~~~~~~~
-  implicit class BifunctorOps[F[_, _]: Bifunctor, A, B](val self: F[A, B]) {
-    def leftAs[C](c: =>C): F[C, B] = ...
-    def rightAs[C](c: =>C): F[A, C] = ...
-  }
-~~~~~~~~
-
-Coming soon!
-
-
-### Bifoldable
-
-{lang="text"}
-~~~~~~~~
+  
   @typeclass trait Bifoldable[F[_, _]] {
     def bifoldMap[A, B, M: Monoid](fa: F[A, B])(f: A => M)(g: B => M): M
   
@@ -2337,15 +2319,7 @@ Coming soon!
   
     def bifoldMap1[A, B, M: Semigroup](fa: F[A,B])(f: A => M)(g: B => M): Option[M] = ...
   }
-~~~~~~~~
-
-Coming soon!
-
-
-### Bitraverse
-
-{lang="text"}
-~~~~~~~~
+  
   @typeclass trait Bitraverse[F[_, _]] extends Bifunctor[F] with Bifoldable[F] {
     def bitraverse[G[_]: Applicative, A, B, C, D](fab: F[A, B])
                                                  (f: A => G[C])
@@ -2355,7 +2329,48 @@ Coming soon!
   }
 ~~~~~~~~
 
-Coming soon!
+A> `<-:` and `:->` are the happy operators!
+
+Although the type signatures are verbose, these are nothing more than
+the core methods of `Functor`, `Foldable` and `Bitraverse` taking two
+functions instead of one, often requiring both functions to return the
+same type so that their results can be combined with a `Monoid` or
+`Semigroup`.
+
+{lang="text"}
+~~~~~~~~
+  scala> (Right(13): Either[String, Int]).bimap(_.toUpperCase, _ * 2)
+  res: Either[String, Int] = Right(26)
+  
+  scala> (Left("fail"): Either[String, Int]).bimap(_.toUpperCase, _ * 2)
+  res: Either[String, Int] = Left(FAIL)
+  
+  scala> (Right(13): Either[String, Int]) :-> (_ * 2)
+  res: Either[String,Int] = Right(26)
+  
+  scala> (Left("fail"): Either[String, Int]) :-> (_ * 2)
+  res: Either[String, Int] = Left(fail)
+  
+  scala> {s: String => s.length} <-: (Left("fail"): Either[String, Int])
+  res: Either[Int, Int] = Left(4)
+  
+  scala> (Left("fail"): Either[String, Int]).bifoldMap(_.length)(identity)
+  res: Int = 4
+  
+  scala> (Right(13): Either[String, Int]).bitraverse(s => Future(s.length), i => Future(i))
+  res: Future[Either[Int, Int]] = Future(<not completed>)
+~~~~~~~~
+
+
+## Very Abstract Things
+
+What remains of the typeclass hierarchy are things that allow us to
+meta-reason about functional programming and scalaz. We are not going
+to discuss these yet as they deserve a full chapter on Category Theory
+and are not needed in typical FP applications.
+
+{width=60%}
+![](images/scalaz-abstract.png)
 
 
 # What's Next?
@@ -2365,16 +2380,15 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
--   Scalaz Typeclasses (completed)
 -   Scalaz Data Types
 -   Scalaz Advanced Monads
 -   Scalaz Utilities
--   Functional Streams
--   Type Refinement
 -   Generic Derivation
+-   Optics
+-   Type Refinement
 -   Recursion Schemes
 -   Dependent Types
--   Optics
+-   Functional Streams
 -   Category Theory
 
 while continuing to build out the example application.

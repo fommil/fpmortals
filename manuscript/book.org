@@ -3113,6 +3113,7 @@ digraph G {
     Arrow -> Split;
     Arrow -> Strong;
     Arrow -> Category;
+    Associative;
 }
 #+END_SRC
 
@@ -3130,7 +3131,6 @@ digraph G {
     Cozip;
     Show;
     Optional;
-    Associative;
     Catchable;
 }
 #+END_SRC
@@ -5345,7 +5345,6 @@ digraph G {
     Cozip [fontcolor=lightgray,color=lightgray];
     Show [fontcolor=lightslategray,color=lightslategray];
     Optional;
-    Associative [fontcolor=lightgray,color=lightgray];
     Catchable;
 }
 #+END_SRC
@@ -5594,7 +5593,6 @@ digraph G {
     Cozip [fontcolor=black,color=black];
     Show [fontcolor=lightslategray,color=lightslategray];
     Optional [fontcolor=lightslategray,color=lightslategray];
-    Associative [fontcolor=lightgray,color=lightgray];
     Catchable [fontcolor=lightslategray,color=lightslategray];
 }
 #+END_SRC
@@ -5804,12 +5802,15 @@ its symmetry with =unzip=. Whereas =unzip= splits =F[_]= of tuples
 (products) into tuples of =F[_]=, =cozip= splits =F[_]= of
 disjunctions (coproducts) into disjunctions of =F[_]=.
 
-*** TODO Bi-things
+*** Bi-things
 
-Sometimes we may find ourselves with a thing with two holes that can
-be mapped over, like =Either= / =Maybe=, and we want to operate on
-both sides. The =Functor= / =Foldable= / =Traverse= typeclasses have
-these bizarro relatives that allow us to map both ways.
+Sometimes we may find ourselves with a thing that has two type holes
+and we want to =map= over both sides. For example we might be tracking
+failures in the left of an =Either= and we want to do something with the
+failure messages.
+
+The =Functor= / =Foldable= / =Traverse= typeclasses have bizarro
+relatives that allow us to map both ways.
 
 #+BEGIN_SRC dot :file images/scalaz-bithings.png :exports results
 digraph G {
@@ -5825,8 +5826,6 @@ digraph G {
 #+RESULTS:
 [[file:images/scalaz-bithings.png]]
 
-**** TODO Bifunctor
-
 #+BEGIN_SRC scala
 @typeclass trait Bifunctor[F[_, _]] {
   def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D]
@@ -5837,22 +5836,7 @@ digraph G {
 
   def widen[A, B, C >: A, D >: B](fab: F[A, B]): F[C, D] = ...
 }
-#+END_SRC
 
-with syntax
-
-#+BEGIN_SRC scala
-implicit class BifunctorOps[F[_, _]: Bifunctor, A, B](val self: F[A, B]) {
-  def leftAs[C](c: =>C): F[C, B] = ...
-  def rightAs[C](c: =>C): F[A, C] = ...
-}
-#+END_SRC
-
-Coming soon!
-
-**** TODO Bifoldable
-
-#+BEGIN_SRC scala
 @typeclass trait Bifoldable[F[_, _]] {
   def bifoldMap[A, B, M: Monoid](fa: F[A, B])(f: A => M)(g: B => M): M
 
@@ -5861,13 +5845,7 @@ Coming soon!
 
   def bifoldMap1[A, B, M: Semigroup](fa: F[A,B])(f: A => M)(g: B => M): Option[M] = ...
 }
-#+END_SRC
 
-Coming soon!
-
-**** TODO Bitraverse
-
-#+BEGIN_SRC scala
 @typeclass trait Bitraverse[F[_, _]] extends Bifunctor[F] with Bifoldable[F] {
   def bitraverse[G[_]: Applicative, A, B, C, D](fab: F[A, B])
                                                (f: A => G[C])
@@ -5877,10 +5855,65 @@ Coming soon!
 }
 #+END_SRC
 
-Coming soon!
+#+BEGIN_ASIDE
+=<-:= and =:->= are the happy operators!
+#+END_ASIDE
 
-# *** TODO Very Abstract Things
-# Associative, Compose, Category, Split, Choice, Arrow, Strong, Profunctor, ProChoice
+Although the type signatures are verbose, these are nothing more than
+the core methods of =Functor=, =Foldable= and =Bitraverse= taking two
+functions instead of one, often requiring both functions to return the
+same type so that their results can be combined with a =Monoid= or
+=Semigroup=.
+
+#+BEGIN_SRC scala
+scala> (Right(13): Either[String, Int]).bimap(_.toUpperCase, _ * 2)
+res: Either[String, Int] = Right(26)
+
+scala> (Left("fail"): Either[String, Int]).bimap(_.toUpperCase, _ * 2)
+res: Either[String, Int] = Left(FAIL)
+
+scala> (Right(13): Either[String, Int]) :-> (_ * 2)
+res: Either[String,Int] = Right(26)
+
+scala> (Left("fail"): Either[String, Int]) :-> (_ * 2)
+res: Either[String, Int] = Left(fail)
+
+scala> {s: String => s.length} <-: (Left("fail"): Either[String, Int])
+res: Either[Int, Int] = Left(4)
+
+scala> (Left("fail"): Either[String, Int]).bifoldMap(_.length)(identity)
+res: Int = 4
+
+scala> (Right(13): Either[String, Int]).bitraverse(s => Future(s.length), i => Future(i))
+res: Future[Either[Int, Int]] = Future(<not completed>)
+#+END_SRC
+
+*** Very Abstract Things
+
+What remains of the typeclass hierarchy are things that allow us to
+meta-reason about functional programming and scalaz. We are not going
+to discuss these yet as they deserve a full chapter on Category Theory
+and are not needed in typical FP applications.
+
+#+BEGIN_SRC dot :file images/scalaz-abstract.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    Category -> Compose;
+    Choice -> Category;
+    Split -> Compose;
+    Strong -> Profunctor;
+    ProChoice -> Profunctor;
+    Arrow -> Split;
+    Arrow -> Strong;
+    Arrow -> Category;
+    Associative;
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/scalaz-abstract.png]]
 
 ** What's Next?
 
@@ -5889,16 +5922,15 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
-- Scalaz Typeclasses (completed)
 - Scalaz Data Types
 - Scalaz Advanced Monads
 - Scalaz Utilities
-- Functional Streams
-- Type Refinement
 - Generic Derivation
+- Optics
+- Type Refinement
 - Recursion Schemes
 - Dependent Types
-- Optics
+- Functional Streams
 - Category Theory
 
 while continuing to build out the example application.
