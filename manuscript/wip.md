@@ -2293,7 +2293,7 @@ be mapped over, like `Either` / `Maybe`, and we want to operate on
 both sides. The `Functor` / `Foldable` / `Traverse` typeclasses have
 these bizarro relatives that allow us to map both ways.
 
-{width=20%}
+{width=30%}
 ![](images/scalaz-bithings.png)
 
 

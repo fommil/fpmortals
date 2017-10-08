@@ -5821,7 +5821,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 20
+#+CAPTION: 30
 #+RESULTS:
 [[file:images/scalaz-bithings.png]]
 
