@@ -601,12 +601,12 @@ required conversions into `OptionT[Future, _]`
   def liftFutureOption[A](f: Future[Option[A]]) = OptionT(f)
   def liftFuture[A](f: Future[A]) = f.liftM[OptionT]
   def liftOption[A](o: Option[A]) = OptionT(o.pure[Future])
-  def lift[A](a: A)               = liftOption(Some(a))
+  def lift[A](a: A)               = liftOption(Option(a))
 ~~~~~~~~
 
-combined with the *thrush operator* `|>`, which applies the function
-on the right to the value on the left, to visually separate the logic
-from the transformers
+combined with the `|>` operator, which applies the function on the
+right to the value on the left, to visually separate the logic from
+the transformers
 
 {lang="text"}
 ~~~~~~~~
@@ -619,6 +619,9 @@ from the transformers
          } yield e * (a * b) / (c * d)
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
+
+A> `|>` is often called the *thrush operator* because of its uncanny
+A> resemblance to the cute bird.
 
 This approach also works for `EitherT` (and others) as the inner
 context, but their lifting methods are more complex and require
