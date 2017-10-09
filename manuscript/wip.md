@@ -46,12 +46,11 @@ In between `Monad` and `Functor` is `Applicative`, defining `pure`
 that lets us lift a value into an effect, or create a data structure
 from a single value.
 
-`traverse` is useful for rearranging type constructors (recall these
-are types with the shape `F[_]`). If you find yourself with an
-`F[G[_]]` but you really need a `G[F[_]]` then you need `Traverse`.
-For example, say you have a `List[Future[Int]]` but you need it to be
-a `Future[List[Int]]`, just call `.traverse(identity)`, or its simpler
-sibling `.sequence`.
+`traverse` is useful for rearranging type constructors. If you find
+yourself with an `F[G[_]]` but you really need a `G[F[_]]` then you
+need `Traverse`. For example, say you have a `List[Future[Int]]` but
+you need it to be a `Future[List[Int]]`, just call
+`.traverse(identity)`, or its simpler sibling `.sequence`.
 
 
 ## Agenda
@@ -59,12 +58,13 @@ sibling `.sequence`.
 There are an overwhelming number of typeclasses, so we will cluster
 them by common themes. Notably absent are typeclasses that extend
 `Monad`, which get their own chapter. This chapter is longer than
-usual and jam packed with information: you may wish to take a break
+usual and jam-packed with information: you may wish to take a break
 every few sections.
 
 Scalaz uses code generation instead of simulacrum. We'll present the
-typeclasses as if simulacrum was used, but note that there are no
-`ops` on the companions.
+typeclasses as if simulacrum was used, but note that syntax is
+provided manually in the `scalaz.syntax` package, imported
+automatically.
 
 {width=100%}
 ![](images/scalaz-core-tree.png)
@@ -78,7 +78,7 @@ typeclasses as if simulacrum was used, but note that there are no
 
 ## Appendable Things
 
-{width=30%}
+{width=25%}
 ![](images/scalaz-semigroup.png)
 
 {lang="text"}
@@ -271,7 +271,7 @@ In the chapter on Data and Functionality we said that the JVM's notion
 of equality breaks down for many things that we can put into an ADT.
 The problem is that the JVM was designed for Java, and `equals` is
 defined on `java.lang.Object` whether it makes sense or not. There is
-no way to erase `equals` and no way to guarantee that it is
+no way to remove `equals` and no way to guarantee that it is
 implemented.
 
 However, in FP we prefer typeclasses for polymorphic functionality and
@@ -376,8 +376,8 @@ stringyness at compiletime and this is exactly what `Show` achieves:
 {lang="text"}
 ~~~~~~~~
   trait Show[F] {
-    def show(f: F): Cord = Cord(shows(f))
-    def shows(f: F): String = show(f).toString
+    def show(f: F): Cord = ...
+    def shows(f: F): String = ...
   }
 ~~~~~~~~
 
@@ -976,7 +976,7 @@ looking at `Align`, meet the `\&/` data type (spoken as *These*, or
   final case class Both[A, B](aa: A, bb: B) extends (A \&/ B)
 ~~~~~~~~
 
-i.e. it's a data encoding of `XOR` (eXclusive `OR`).
+i.e. it's a data encoding of inclusive logical `OR`.
 
 {lang="text"}
 ~~~~~~~~
@@ -1061,9 +1061,9 @@ which should make sense from their type signatures. Examples:
   res = List(Some((1,4)), Some((2,5)), None)
 ~~~~~~~~
 
-It is worth noting that the `A` and `B` variants use inclusive `OR`,
-whereas the `This` and `That` variants are exclusive, so return `None`
-if there is a value in both sides, or no value on either side.
+Note that the `A` and `B` variants use inclusive `OR`, whereas the
+`This` and `That` variants are exclusive, returning `None` if there is
+a value in both sides, or no value on either side.
 
 
 ## Variance
@@ -1130,13 +1130,17 @@ This is an expanded version:
 ~~~~~~~~
 
 Now consider the case where we want to write an instance of an
-`Encoder[B]` in terms of another `Encoder[A]`. That's exactly what
-`contramap` is for (recall that it is safe to call `Some.get`, but not
-`Option.get`):
+`Encoder[B]` in terms of another `Encoder[A]`, for example if we have
+a data type `Alpha` that simply wraps a `Double`. This is exactly what
+`contramap` is for:
 
 {lang="text"}
 ~~~~~~~~
-  implicit def some[A: Encoder]: Encoder[Some[A]] = Encoder[A].contramap(_.get)
+  final case class Alpha(value: Double)
+  
+  object Alpha {
+    implicit val encoder: Encoder[Alpha] = Encoder[Double].contramap(_.value)
+  }
 ~~~~~~~~
 
 On the other hand, a `Decoder` typically has a `Functor`:
@@ -1249,9 +1253,9 @@ typeclasses, we will not list them all.
   }
 ~~~~~~~~
 
-The arrow syntax is a `kind-projector` *type lambda* that says, for
-example, if `Functor[F]` is composed with a type `G[_]` (that has a
-`Functor[G]`), we get a `Functor[F[G[_]]]` that can operate on
+The `α => ~ type syntax is a ~kind-projector` *type lambda* that says
+if `Functor[F]` is composed with a type `G[_]` (that has a
+`Functor[G]`), we get a `Functor[F[G[_]]]` that operates on the `A` in
 `F[G[A]]`.
 
 An example of `Functor.compose` is where `F[_]` is `List`, `G[_]` is
@@ -2355,7 +2359,18 @@ and are not needed in typical FP applications.
 ![](images/scalaz-abstract.png)
 
 
-# What's Next?
+## Summary
+
+It is perfectly reasonable to be worried that you'll not remember
+everything we just covered: that was a lot of material.
+
+To help, we have included a cheat-sheet of the typeclasses and their
+primary methods in the Appendix, inspired by Adam Rosien's [Scalaz
+Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf). Either cheat-sheet may be printed, with the intention of
+replacing the family picture on your office desk.
+
+
+# The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
 website regularly for updates.

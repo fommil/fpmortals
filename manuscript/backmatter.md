@@ -1,6 +1,18 @@
 {backmatter}
 
 
+# Typeclass Cheatsheet
+
+Coming Soon! (placeholder for now)
+
+| Typeclass     | Method     | From   | Given         | To        |
+|------------- |---------- |------ |------------- |--------- |
+| `Functor`     | `map`      | `F[A]` | `(A => B)`    | `F[B]`    |
+| `Applicative` | `pure`     | `A`    |               | `F[A]`    |
+| `Monad`       | `flatMap`  | `F[A]` | `(A => F[B])` | `F[B]`    |
+| `Traverse`    | `traverse` | `F[A]` | `(A => G[B])` | `G[F[B]]` |
+
+
 # Third Party Licenses
 
 Some of the source code in this book has been copied from free / libre
