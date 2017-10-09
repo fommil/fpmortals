@@ -84,8 +84,8 @@ The readers who gave feedback on early drafts of this text.
 Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On
 Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50),
 Erik Bakker for [Options in Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8), Noel Markham
-for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Adam Rosien for the [Scalaz Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf), Yi Lin
-Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
+for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Yi Lin Wei and Zainab Ali for their tutorials
+at Hack The Tower meetups.
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [drone-dynamic-agents](https://gitlab.com/fommil/drone-dynamic-agents) Merlin Göttlinger, Edmund
