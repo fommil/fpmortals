@@ -5939,7 +5939,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 100
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/shortest-fp-book.png]]
 

@@ -4970,7 +4970,7 @@ replacing the family picture on your office desk.
 And for additional simplicity, Valentin Kasas offers us [The Shortest
 FP Book](https://twitter.com/ValentinKasas/status/879414703340081156) in diagram form (slightly adapted):
 
-{width=100%}
+{width=70%}
 ![](images/shortest-fp-book.png)
 
 
