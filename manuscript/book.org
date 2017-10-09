@@ -5909,6 +5909,40 @@ primary methods in the Appendix, inspired by Adam Rosien's [[http://arosien.gith
 Cheatsheet]]. Either cheat-sheet may be printed, with the intention of
 replacing the family picture on your office desk.
 
+And for additional simplicity, Valentin Kasas offers us [[https://twitter.com/ValentinKasas/status/879414703340081156][The Shortest
+FP Book]] in diagram form (slightly adapted):
+
+#+BEGIN_SRC dot :file images/shortest-fp-book.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=TB];
+
+    things [label="Combine N Things"];
+    type [label="Same Type"];
+    gtzero [label="N > 0", fontname=Hack];
+    hkt [label="Higher Kind"]
+    Semigroup [fontname=Hack];
+    Monoid [fontname=Hack];
+    Plus [fontname=Hack]
+    parallel [label="Parallel"];
+    Apply [fontname=Hack];
+    Monad [fontname=Hack];
+
+    things -> type;
+    type -> gtzero [label="yes"];
+    gtzero -> hkt [label="yes"]
+    hkt -> Plus [label="yes"]
+    hkt -> Semigroup [label="no"]
+    gtzero -> Monoid [label="no"];
+    type -> parallel [label="no"];
+    parallel -> Apply [label="yes"];
+    parallel -> Monad [label="no"];
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/shortest-fp-book.png]]
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md

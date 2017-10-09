@@ -4967,4 +4967,10 @@ primary methods in the Appendix, inspired by Adam Rosien's [Scalaz
 Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf). Either cheat-sheet may be printed, with the intention of
 replacing the family picture on your office desk.
 
+And for additional simplicity, Valentin Kasas offers us [The Shortest
+FP Book](https://twitter.com/ValentinKasas/status/879414703340081156) in diagram form (slightly adapted):
+
+{width=100%}
+![](images/shortest-fp-book.png)
+
 
