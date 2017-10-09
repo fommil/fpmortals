@@ -51,10 +51,10 @@ encouraged to (re-)implement scalaz (and the example application)
 using the partial descriptions presented in this book.
 
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to
-write an FP library in Scala from first principles. Additionally,
-[[https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc][Advanced Functional Programming with Scala]] by John de Goes, best
-experienced by attending a Fantasyland Institute of Learning training
-course.
+write an FP library in Scala from first principles. Try to attend a
+Fantasyland Institute of Learning training course if you can, or at
+least read the associated material: [[https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc][Advanced Functional Programming
+with Scala]].
 
 ** Copyleft Notice
 
@@ -88,19 +88,18 @@ without restriction.
 ** Thanks
 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
-degrees, Rúnar Bjarnason, Tony Morris and Edward Kmett for their help
-explaining the principles of FP. Kenji Yoshida and Jason Zaugg for
-being the main authors of scalaz, and Paul Chuisano / Miles Sabin for
-fixing a critical bug in the scala compiler ([[https://issues.scala-lang.org/browse/SI-2712][SI-2712]]).
+degrees, Rúnar Bjarnason, Tony Morris, John de Goes and Edward Kmett
+for their help explaining the principles of FP. Kenji Yoshida and
+Jason Zaugg for being the main authors of scalaz, and Paul Chuisano /
+Miles Sabin for fixing a critical bug in the scala compiler ([[https://issues.scala-lang.org/browse/SI-2712][SI-2712]]).
 
 The readers who gave feedback on early drafts of this text.
 
 Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
 Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
-John de Goes for [[http://degoes.net/articles/easy-monads][A Beginner Friendly Tour]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in
-Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Adam
-Rosien for the [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Scalaz Cheatsheet]], Yi Lin Wei and Zainab Ali for their
-tutorials at Hack The Tower meetups.
+Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]], Noel Markham
+for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Adam Rosien for the [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Scalaz Cheatsheet]], Yi Lin
+Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained the concepts needed to write
 the example project [[https://gitlab.com/fommil/drone-dynamic-agents][drone-dynamic-agents]] Merlin Göttlinger, Edmund
