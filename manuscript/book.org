@@ -6383,7 +6383,7 @@ and remove redundancy that we've accidentally introduced.
 | ~Bind~             | ~bind~ / ~>>=~  | ~F[A]~          | ~A => F[B]~            | ~F[B]~         |
 |                    | ~join~          | ~F[F[A]]~       |                        | ~F[A]~         |
 | ~Cobind~           | ~cobind~        | ~F[A]~          | ~F[A] => B~            | ~F[B]~         |
-|                    | ~cojoin~        | ~F[A]~          |                        | ~F[F[B]]~      |
+|                    | ~cojoin~        | ~F[A]~          |                        | ~F[F[A]]~      |
 | ~Applicative~      | ~point~         | ~A~             |                        | ~F[A]~         |
 | ~Comonad~          | ~copoint~       | ~F[A]~          |                        | ~A~            |
 | ~Semigroup~        | ~append~        | ~A, A~          |                        | ~A~            |
