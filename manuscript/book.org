@@ -2975,10 +2975,6 @@ package logic {
 - /generic instances/ automatically derive instances for your data
   types.
 
-* WIP                                                                 :final:
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: wip.md
-  :END:
 ** Scalaz Typeclasses
 
 In this chapter we will tour most of the typeclasses in =scalaz-core=.
@@ -2997,12 +2993,12 @@ Before we introduce the typeclass hierarchy, we will peek at the four
 most important methods from a control flow perspective: the methods we
 will use the most in typical FP applications:
 
-| Typeclass     | Method     | From   | Given         | To        |
-|---------------+------------+--------+---------------+-----------|
-| =Functor=     | =map=      | =F[A]= | =(A => B)=    | =F[B]=    |
-| =Applicative= | =pure=     | =A=    |               | =F[A]=    |
-| =Monad=       | =flatMap=  | =F[A]= | =(A => F[B])= | =F[B]=    |
-| =Traverse=    | =traverse= | =F[A]= | =(A => G[B])= | =G[F[B]]= |
+| Typeclass     | Method     | From   | Given       | To        |
+|---------------+------------+--------+-------------+-----------|
+| ~Functor~     | ~map~      | ~F[A]~ | ~A => B~    | ~F[B]~    |
+| ~Applicative~ | ~pure~     | ~A~    |             | ~F[A]~    |
+| ~Monad~       | ~flatMap~  | ~F[A]~ | ~A => F[B]~ | ~F[B]~    |
+| ~Traverse~    | ~traverse~ | ~F[A]~ | ~A => G[B]~ | ~G[F[B]]~ |
 
 We know that operations which return a =F[_]= can be run sequentially
 in a =for= comprehension by =.flatMap=, defined on its =Monad[F]=. The
@@ -3997,9 +3993,11 @@ First there are methods that take a =Semigroup= instead of a =Monoid=:
 #+END_SRC
 
 returning =Option= to account for empty data structures (recall that
-=Semigroup= does not have a =zero=). Note that the methods read
-"one-Option", not =10 pt=, a subtle typesetting joke for the
-(un-)observant.
+=Semigroup= does not have a =zero=).
+
+#+BEGIN_ASIDE
+The methods read "one-Option", not =10 pt= as in typesetting.
+#+END_ASIDE
 
 The typeclass =Foldable1= contains a lot more =Semigroup= variants of
 the =Monoid= methods shown here (all suffixed =1=) and makes sense for
@@ -4668,8 +4666,8 @@ There are also the generalised versions of =ap= for more than two
 parameters:
 
 #+BEGIN_SRC scala
-  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) =>C]): F[C] = ...
-  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) =>D]): F[D] = ...
+  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) => C]): F[C] = ...
+  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) => D]): F[D] = ...
   ...
   def ap12[...]
 #+END_SRC
@@ -4678,8 +4676,8 @@ along with =lift= methods that take normal functions and lift them into the
 =F[_]= context, the generalisation of =Functor.lift=
 
 #+BEGIN_SRC scala
-  def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
-  def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+  def lift2[A,B,C](f: (A,B) => C): (F[A],F[B]) => F[C] = ...
+  def lift3[A,B,C,D](f: (A,B,C) => D): (F[A],F[B],F[C]) => F[D] = ...
   ...
   def lift12[...]
 #+END_SRC
@@ -4802,7 +4800,8 @@ This is what we need to be able to implement the "loop forever" logic
 of our application.
 
 =\/=, called /disjunction/, is a data structure that we will discuss
-in the next chapter. It is an improvement of stdlib's =Either=
+in the next chapter. It is an improvement of stdlib's =Either= and
+encodes two exclusive values:
 
 #+BEGIN_SRC scala
 sealed abstract class \/[+A, +B]
@@ -5910,6 +5909,11 @@ primary methods in the Appendix, inspired by Adam Rosien's [[http://arosien.gith
 Cheatsheet]]. Either cheat-sheet may be printed, with the intention of
 replacing the family picture on your office desk.
 
+* WIP                                                                 :final:
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: wip.md
+  :END:
+
 ** The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
@@ -6332,17 +6336,44 @@ and remove redundancy that we've accidentally introduced.
 :END:
 {backmatter}
 
-** TODO Typeclass Cheatsheet
+** Typeclass Cheatsheet
 
-Coming Soon! (placeholder for now)
+| Typeclass          | Method          | From            | Given                  | To             |
+|--------------------+-----------------+-----------------+------------------------+----------------|
+| ~InvariantFunctor~ | ~xmap~          | ~F[A]~          | ~A => B, B => A~       | ~F[B]~         |
+| ~Contravariant~    | ~contramap~     | ~F[A]~          | ~B => A~               | ~F[B]~         |
+| ~Functor~          | ~map~           | ~F[A]~          | ~A => B~               | ~F[B]~         |
+| ~Apply~            | ~ap~ / ~<*>~    | ~F[A]~          | ~F[A => B]~            | ~F[B]~         |
+|                    | ~apply2~        | ~F[A], F[B]~    | ~(A, B) => C~          | ~F[C]~         |
+| ~Divide~           | ~divide2~       | ~F[A], F[B]~    | ~C => (A, B)~          | ~F[C]~         |
+| ~Bind~             | ~bind~ / ~>>=~  | ~F[A]~          | ~A => F[B]~            | ~F[B]~         |
+|                    | ~join~          | ~F[F[A]]~       |                        | ~F[A]~         |
+| ~Cobind~           | ~cobind~        | ~F[A]~          | ~F[A] => B~            | ~F[B]~         |
+|                    | ~cojoin~        | ~F[A]~          |                        | ~F[F[B]]~      |
+| ~Applicative~      | ~point~         | ~A~             |                        | ~F[A]~         |
+| ~Comonad~          | ~copoint~       | ~F[A]~          |                        | ~A~            |
+| ~Semigroup~        | ~append~        | ~A, A~          |                        | ~A~            |
+| ~Plus~             | ~plus~ / ~<+>~  | ~F[A], F[A]~    |                        | ~F[A]~         |
+| ~MonadPlus~        | ~withFilter~    | ~F[A]~          | ~A => Boolean~         | ~F[A]~         |
+| ~Align~            | ~align~         | ~F[A], F[B]~    |                        | ~F[A \&/ B]~   |
+|                    | ~merge~         | ~F[A], F[A]~    |                        | ~F[A]~         |
+| ~Zip~              | ~zip~           | ~F[A], F[B]~    |                        | ~F[(A, B)]~    |
+| ~Unzip~            | ~unzip~         | ~F(A, B)~       |                        | ~(F[A], F[B])~ |
+| ~Cozip~            | ~cozip~         | ~F[A \/ B]~     |                        | ~F[A] \/ F[B]~ |
+| ~Foldable~         | ~foldMap~       | ~F[A]~          | ~A => B~               | ~B~            |
+|                    | ~foldMapM~      | ~F[A]~          | ~A => G[B]~            | ~G[B]~         |
+| ~Traverse~         | ~traverse~      | ~F[A]~          | ~A => G[B]~            | ~G[F[B]]~      |
+|                    | ~sequence~      | ~F[G[A]]~       |                        | ~G[F[A]]~      |
+| ~Equal~            | ~equal~ / ~===~ | ~A, A~          |                        | ~Boolean~      |
+| ~Show~             | ~shows~         | ~A~             |                        | ~String~       |
+| ~Bifunctor~        | ~bimap~         | ~F[A, B]~       | ~A => C, B => D~       | ~F[C, D]~      |
+|                    | ~leftMap~       | ~F[A, B]~       | ~A => C~               | ~F[C, B]~      |
+|                    | ~rightMap~      | ~F[A, B]~       | ~B => C~               | ~F[A, C]~      |
+| ~Bifoldable~       | ~bifoldMap~     | ~F[A, B]~       | ~A => C, B => C~       | ~C~            |
+| ~Bitraverse~       | ~bitraverse~    | ~F[A, B]~       | ~A => G[C], B => G[D]~ | ~G[F[C, D]]~   |
+|                    | ~bisequence~    | ~F[G[A], G[B]]~ |                        | ~G[F[A, B]]~   |
 
-| Typeclass     | Method     | From   | Given         | To        |
-|---------------+------------+--------+---------------+-----------|
-| =Functor=     | =map=      | =F[A]= | =(A => B)=    | =F[B]=    |
-| =Applicative= | =pure=     | =A=    |               | =F[A]=    |
-| =Monad=       | =flatMap=  | =F[A]= | =(A => F[B])= | =F[B]=    |
-| =Traverse=    | =traverse= | =F[A]= | =(A => G[B])= | =G[F[B]]= |
-
+# https://emacs.stackexchange.com/questions/36029
 
 ** Third Party Licenses
 
