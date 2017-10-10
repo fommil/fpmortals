@@ -87,11 +87,11 @@ Erik Bakker for [Options in Futures, how to unsuck them](https://www.youtube.com
 for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Yi Lin Wei and Zainab Ali for their tutorials
 at Hack The Tower meetups.
 
-The helpul souls who patiently explained the concepts needed to write
-the example project [drone-dynamic-agents](https://gitlab.com/fommil/drone-dynamic-agents) Merlin Göttlinger, Edmund
-Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
-Michael Pilquist, Adam Chlupacek, Pavel Chlupacek, Paul Snively,
-Daniel Spiewak, Stephen Compall.
+The helpul souls who patiently explained some concepts to me: Merlin
+Göttlinger, Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert
+Chang, Kai(luo) Wang, Michael Pilquist, Adam Chlupacek, Pavel
+Chlupacek, Paul Snively, Daniel Spiewak, Stephen Compall, Brian
+McKenna, Ryan Delucchi, Pedro Rodriguez, Emily Pillmore.
 
 
 # Practicalities

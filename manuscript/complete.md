@@ -2652,16 +2652,18 @@ you need it to be a `Future[List[Int]]`, just call
 
 ## Agenda
 
-There are an overwhelming number of typeclasses, so we will cluster
-them by common themes. Notably absent are typeclasses that extend
-`Monad`, which get their own chapter. This chapter is longer than
-usual and jam-packed with information: you may wish to take a break
-every few sections.
+This chapter is longer than usual and jam-packed with information: it
+is perfectly reasonable to attack it over several sittings. You are
+not expected to remember everything (doing so would require
+super-human powers) so treat this chapter as a way of knowing where to
+look for more information.
 
-Scalaz uses code generation instead of simulacrum. We'll present the
-typeclasses as if simulacrum was used, but note that syntax is
-provided manually in the `scalaz.syntax` package, imported
-automatically.
+Notably absent are typeclasses that extend `Monad`, which get their
+own chapter later.
+
+Scalaz uses code generation, not simulacrum. However, for brevity, we
+present code snippets with `@typeclass`. Equivalent syntax is defined
+in the `scalaz.syntax` package, which is imported automatically.
 
 {width=100%}
 ![](images/scalaz-core-tree.png)
@@ -3891,7 +3893,7 @@ with `ap`, the function is in the same context as the values.
   @typeclass trait Apply[F[_]] extends Functor[F] {
     @op("<*>") def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B]
   
-    def apply2[A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
+    def apply2[A,B,C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
     def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
     ...
     def apply12[...]
@@ -4304,7 +4306,7 @@ product type `Foo`
 {lang="text"}
 ~~~~~~~~
   scala> case class Foo(s: String, i: Int)
-  scala> implicit val fooEqual: Divide[Foo] =
+  scala> implicit val fooEqual: Equal[Foo] =
            Divide[Equal].divide2(Equal[String], Equal[Int]) {
              (foo: Foo) => (foo.s, foo.i)
            }
@@ -4318,15 +4320,15 @@ It is a good moment to look again at `Apply`
 ~~~~~~~~
   @typeclass trait Apply[F[_]] extends Functor[F] {
     ...
-    def lift2[A,B,C](f: (A,B) =>C): (F[A],F[B]) =>F[C] = ...
-    def lift3[A,B,C,D](f: (A,B,C) =>D): (F[A],F[B],F[C])=>F[D] = ...
+    def apply2[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
+    def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
     ...
-    def lift12[...]
+    def apply12[...]
     ...
   }
 ~~~~~~~~
 
-It's now easier to spot that `liftX` is how we can derive typeclasses
+It's now easier to spot that `applyX` is how we can derive typeclasses
 for covariant typeclasses.
 
 Mirroring `Apply`, `Divide` also has terse syntax for tuples. A softer
@@ -4353,23 +4355,33 @@ derivation:
   implicit val fooEqual: Equal[Foo] = Divide[Equal].deriving2(f => (f.s, f.i))
 ~~~~~~~~
 
+Generally, if encoder typeclasses can provide an instance of `Divide`,
+rather than stopping at `Contravariant`, it makes it possible to
+derive instances for any `case class`. Similarly, decoder typeclasses
+can provide an `Apply` instance. We will explore this in a dedicated
+chapter on Generic Derivation.
+
 `Divisible` is the `Contravariant` analogue of `Applicative` and
 introduces `conquer`, the equivalent of `pure`
 
 {lang="text"}
 ~~~~~~~~
-  trait Divisible[F[_]] extends Divide[F] {
+  @typeclass trait Divisible[F[_]] extends Divide[F] {
     def conquer[A]: F[A]
   }
 ~~~~~~~~
 
-`conquer` is not used by any of the other methods but offers a
-convenient way to obtain an instance of `F[A]`.
+`conquer` allows creating fallback implementations that effectively
+ignore the type parameter. For example, the
+`Divisible[Equal].conquer[String]` returns a trivial implementation of
+`Equal` that always returns `true`, which might be useful for some
+cases, e.g. if we wanted to implement `contramap` in terms of `divide`
 
-Generally, if encoder typeclasses provide an instance of `Divisible`,
-rather than stopping at `Contravariant`, it makes it easy to derive
-instances for arbitrary ADTs. Similarly, decoder typeclasses could
-provide an `Apply` instance.
+{lang="text"}
+~~~~~~~~
+  override def contramap[A, B](fa: F[A])(f: B => A): F[B] =
+    divide(conquer[Unit], fa)(c => ((), f(c)))
+~~~~~~~~
 
 
 ## Plus
@@ -4440,8 +4452,8 @@ when combining our `TradeTemplate`, we could have defined
   implicit def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
 ~~~~~~~~
 
-and `.reverse` the templates before using `foldLeft` (to get the
-`lastWins` behaviour we want).
+and `templates.foldRight` (or `.reverse.foldLeft`) to get the
+`lastWins` behaviour we want.
 
 `Applicative` and `Monad` have specialised versions of `PlusEmpty`
 
@@ -4532,7 +4544,7 @@ larger hierarchy.
 ~~~~~~~~
 
 The core method is `zip` which is a less powerful version of
-`Divide.tuple2`, and if a `Functor[F]` is provide then `zipWith` can
+`Divide.tuple2`, and if a `Functor[F]` is provided then `zipWith` can
 behave like `Apply.apply2`. Indeed, an `Apply[F]` can be created from
 a `Zip[F]` and a `Functor[F]` by calling `ap`.
 
@@ -4607,12 +4619,16 @@ Recall that `\/` (*disjunction*) is scalaz's improvement of
   }
 ~~~~~~~~
 
-which are methods that should be very familiar. Scalaz gives a ternary
-operator to things that have an `Optional`
+These are methods that should be familiar, except perhaps `pextract`,
+which is a way of letting the `F[_]` return some implementation
+specific `F[B]` or the value. For example, `Optional[Option].pextract`
+returns `Option[Nothing] \/ A`, i.e. `None \/ A`.
+
+Scalaz gives a ternary operator to things that have an `Optional`
 
 {lang="text"}
 ~~~~~~~~
-  implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
+  implicit class OptionalOps[F[_]: Optional, A](val fa: F[A]) {
     def ?[X](some: =>X): Conditional[X] = new Conditional[X](some)
     final class Conditional[X](some: =>X) {
       def |(none: =>X): X = if (Optional[F].isDefined(fa)) some else none
@@ -4923,25 +4939,28 @@ same type so that their results can be combined with a `Monoid` or
 
 {lang="text"}
 ~~~~~~~~
-  scala> (Right(13): Either[String, Int]).bimap(_.toUpperCase, _ * 2)
+  scala> val a: Either[String, Int] = Left("fail")
+         val b: Either[String, Int] = Right(13)
+  
+  scala> b.bimap(_.toUpperCase, _ * 2)
   res: Either[String, Int] = Right(26)
   
-  scala> (Left("fail"): Either[String, Int]).bimap(_.toUpperCase, _ * 2)
+  scala> a.bimap(_.toUpperCase, _ * 2)
   res: Either[String, Int] = Left(FAIL)
   
-  scala> (Right(13): Either[String, Int]) :-> (_ * 2)
+  scala> b :-> (_ * 2)
   res: Either[String,Int] = Right(26)
   
-  scala> (Left("fail"): Either[String, Int]) :-> (_ * 2)
+  scala> a :-> (_ * 2)
   res: Either[String, Int] = Left(fail)
   
-  scala> {s: String => s.length} <-: (Left("fail"): Either[String, Int])
+  scala> { s: String => s.length } <-: a
   res: Either[Int, Int] = Left(4)
   
-  scala> (Left("fail"): Either[String, Int]).bifoldMap(_.length)(identity)
+  scala> a.bifoldMap(_.length)(identity)
   res: Int = 4
   
-  scala> (Right(13): Either[String, Int]).bitraverse(s => Future(s.length), i => Future(i))
+  scala> b.bitraverse(s => Future(s.length), i => Future(i))
   res: Future[Either[Int, Int]] = Future(<not completed>)
 ~~~~~~~~
 
@@ -4959,16 +4978,25 @@ and are not needed in typical FP applications.
 
 ## Summary
 
-It is perfectly reasonable to be worried that you'll not remember
-everything we just covered: that was a lot of material.
+That was a lot of material! We have just explored a standard library
+of polymorphic functionality. But to put it into perspective: there
+are more traits in the Scala stdlib Collections API than their are
+typeclasses in scalaz.
+
+It is perfectly reasonable to write an FP application that only
+touches a small percentage of the typeclass hierarchy with most
+functionality coming from domain-specific typeclasses (that don't need
+to be part of a hierarchy). Even if the domain-specific instances are
+just specialisations of something in scalaz, it is better to write the
+code and later refactor it, than to over-abstract too early.
 
 To help, we have included a cheat-sheet of the typeclasses and their
 primary methods in the Appendix, inspired by Adam Rosien's [Scalaz
-Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf). Either cheat-sheet may be printed, with the intention of
-replacing the family picture on your office desk.
+Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf). These cheat-sheets make an excellent replacement for the
+family picture on your office desk.
 
-And for additional simplicity, Valentin Kasas offers us [The Shortest
-FP Book](https://twitter.com/ValentinKasas/status/879414703340081156) in diagram form (slightly adapted):
+For additional simplicity, Valentin Kasas offers us [The Shortest FP
+Book](https://twitter.com/ValentinKasas/status/879414703340081156) in diagram form (slightly adapted):
 
 {width=70%}
 ![](images/shortest-fp-book.png)
