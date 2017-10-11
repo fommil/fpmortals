@@ -6010,9 +6010,23 @@ while continuing to build out the example application.
   :END:
 ** Data Types
 
- Adjunction
- Alpha
- Alter
+*** TODO Leibniz
+
+- Leibniz
+
+*** TODO Containers
+
+- Disjunction =\/= (Either)
+- These
+
+not sure about these?
+
+- Alpha (represents an alphabetic character), maybe save for generators / laws
+
+*** TODO weird shit
+
+- Adjunction (two functors =F= and =G= that give rise to a monad / comonad)
+- Alter (utility to get a Monoid rather than the Plus for what it wraps)
  Ap
  Band
  Bias
@@ -6036,7 +6050,6 @@ while continuing to build out the example application.
  DList
  Dual
  Either3
- Either
  EitherT
  Endomorphic
  Endo
@@ -6064,7 +6077,6 @@ while continuing to build out the example application.
  LazyOption
  LazyOptionT
  LazyTuple
- Leibniz
  Lens
  Liskov
  ListT
@@ -6097,7 +6109,6 @@ while continuing to build out the example application.
  StrictTree
  Tag
  Tags
- These
  TheseT
  TracedT
  TreeLoc
@@ -6107,7 +6118,7 @@ while continuing to build out the example application.
  Validation
  WriterT
  Yoneda
- Zap
+ Zap - a typeclass!
  Zipper
 
 **** Liskov / Subtyping
