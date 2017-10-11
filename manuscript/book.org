@@ -1632,7 +1632,7 @@ protecting internal state with concurrency locks or actors.
 
 *** Summary
 
-1. /algebras/ define the boundaries between systems, implemented by
+1. /algebras/ define the interface between systems, implemented by
    /handlers/.
 2. /modules/ define pure logic and depend on algebras and other
    modules.
@@ -1707,8 +1707,7 @@ final case class Z(b: B) extends XYZ
 When we introduce a type parameter into an ADT, we call it a
 /Generalised Algebraic Data Type/ (GADT).
 
-=scalaz.IList=, a safe invariant alternative to the stdlib =List=, is
-a GADT:
+=scalaz.IList=, a safe alternative to the stdlib =List=, is a GADT:
 
 #+BEGIN_SRC scala
 sealed abstract class IList[A]
@@ -3040,8 +3039,8 @@ Notably absent are typeclasses that extend =Monad=, which get their
 own chapter later.
 
 Scalaz uses code generation, not simulacrum. However, for brevity, we
-present code snippets with =@typeclass=. Equivalent syntax is defined
-in the =scalaz.syntax= package, which is imported automatically.
+present code snippets with =@typeclass=. Equivalent syntax is
+available when we =import scalaz._, Scalaz._=
 
 #+BEGIN_SRC dot :file images/scalaz-core-tree.png :exports results
 digraph G {
@@ -3803,10 +3802,10 @@ element to a list for =foldRight=. However, =foldLeft= and =foldRight=
 do not need to be consistent with each other: in fact they often
 produce the reverse of each other.
 
-The simplest thing to do with =Foldable= is to use the =identity=
-function, the natural sum of the monoidal elements, giving us =fold=
-(and left/right variants to allow choosing specific performance
-criteria):
+The simplest thing to do with =foldMap= is to use the =identity=
+function, giving =fold= (the natural sum of the monoidal elements),
+with left/right variants to allow choosing based on performance
+criteria:
 
 #+BEGIN_SRC scala
   def fold[A: Monoid](t: F[A]): A = ...
@@ -3892,8 +3891,8 @@ We've seen the =NonEmptyList= in previous chapters. For the sake of
 brevity we use a type alias =Nel= in place of =NonEmptyList=.
 
 We've also seen =IList= in previous chapters, recall that it's an
-alternative to stdlib =List= with invariant type parameters and all
-the impure methods, like =apply=, removed.
+alternative to stdlib =List= with impure methods, like =apply=,
+removed.
 #+END_ASIDE
 
 We can split an =F[A]= into parts that result in the same =B= with
@@ -4313,15 +4312,16 @@ since =Functor= is so popular it gets the nickname. Likewise
 
 It is important to note that, although related at a theoretical level,
 the words /covariant/, /contravariant/ and /invariant/ do not directly
-refer to type variance (i.e. =+= and =-= prefixes that may be written
-in type signatures). /Invariance/ here means that it is possible to
-map the contents of a structure =F[A]= into =F[B]=.
+refer to Scala type variance (i.e. =+= and =-= prefixes that may be
+written in type signatures). /Invariance/ here means that it is
+possible to map the contents of a structure =F[A]= into =F[B]=. Using
+=identity= we can see that =A= can be safely downcast (or upcast) into
+=B= depending on the variance of the functor.
 
-This is so ridiculously abstract and seemingly impossible that it
-needs a practical example immediately, before we can continue on good
-terms. In Chapter 4 we used circe to derive a JSON encoder for our
-data types and we gave a brief description of the =Encoder= typeclass.
-This is an expanded version:
+This sounds so hopelessly abstract that it needs a practical example
+immediately, before we can take it seriously. In Chapter 4 we used
+circe to derive a JSON encoder for our data types and we gave a brief
+description of the =Encoder= typeclass. This is an expanded version:
 
 #+BEGIN_SRC scala
 @typeclass trait Encoder[A] { self =>
@@ -4470,10 +4470,9 @@ res: List[Option[Int]] = List(Some(2), None, Some(3))
 This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
-*** Everything But Pure
+*** Apply and Bind
 
-=Apply= is =Applicative= without the =pure= method, and =Bind= is
-=Monad= without =pure=. Consider this the warm-up act, with an
+Consider this the warm-up act to =Applicative= and =Monad=, with an
 Advanced TIE Fighter for entertainment.
 
 #+BEGIN_SRC dot :file images/scalaz-apply.png :exports results
@@ -4553,7 +4552,7 @@ digraph G {
 
 =Apply= extends =Functor= by adding a method named =ap= which is
 similar to =map= in that it applies a function to values. However,
-with =ap=, the function is in the same context as the values.
+with =ap=, the function is in a similar context to the values.
 
 #+BEGIN_SRC scala
 @typeclass trait Apply[F[_]] extends Functor[F] {
@@ -5926,45 +5925,52 @@ of polymorphic functionality. But to put it into perspective: there
 are more traits in the Scala stdlib Collections API than their are
 typeclasses in scalaz.
 
-It is perfectly reasonable to write an FP application that only
-touches a small percentage of the typeclass hierarchy with most
-functionality coming from domain-specific typeclasses (that don't need
-to be part of a hierarchy). Even if the domain-specific instances are
-just specialisations of something in scalaz, it is better to write the
-code and later refactor it, than to over-abstract too early.
+It is normal for an FP application to only touch a small percentage of
+the typeclass hierarchy, with most functionality coming from
+domain-specific typeclasses. Even if the domain-specific typeclasses
+are just specialised clones of something in scalaz, it is better to
+write the code and later refactor it, than to over-abstract too early.
 
 To help, we have included a cheat-sheet of the typeclasses and their
 primary methods in the Appendix, inspired by Adam Rosien's [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Scalaz
 Cheatsheet]]. These cheat-sheets make an excellent replacement for the
-family picture on your office desk.
+family portrait on your office desk.
 
-For additional simplicity, Valentin Kasas offers us [[https://twitter.com/ValentinKasas/status/879414703340081156][The Shortest FP
-Book]] in diagram form (slightly adapted):
+To help further, Valentin Kasas explains how to [[https://twitter.com/ValentinKasas/status/879414703340081156][combine =N= things]]:
 
 #+BEGIN_SRC dot :file images/shortest-fp-book.png :exports results
 digraph G {
     graph [dpi=100, rankdir=TB];
 
-    things [label="Combine N Things"];
-    type [label="Same Type"];
-    gtzero [label="N > 0", fontname=Hack];
-    hkt [label="Higher Kind"]
-    Plus [fontname=Hack]
-    Monoid [fontname=Hack];
-    Semigroup [fontname=Hack];
-    parallel [label="Parallel"];
-    Apply [fontname=Hack];
+    things [label="combine N things",shape=oval];
+    type [label="same (or no)\n type parameter",shape=diamond,height=1.2];
+    parallel [label="parallel",shape=diamond,height=0.7];
+    gtzero [label="N > 0", fontname=Hack,shape=diamond,height=0.7];
+
     Monad [fontname=Hack];
+    Apply [fontname=Hack];
+
+    effonce [label="effectively once",shape=diamond,height=0.7];
+    Monoid [fontname=Hack];
+    Band [fontname=Hack]
+
+    Semigroup [fontname=Hack];
+    hkt [label="early exit",shape=diamond,height=0.7];
+    Plus [fontname=Hack];
 
     things -> type;
-    type -> gtzero [label="yes"];
-    gtzero -> hkt [label="yes"]
-    hkt -> Plus [label="yes"]
-    hkt -> Semigroup [label="no"]
-    gtzero -> Monoid [label="no"];
-    type -> parallel [label="no"];
-    parallel -> Apply [label="yes"];
-    parallel -> Monad [label="no"];
+    type -> gtzero [label=" yes"];
+    gtzero -> hkt [label=" yes"]
+    hkt -> Plus [label=" yes"]
+    hkt -> Semigroup [label=" no"]
+
+    gtzero -> effonce [label=" no"]
+    effonce -> Monoid [label=" no"];
+    effonce -> Band [label=" yes"]
+
+    type -> parallel [label=" no"];
+    parallel -> Apply [label=" yes"];
+    parallel -> Monad [label=" no"];
 }
 #+END_SRC
 

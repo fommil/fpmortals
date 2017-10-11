@@ -1190,7 +1190,7 @@ protecting internal state with concurrency locks or actors.
 
 ## Summary
 
-1.  *algebras* define the boundaries between systems, implemented by
+1.  *algebras* define the interface between systems, implemented by
     *handlers*.
 2.  *modules* define pure logic and depend on algebras and other
     modules.
@@ -1269,8 +1269,7 @@ written in Scala
 When we introduce a type parameter into an ADT, we call it a
 *Generalised Algebraic Data Type* (GADT).
 
-`scalaz.IList`, a safe invariant alternative to the stdlib `List`, is
-a GADT:
+`scalaz.IList`, a safe alternative to the stdlib `List`, is a GADT:
 
 {lang="text"}
 ~~~~~~~~
@@ -2662,8 +2661,8 @@ Notably absent are typeclasses that extend `Monad`, which get their
 own chapter later.
 
 Scalaz uses code generation, not simulacrum. However, for brevity, we
-present code snippets with `@typeclass`. Equivalent syntax is defined
-in the `scalaz.syntax` package, which is imported automatically.
+present code snippets with `@typeclass`. Equivalent syntax is
+available when we `import scalaz._, Scalaz._`
 
 {width=100%}
 ![](images/scalaz-core-tree.png)
@@ -3243,10 +3242,10 @@ element to a list for `foldRight`. However, `foldLeft` and `foldRight`
 do not need to be consistent with each other: in fact they often
 produce the reverse of each other.
 
-The simplest thing to do with `Foldable` is to use the `identity`
-function, the natural sum of the monoidal elements, giving us `fold`
-(and left/right variants to allow choosing specific performance
-criteria):
+The simplest thing to do with `foldMap` is to use the `identity`
+function, giving `fold` (the natural sum of the monoidal elements),
+with left/right variants to allow choosing based on performance
+criteria:
 
 {lang="text"}
 ~~~~~~~~
@@ -3339,8 +3338,8 @@ A> We've seen the `NonEmptyList` in previous chapters. For the sake of
 A> brevity we use a type alias `Nel` in place of `NonEmptyList`.
 A> 
 A> We've also seen `IList` in previous chapters, recall that it's an
-A> alternative to stdlib `List` with invariant type parameters and all
-A> the impure methods, like `apply`, removed.
+A> alternative to stdlib `List` with impure methods, like `apply`,
+A> removed.
 
 We can split an `F[A]` into parts that result in the same `B` with
 `splitBy`
@@ -3707,15 +3706,16 @@ since `Functor` is so popular it gets the nickname. Likewise
 
 It is important to note that, although related at a theoretical level,
 the words *covariant*, *contravariant* and *invariant* do not directly
-refer to type variance (i.e. `+` and `-` prefixes that may be written
-in type signatures). *Invariance* here means that it is possible to
-map the contents of a structure `F[A]` into `F[B]`.
+refer to Scala type variance (i.e. `+` and `-` prefixes that may be
+written in type signatures). *Invariance* here means that it is
+possible to map the contents of a structure `F[A]` into `F[B]`. Using
+`identity` we can see that `A` can be safely downcast (or upcast) into
+`B` depending on the variance of the functor.
 
-This is so ridiculously abstract and seemingly impossible that it
-needs a practical example immediately, before we can continue on good
-terms. In Chapter 4 we used circe to derive a JSON encoder for our
-data types and we gave a brief description of the `Encoder` typeclass.
-This is an expanded version:
+This sounds so hopelessly abstract that it needs a practical example
+immediately, before we can take it seriously. In Chapter 4 we used
+circe to derive a JSON encoder for our data types and we gave a brief
+description of the `Encoder` typeclass. This is an expanded version:
 
 {lang="text"}
 ~~~~~~~~
@@ -3872,10 +3872,9 @@ This lets us jump into nested effects and structures and apply a
 function at the layer we want.
 
 
-## Everything But Pure
+## Apply and Bind
 
-`Apply` is `Applicative` without the `pure` method, and `Bind` is
-`Monad` without `pure`. Consider this the warm-up act, with an
+Consider this the warm-up act to `Applicative` and `Monad`, with an
 Advanced TIE Fighter for entertainment.
 
 {width=100%}
@@ -3886,7 +3885,7 @@ Advanced TIE Fighter for entertainment.
 
 `Apply` extends `Functor` by adding a method named `ap` which is
 similar to `map` in that it applies a function to values. However,
-with `ap`, the function is in the same context as the values.
+with `ap`, the function is in a similar context to the values.
 
 {lang="text"}
 ~~~~~~~~
@@ -4983,20 +4982,18 @@ of polymorphic functionality. But to put it into perspective: there
 are more traits in the Scala stdlib Collections API than their are
 typeclasses in scalaz.
 
-It is perfectly reasonable to write an FP application that only
-touches a small percentage of the typeclass hierarchy with most
-functionality coming from domain-specific typeclasses (that don't need
-to be part of a hierarchy). Even if the domain-specific instances are
-just specialisations of something in scalaz, it is better to write the
-code and later refactor it, than to over-abstract too early.
+It is normal for an FP application to only touch a small percentage of
+the typeclass hierarchy, with most functionality coming from
+domain-specific typeclasses. Even if the domain-specific typeclasses
+are just specialised clones of something in scalaz, it is better to
+write the code and later refactor it, than to over-abstract too early.
 
 To help, we have included a cheat-sheet of the typeclasses and their
 primary methods in the Appendix, inspired by Adam Rosien's [Scalaz
 Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf). These cheat-sheets make an excellent replacement for the
-family picture on your office desk.
+family portrait on your office desk.
 
-For additional simplicity, Valentin Kasas offers us [The Shortest FP
-Book](https://twitter.com/ValentinKasas/status/879414703340081156) in diagram form (slightly adapted):
+To help further, Valentin Kasas explains how to [combine `N` things](https://twitter.com/ValentinKasas/status/879414703340081156):
 
 {width=70%}
 ![](images/shortest-fp-book.png)
