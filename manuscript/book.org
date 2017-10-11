@@ -5950,21 +5950,22 @@ digraph G {
     Monad [fontname=Hack];
     Apply [fontname=Hack];
 
-    effonce [label="effectively once",shape=diamond,height=0.7];
-    Monoid [fontname=Hack];
-    Band [fontname=Hack]
-
     Semigroup [fontname=Hack];
     hkt [label="early exit",shape=diamond,height=0.7];
     Plus [fontname=Hack];
 
+    effonce [label="effectively once",shape=diamond,height=0.7];
+    Monoid [fontname=Hack];
+    Band [fontname=Hack]
+
     things -> type;
     type -> gtzero [label=" yes"];
-    gtzero -> hkt [label=" yes"]
     hkt -> Plus [label=" yes"]
     hkt -> Semigroup [label=" no"]
 
-    gtzero -> effonce [label=" no"]
+    gtzero -> hkt [label=" no"]
+    gtzero -> effonce [label=" yes"]
+
     effonce -> Monoid [label=" no"];
     effonce -> Band [label=" yes"]
 
