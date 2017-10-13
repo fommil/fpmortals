@@ -35,6 +35,7 @@
 |                    | `leftMap`       | `F[A, B]`       | `A => C`               | `F[C, B]`      |
 |                    | `rightMap`      | `F[A, B]`       | `B => C`               | `F[A, C]`      |
 | `Bifoldable`       | `bifoldMap`     | `F[A, B]`       | `A => C, B => C`       | `C`            |
+| (with `MonadPlus`) | `separate`      | `F[G[A, B]]`    |                        | `(F[A], F[B])` |
 | `Bitraverse`       | `bitraverse`    | `F[A, B]`       | `A => G[C], B => G[D]` | `G[F[C, D]]`   |
 |                    | `bisequence`    | `F[G[A], G[B]]` |                        | `G[F[A, B]]`   |
 

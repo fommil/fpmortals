@@ -1,105 +1,119 @@
 
 # Data Types
 
-Adjunction
-Alpha
-Alter
-Ap
-Band
-Bias
-BijectionT
-CaseInsensitive
-Codensity
-Cofree
-Cokleisli
-ComonadTrans
-Composition
-Const
-ContravariantCoyoneda
-Coproduct
-Cord
-CorecursiveList
-Coyoneda
-Dequeue
-Diev
-Digit  // revisit the Foldable method
-Distributive
-DList
-Dual
-Either3
-Either
-EitherT
-Endomorphic
-Endo
-EphemeralStream
-FingerTree
-Forall
-FreeAp
-Free
-FreeT
-Generator
-Heap
-Id
-IdT
-IList
-ImmutableArray
-IndexedContsT
-Injective
-Inject
-ISet
-Isomorphism
-Kan
-Kleisli
-LazyEither
-LazyEitherT
-LazyOption
-LazyOptionT
-LazyTuple
-Leibniz
-Lens
-Liskov
-ListT
-Map
-Maybe
-MaybeT
-Memo
-MonadListen
-MonadTrans
-MonoidCoproduct
-Name
-NaturalTransformation
-NonEmptyList
-NotNothing
-NullArgument
-NullResult
-OneAnd
-OneOr
-OptionT
-Ordering
-PLens
-Product
-ReaderWriterStateT
-Reducer
-Representable
-State
-StateT
-StoreT
-StreamT
-StrictTree
-Tag
-Tags
-These
-TheseT
-TracedT
-TreeLoc
-Tree
-Unapply
-UnwriterT
-Validation
-WriterT
-Yoneda
-Zap
-Zipper
+
+## Leibniz
+
+-   Leibniz
+
+
+## Containers
+
+-   Disjunction `\/` (Either)
+-   These
+
+not sure about these?
+
+-   Alpha (represents an alphabetic character), maybe save for generators / laws
+
+
+## weird shit
+
+-   Adjunction (two functors `F` and `G` that give rise to a monad / comonad)
+-   Alter (utility to get a Monoid rather than the Plus for what it wraps)
+    Ap
+    Band
+    Bias
+    BijectionT
+    CaseInsensitive
+    Codensity
+    Cofree
+    Cokleisli
+    ComonadTrans
+    Composition
+    Const
+    ContravariantCoyoneda
+    Coproduct
+    Cord
+    CorecursiveList
+    Coyoneda
+    Dequeue
+    Diev
+    Digit  // revisit the Foldable method
+    Distributive
+    DList
+    Dual
+    Either3
+    EitherT
+    Endomorphic
+    Endo
+    EphemeralStream
+    FingerTree
+    Forall
+    FreeAp
+    Free
+    FreeT
+    Generator
+    Heap
+    Id
+    IdT
+    IList
+    ImmutableArray
+    IndexedContsT
+    Injective
+    Inject
+    ISet
+    Isomorphism
+    Kan
+    Kleisli
+    LazyEither
+    LazyEitherT
+    LazyOption
+    LazyOptionT
+    LazyTuple
+    Lens
+    Liskov
+    ListT
+    Map
+    Maybe
+    MaybeT
+    Memo
+    MonadListen
+    MonadTrans
+    MonoidCoproduct
+    Name
+    NaturalTransformation
+    NonEmptyList
+    NotNothing
+    NullArgument
+    NullResult
+    OneAnd
+    OneOr
+    OptionT
+    Ordering
+    PLens
+    Product
+    ReaderWriterStateT
+    Reducer
+    Representable
+    State
+    StateT
+    StoreT
+    StreamT
+    StrictTree
+    Tag
+    Tags
+    TheseT
+    TracedT
+    TreeLoc
+    Tree
+    Unapply
+    UnwriterT
+    Validation
+    WriterT
+    Yoneda
+    Zap - a typeclass!
+    Zipper
 
 
 ### Liskov / Subtyping
@@ -289,12 +303,6 @@ only mortgage where you still have to buy the house at the end.
 
 
 # Utilities
-
-
-## [single page fp book](https://github.com/vil1/single_page_fp_book)
-
-
-## cheat sheet
 
 
 ## Other

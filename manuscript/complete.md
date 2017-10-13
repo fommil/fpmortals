@@ -4469,16 +4469,24 @@ and `templates.foldRight` (or `.reverse.foldLeft`) to get the
 
 `ApplicativePlus` is also known as `Alternative`.
 
-`unite` looks like `Foldable.fold` but is using the
-`PlusEmpty[F].monoid[A]` (not the `Monoid[T[A]]`) and skips anything
-that is `empty` under that definition. For example, uniting a
-`List[Either]` means that `Left` are converted into `Nil` and the
-`Right` are converted into `List`, then the `Nil` are filtered away:
+`unite` looks a `Foldable.fold` on the contents of `F[_]` but is
+folding with the `PlusEmpty[F].monoid` (not the `Monoid[A]`). For
+example, uniting `List[Either[_, _]]` means `Left` becomes `empty`
+(`Nil`) and the contents of `Right` become single element `List`,
+which are then concatenated:
 
 {lang="text"}
 ~~~~~~~~
   scala> List(Right(1), Left("boo"), Right(2)).unite
   res: List[Int] = List(1, 2)
+  
+  scala> val boo: Either[String, Int] = Left("boo")
+         boo.foldMap(a => a.pure[List])
+  res: List[String] = List()
+  
+  scala> val n: Either[String, Int] = Right(1)
+         n.foldMap(a => a.pure[List])
+  res: List[Int] = List(1)
 ~~~~~~~~
 
 `withFilter` allows us to make use of `for` comprehension language
@@ -4961,6 +4969,31 @@ same type so that their results can be combined with a `Monoid` or
   
   scala> b.bitraverse(s => Future(s.length), i => Future(i))
   res: Future[Either[Int, Int]] = Future(<not completed>)
+~~~~~~~~
+
+In addition, we can revisit `MonadPlus` (recall it is `Monad` with the
+ability to `filterWith` and `unite`) and see that it can `separate`
+`Bifoldable` contents of a `Monad`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadPlus[F[_]] {
+    ...
+    def separate[G[_, _]: Bifoldable, A, B](value: F[G[A, B]]): (F[A], F[B]) = ...
+    ...
+  }
+~~~~~~~~
+
+This is very useful if we have a collection of bi-things and we want
+to reorganise them into a collection of `A` and a collection of `B`
+
+{lang="text"}
+~~~~~~~~
+  scala> val list: List[Either[Int, String]] =
+           List(Right("hello"), Left(1), Left(2), Right("world"))
+  
+  scala> list.separate
+  res: (List[Int], List[String]) = (List(1, 2), List(hello, world))
 ~~~~~~~~
 
 

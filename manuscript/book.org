@@ -5312,15 +5312,23 @@ and =templates.foldRight= (or =.reverse.foldLeft=) to get the
 
 =ApplicativePlus= is also known as =Alternative=.
 
-=unite= looks like =Foldable.fold= but is using the
-=PlusEmpty[F].monoid[A]= (not the =Monoid[T[A]]=) and skips anything
-that is =empty= under that definition. For example, uniting a
-=List[Either]= means that =Left= are converted into =Nil= and the
-=Right= are converted into =List=, then the =Nil= are filtered away:
+=unite= looks a =Foldable.fold= on the contents of =F[_]= but is
+folding with the =PlusEmpty[F].monoid= (not the =Monoid[A]=). For
+example, uniting =List[Either[_, _]]= means =Left= becomes =empty=
+(=Nil=) and the contents of =Right= become single element =List=,
+which are then concatenated:
 
 #+BEGIN_SRC scala
 scala> List(Right(1), Left("boo"), Right(2)).unite
 res: List[Int] = List(1, 2)
+
+scala> val boo: Either[String, Int] = Left("boo")
+       boo.foldMap(a => a.pure[List])
+res: List[String] = List()
+
+scala> val n: Either[String, Int] = Right(1)
+       n.foldMap(a => a.pure[List])
+res: List[Int] = List(1)
 #+END_SRC
 
 =withFilter= allows us to make use of =for= comprehension language
@@ -5891,6 +5899,29 @@ scala> b.bitraverse(s => Future(s.length), i => Future(i))
 res: Future[Either[Int, Int]] = Future(<not completed>)
 #+END_SRC
 
+In addition, we can revisit =MonadPlus= (recall it is =Monad= with the
+ability to =filterWith= and =unite=) and see that it can =separate=
+=Bifoldable= contents of a =Monad=
+
+#+BEGIN_SRC scala
+@typeclass trait MonadPlus[F[_]] {
+  ...
+  def separate[G[_, _]: Bifoldable, A, B](value: F[G[A, B]]): (F[A], F[B]) = ...
+  ...
+}
+#+END_SRC
+
+This is very useful if we have a collection of bi-things and we want
+to reorganise them into a collection of =A= and a collection of =B=
+
+#+BEGIN_SRC scala
+scala> val list: List[Either[Int, String]] =
+         List(Right("hello"), Left(1), Left(2), Right("world"))
+
+scala> list.separate
+res: (List[Int], List[String]) = (List(1, 2), List(hello, world))
+#+END_SRC
+
 *** Very Abstract Things
 
 What remains of the typeclass hierarchy are things that allow us to
@@ -6293,9 +6324,6 @@ the name. However, from a practical point of view, there needs to be a
 only mortgage where you still have to buy the house at the end.
 
 ** TODO Utilities
-
-*** TODO [[https://github.com/vil1/single_page_fp_book][single page fp book]]
-*** TODO cheat sheet
 *** TODO Other
 e.g. conversion utilities between things
 
@@ -6451,6 +6479,7 @@ and remove redundancy that we've accidentally introduced.
 |                    | ~leftMap~       | ~F[A, B]~       | ~A => C~               | ~F[C, B]~      |
 |                    | ~rightMap~      | ~F[A, B]~       | ~B => C~               | ~F[A, C]~      |
 | ~Bifoldable~       | ~bifoldMap~     | ~F[A, B]~       | ~A => C, B => C~       | ~C~            |
+| (with ~MonadPlus~) | ~separate~      | ~F[G[A, B]]~    |                        | ~(F[A], F[B])~ |
 | ~Bitraverse~       | ~bitraverse~    | ~F[A, B]~       | ~A => G[C], B => G[D]~ | ~G[F[C, D]]~   |
 |                    | ~bisequence~    | ~F[G[A], G[B]]~ |                        | ~G[F[A, B]]~   |
 
