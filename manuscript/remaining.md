@@ -2,118 +2,127 @@
 # Data Types
 
 
-## Leibniz
+## Type Variance
 
 -   Leibniz
+-   Liskov
+
+and evaluation...
+
+-   Name / Need / Value
+-   Memo
 
 
 ## Containers
 
 -   Disjunction `\/` (Either)
 -   These
+-   IList
+-   DList (difference list)
+-   ImmutableArray
+-   LazyEither
+-   LazyOption
+-   LazyTuple
+-   OneAnd / OneOr
+-   Dequeue
+-   EphemeralStream
+-   FingerTree
+-   Cord
+-   Const
+-   Coproduct (higher kinded Either)
+-   CorecursiveList (huh? see CorecursiveListImpl)
+-   Diev (Discrete Interval Encoding Tree)
+-   StrictTree
+-   Tree
+-   Validation
+-   Either3
+-   Map
+-   Maybe
+-   ISet
+-   NonEmptyList
+-   Heap (priority queues)
 
-not sure about these?
+Dare we tackle Free in this section?
+
+
+## Refinements
 
 -   Alpha (represents an alphabetic character), maybe save for generators / laws
+-   Digit (0-9)
+-   CaseInsensitive
+-   Endo (just wraps A => A)
 
 
-## weird shit
+## Missed typeclasses
+
+-   Distributive (dual of Traverse)
+-   Zap (Functors that destroy each other)
+
+
+## weird shit (mostly type tricks)
 
 -   Adjunction (two functors `F` and `G` that give rise to a monad / comonad)
+-   Codensity (seems to be a monad of some kind)
+-   Zipper / TreeLoc (as discussed earlier)
+-   Unapply (workaround for type inference)
+-   Kan / Coyoneda / Yoneda / ContravariantCoyoneda
+-   Endomorphic / Isomorphism (will need arrows)
+-   Forall (universal quantification)
+-   Injective (proof stuff)
+-   Inject (something about data types a la carte... seems important)
+-   Lens / PLens ... tricky, we really want to use monocle
+-   MonoidCoproduct lists of disjunction of monoidal things
+-   NaturalTransformation
+-   NotNothing (mini version of shapeless' equivalent)
+-   NullArgument (?=> ... drugged up elvis)
+-   NullResult
+-   Representable (should probably be a typeclass, X => A implies F[A]: Functor)
+
+-   Tag
+-   Tags
+-   Dual
+
+
+## Conversions
+
 -   Alter (utility to get a Monoid rather than the Plus for what it wraps)
-    Ap
-    Band
-    Bias
-    BijectionT
-    CaseInsensitive
-    Codensity
-    Cofree
-    Cokleisli
-    ComonadTrans
-    Composition
-    Const
-    ContravariantCoyoneda
-    Coproduct
-    Cord
-    CorecursiveList
-    Coyoneda
-    Dequeue
-    Diev
-    Digit  // revisit the Foldable method
-    Distributive
-    DList
-    Dual
-    Either3
-    EitherT
-    Endomorphic
-    Endo
-    EphemeralStream
-    FingerTree
-    Forall
-    FreeAp
-    Free
-    FreeT
-    Generator
-    Heap
-    Id
-    IdT
-    IList
-    ImmutableArray
-    IndexedContsT
-    Injective
-    Inject
-    ISet
-    Isomorphism
-    Kan
-    Kleisli
-    LazyEither
-    LazyEitherT
-    LazyOption
-    LazyOptionT
-    LazyTuple
-    Lens
-    Liskov
-    ListT
-    Map
-    Maybe
-    MaybeT
-    Memo
-    MonadListen
-    MonadTrans
-    MonoidCoproduct
-    Name
-    NaturalTransformation
-    NonEmptyList
-    NotNothing
-    NullArgument
-    NullResult
-    OneAnd
-    OneOr
-    OptionT
-    Ordering
-    PLens
-    Product
-    ReaderWriterStateT
-    Reducer
-    Representable
-    State
-    StateT
-    StoreT
-    StreamT
-    StrictTree
-    Tag
-    Tags
-    TheseT
-    TracedT
-    TreeLoc
-    Tree
-    Unapply
-    UnwriterT
-    Validation
-    WriterT
-    Yoneda
-    Zap - a typeclass!
-    Zipper
+-   Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
+-   Generator / Reducer
+
+
+## Monad Transformers
+
+-   MonadTrans
+-   ComonadTrans
+
+-   Kleisli (or does this need to come earlier?)
+-   Cokleisli
+
+-   IdT
+-   BijectionT
+-   EitherT
+-   FreeT
+-   IndexedContsT
+-   LazyEitherT
+-   LazyOptionT
+-   ListT
+-   MaybeT
+-   OptionT
+-   ReaderWriterStateT
+-   StateT / State
+-   StoreT
+-   StreamT
+-   TheseT
+-   TracedT
+-   UnwriterT
+-   WriterT
+
+
+## Monads
+
+-   FreeAp
+-   Cofree
+-   Free
 
 
 ### Liskov / Subtyping
