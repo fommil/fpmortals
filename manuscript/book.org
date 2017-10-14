@@ -5841,8 +5841,6 @@ digraph G {
   @op("<-:") def leftMap[A, B, C](fab: F[A, B])(f: A => C): F[C, B] = ...
   @op(":->") def rightMap[A, B, D](fab: F[A, B])(g: B => D): F[A, D] = ...
   @op("<:>") def umap[A, B](faa: F[A, A])(f: A => B): F[B, B] = ...
-
-  def widen[A, B, C >: A, D >: B](fab: F[A, B]): F[C, D] = ...
 }
 
 @typeclass trait Bifoldable[F[_, _]] {
@@ -6010,6 +6008,122 @@ digraph G {
 #+RESULTS:
 [[file:images/shortest-fp-book.png]]
 
+** Scalaz Data Types
+
+Who doesn't love a good data structure? Although a vector and a list
+can do the same things, their performance characteristics are very
+different.
+
+In this chapter we'll explore the data types in scalaz, as well as
+data types that augment the Scala language with useful semantics.
+
+Unlike the Java and Scala collections, there is no hierarchy to the
+data types in scalaz. Polymorphic functionality is provided by
+optimised instances of the typeclasses we studied in the previous
+chapter. This makes it a lot easier to swap container implementations
+for performance reasons, and to provide our own.
+
+*** Type Variance
+
+# https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw
+# https://typelevel.org/blog/2016/09/19/variance-phantom.html
+
+After seven major releases over a decade, scalaz's authors have
+concluded that Scala's type variance (=+= and =-= prefixes) is
+fundamentally broken: from subtle, yet devastating [[https://issues.scala-lang.org/browse/SI-2509][bugs in the
+compiler]], to limitations in the type system. Hence, scalaz data types
+are typically /invariant/ in their type parameters. For example,
+=IList[A]= is *not* a subtype of =IList[B]= when =A <: B=.
+
+To show the limitations of the type system, we will try to derive a
+JSON =Encoder= typeclass for anything that extends from
+=scala.collection.Seq=
+
+#+BEGIN_SRC scala
+implicit def seq[T[_] <: Seq[_], A: Encoder]: Encoder[T[A]] = ...
+#+END_SRC
+
+Unfortunately, this fails to compile because the Scala type system
+does not know how to calculate subtype relationships for type
+constructors. A workaround from the Scala stdlib is to use the ~<:<~
+and ~=:=~ witnesses:
+
+#+BEGIN_SRC scala
+package scala
+
+object Predef {
+  ..
+  sealed abstract class <:<[-From, +To] extends (From => To)
+  sealed abstract class =:=[ From,  To] extends (From => To)
+  ..
+}
+#+END_SRC
+
+combined with =implicit= evidence:
+
+#+BEGIN_SRC scala
+  implicit def seq[T[_], A: Encoder](
+    implicit ev: T[A] <:< Seq[A]
+  ): Encoder[T[A]] = ...
+#+END_SRC
+
+This compiles and we can ~.asInstanceOf[Seq[A]]~ on anything of type
+~T[A]~. The ~=:=~ uses the same trick and witnesses that two types are
+the same.
+
+Scalaz's academically named /Liskov/ (=<~<=) and /Leibniz/ (~===~) are
+an improvement over the stdlib witnesses, contributed by the same
+author: Jason Zaugg of the =scalac= team:
+
+#+BEGIN_SRC scala
+sealed abstract class Liskov[-A, +B] {
+  def apply(a: A): B = ...
+  def subst[F[-_]](p: F[B]): F[A]
+
+  def andThen[C](that: Liskov[B, C]): Liskov[A, C] = ...
+  def compose[C](that: Liskov[C, A]): Liskov[C, B] = ...
+  def onF[X](fa: X => A): X => B = ...
+  ...
+}
+object Liskov {
+  type <~<[-A, +B] = Liskov[A, B]
+  type >~>[+B, -A] = Liskov[A, B]
+  ...
+}
+
+// type signatures have been simplified
+sealed abstract class Leibniz[A, B] {
+  def apply(a: A): B = ...
+  def subst[F[_]](p: F[A]): F[B]
+
+  def flip: Leibniz[B, A] = ...
+  def compose[C](that: Leibniz[C, A]): Leibniz[C, B] = ...
+  def andThen[C](that: Leibniz[B, C]): Leibniz[A, C] = ...
+  def onF[X](fa: X => A): X => B = ...
+  ...
+}
+object Leibniz {
+  type ===[A, B] = Leibniz[A, B]
+  ...
+}
+#+END_SRC
+
+An immediate improvement is that we can =.apply= the evidence rather
+than calling =.asInstanceOf=, which always felt dirty. For example, in
+=Functor=, it is possible to widen the =A= to =B= if the evidence =A
+<~< B= exists:
+
+#+BEGIN_SRC scala
+@typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
+  ...
+  def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = map(fa)(ev.apply)
+  ...
+}
+#+END_SRC
+
+Scalaz provides the evidence automatically, using scala's implicit
+resolution to augment the type system.
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
@@ -6022,7 +6136,7 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
-- Scalaz Data Types
+- Scalaz Data Types (more to come)
 - Scalaz Advanced Monads
 - Scalaz Utilities
 - Generic Derivation
@@ -6039,12 +6153,9 @@ while continuing to build out the example application.
   :PROPERTIES:
   :EXPORT_FILE_NAME: remaining.md
   :END:
-** Data Types
+** TODO Data Types
 
-*** TODO Type Variance
-
-- Leibniz
-- Liskov
+*** TODO Evaluation
 
 and evaluation...
 
@@ -6152,104 +6263,11 @@ Dare we tackle Free in this section?
 
 *** TODO Monads
 
+But these feel like they belong in a chapter about data types...
+
 - FreeAp
 - Cofree
 - Free
-
-**** Liskov / Subtyping
-
-https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw
-https://typelevel.org/blog/2016/09/19/variance-phantom.html
-
-After seven major releases over a decade, scalaz has concluded that
-Scala's subtyping is fundamentally broken: from subtle bugs in the
-compiler to puzzlers that are technically behaving as expected. The
-solution is to avoid using covariant and contravariant (=+= and =-=)
-type parameter markers.
-
-You'll will notice that many of the data types in scalaz are invariant
-in their type parameters. =IList= is =IList[A]= not =List[+A]= for
-this very reason.
-
-Instead, the ability to upcast is provided by =Functor=:
-
-#+BEGIN_SRC scala
-@typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
-  def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = ...
-  ...
-}
-#+END_SRC
-
-https://issues.scala-lang.org/browse/SI-2509
-
-#+BEGIN_SRC scala
-(on subtyping on typeclasses)
-
-<aarvar> "def foo[F[_] : MonadReader[R, ?] : MonadState[S, ?]] will lead to
-         ambiguities if both MonadReader and MonadState extend Monad"
-<aarvar> try it  [22:54]
-<fommil> yes, and the more common problem is when you want an Applicative and
-         a Monad. I'm aware of that problem.
-<aarvar> likewise if you have both Applicative and Traversable, the Functor
-         instance will be ambiguous, I think
-<fommil> but what of when covariant and contravariant type parameters are
-         introduced?
-<puffnfresh> def foo[F[_]: Monad: Traverse](fa: F[A]): F[Unit] = fa.void
-...
-<fommil> but what about on ADTs? Why are all the scalaz data types invariant
-         rather than covariant?
-<fommil> is there a similar implicit resolution problem that is being worked
-         around? Or something deeper  [23:00]
-<aarvar> fommil: one simple reason is that then Foo[String] and Foo[Int] will
-         unify to the common super type Foo[Any], which is almost never what
-         you want  [23:02]
-<fommil> right... or more commonly Product with Serializable with OtherCrap
-#+END_SRC
-
-**** TODO NonEmptyList
-**** TODO NonEmptyVector
-**** TODO Validated
-
-#+BEGIN_ASIDE
-This ADT has methods on it, but in Chapter 4 we said that ADTs
-shouldn't have methods on them and that the functionality should live
-on typeclasses! You caught us red handed. There are several reasons
-for doing it this way.
-
-Sorry, but there are more methods than the =value= and =memoize= on
-=Eval= shown here: it also has =map= and =flatMap=. The reason they
-live on the ADT and not in an instance of =Monad= is because it is
-slightly more efficient for the compiler to find these methods instead
-of looking for =Monad.ops._=, and it is slightly more efficient at
-runtime. This is an optimisation step that is absolutely vital in a
-core library such as cats, but please do not perform these
-optimisations in user code unless you have profiled and found a
-performance bottleneck. There is a significant cost to code
-readability.
-#+END_ASIDE
-
-**** TODO Ior
-
-**** TODO Esoteric / Advanced
-
-Maybe leave until after typeclasses
-
-- Cokleisli
-- Const
-- Coproduct
-- Func
-- Kleisli
-- Nested
-- OneAnd
-- Prod
-
-**** TODO Monad Transformers
-
-- EitherT
-- IdT
-- OptionT
-- StateT
-- WriterT
 
 ** TODO Advanced Monads
 
@@ -6399,6 +6417,12 @@ not sure what the relevance to this project would be yet.
 
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
+
+https://mobile.twitter.com/ctford/status/887216797421842433
+
+"These dynamic langs are so sloppy. We should be more rigorous, like maths."
+"Cool! What does maths use to indicate types?"
+"Fonts, mostly." -- Chris Ford
 
 *** Reality Check
 

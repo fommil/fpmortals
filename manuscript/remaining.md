@@ -2,10 +2,7 @@
 # Data Types
 
 
-## Type Variance
-
--   Leibniz
--   Liskov
+## Evaluation
 
 and evaluation...
 
@@ -120,113 +117,11 @@ Dare we tackle Free in this section?
 
 ## Monads
 
+But these feel like they belong in a chapter about data types...
+
 -   FreeAp
 -   Cofree
 -   Free
-
-
-### Liskov / Subtyping
-
-<https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw>
-<https://typelevel.org/blog/2016/09/19/variance-phantom.html>
-
-After seven major releases over a decade, scalaz has concluded that
-Scala's subtyping is fundamentally broken: from subtle bugs in the
-compiler to puzzlers that are technically behaving as expected. The
-solution is to avoid using covariant and contravariant (`+` and `-`)
-type parameter markers.
-
-You'll will notice that many of the data types in scalaz are invariant
-in their type parameters. `IList` is `IList[A]` not `List[+A]` for
-this very reason.
-
-Instead, the ability to upcast is provided by `Functor`:
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
-    def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = ...
-    ...
-  }
-~~~~~~~~
-
-<https://issues.scala-lang.org/browse/SI-2509>
-
-{lang="text"}
-~~~~~~~~
-  (on subtyping on typeclasses)
-  
-  <aarvar> "def foo[F[_] : MonadReader[R, ?] : MonadState[S, ?]] will lead to
-           ambiguities if both MonadReader and MonadState extend Monad"
-  <aarvar> try it  [22:54]
-  <fommil> yes, and the more common problem is when you want an Applicative and
-           a Monad. I'm aware of that problem.
-  <aarvar> likewise if you have both Applicative and Traversable, the Functor
-           instance will be ambiguous, I think
-  <fommil> but what of when covariant and contravariant type parameters are
-           introduced?
-  <puffnfresh> def foo[F[_]: Monad: Traverse](fa: F[A]): F[Unit] = fa.void
-  ...
-  <fommil> but what about on ADTs? Why are all the scalaz data types invariant
-           rather than covariant?
-  <fommil> is there a similar implicit resolution problem that is being worked
-           around? Or something deeper  [23:00]
-  <aarvar> fommil: one simple reason is that then Foo[String] and Foo[Int] will
-           unify to the common super type Foo[Any], which is almost never what
-           you want  [23:02]
-  <fommil> right... or more commonly Product with Serializable with OtherCrap
-~~~~~~~~
-
-
-### NonEmptyList
-
-
-### NonEmptyVector
-
-
-### Validated
-
-A> This ADT has methods on it, but in Chapter 4 we said that ADTs
-A> shouldn't have methods on them and that the functionality should live
-A> on typeclasses! You caught us red handed. There are several reasons
-A> for doing it this way.
-A> 
-A> Sorry, but there are more methods than the `value` and `memoize` on
-A> `Eval` shown here: it also has `map` and `flatMap`. The reason they
-A> live on the ADT and not in an instance of `Monad` is because it is
-A> slightly more efficient for the compiler to find these methods instead
-A> of looking for `Monad.ops._`, and it is slightly more efficient at
-A> runtime. This is an optimisation step that is absolutely vital in a
-A> core library such as cats, but please do not perform these
-A> optimisations in user code unless you have profiled and found a
-A> performance bottleneck. There is a significant cost to code
-A> readability.
-
-
-### Ior
-
-
-### Esoteric / Advanced
-
-Maybe leave until after typeclasses
-
--   Cokleisli
--   Const
--   Coproduct
--   Func
--   Kleisli
--   Nested
--   OneAnd
--   Prod
-
-
-### Monad Transformers
-
--   EitherT
--   IdT
--   OptionT
--   StateT
--   WriterT
 
 
 # Advanced Monads
@@ -399,6 +294,12 @@ not sure what the relevance to this project would be yet.
 
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
+
+<https://mobile.twitter.com/ctford/status/887216797421842433>
+
+"These dynamic langs are so sloppy. We should be more rigorous, like maths."
+"Cool! What does maths use to indicate types?"
+"Fonts, mostly." -- Chris Ford
 
 
 ## Reality Check

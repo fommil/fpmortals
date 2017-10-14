@@ -4914,8 +4914,6 @@ relatives that allow us to map both ways.
     @op("<-:") def leftMap[A, B, C](fab: F[A, B])(f: A => C): F[C, B] = ...
     @op(":->") def rightMap[A, B, D](fab: F[A, B])(g: B => D): F[A, D] = ...
     @op("<:>") def umap[A, B](faa: F[A, A])(f: A => B): F[B, B] = ...
-  
-    def widen[A, B, C >: A, D >: B](fab: F[A, B]): F[C, D] = ...
   }
   
   @typeclass trait Bifoldable[F[_, _]] {
@@ -5030,5 +5028,125 @@ To help further, Valentin Kasas explains how to [combine `N` things](https://twi
 
 {width=70%}
 ![](images/shortest-fp-book.png)
+
+
+# Scalaz Data Types
+
+Who doesn't love a good data structure? Although a vector and a list
+can do the same things, their performance characteristics are very
+different.
+
+In this chapter we'll explore the data types in scalaz, as well as
+data types that augment the Scala language with useful semantics.
+
+Unlike the Java and Scala collections, there is no hierarchy to the
+data types in scalaz. Polymorphic functionality is provided by
+optimised instances of the typeclasses we studied in the previous
+chapter. This makes it a lot easier to swap container implementations
+for performance reasons, and to provide our own.
+
+
+## Type Variance
+
+After seven major releases over a decade, scalaz's authors have
+concluded that Scala's type variance (`+` and `-` prefixes) is
+fundamentally broken: from subtle, yet devastating [bugs in the
+compiler](https://issues.scala-lang.org/browse/SI-2509), to limitations in the type system. Hence, scalaz data types
+are typically *invariant* in their type parameters. For example,
+`IList[A]` is **not** a subtype of `IList[B]` when `A <: B`.
+
+To show the limitations of the type system, we will try to derive a
+JSON `Encoder` typeclass for anything that extends from
+`scala.collection.Seq`
+
+{lang="text"}
+~~~~~~~~
+  implicit def seq[T[_] <: Seq[_], A: Encoder]: Encoder[T[A]] = ...
+~~~~~~~~
+
+Unfortunately, this fails to compile because the Scala type system
+does not know how to calculate subtype relationships for type
+constructors. A workaround from the Scala stdlib is to use the `<:<`
+and `=:=` witnesses:
+
+{lang="text"}
+~~~~~~~~
+  package scala
+  
+  object Predef {
+    ..
+    sealed abstract class <:<[-From, +To] extends (From => To)
+    sealed abstract class =:=[ From,  To] extends (From => To)
+    ..
+  }
+~~~~~~~~
+
+combined with `implicit` evidence:
+
+{lang="text"}
+~~~~~~~~
+  implicit def seq[T[_], A: Encoder](
+    implicit ev: T[A] <:< Seq[A]
+  ): Encoder[T[A]] = ...
+~~~~~~~~
+
+This compiles and we can `.asInstanceOf[Seq[A]]` on anything of type
+`T[A]`. The `=:=` uses the same trick and witnesses that two types are
+the same.
+
+Scalaz's academically named *Liskov* (`<~<`) and *Leibniz* (`===`) are
+an improvement over the stdlib witnesses, contributed by the same
+author: Jason Zaugg of the `scalac` team:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Liskov[-A, +B] {
+    def apply(a: A): B = ...
+    def subst[F[-_]](p: F[B]): F[A]
+  
+    def andThen[C](that: Liskov[B, C]): Liskov[A, C] = ...
+    def compose[C](that: Liskov[C, A]): Liskov[C, B] = ...
+    def onF[X](fa: X => A): X => B = ...
+    ...
+  }
+  object Liskov {
+    type <~<[-A, +B] = Liskov[A, B]
+    type >~>[+B, -A] = Liskov[A, B]
+    ...
+  }
+  
+  // type signatures have been simplified
+  sealed abstract class Leibniz[A, B] {
+    def apply(a: A): B = ...
+    def subst[F[_]](p: F[A]): F[B]
+  
+    def flip: Leibniz[B, A] = ...
+    def compose[C](that: Leibniz[C, A]): Leibniz[C, B] = ...
+    def andThen[C](that: Leibniz[B, C]): Leibniz[A, C] = ...
+    def onF[X](fa: X => A): X => B = ...
+    ...
+  }
+  object Leibniz {
+    type ===[A, B] = Leibniz[A, B]
+    ...
+  }
+~~~~~~~~
+
+An immediate improvement is that we can `.apply` the evidence rather
+than calling `.asInstanceOf`, which always felt dirty. For example, in
+`Functor`, it is possible to widen the `A` to `B` if the evidence `A
+<~< B` exists:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
+    ...
+    def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = map(fa)(ev.apply)
+    ...
+  }
+~~~~~~~~
+
+Scalaz provides the evidence automatically, using scala's implicit
+resolution to augment the type system.
 
 

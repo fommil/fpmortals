@@ -6,7 +6,7 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
--   Scalaz Data Types
+-   Scalaz Data Types (more to come)
 -   Scalaz Advanced Monads
 -   Scalaz Utilities
 -   Generic Derivation
