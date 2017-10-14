@@ -2,14 +2,6 @@
 # Data Types
 
 
-## Evaluation
-
-and evaluation...
-
--   Name / Need / Value
--   Memo
-
-
 ## Containers
 
 -   Disjunction `\/` (Either)

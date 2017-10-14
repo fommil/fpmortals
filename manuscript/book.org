@@ -6030,11 +6030,13 @@ performance reasons, and to provide our own.
 # https://typelevel.org/blog/2016/09/19/variance-phantom.html
 
 After seven major releases over a decade, scalaz's authors have
-concluded that Scala's type variance (=+= and =-= prefixes) is
-fundamentally broken: from subtle, yet devastating [[https://issues.scala-lang.org/browse/SI-2509][bugs in the
-compiler]], to limitations in the type system. Hence, scalaz data types
-are typically /invariant/ in their type parameters. For example,
-=IList[A]= is *not* a subtype of =IList[B]= when =A <: B=.
+concluded that Scala's type variance (=+= / =-= prefixes) is
+fundamentally broken. From subtle, yet devastating [[https://issues.scala-lang.org/browse/SI-2509][bugs in the
+compiler]], to limitations of the type system.
+
+Hence, scalaz data types are typically /invariant/ in their type
+parameters. For example, =IList[A]= is *not* a subtype of =IList[B]=
+when =A <: B=.
 
 To show the limitations of the type system, we will try to derive a
 JSON =Encoder= typeclass for anything that extends from
@@ -6130,6 +6132,99 @@ is not included in =Functor=
 Scalaz provides the evidence automatically, using scala's implicit
 resolution to augment the type system.
 
+*** Evaluation
+
+Java is a /strict/ evaluation language: all the parameters to a method
+must be evaluated to a /value/ before the method is called. Scala
+introduces the notion of /by-name/ parameters on methods with ~a: =>A~
+syntax. These parameters are wrapped up as a zero argument function
+which is called every time the ~A~ is referenced. We seen /by-name/ a
+lot in the typeclasses, which can avoid doing extraneous work.
+
+Scala also has /by-need/ evaluation of values, with the =lazy=
+keyword: the code is evaluated exactly once to produce the value.
+Unfortunately, scala does not support lazy evaluation of method
+parameters.
+
+#+BEGIN_ASIDE
+If the calculation of a =lazy val= results in an exception, it is
+retried every time it is accessed. Because exceptions can break
+referential transparency, we will limit our discussion to =lazy val=
+calculations that do not throw exceptions.
+#+END_ASIDE
+
+Scalaz formalises the three evaluation strategies with an ADT
+
+#+BEGIN_SRC scala
+sealed abstract class Name[A] {
+  def value: A
+}
+object Name {
+  def apply[A](a: =>A) = new Name[A] { def value = a }
+  ...
+}
+
+sealed abstract class Need[A] extends Name[A]
+object Need {
+  def apply[A](a: =>A): Need[A] = new Need[A] {
+    private lazy val value0: A = a
+    def value = value0
+  }
+  ...
+}
+
+final case class Value[A](value: A) extends Need[A]
+#+END_SRC
+
+The weakest form of evaluation is =Name=, giving no computational
+guarantees. Next is =Need=, guaranteeing /at most once/ evaluation,
+whereas =Value= is pre-computed and therefore /exactly once/
+evaluation.
+
+If we wanted to be super-pedantic we could go back to all the
+typeclasses and make their methods take =Name=, =Need= or =Value=
+parameters. Instead we can assume that normal parameters can always be
+wrapped in a =Value=, and /by-name/ parameters can be wrapped with
+=Name=.
+
+When we write /pure programs/, we are free to replace any =Name= with
+=Need= or =Value=, and vice versa, with no change to the correctness
+of the program. This is the essence of /referential transparency/: the
+ability to replace a computation by its value, or a value by its
+computation.
+
+In functional programming we almost always want =Value= or =Need=
+(also known as /strict/ and /lazy/): there is little value in =Name=.
+Because there is no language level support for lazy method parameters,
+methods typically ask for a /by-name/ parameter and then convert it
+into a =Need= internally, getting a boost to performance.
+
+=Need= provides instances of the following typeclasses
+
+- =Monad=
+- =BindRec=
+- =Comonad=
+- =Distributive=
+- =Traverse1=
+- =Zip=
+- =Unzip=
+- =Align=
+- =Cozip=
+
+#+BEGIN_ASIDE
+/by-name/ and /lazy/ are not the free lunch they appear to be. When
+scala converts these methods into bytecode, there is an object
+allocation overhead.
+
+Before rewriting everything to use /by-name/ parameters, ensure that
+the cost of the overhead does not eclipse the saving.
+
+Usually it *is* a free lunch, but if you have high performance code
+that is running in a tight loop, you need to benchmark.
+#+END_ASIDE
+
+# - TODO Memo
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
@@ -6160,13 +6255,6 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 ** TODO Data Types
-
-*** TODO Evaluation
-
-and evaluation...
-
-- Name / Need / Value
-- Memo
 
 *** TODO Containers
 
@@ -6631,7 +6719,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #+END_SRC
 
+# `whitespace-style: (face trailing tabs lines-tail)' is too noisy
 # Local Variables:
-# whitespace-style: (face trailing tabs lines-tail)
-# whitespace-line-column: 80
+# whitespace-line-column: 82
 # End:
