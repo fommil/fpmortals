@@ -5050,8 +5050,8 @@ performance reasons, and to provide our own.
 ## Type Variance
 
 After seven major releases over a decade, scalaz's authors have
-concluded that Scala's type variance (`+` / `-` prefixes) is
-fundamentally broken. From subtle, yet devastating [bugs in the
+concluded that Scala's type variance (`+-` type prefixes) is
+fundamentally broken: from subtle, yet devastating [bugs in the
 compiler](https://issues.scala-lang.org/browse/SI-2509), to limitations of the type system.
 
 Hence, scalaz data types are typically *invariant* in their type
@@ -5165,8 +5165,8 @@ Java is a *strict* evaluation language: all the parameters to a method
 must be evaluated to a *value* before the method is called. Scala
 introduces the notion of *by-name* parameters on methods with `a: =>A`
 syntax. These parameters are wrapped up as a zero argument function
-which is called every time the `A` is referenced. We seen *by-name* a
-lot in the typeclasses, which can avoid doing extraneous work.
+which is called every time the `a` is referenced. We seen *by-name* a
+lot in the typeclasses.
 
 Scala also has *by-need* evaluation of values, with the `lazy`
 keyword: the code is evaluated exactly once to produce the value.
@@ -5175,7 +5175,7 @@ parameters.
 
 A> If the calculation of a `lazy val` results in an exception, it is
 A> retried every time it is accessed. Because exceptions can break
-A> referential transparency, we will limit our discussion to `lazy val`
+A> referential transparency, we limit our discussion to `lazy val`
 A> calculations that do not throw exceptions.
 
 Scalaz formalises the three evaluation strategies with an ADT
@@ -5274,9 +5274,6 @@ evaluation because of the diversity of implementations:
 
 -   `memo` is to create custom implementations of `Memo`.
 -   `nilMemo` doesn't memoise, simply evaluating the function normally.
--   `arrayMemo` and `doubleArrayMemo` intercept and store results in an
-    `Array`. Arrays can grow to 2GB on the JVM (not counting their
-    contents), expanding according to the initial `n`.
 -   the remaining implementations intercept calls to the function and
     store results with stdlib collection implementations, assuming that
     `K` implements `.equals` and `.hashCode`.
@@ -5291,9 +5288,6 @@ Additionally, we could write a `Memo` that requires a marshalling
 format for both `K` and `V`, allowing us to use a distributed cache
 like redis.
 
-A `Memo` is created independently of the function it is caching
-(allowing it to be shared by equivalent functions).
-
 {lang="text"}
 ~~~~~~~~
   scala> def foo(n: Int): String = {
@@ -5302,14 +5296,14 @@ A `Memo` is created independently of the function it is caching
          }
   
   scala> val mem = Memo.arrayMemo[String](100)
-         val mfoo = mem(i => foo(i))
+         val mfoo = mem(foo)
   
   scala> mfoo(1)
-  running
+  running // evaluated
   res: String = wobble
   
   scala> mfoo(1)
-  res: String = wobble
+  res: String = wobble // memoised
 ~~~~~~~~
 
 
