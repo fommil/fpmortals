@@ -5036,14 +5036,15 @@ Who doesn't love a good data structure? Although a vector and a list
 can do the same things, their performance characteristics are very
 different.
 
-In this chapter we'll explore the data types in scalaz, as well as
-data types that augment the Scala language with useful semantics.
+In this chapter we'll explore the *collection-like* data types in
+scalaz, as well as data types that augment the Scala language with
+useful semantics and additional type safety.
 
 Unlike the Java and Scala collections, there is no hierarchy to the
 data types in scalaz. Polymorphic functionality is provided by
 optimised instances of the typeclasses we studied in the previous
-chapter. This makes it a lot easier to swap container implementations
-for performance reasons, and to provide our own.
+chapter. This makes it a lot easier to swap implementations for
+performance reasons, and to provide our own.
 
 
 ## Type Variance
@@ -5066,8 +5067,8 @@ JSON `Encoder` typeclass for anything that extends from
 
 Unfortunately, this fails to compile because the Scala type system
 does not know how to calculate subtype relationships for type
-constructors. A workaround from the Scala stdlib is to use the `<:<`
-and `=:=` witnesses:
+constructors. The stdlib's workaround is to use `<:<` and `=:=`
+witnesses:
 
 {lang="text"}
 ~~~~~~~~
@@ -5134,7 +5135,7 @@ author: Jason Zaugg of the `scalac` team:
 
 An immediate improvement is that we can `.apply` the evidence rather
 than calling `.asInstanceOf`, which always felt dirty. For example, in
-`Functor`, it is possible to widen the `A` to `B` if the evidence `A
+`Functor`, it is possible to widen `F[A]` to `F[B]` if the evidence `A
 <~< B` exists:
 
 {lang="text"}
@@ -5144,6 +5145,15 @@ than calling `.asInstanceOf`, which always felt dirty. For example, in
     def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = map(fa)(ev.apply)
     ...
   }
+~~~~~~~~
+
+we could even `narrow` the `F[A]` to an `F[B]` if `>~>` exists (or
+`<~<` with the type parameters flipped), but this is rarely needed so
+is not included in `Functor`
+
+{lang="text"}
+~~~~~~~~
+  def narrow[A, B](fa: F[A])(implicit ev: B <~< A): F[B] = map(fa)(ev.apply)
 ~~~~~~~~
 
 Scalaz provides the evidence automatically, using scala's implicit
