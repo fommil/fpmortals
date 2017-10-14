@@ -5068,16 +5068,15 @@ JSON `Encoder` typeclass for anything that extends from
 Unfortunately, this fails to compile because the Scala type system
 does not know how to calculate subtype relationships for type
 constructors. The stdlib's workaround is to use `<:<` and `=:=`
-witnesses:
+witnesses (recall that `scala.Predef` is imported automatically):
 
 {lang="text"}
 ~~~~~~~~
   package scala
   
   object Predef {
-    ..
-    sealed abstract class <:<[-From, +To] extends (From => To)
-    sealed abstract class =:=[ From,  To] extends (From => To)
+    sealed abstract class <:<[-From, +To]
+    sealed abstract class =:=[ From,  To]
     ..
   }
 ~~~~~~~~
@@ -5086,9 +5085,7 @@ combined with `implicit` evidence:
 
 {lang="text"}
 ~~~~~~~~
-  implicit def seq[T[_], A: Encoder](
-    implicit ev: T[A] <:< Seq[A]
-  ): Encoder[T[A]] = ...
+  implicit def seq[T[_], A: Encoder](implicit ev: T[A] <:< Seq[A]): Encoder[T[A]] = ...
 ~~~~~~~~
 
 This compiles and we can `.asInstanceOf[Seq[A]]` on anything of type

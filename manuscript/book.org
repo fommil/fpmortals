@@ -6047,15 +6047,14 @@ implicit def seq[T[_] <: Seq[_], A: Encoder]: Encoder[T[A]] = ...
 Unfortunately, this fails to compile because the Scala type system
 does not know how to calculate subtype relationships for type
 constructors. The stdlib's workaround is to use ~<:<~ and ~=:=~
-witnesses:
+witnesses (recall that =scala.Predef= is imported automatically):
 
 #+BEGIN_SRC scala
 package scala
 
 object Predef {
-  ..
-  sealed abstract class <:<[-From, +To] extends (From => To)
-  sealed abstract class =:=[ From,  To] extends (From => To)
+  sealed abstract class <:<[-From, +To]
+  sealed abstract class =:=[ From,  To]
   ..
 }
 #+END_SRC
@@ -6063,9 +6062,7 @@ object Predef {
 combined with =implicit= evidence:
 
 #+BEGIN_SRC scala
-  implicit def seq[T[_], A: Encoder](
-    implicit ev: T[A] <:< Seq[A]
-  ): Encoder[T[A]] = ...
+implicit def seq[T[_], A: Encoder](implicit ev: T[A] <:< Seq[A]): Encoder[T[A]] = ...
 #+END_SRC
 
 This compiles and we can ~.asInstanceOf[Seq[A]]~ on anything of type
@@ -6633,3 +6630,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #+END_SRC
+
+# Local Variables:
+# whitespace-style: (face trailing tabs lines-tail)
+# whitespace-line-column: 80
+# End:
