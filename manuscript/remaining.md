@@ -44,6 +44,7 @@ Dare we tackle Free in this section?
 
 ## Missed typeclasses
 
+-   Semilattice (added recently, commutative Band)
 -   Distributive (dual of Traverse)
 -   Zap (Functors that destroy each other)
 

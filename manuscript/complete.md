@@ -5242,9 +5242,74 @@ A> scala converts these methods into bytecode, there is an object
 A> allocation overhead.
 A> 
 A> Before rewriting everything to use *by-name* parameters, ensure that
-A> the cost of the overhead does not eclipse the saving.
-A> 
-A> Usually it **is** a free lunch, but if you have high performance code
-A> that is running in a tight loop, you need to benchmark.
+A> the cost of the overhead does not eclipse the saving. There is no
+A> benefit unless there is the possibility of **not** evaluating. High
+A> performance code that runs in a tight loop and always evaluates will
+A> suffer.
+
+Beyond values, scalaz also has the capability to memoise functions,
+formalised by `Memo`, which doesn't make any guarantees about
+evaluation because of the diversity of implementations:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Memo[K, V] {
+    def apply(z: K => V): K => V
+  }
+  object Memo {
+    def memo[K, V](f: (K => V) => K => V): Memo[K, V]
+  
+    def nilMemo[K, V]: Memo[K, V] = memo[K, V](identity)
+  
+    def arrayMemo[V >: Null : ClassTag](n: Int): Memo[Int, V] = ...
+    def doubleArrayMemo(n: Int, sentinel: Double = 0.0): Memo[Int, Double] = ...
+  
+    def mutableHashMapMemo[K, V]: Memo[K, V] = ...
+    def weakHashMapMemo[K, V]: Memo[K, V] = ..
+    def immutableHashMapMemo[K, V]: Memo[K, V] = ...
+    def immutableListMapMemo[K, V]: Memo[K, V] = ...
+    def immutableTreeMapMemo[K: scala.Ordering, V]: Memo[K, V] = ...
+  }
+~~~~~~~~
+
+-   `memo` is to create custom implementations of `Memo`.
+-   `nilMemo` doesn't memoise, simply evaluating the function normally.
+-   `arrayMemo` and `doubleArrayMemo` intercept and store results in an
+    `Array`. Arrays can grow to 2GB on the JVM (not counting their
+    contents), expanding according to the initial `n`.
+-   the remaining implementations intercept calls to the function and
+    store results with stdlib collection implementations, assuming that
+    `K` implements `.equals` and `.hashCode`.
+
+We are free to use mutable data in the implementation of a `Memo`. To
+be pure in this context only requires us to be referential transparent
+in the evaluation of `K => V`. For example, although none of these
+implementations perform memory eviction, it would be possible to
+implement `Memo` with a Least Recently Used (LRU) Cache.
+
+Additionally, we could write a `Memo` that requires a marshalling
+format for both `K` and `V`, allowing us to use a distributed cache
+like redis.
+
+A `Memo` is created independently of the function it is caching
+(allowing it to be shared by equivalent functions).
+
+{lang="text"}
+~~~~~~~~
+  scala> def foo(n: Int): String = {
+           println("running")
+           if (n > 10) "wibble" else "wobble"
+         }
+  
+  scala> val mem = Memo.arrayMemo[String](100)
+         val mfoo = mem(i => foo(i))
+  
+  scala> mfoo(1)
+  running
+  res: String = wobble
+  
+  scala> mfoo(1)
+  res: String = wobble
+~~~~~~~~
 
 
