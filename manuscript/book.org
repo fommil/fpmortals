@@ -6078,10 +6078,8 @@ author: Jason Zaugg of the =scalac= team:
 #+BEGIN_SRC scala
 sealed abstract class Liskov[-A, +B] {
   def apply(a: A): B = ...
-  def subst[F[-_]](p: F[B]): F[A]
 
   def andThen[C](that: Liskov[B, C]): Liskov[A, C] = ...
-  def compose[C](that: Liskov[C, A]): Liskov[C, B] = ...
   def onF[X](fa: X => A): X => B = ...
   ...
 }
@@ -6094,10 +6092,8 @@ object Liskov {
 // type signatures have been simplified
 sealed abstract class Leibniz[A, B] {
   def apply(a: A): B = ...
-  def subst[F[_]](p: F[A]): F[B]
 
   def flip: Leibniz[B, A] = ...
-  def compose[C](that: Leibniz[C, A]): Leibniz[C, B] = ...
   def andThen[C](that: Leibniz[B, C]): Leibniz[A, C] = ...
   def onF[X](fa: X => A): X => B = ...
   ...
@@ -6142,15 +6138,15 @@ which is called every time the =a= is referenced. We seen /by-name/ a
 lot in the typeclasses.
 
 Scala also has /by-need/ evaluation of values, with the =lazy=
-keyword: the code is evaluated exactly once to produce the value.
-Unfortunately, scala does not support lazy evaluation of method
-parameters.
+keyword: the computation is evaluated at most once to produce the
+value. Unfortunately, scala does not support /by-need/ evaluation of
+method parameters.
 
 #+BEGIN_ASIDE
-If the calculation of a =lazy val= results in an exception, it is
-retried every time it is accessed. Because exceptions can break
-referential transparency, we limit our discussion to =lazy val=
-calculations that do not throw exceptions.
+If the calculation of a =lazy val= throws an exception, it is retried
+every time it is accessed. Because exceptions can break referential
+transparency, we limit our discussion to =lazy val= calculations that
+do not throw exceptions.
 #+END_ASIDE
 
 Scalaz formalises the three evaluation strategies with an ADT
@@ -6199,7 +6195,7 @@ Because there is no language level support for lazy method parameters,
 methods typically ask for a /by-name/ parameter and then convert it
 into a =Need= internally, getting a boost to performance.
 
-=Need= provides instances of the following typeclasses
+=Name= provides instances of the following typeclasses
 
 - =Monad=
 - =BindRec=
@@ -6250,18 +6246,10 @@ object Memo {
 - =memo= is to create custom implementations of =Memo=.
 - =nilMemo= doesn't memoise, simply evaluating the function normally.
 - the remaining implementations intercept calls to the function and
-  store results with stdlib collection implementations, assuming that
-  =K= implements =.equals= and =.hashCode=.
+  store results with stdlib collection implementations.
 
-We are free to use mutable data in the implementation of a =Memo=. To
-be pure in this context only requires us to be referential transparent
-in the evaluation of ~K => V~. For example, although none of these
-implementations perform memory eviction, it would be possible to
-implement =Memo= with a Least Recently Used (LRU) Cache.
-
-Additionally, we could write a =Memo= that requires a marshalling
-format for both =K= and =V=, allowing us to use a distributed cache
-like redis.
+To use =Memo= we simply wrap a function with a =Memo= implementation
+and then call the memoised function:
 
 #+BEGIN_SRC scala
 scala> def foo(n: Int): String = {
@@ -6279,6 +6267,15 @@ res: String = wobble
 scala> mfoo(1)
 res: String = wobble // memoised
 #+END_SRC
+
+To be pure in this context only requires us to be referential
+transparent in the evaluation of ~K => V~. We may use mutable data and
+perform I/O in the implementation of ~Memo~, e.g. with an LRU or
+distributed cache, without having to declare an effect in the type
+signature. The precedent for this is that other functional programming
+languages have automatic memoisation managed by their runtime
+environment and ~Memo~ is our way of extending the JVM to have similar
+support, unfortunately only on an opt-in basis.
 
 * WIP                                                                 :final:
   :PROPERTIES:
