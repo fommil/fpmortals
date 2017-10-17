@@ -1,8 +1,8 @@
 
-# Data Types
+# TODO Data Types
 
 
-## Containers
+## TODO Containers
 
 -   Disjunction `\/` (Either)
 -   These
@@ -34,7 +34,7 @@
 Dare we tackle Free in this section?
 
 
-## Refinements
+## TODO Refinements
 
 -   Alpha (represents an alphabetic character), maybe save for generators / laws
 -   Digit (0-9)
@@ -42,14 +42,14 @@ Dare we tackle Free in this section?
 -   Endo (just wraps A => A)
 
 
-## Missed typeclasses
+## TODO Missed typeclasses
 
 -   Semilattice (added recently, commutative Band)
 -   Distributive (dual of Traverse)
 -   Zap (Functors that destroy each other)
 
 
-## weird shit (mostly type tricks)
+## TODO weird shit (mostly type tricks)
 
 -   Adjunction (two functors `F` and `G` that give rise to a monad / comonad)
 -   Codensity (seems to be a monad of some kind)
@@ -73,14 +73,14 @@ Dare we tackle Free in this section?
 -   Dual
 
 
-## Conversions
+## TODO Conversions
 
 -   Alter (utility to get a Monoid rather than the Plus for what it wraps)
 -   Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
 -   Generator / Reducer
 
 
-## Monad Transformers
+## TODO Monad Transformers
 
 -   MonadTrans
 -   ComonadTrans
@@ -108,7 +108,7 @@ Dare we tackle Free in this section?
 -   WriterT
 
 
-## Monads
+## TODO Monads
 
 But these feel like they belong in a chapter about data types...
 
@@ -117,7 +117,7 @@ But these feel like they belong in a chapter about data types...
 -   Free
 
 
-# Advanced Monads
+# TODO Advanced Monads
 
 You have to know things like Advanced Monads in order to be
 an advanced functional programmer.
@@ -145,10 +145,10 @@ And also the issue of parallelisation of applicatives vs the sequential nature o
 ~~~~~~~~
 
 
-## Free Monad
+## TODO Free Monad
 
 
-### [smock](https://github.com/djspiewak/smock)
+### TODO [smock](https://github.com/djspiewak/smock)
 
 -   FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
 
@@ -199,18 +199,18 @@ the name. However, from a practical point of view, there needs to be a
 only mortgage where you still have to buy the house at the end.
 
 
-# Utilities
+# TODO Utilities
 
 
-## Other
+## TODO Other
 
 e.g. conversion utilities between things
 
 
-## Laws
+## TODO Laws
 
 
-# FS2
+# TODO FS2
 
 Task, Stream
 
@@ -226,7 +226,7 @@ Rewrite our business logic to be streaming, convert our GET api into a
 `Stream` by polling.
 
 
-# Implementing the Application
+# TODO Implementing the Application
 
 Pad out the application implementation with everything we've learnt.
 
@@ -236,22 +236,22 @@ Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
 
-## Spotting patterns, refactoring
+## TODO Spotting patterns, refactoring
 
 Note that some of our algebras are actually common things and can be
 rewritten: reader / writer / state / error / indexed monad. It's ok
 that this is a step you can do later.
 
 
-### perf numbers
+### RESEARCH perf numbers
 
 
-# Dependent Types
+# TODO Dependent Types
 
 Jons talks are usually good for this <https://www.youtube.com/watch?v=a1whaMzrtsY>
 
 
-# Type Refinement
+# TODO Type Refinement
 
 instead of needing those `error` calls in the first place, just don't
 allow them to happen at your layer if you can get away with it.
@@ -259,7 +259,7 @@ allow them to happen at your layer if you can get away with it.
 Protect yourself from mistyping
 
 
-# Generic Programming
+# TODO Generic Programming
 
 -   a mini Shapeless for Mortals
 -   typeclass derivation (UrlEncoding, QueryEncoding)
@@ -275,15 +275,15 @@ Protect yourself from mistyping
 -   semi-auto
 
 
-# Recursion Schemes
+# TODO Recursion Schemes
 
 
-# Optics
+# TODO Optics
 
 not sure what the relevance to this project would be yet.
 
 
-# Category Theory
+# TODO Category Theory
 
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.

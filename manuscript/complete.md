@@ -2367,8 +2367,8 @@ A>   }
 A> ~~~~~~~~
 A> 
 A> can be tiresome. We've basically said `UrlEncoded`, `String` four
-A> times. A common pattern, that [may be added to simulacrum](https://github.com/mpilquist/simulacrum/issues/5) is to define
-A> a method named `instance` on the typeclass companion
+A> times. A common pattern is to define a method named `instance` on the
+A> typeclass companion
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -2381,14 +2381,16 @@ A> which then allows for instances to be defined more tersely as
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   implicit val UrlEncodedString: UrlEncoded[String] = instance { s => ... }
+A>   implicit val string: UrlEncoded[String] = instance { s => ... }
 A> ~~~~~~~~
 A> 
-A> Syntax sugar has been proposed in [dotty](https://github.com/lampepfl/dotty/issues/2879) allowing for:
+A> A recent Scala feature is *Single Abstract Method* (SAM) types, which
+A> means that `instance` is not needed for typeclasses with a single
+A> method:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   implicit val _: UrlEncoded[String] = instance { s => ... }
+A>   implicit val string: UrlEncoded[String] = { s => ... }
 A> ~~~~~~~~
 
 In a dedicated chapter on *Generic Programming* we will write generic
@@ -5067,6 +5069,14 @@ JSON `Encoder` typeclass for anything that extends from
   implicit def seq[T[_] <: Seq[_], A: Encoder]: Encoder[T[A]] = ...
 ~~~~~~~~
 
+A> This motivating example is misleading and will be replaced shortly.
+A> Basically, it works if type variables are introduced
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   implicit def seq[T[a] <: Seq[a], A: Encoder]: Encoder[T[A]] = ...
+A> ~~~~~~~~
+
 Unfortunately, this fails to compile because the Scala type system
 does not know how to calculate subtype relationships for type
 constructors. The stdlib's workaround is to use `<:<` and `=:=`
@@ -5094,9 +5104,10 @@ This compiles and we can `.asInstanceOf[Seq[A]]` on anything of type
 `T[A]`. The `=:=` uses the same trick and witnesses that two types are
 the same.
 
-Scalaz's academically named *Liskov* (`<~<`) and *Leibniz* (`===`) are
-an improvement over the stdlib witnesses, contributed by the same
-author: Jason Zaugg of the `scalac` team:
+Scalaz's *Liskov* `<~<` (named after the *Liskov substitution
+principle*, the foundation of Object Oriented Programming) and
+*Leibniz* `===` are an improvement over the stdlib witnesses,
+contributed by the same author: Jason Zaugg of the `scalac` team:
 
 {lang="text"}
 ~~~~~~~~
@@ -5234,8 +5245,8 @@ into a `Need` internally, getting a boost to performance.
 -   `Cozip`
 
 A> *by-name* and *lazy* are not the free lunch they appear to be. When
-A> scala converts these methods into bytecode, there is an object
-A> allocation overhead.
+A> Scala converts *by-name* parameters and `lazy val` into bytecode,
+A> there is an object allocation overhead.
 A> 
 A> Before rewriting everything to use *by-name* parameters, ensure that
 A> the cost of the overhead does not eclipse the saving. There is no
@@ -5243,9 +5254,12 @@ A> benefit unless there is the possibility of **not** evaluating. High
 A> performance code that runs in a tight loop and always evaluates will
 A> suffer.
 
-Beyond values, scalaz also has the capability to memoise functions,
-formalised by `Memo`, which doesn't make any guarantees about
-evaluation because of the diversity of implementations:
+
+## Memoisation
+
+Scalaz has the capability to memoise functions, formalised by `Memo`,
+which doesn't make any guarantees about evaluation because of the
+diversity of implementations:
 
 {lang="text"}
 ~~~~~~~~
@@ -5268,10 +5282,10 @@ evaluation because of the diversity of implementations:
   }
 ~~~~~~~~
 
--   `memo` is to create custom implementations of `Memo`.
--   `nilMemo` doesn't memoise, simply evaluating the function normally.
--   the remaining implementations intercept calls to the function and
-    store results with stdlib collection implementations.
+`memo` allows us to create custom implementations of `Memo`, `nilMemo`
+doesn't memoise, evaluating the function normally. The remaining
+implementations intercept calls to the function and cache results
+backed by stdlib collection implementations.
 
 To use `Memo` we simply wrap a function with a `Memo` implementation
 and then call the memoised function:
@@ -5294,13 +5308,28 @@ and then call the memoised function:
   res: String = wobble // memoised
 ~~~~~~~~
 
-To be pure in this context only requires us to be referential
-transparent in the evaluation of `K => V`. We may use mutable data and
-perform I/O in the implementation of `Memo`, e.g. with an LRU or
-distributed cache, without having to declare an effect in the type
-signature. The precedent for this is that other functional programming
-languages have automatic memoisation managed by their runtime
-environment and `Memo` is our way of extending the JVM to have similar
-support, unfortunately only on an opt-in basis.
+If the function takes more than one parameter, we must `tupled` the
+method, with the memoised version taking a tuple.
+
+{lang="text"}
+~~~~~~~~
+  scala> def bar(n: Int, m: Int): String = "hello"
+         val mem = Memo.immutableHashMapMemo[(Int, Int), String]
+         val mbar = mem((bar _).tupled)
+  
+  scala> mbar((1, 2))
+  res: String = "hello"
+~~~~~~~~
+
+`Memo` is typically treated as a somewhat special construct and the
+usual rule about *purity* is relaxed somewhat for implementations. To
+be pure only requires that our implementations of `Memo` are
+referential transparent in the evaluation of `K => V`. We may use
+mutable data and perform I/O in the implementation of `Memo`, e.g.
+with an LRU or distributed cache, without having to declare an effect
+in the type signature. Other functional programming languages have
+automatic memoisation managed by their runtime environment and `Memo`
+is our way of extending the JVM to have similar support, unfortunately
+only on an opt-in basis. 
 
 
