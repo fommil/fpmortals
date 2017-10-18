@@ -2532,7 +2532,7 @@ and then write an OAuth2 client:
       user: UserInteraction[F],
       server: JsonHttpClient[F],
       clock: LocalClock[F]
-    ) { 
+    ) {
       def authenticate: F[CodeToken] =
         for {
           callback <- user.start
@@ -2793,7 +2793,7 @@ later chapter, for now we'll create an instance on the companion:
     (a, b) => TradeTemplate(a.payments |+| b.payments,
                             a.ccy |+| b.ccy,
                             a.otc |+| b.otc),
-   TradeTemplate(Nil, None, None) 
+   TradeTemplate(Nil, None, None)
   )
 ~~~~~~~~
 
@@ -2822,7 +2822,7 @@ conflicts, so we introduce a higher priority implicit
 {lang="text"}
 ~~~~~~~~
   implicit def lastWins[A]: Monoid[Option[A]] = Monoid.instance(
-    { 
+    {
       case (None, None)   => None
       case (only, None)   => only
       case (None, only)   => only
@@ -3619,7 +3619,7 @@ votes came from
   scala> Map("foo" -> 1) pad Map("foo" -> 1, "bar" -> 2)
   res = Map(foo -> (Some(1),Some(1)), bar -> (None,Some(2)))
   
-  scala> Map("foo" -> 1, "bar" -> 2) pad Map("foo" -> 1) 
+  scala> Map("foo" -> 1, "bar" -> 2) pad Map("foo" -> 1)
   res = Map(foo -> (Some(1),Some(1)), bar -> (Some(2),None))
 ~~~~~~~~
 
@@ -5051,31 +5051,103 @@ performance reasons, and to provide our own.
 
 ## Type Variance
 
-After seven major releases over a decade, scalaz's authors have
-concluded that Scala's type variance (`+-` type prefixes) is
-fundamentally broken: from subtle, yet devastating [bugs in the
-compiler](https://issues.scala-lang.org/browse/SI-2509), to limitations of the type system.
-
-Hence, scalaz data types are typically *invariant* in their type
+Scalaz's data types are typically *invariant* in their type
 parameters. For example, `IList[A]` is **not** a subtype of `IList[B]`
 when `A <: B`.
 
-To show the limitations of the type system, we will try to derive a
-JSON `Encoder` typeclass for anything that extends from
-`scala.collection.Seq`
+
+### Covariance
+
+The problem with *covariant* type parameters, such as `class
+List[+A]`, is that `List[A]` is a subtype of `List[Any]` and it is
+easy to accidentally lose type information.
 
 {lang="text"}
 ~~~~~~~~
-  implicit def seq[T[_] <: Seq[_], A: Encoder]: Encoder[T[A]] = ...
+  scala> List("hello") ++ List(' ') ++ List("world!")
+  res: List[Any] = List(hello,  , world!)
 ~~~~~~~~
 
-A> This motivating example is misleading and will be replaced shortly.
-A> Basically, it works if type variables are introduced
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   implicit def seq[T[a] <: Seq[a], A: Encoder]: Encoder[T[A]] = ...
-A> ~~~~~~~~
+Note that the second list is a `List[Char]` and the compiler has
+unhelpfully inferred the *Least Upper Bound* (LUB) to be `Any`.
+Compare to `IList`, which requires explicit `.widen[Any]` to permit
+the heinous crime:
+
+{lang="text"}
+~~~~~~~~
+  scala> IList("hello") ++ IList(' ') ++ IList("world!")
+  <console>:35: error: type mismatch;
+   found   : Char(' ')
+   required: String
+  
+  scala> IList("hello").widen[Any]
+           ++ IList(' ').widen[Any]
+           ++ IList("world!").widen[Any]
+  res: IList[Any] = [hello, ,world!]
+~~~~~~~~
+
+Similarly, when the compiler infers a type `with Product with
+Serializable` it is a strong indicator that accidental widening has
+occurred due to covariance.
+
+
+### Contrarivariance
+
+On the other hand, *contravariant* type parameters, such as `trait
+Thing[-A]` can expose devastating [bugs in the compiler](https://issues.scala-lang.org/browse/SI-2509). Consider Paul
+Phillips' (ex-`scalac` team) demonstration of what he calls
+*contrarivariance*:
+
+{lang="text"}
+~~~~~~~~
+  scala> :paste
+         trait Thing[-A]
+         def f(x: Thing[Iterable[Int]]): Int    = 1
+         def f(x: Thing[     Seq[Int]]): Byte   = 2
+         def f(x: Thing[    List[Int]]): Short  = 3
+  
+  scala> f(new Thing[Iterable[Int]] { })
+         f(new Thing[     Seq[Int]] { })
+         f(new Thing[    List[Int]] { })
+  
+  res = 1
+  res = 2
+  res = 3
+~~~~~~~~
+
+noting that `List[a] <: Seq[a] <: Iterable[a]`. As expected, the
+compiler is finding the most specific argument in each call to `f`.
+However, implicit resolution gives unexpected results:
+
+{lang="text"}
+~~~~~~~~
+  scala> :paste
+         implicit val t1: Thing[Iterable[Int]] =
+           new Thing[Iterable[Int]] { override def toString = "1" }
+         implicit val t2: Thing[     Seq[Int]] =
+           new Thing[     Seq[Int]] { override def toString = "2" }
+         implicit val t3: Thing[    List[Int]] =
+           new Thing[    List[Int]] { override def toString = "3" }
+  
+  scala> implicitly[Thing[Iterable[Int]]]
+         implicitly[Thing[     Seq[Int]]]
+         implicitly[Thing[    List[Int]]]
+  
+  res = 1
+  res = 1
+  res = 1
+~~~~~~~~
+
+Unfortunately implicit resolution flips its definition of "most
+specific" when talking about contravariant types that renders it
+useless for invariant typeclasses. More concretely, this means we
+cannot define a data decoder (e.g. a `json.Decoder`) with invariant
+type parameters because the most general instance will always win.
+
+
+### Limitations of subtyping
+
+1.  FIXME example of more powerful <~< is Option.flatten
 
 Unfortunately, this fails to compile because the Scala type system
 does not know how to calculate subtype relationships for type
@@ -5330,6 +5402,6 @@ with an LRU or distributed cache, without having to declare an effect
 in the type signature. Other functional programming languages have
 automatic memoisation managed by their runtime environment and `Memo`
 is our way of extending the JVM to have similar support, unfortunately
-only on an opt-in basis. 
+only on an opt-in basis.
 
 
