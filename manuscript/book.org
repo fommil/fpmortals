@@ -6127,56 +6127,47 @@ that requires polymorphic functionality.
 **** Limitations of subtyping
 
 =scala.Option= has a method =.flatten= which will convert
-=Option[Option[A]]= into an =Option[A]=.
+=Option[Option[A]]= into an =Option[A]= but Scala subtyping is unable
+to express the type signature. The following does not compile because
+the subtype constraint is invalid syntax:
 
 #+BEGIN_SRC scala
 sealed abstract class Option[+A] {
-  def flatten[B](implicit ev: A <:< Option[B]): Option[B] =
-    if (isEmpty) None else ev(this.get)
-  ...
+  def flatten[B, A <: Option[B]]: Option[B] = ...
 }
 #+END_SRC
 
-
-
-
-1. FIXME example of more powerful <~< is Option.flatten
-
-Unfortunately, this fails to compile because the Scala type system
-does not know how to calculate subtype relationships for type
-constructors. The stdlib's workaround is to use ~<:<~ and ~=:=~
-witnesses (recall that =scala.Predef= is imported automatically):
+To work around this limitation of the type system, Scala defines infix
+classes =<:<= and ~=:=~ along with implicit evidence that always
+creates a /witness/ for any type =A=
 
 #+BEGIN_SRC scala
-package scala
+sealed abstract class <:<[-From, +To] extends (From => To)
+implicit def conforms[A]: A <:< A = new <:<[A, A] { def apply(x: A): A = x }
 
-object Predef {
-  sealed abstract class <:<[-From, +To]
-  sealed abstract class =:=[ From,  To]
-  ..
+sealed abstract class =:=[ From,  To] extends (From => To)
+implicit def tpEquals[A]: A =:= A = new =:=[A, A] { def apply(x: A): A = x }
+#+END_SRC
+
+~=:=~ can be used to enforce that two type parameters are the same.
+=<:<= is defined with both a contravariant and a covariant type
+parameter and can be used to describe a subtype relationship, letting
+us write the signature of =.flatten= as
+
+#+BEGIN_SRC scala
+sealed abstract class Option[+A] {
+  def flatten[B](implicit ev: A <:< Option[B]): Option[B] = ...
 }
 #+END_SRC
 
-combined with =implicit= evidence:
-
-#+BEGIN_SRC scala
-implicit def seq[T[_], A: Encoder](implicit ev: T[A] <:< Seq[A]): Encoder[T[A]] = ...
-#+END_SRC
-
-This compiles and we can ~.asInstanceOf[Seq[A]]~ on anything of type
-~T[A]~. The ~=:=~ uses the same trick and witnesses that two types are
-the same.
-
-Scalaz's /Liskov/ =<~<= (named after the /Liskov substitution
-principle/, the foundation of Object Oriented Programming) and
-/Leibniz/ ~===~ are an improvement over the stdlib witnesses,
-contributed by the same author: Jason Zaugg of the =scalac= team:
+Scalaz improves on =<:<= and ~=:=~ with /Liskov/ (symbolically =<~<=)
+and /Leibniz/ (~===~ triple equals at the type level).
 
 #+BEGIN_SRC scala
 sealed abstract class Liskov[-A, +B] {
   def apply(a: A): B = ...
+  def subst[F[-_]](p: F[B]): F[A]
 
-// FIXME : maybe I deleted too much?
   def andThen[C](that: Liskov[B, C]): Liskov[A, C] = ...
   def onF[X](fa: X => A): X => B = ...
   ...
@@ -6184,12 +6175,18 @@ sealed abstract class Liskov[-A, +B] {
 object Liskov {
   type <~<[-A, +B] = Liskov[A, B]
   type >~>[+B, -A] = Liskov[A, B]
+
+  implicit def refl[A]: (A <~< A) = ...
+  implicit def isa[A, B >: A]: A <~< B = ...
+
+  implicit def witness[A, B](lt: A <~< B): A => B = ...
   ...
 }
 
 // type signatures have been simplified
 sealed abstract class Leibniz[A, B] {
   def apply(a: A): B = ...
+  def subst[F[_]](p: F[A]): F[B]
 
   def flip: Leibniz[B, A] = ...
   def andThen[C](that: Leibniz[B, C]): Leibniz[A, C] = ...
@@ -6198,34 +6195,28 @@ sealed abstract class Leibniz[A, B] {
 }
 object Leibniz {
   type ===[A, B] = Leibniz[A, B]
+
+  implicit def refl[A]: Leibniz[A, A] = ...
+
+  implicit def subst[A, B](a: A)(implicit f: A === B): B = ...
+  implicit def witness[A, B](f: A === B): A => B = ...
   ...
 }
 #+END_SRC
 
-FIXME: wrong, the stdlib has this too.
-An immediate improvement is that we can =.apply= the evidence rather
-than calling =.asInstanceOf=, which always felt dirty. For example, in
-=Functor=, it is possible to widen =F[A]= to =F[B]= if the evidence =A
-<~< B= exists:
+#+BEGIN_ASIDE
+Liskov is named after Barbara Liskov of /Liskov substitution
+principle/ fame, the foundation of Object Oriented Programming.
 
-#+BEGIN_SRC scala
-@typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
-  ...
-  def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = map(fa)(ev.apply)
-  ...
-}
-#+END_SRC
+Gottfried Wilhelm Leibniz basically invented /everything/ in the 17th
+century. He believed that [[https://en.wikipedia.org/wiki/Monad_(philosophy)][God was called Monad]]. In 1991 [[https://en.wikipedia.org/wiki/Eugenio_Moggi][Eugenio Moggi]]
+reused the name =Monad= for what we now know is just =scalaz.Monad=,
+not some immortal being after all.
+#+END_ASIDE
 
-we could even =narrow= the =F[A]= to an =F[B]= if =>~>= exists (or
-=<~<= with the type parameters flipped), but this is rarely needed so
-is not included in =Functor=
-
-#+BEGIN_SRC scala
-  def narrow[A, B](fa: F[A])(implicit ev: B <~< A): F[B] = map(fa)(ev.apply)
-#+END_SRC
-
-Scalaz provides the evidence automatically, using scala's implicit
-resolution to augment the type system.
+Other than generally useful methods and implicit conversions, the
+scalaz =<~<= and ~===~ implicit witnesses are more principled than in
+the stdlib.
 
 *** Evaluation
 

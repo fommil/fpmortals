@@ -5090,11 +5090,20 @@ Similarly, when the compiler infers a type `with Product with
 Serializable` it is a strong indicator that accidental widening has
 occurred due to covariance.
 
+Unfortunately we must be careful when constructing invariant data
+types because LUB calculations are performed on the parameters:
+
+{lang="text"}
+~~~~~~~~
+  scala> IList("hello", ' ', "world")
+  res: IList[Any] = [hello, ,world]
+~~~~~~~~
+
 
 ### Contrarivariance
 
 On the other hand, *contravariant* type parameters, such as `trait
-Thing[-A]` can expose devastating [bugs in the compiler](https://issues.scala-lang.org/browse/SI-2509). Consider Paul
+Thing[-A]`, can expose devastating [bugs in the compiler](https://issues.scala-lang.org/browse/SI-2509). Consider Paul
 Phillips' (ex-`scalac` team) demonstration of what he calls
 *contrarivariance*:
 
@@ -5115,9 +5124,9 @@ Phillips' (ex-`scalac` team) demonstration of what he calls
   res = 3
 ~~~~~~~~
 
-noting that `List[a] <: Seq[a] <: Iterable[a]`. As expected, the
-compiler is finding the most specific argument in each call to `f`.
-However, implicit resolution gives unexpected results:
+As expected, the compiler is finding the most specific argument in
+each call to `f`. However, implicit resolution gives unexpected
+results:
 
 {lang="text"}
 ~~~~~~~~
@@ -5138,53 +5147,58 @@ However, implicit resolution gives unexpected results:
   res = 1
 ~~~~~~~~
 
-Unfortunately implicit resolution flips its definition of "most
-specific" when talking about contravariant types that renders it
-useless for invariant typeclasses. More concretely, this means we
-cannot define a data decoder (e.g. a `json.Decoder`) with invariant
-type parameters because the most general instance will always win.
+Implicit resolution flips its definition of "most specific" for
+contravariant types, rendering it useless for typeclasses or anything
+that requires polymorphic functionality.
 
 
 ### Limitations of subtyping
 
-1.  FIXME example of more powerful <~< is Option.flatten
-
-Unfortunately, this fails to compile because the Scala type system
-does not know how to calculate subtype relationships for type
-constructors. The stdlib's workaround is to use `<:<` and `=:=`
-witnesses (recall that `scala.Predef` is imported automatically):
+`scala.Option` has a method `.flatten` which will convert
+`Option[Option[A]]` into an `Option[A]` but Scala subtyping is unable
+to express the type signature. The following does not compile because
+the subtype constraint is invalid syntax:
 
 {lang="text"}
 ~~~~~~~~
-  package scala
-  
-  object Predef {
-    sealed abstract class <:<[-From, +To]
-    sealed abstract class =:=[ From,  To]
-    ..
+  sealed abstract class Option[+A] {
+    def flatten[B, A <: Option[B]]: Option[B] = ...
   }
 ~~~~~~~~
 
-combined with `implicit` evidence:
+To work around this limitation of the type system, Scala defines infix
+classes `<:<` and `=:=` along with implicit evidence that always
+creates a *witness* for any type `A`
 
 {lang="text"}
 ~~~~~~~~
-  implicit def seq[T[_], A: Encoder](implicit ev: T[A] <:< Seq[A]): Encoder[T[A]] = ...
+  sealed abstract class <:<[-From, +To] extends (From => To)
+  implicit def conforms[A]: A <:< A = new <:<[A, A] { def apply(x: A): A = x }
+  
+  sealed abstract class =:=[ From,  To] extends (From => To)
+  implicit def tpEquals[A]: A =:= A = new =:=[A, A] { def apply(x: A): A = x }
 ~~~~~~~~
 
-This compiles and we can `.asInstanceOf[Seq[A]]` on anything of type
-`T[A]`. The `=:=` uses the same trick and witnesses that two types are
-the same.
+`=:=` can be used to enforce that two type parameters are the same.
+`<:<` is defined with both a contravariant and a covariant type
+parameter and can be used to describe a subtype relationship, letting
+us write the signature of `.flatten` as
 
-Scalaz's *Liskov* `<~<` (named after the *Liskov substitution
-principle*, the foundation of Object Oriented Programming) and
-*Leibniz* `===` are an improvement over the stdlib witnesses,
-contributed by the same author: Jason Zaugg of the `scalac` team:
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Option[+A] {
+    def flatten[B](implicit ev: A <:< Option[B]): Option[B] = ...
+  }
+~~~~~~~~
+
+Scalaz improves on `<:<` and `=:=` with *Liskov* (symbolically `<~<`)
+and *Leibniz* (`===` triple equals at the type level).
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Liskov[-A, +B] {
     def apply(a: A): B = ...
+    def subst[F[-_]](p: F[B]): F[A]
   
     def andThen[C](that: Liskov[B, C]): Liskov[A, C] = ...
     def onF[X](fa: X => A): X => B = ...
@@ -5193,12 +5207,18 @@ contributed by the same author: Jason Zaugg of the `scalac` team:
   object Liskov {
     type <~<[-A, +B] = Liskov[A, B]
     type >~>[+B, -A] = Liskov[A, B]
+  
+    implicit def refl[A]: (A <~< A) = ...
+    implicit def isa[A, B >: A]: A <~< B = ...
+  
+    implicit def witness[A, B](lt: A <~< B): A => B = ...
     ...
   }
   
   // type signatures have been simplified
   sealed abstract class Leibniz[A, B] {
     def apply(a: A): B = ...
+    def subst[F[_]](p: F[A]): F[B]
   
     def flip: Leibniz[B, A] = ...
     def andThen[C](that: Leibniz[B, C]): Leibniz[A, C] = ...
@@ -5207,35 +5227,26 @@ contributed by the same author: Jason Zaugg of the `scalac` team:
   }
   object Leibniz {
     type ===[A, B] = Leibniz[A, B]
+  
+    implicit def refl[A]: Leibniz[A, A] = ...
+  
+    implicit def subst[A, B](a: A)(implicit f: A === B): B = ...
+    implicit def witness[A, B](f: A === B): A => B = ...
     ...
   }
 ~~~~~~~~
 
-An immediate improvement is that we can `.apply` the evidence rather
-than calling `.asInstanceOf`, which always felt dirty. For example, in
-`Functor`, it is possible to widen `F[A]` to `F[B]` if the evidence `A
-<~< B` exists:
+A> Liskov is named after Barbara Liskov of *Liskov substitution
+A> principle* fame, the foundation of Object Oriented Programming.
+A> 
+A> Gottfried Wilhelm Leibniz basically invented *everything* in the 17th
+A> century. He believed that [God was called Monad](https://en.wikipedia.org/wiki/Monad_(philosophy)). In 1991 [Eugenio Moggi](https://en.wikipedia.org/wiki/Eugenio_Moggi)
+A> reused the name `Monad` for what we now know is just `scalaz.Monad`,
+A> not some immortal being after all.
 
-{lang="text"}
-~~~~~~~~
-  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
-    ...
-    def widen[A, B](fa: F[A])(implicit ev: A <~< B): F[B] = map(fa)(ev.apply)
-    ...
-  }
-~~~~~~~~
-
-we could even `narrow` the `F[A]` to an `F[B]` if `>~>` exists (or
-`<~<` with the type parameters flipped), but this is rarely needed so
-is not included in `Functor`
-
-{lang="text"}
-~~~~~~~~
-  def narrow[A, B](fa: F[A])(implicit ev: B <~< A): F[B] = map(fa)(ev.apply)
-~~~~~~~~
-
-Scalaz provides the evidence automatically, using scala's implicit
-resolution to augment the type system.
+Other than generally useful methods and implicit conversions, the
+scalaz `<~<` and `===` implicit witnesses are more principled than in
+the stdlib.
 
 
 ## Evaluation
