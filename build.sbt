@@ -1,7 +1,7 @@
 // this file exists only so I can have quick access to a REPL
 // with the correct dependencies.
 
-scalaVersion in ThisBuild := "2.12.3"
+scalaVersion in ThisBuild := "2.12.4"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-Ypartial-unification",

@@ -114,7 +114,7 @@ this book, you will need to use a recent version of Scala with
 FP-specific features enabled (e.g. in =build.sbt=):
 
 #+BEGIN_SRC scala
-scalaVersion in ThisBuild := "2.12.3"
+scalaVersion in ThisBuild := "2.12.4"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-Ypartial-unification",
@@ -6067,10 +6067,18 @@ Similarly, when the compiler infers a type =with Product with
 Serializable= it is a strong indicator that accidental widening has
 occurred due to covariance.
 
+Unfortunately we must be careful when constructing invariant data
+types because LUB calculations are performed on the parameters:
+
+#+BEGIN_SRC scala
+scala> IList("hello", ' ', "world")
+res: IList[Any] = [hello, ,world]
+#+END_SRC
+
 **** Contrarivariance
 
 On the other hand, /contravariant/ type parameters, such as =trait
-Thing[-A]= can expose devastating [[https://issues.scala-lang.org/browse/SI-2509][bugs in the compiler]]. Consider Paul
+Thing[-A]=, can expose devastating [[https://issues.scala-lang.org/browse/SI-2509][bugs in the compiler]]. Consider Paul
 Phillips' (ex-=scalac= team) demonstration of what he calls
 /contrarivariance/:
 
@@ -6090,9 +6098,9 @@ res = 2
 res = 3
 #+END_SRC
 
-noting that ~List[a] <: Seq[a] <: Iterable[a]~. As expected, the
-compiler is finding the most specific argument in each call to =f=.
-However, implicit resolution gives unexpected results:
+As expected, the compiler is finding the most specific argument in
+each call to =f=. However, implicit resolution gives unexpected
+results:
 
 #+BEGIN_SRC scala
 scala> :paste
@@ -6112,13 +6120,25 @@ res = 1
 res = 1
 #+END_SRC
 
-Unfortunately implicit resolution flips its definition of "most
-specific" when talking about contravariant types that renders it
-useless for invariant typeclasses. More concretely, this means we
-cannot define a data decoder (e.g. a =json.Decoder=) with invariant
-type parameters because the most general instance will always win.
+Implicit resolution flips its definition of "most specific" for
+contravariant types, rendering it useless for typeclasses or anything
+that requires polymorphic functionality.
 
 **** Limitations of subtyping
+
+=scala.Option= has a method =.flatten= which will convert
+=Option[Option[A]]= into an =Option[A]=.
+
+#+BEGIN_SRC scala
+sealed abstract class Option[+A] {
+  def flatten[B](implicit ev: A <:< Option[B]): Option[B] =
+    if (isEmpty) None else ev(this.get)
+  ...
+}
+#+END_SRC
+
+
+
 
 1. FIXME example of more powerful <~< is Option.flatten
 
@@ -6156,6 +6176,7 @@ contributed by the same author: Jason Zaugg of the =scalac= team:
 sealed abstract class Liskov[-A, +B] {
   def apply(a: A): B = ...
 
+// FIXME : maybe I deleted too much?
   def andThen[C](that: Liskov[B, C]): Liskov[A, C] = ...
   def onF[X](fa: X => A): X => B = ...
   ...
@@ -6181,6 +6202,7 @@ object Leibniz {
 }
 #+END_SRC
 
+FIXME: wrong, the stdlib has this too.
 An immediate improvement is that we can =.apply= the evidence rather
 than calling =.asInstanceOf=, which always felt dirty. For example, in
 =Functor=, it is possible to widen =F[A]= to =F[B]= if the evidence =A
