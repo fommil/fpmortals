@@ -5155,20 +5155,30 @@ that requires polymorphic functionality.
 ### Limitations of subtyping
 
 `scala.Option` has a method `.flatten` which will convert
-`Option[Option[A]]` into an `Option[A]` but Scala subtyping is unable
-to express the type signature. The following does not compile because
-the subtype constraint is invalid syntax:
+`Option[Option[B]]` into an `Option[B]`. However, Scala's type system
+is unable to let us write the required type signature:
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Option[+A] {
-    def flatten[B, A <: Option[B]]: Option[B] = ...
+    def flatten[B, A <: Option[B]]: Option[B] = ???
   }
 ~~~~~~~~
 
-To work around this limitation of the type system, Scala defines infix
-classes `<:<` and `=:=` along with implicit evidence that always
-creates a *witness* for any type `A`
+which has a subtle bug because the `A` introduced on `.flatten` is
+shadowing the `A` introduced on the class. It is equivalent to writing
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Option[+A] {
+    def flatten[B, C <: Option[B]]: Option[B] = ???
+  }
+~~~~~~~~
+
+which does not let us implement the method.
+
+To workaround this limitation, Scala defines infix classes `<:<` and
+`=:=` along with implicit evidence that always creates a *witness*
 
 {lang="text"}
 ~~~~~~~~
@@ -5179,20 +5189,24 @@ creates a *witness* for any type `A`
   implicit def tpEquals[A]: A =:= A = new =:=[A, A] { def apply(x: A): A = x }
 ~~~~~~~~
 
-`=:=` can be used to enforce that two type parameters are the same.
-`<:<` is defined with both a contravariant and a covariant type
-parameter and can be used to describe a subtype relationship, letting
-us write the signature of `.flatten` as
+`=:=` can be used to require that two type parameters are exactly the
+same and `<:<` is used to describe subtype relationships, letting us
+implement `.flatten` as
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Option[+A] {
-    def flatten[B](implicit ev: A <:< Option[B]): Option[B] = ...
+    def flatten[B](implicit ev: A <:< Option[B]): Option[B] = this match {
+      case None        => None
+      case Some(value) => ev(value)
+    }
   }
+  final case class Some[+A](value: A) extends Option[A] 
+  case object None                    extends Option[Nothing]
 ~~~~~~~~
 
-Scalaz improves on `<:<` and `=:=` with *Liskov* (symbolically `<~<`)
-and *Leibniz* (`===` triple equals at the type level).
+Scalaz improves on `<:<` and `=:=` with *Liskov* (aliased to `<~<`)
+and *Leibniz* (`===`).
 
 {lang="text"}
 ~~~~~~~~
@@ -5236,17 +5250,16 @@ and *Leibniz* (`===` triple equals at the type level).
   }
 ~~~~~~~~
 
+Other than generally useful methods and implicit conversions, the
+scalaz `<~<` and `===` evidence is more principled than in the stdlib.
+
 A> Liskov is named after Barbara Liskov of *Liskov substitution
 A> principle* fame, the foundation of Object Oriented Programming.
 A> 
 A> Gottfried Wilhelm Leibniz basically invented *everything* in the 17th
-A> century. He believed that [God was called Monad](https://en.wikipedia.org/wiki/Monad_(philosophy)). In 1991 [Eugenio Moggi](https://en.wikipedia.org/wiki/Eugenio_Moggi)
-A> reused the name `Monad` for what we now know is just `scalaz.Monad`,
-A> not some immortal being after all.
-
-Other than generally useful methods and implicit conversions, the
-scalaz `<~<` and `===` implicit witnesses are more principled than in
-the stdlib.
+A> century. He believed that [God was called Monad](https://en.wikipedia.org/wiki/Monad_(philosophy)). Eugenio Moggi later
+A> reused the name for what we know as `scalaz.Monad`, a mere mortal...
+A> just like you and me.
 
 
 ## Evaluation
