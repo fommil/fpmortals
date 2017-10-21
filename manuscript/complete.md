@@ -5111,17 +5111,14 @@ Phillips' (ex-`scalac` team) demonstration of what he calls
 ~~~~~~~~
   scala> :paste
          trait Thing[-A]
-         def f(x: Thing[Iterable[Int]]): Int    = 1
-         def f(x: Thing[     Seq[Int]]): Byte   = 2
-         def f(x: Thing[    List[Int]]): Short  = 3
+         def f(x: Thing[ Seq[Int]]): Byte   = 1
+         def f(x: Thing[List[Int]]): Short  = 2
   
-  scala> f(new Thing[Iterable[Int]] { })
-         f(new Thing[     Seq[Int]] { })
-         f(new Thing[    List[Int]] { })
+  scala> f(new Thing[ Seq[Int]] { })
+         f(new Thing[List[Int]] { })
   
   res = 1
   res = 2
-  res = 3
 ~~~~~~~~
 
 As expected, the compiler is finding the most specific argument in
@@ -5131,51 +5128,48 @@ results:
 {lang="text"}
 ~~~~~~~~
   scala> :paste
-         implicit val t1: Thing[Iterable[Int]] =
-           new Thing[Iterable[Int]] { override def toString = "1" }
-         implicit val t2: Thing[     Seq[Int]] =
-           new Thing[     Seq[Int]] { override def toString = "2" }
-         implicit val t3: Thing[    List[Int]] =
-           new Thing[    List[Int]] { override def toString = "3" }
+         implicit val t1: Thing[ Seq[Int]] =
+           new Thing[ Seq[Int]] { override def toString = "1" }
+         implicit val t2: Thing[List[Int]] =
+           new Thing[List[Int]] { override def toString = "2" }
   
-  scala> implicitly[Thing[Iterable[Int]]]
-         implicitly[Thing[     Seq[Int]]]
-         implicitly[Thing[    List[Int]]]
+  scala> implicitly[Thing[ Seq[Int]]]
+         implicitly[Thing[List[Int]]]
   
-  res = 1
   res = 1
   res = 1
 ~~~~~~~~
 
 Implicit resolution flips its definition of "most specific" for
-contravariant types, rendering it useless for typeclasses or anything
-that requires polymorphic functionality.
+contravariant types, rendering them useless for typeclasses or
+anything that requires polymorphic functionality.
 
 
 ### Limitations of subtyping
 
 `scala.Option` has a method `.flatten` which will convert
 `Option[Option[B]]` into an `Option[B]`. However, Scala's type system
-is unable to let us write the required type signature:
+is unable to let us write the required type signature. Consider the
+following that appears correct, but has a subtle bug:
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Option[+A] {
-    def flatten[B, A <: Option[B]]: Option[B] = ???
+    def flatten[B, A <: Option[B]]: Option[B] = ...
   }
 ~~~~~~~~
 
-which has a subtle bug because the `A` introduced on `.flatten` is
-shadowing the `A` introduced on the class. It is equivalent to writing
+The `A` introduced on `.flatten` is shadowing the `A` introduced on
+the class. It is equivalent to writing
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Option[+A] {
-    def flatten[B, C <: Option[B]]: Option[B] = ???
+    def flatten[B, C <: Option[B]]: Option[B] = ...
   }
 ~~~~~~~~
 
-which does not let us implement the method.
+which is not the constraint we want.
 
 To workaround this limitation, Scala defines infix classes `<:<` and
 `=:=` along with implicit evidence that always creates a *witness*
@@ -5257,9 +5251,9 @@ A> Liskov is named after Barbara Liskov of *Liskov substitution
 A> principle* fame, the foundation of Object Oriented Programming.
 A> 
 A> Gottfried Wilhelm Leibniz basically invented *everything* in the 17th
-A> century. He believed that [God was called Monad](https://en.wikipedia.org/wiki/Monad_(philosophy)). Eugenio Moggi later
-A> reused the name for what we know as `scalaz.Monad`, a mere mortal...
-A> just like you and me.
+A> century. He believed in a [God called Monad](https://en.wikipedia.org/wiki/Monad_(philosophy)). Eugenio Moggi later reused
+A> the name for what we know as `scalaz.Monad`. Not a God, just a mere
+A> mortal like you and me.
 
 
 ## Evaluation
@@ -5417,15 +5411,15 @@ method, with the memoised version taking a tuple.
   res: String = "hello"
 ~~~~~~~~
 
-`Memo` is typically treated as a somewhat special construct and the
-usual rule about *purity* is relaxed somewhat for implementations. To
-be pure only requires that our implementations of `Memo` are
-referential transparent in the evaluation of `K => V`. We may use
-mutable data and perform I/O in the implementation of `Memo`, e.g.
-with an LRU or distributed cache, without having to declare an effect
-in the type signature. Other functional programming languages have
-automatic memoisation managed by their runtime environment and `Memo`
-is our way of extending the JVM to have similar support, unfortunately
-only on an opt-in basis.
+`Memo` is typically treated as a special construct and the usual rule
+about *purity* is relaxed for implementations. To be pure only
+requires that our implementations of `Memo` are referential
+transparent in the evaluation of `K => V`. We may use mutable data and
+perform I/O in the implementation of `Memo`, e.g. with an LRU or
+distributed cache, without having to declare an effect in the type
+signature. Other functional programming languages have automatic
+memoisation managed by their runtime environment and `Memo` is our way
+of extending the JVM to have similar support, unfortunately only on an
+opt-in basis.
 
 
