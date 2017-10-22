@@ -1,35 +1,32 @@
 
 # TODO Data Types
 
-
-## TODO Containers
-
 -   Disjunction `\/` (Either)
+-   Validation
+-   Either3
 -   These
--   IList
--   DList (difference list)
--   ImmutableArray
+-   Coproduct (higher kinded Either)
 -   LazyEither
 -   LazyOption
 -   LazyTuple
+
+-   IList
+-   NonEmptyList
 -   OneAnd / OneOr
+-   DList (difference list)
+-   ImmutableArray
 -   Dequeue
+-   Heap (priority queues)
 -   EphemeralStream
 -   FingerTree
 -   Cord
 -   Const
--   Coproduct (higher kinded Either)
 -   CorecursiveList (huh? see CorecursiveListImpl)
 -   Diev (Discrete Interval Encoding Tree)
 -   StrictTree
 -   Tree
--   Validation
--   Either3
 -   Map
--   Maybe
 -   ISet
--   NonEmptyList
--   Heap (priority queues)
 
 Dare we tackle Free in this section?
 

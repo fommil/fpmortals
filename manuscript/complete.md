@@ -5423,3 +5423,136 @@ of extending the JVM to have similar support, unfortunately only on an
 opt-in basis.
 
 
+## Containers
+
+
+### Maybe
+
+We have already encountered scalaz's improvement over `scala.Option`,
+called `Maybe`. It is an improvement because it does not have any
+unsafe methods like `Option.get`, which can throw an exception, and is
+invariant.
+
+It is typically used to represent when a thing may be
+present or not without giving any extra context as to why it may be
+missing.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Maybe[A] { ... }
+  object Maybe extends MaybeInstances {
+    final case class Empty[A]()    extends Maybe[A]
+    final case class Just[A](a: A) extends Maybe[A]
+  
+    def empty[A]: Maybe[A] = Empty()
+    def just[A](a: A): Maybe[A] = Just(a)
+  
+    def fromOption[A](oa: Option[A]): Maybe[A] = ...
+    def fromNullable[A](a: A): Maybe[A] = if (null == a) empty else just(a)
+    def fromTryCatchNonFatal[T](a: => T): Maybe[T] = ...
+    ...
+  }
+~~~~~~~~
+
+The `.empty` and `.just` companion methods are preferred to creating
+raw `Empty` or `Just` instances because they return a `Maybe`, helping
+with type inference. This pattern is often referred to as returning a
+*sum type*, which is when we have multiple implementations of a
+`sealed trait` but never refer to the subtypes.
+
+A convenient `implicit class` allows us to simply call `.just` on any
+value and receive it wrapped as a `Maybe`
+
+{lang="text"}
+~~~~~~~~
+  final class MaybeOps[A](val self: A) extends AnyVal {
+    final def just: Maybe[A] = Maybe.just(self)
+  }
+~~~~~~~~
+
+`Maybe` has a typeclass instance for all the things
+
+-   `Monoid`
+-   `Equal`
+-   `Align`
+-   `Traverse`
+-   `MonadPlus` / `BindRec` / `IsEmpty`
+-   `Cozip` / `Zip` / `Unzip`
+-   `Cobind`
+-   `Optional`
+
+In addition to the above, `Maybe` has some niche functionality that is
+not supported by a polymorphic typeclass.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Maybe[A] {
+    def cata[B](f: A => B, b: => B): B = this match {
+      case Just(a) => f(a)
+      case Empty() => b
+    }
+  
+    def orZero(implicit A: Monoid[A]): A = getOrElse(A.zero)
+    def unary_~(implicit A: Monoid[A]): A = orZero
+  
+    def orEmpty[F[_]: Applicative: PlusEmpty]: F[A] =
+      cata(Applicative[F].point(_), PlusEmpty[F].empty)
+  }
+~~~~~~~~
+
+`.cata` is a terser alternative to `.map(f).getOrElse(b)`.
+
+`orZero` (having `~foo` syntax) allows us to use a `Monoid` to define
+the default value.
+
+`orEmpty` allows us to use an `ApplicativePlus` to create a single
+element or empty container, not forgetting that we get support for
+stdlib collections from the `Foldable` instance.
+
+{lang="text"}
+~~~~~~~~
+  scala> ~1.just
+  res: Int = 1
+  
+  scala> Maybe.empty[Int].orZero
+  res: Int = 0
+  
+  scala> Maybe.empty[Int].orEmpty[IList]
+  res: IList[Int] = []
+  
+  scala> 1.just.orEmpty[IList]
+  res: IList[Int] = [1]
+  
+  scala> 1.just.to[List] // from Foldable
+  res: List[Int] = List(1)
+~~~~~~~~
+
+A> Methods are defined in OOP style on `Maybe`, contrary to our Chapter 4
+A> lesson to use an `object` or `implicit class`. This is a common theme
+A> in scalaz and the reason is largely historical:
+A> 
+A> -   text editors failed to find extension methods, but this now works
+A>     seamlessly in IntelliJ, ENSIME and ScalaIDE.
+A> -   there are corner cases were the compiler would not infer the correct
+A>     types.
+A> -   the stdlib defines some `implicit class` instances that add methods
+A>     to all values, with conflicting method names. `+` is the most
+A>     prominent example, turning everything into a concatenated `String`.
+A> 
+A> The same is true for functionality that is provided by typeclass
+A> instances, such as these methods which are otherwise provided by
+A> `Optional`
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   sealed abstract class Maybe[A] {
+A>     final def getOrElse(a: => A): A = cata(identity, a)
+A>     final def |(a: => A): A = getOrElse(a)
+A>     ...
+A>   }
+A> ~~~~~~~~
+A> 
+A> However, recent versions of Scala have addressed some bugs and we are
+A> now less likely to encounter problems.
+
+

@@ -6389,6 +6389,134 @@ memoisation managed by their runtime environment and ~Memo~ is our way
 of extending the JVM to have similar support, unfortunately only on an
 opt-in basis.
 
+*** Containers
+
+**** Maybe
+
+We have already encountered scalaz's improvement over =scala.Option=,
+called =Maybe=. It is an improvement because it does not have any
+unsafe methods like =Option.get=, which can throw an exception, and is
+invariant.
+
+It is typically used to represent when a thing may be
+present or not without giving any extra context as to why it may be
+missing.
+
+#+BEGIN_SRC scala
+sealed abstract class Maybe[A] { ... }
+object Maybe extends MaybeInstances {
+  final case class Empty[A]()    extends Maybe[A]
+  final case class Just[A](a: A) extends Maybe[A]
+
+  def empty[A]: Maybe[A] = Empty()
+  def just[A](a: A): Maybe[A] = Just(a)
+
+  def fromOption[A](oa: Option[A]): Maybe[A] = ...
+  def fromNullable[A](a: A): Maybe[A] = if (null == a) empty else just(a)
+  def fromTryCatchNonFatal[T](a: => T): Maybe[T] = ...
+  ...
+}
+#+END_SRC
+
+The =.empty= and =.just= companion methods are preferred to creating
+raw =Empty= or =Just= instances because they return a =Maybe=, helping
+with type inference. This pattern is often referred to as returning a
+/sum type/, which is when we have multiple implementations of a
+=sealed trait= but never refer to the subtypes.
+
+A convenient =implicit class= allows us to simply call =.just= on any
+value and receive it wrapped as a =Maybe=
+
+#+BEGIN_SRC scala
+final class MaybeOps[A](val self: A) extends AnyVal {
+  final def just: Maybe[A] = Maybe.just(self)
+}
+#+END_SRC
+
+=Maybe= has a typeclass instance for all the things
+
+- =Monoid=
+- =Equal=
+- =Align=
+- =Traverse=
+- =MonadPlus= / =BindRec= / =IsEmpty=
+- =Cozip= / =Zip= / =Unzip=
+- =Cobind=
+- =Optional=
+
+In addition to the above, =Maybe= has some niche functionality that is
+not supported by a polymorphic typeclass.
+
+#+BEGIN_SRC scala
+sealed abstract class Maybe[A] {
+  def cata[B](f: A => B, b: => B): B = this match {
+    case Just(a) => f(a)
+    case Empty() => b
+  }
+
+  def orZero(implicit A: Monoid[A]): A = getOrElse(A.zero)
+  def unary_~(implicit A: Monoid[A]): A = orZero
+
+  def orEmpty[F[_]: Applicative: PlusEmpty]: F[A] =
+    cata(Applicative[F].point(_), PlusEmpty[F].empty)
+}
+#+END_SRC
+
+=.cata= is a terser alternative to =.map(f).getOrElse(b)=.
+
+=orZero= (having =~foo= syntax) allows us to use a =Monoid= to define
+the default value.
+
+=orEmpty= allows us to use an =ApplicativePlus= to create a single
+element or empty container, not forgetting that we get support for
+stdlib collections from the =Foldable= instance.
+
+#+BEGIN_SRC scala
+scala> ~1.just
+res: Int = 1
+
+scala> Maybe.empty[Int].orZero
+res: Int = 0
+
+scala> Maybe.empty[Int].orEmpty[IList]
+res: IList[Int] = []
+
+scala> 1.just.orEmpty[IList]
+res: IList[Int] = [1]
+
+scala> 1.just.to[List] // from Foldable
+res: List[Int] = List(1)
+#+END_SRC
+
+#+BEGIN_ASIDE
+Methods are defined in OOP style on =Maybe=, contrary to our Chapter 4
+lesson to use an =object= or =implicit class=. This is a common theme
+in scalaz and the reason is largely historical:
+
+- text editors failed to find extension methods, but this now works
+  seamlessly in IntelliJ, ENSIME and ScalaIDE.
+- there are corner cases were the compiler would not infer the correct
+  types.
+- the stdlib defines some =implicit class= instances that add methods
+  to all values, with conflicting method names. =+= is the most
+  prominent example, turning everything into a concatenated =String=.
+
+The same is true for functionality that is provided by typeclass
+instances, such as these methods which are otherwise provided by
+=Optional=
+
+#+BEGIN_SRC scala
+sealed abstract class Maybe[A] {
+  final def getOrElse(a: => A): A = cata(identity, a)
+  final def |(a: => A): A = getOrElse(a)
+  ...
+}
+#+END_SRC
+
+However, recent versions of Scala have addressed some bugs and we are
+now less likely to encounter problems.
+#+END_ASIDE
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
@@ -6420,34 +6548,34 @@ while continuing to build out the example application.
   :END:
 ** TODO Data Types
 
-*** TODO Containers
+
 
 - Disjunction =\/= (Either)
+- Validation
+- Either3
 - These
-- IList
-- DList (difference list)
-- ImmutableArray
+- Coproduct (higher kinded Either)
 - LazyEither
 - LazyOption
 - LazyTuple
+
+- IList
+- NonEmptyList
 - OneAnd / OneOr
+- DList (difference list)
+- ImmutableArray
 - Dequeue
+- Heap (priority queues)
 - EphemeralStream
 - FingerTree
 - Cord
 - Const
-- Coproduct (higher kinded Either)
 - CorecursiveList (huh? see CorecursiveListImpl)
 - Diev (Discrete Interval Encoding Tree)
 - StrictTree
 - Tree
-- Validation
-- Either3
 - Map
-- Maybe
 - ISet
-- NonEmptyList
-- Heap (priority queues)
 
 Dare we tackle Free in this section?
 
