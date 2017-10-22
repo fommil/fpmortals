@@ -5324,15 +5324,12 @@ into a `Need` internally, getting a boost to performance.
 
 `Name` provides instances of the following typeclasses
 
--   `Monad`
--   `BindRec`
+-   `Monad` / `BindRec`
 -   `Comonad`
 -   `Distributive`
 -   `Traverse1`
--   `Zip`
--   `Unzip`
 -   `Align`
--   `Cozip`
+-   `Zip` / `Unzip` / `Cozip`
 
 A> *by-name* and *lazy* are not the free lunch they appear to be. When
 A> Scala converts *by-name* parameters and `lazy val` into bytecode,
@@ -5472,14 +5469,17 @@ and receive a `Maybe`
 
 `Maybe` has a typeclass instance for all the things
 
--   `Monoid`
--   `Equal`
 -   `Align`
 -   `Traverse`
 -   `MonadPlus` / `BindRec` / `IsEmpty`
--   `Cozip` / `Zip` / `Unzip`
 -   `Cobind`
+-   `Cozip` / `Zip` / `Unzip`
 -   `Optional`
+
+and delegate instances depending on `A`
+
+-   `Monoid` / `Band` / `SemiLattice`
+-   `Equal` / `Order` / `Show`
 
 In addition to the above, `Maybe` has some niche functionality that is
 not supported by a polymorphic typeclass.
@@ -5492,6 +5492,8 @@ not supported by a polymorphic typeclass.
       case Empty() => b
     }
   
+    def |(a: => A): A = cata(identity, a)
+  
     def orZero(implicit A: Monoid[A]): A = getOrElse(A.zero)
     def unary_~(implicit A: Monoid[A]): A = orZero
   
@@ -5500,7 +5502,8 @@ not supported by a polymorphic typeclass.
   }
 ~~~~~~~~
 
-`.cata` is a terser alternative to `.map(f).getOrElse(b)`.
+`.cata` is a terser alternative to `.map(f).getOrElse(b)` and has the
+simpler form `|` if the map is `identity` (i.e. just `.getOrElse`).
 
 `.orZero` (having `~foo` syntax) takes a `Monoid` to define the
 default value.
@@ -5546,13 +5549,130 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A>   sealed abstract class Maybe[A] {
-A>     def getOrElse(a: => A): A = cata(identity, a)
-A>     def |(a: => A): A = getOrElse(a)
+A>     def getOrElse(a: => A): A = ...
 A>     ...
 A>   }
 A> ~~~~~~~~
 A> 
 A> However, recent versions of Scala have addressed many bugs and we are
 A> now less likely to encounter problems.
+
+
+### Either
+
+Scalaz's improvement over `scala.Either` is symbolic, but it is common
+to speak about it as *either* or *disjunction*
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class \/[+A, +B] { ... }
+  final case class -\/[+A](a: A) extends (A \/ Nothing)
+  final case class \/-[+B](b: B) extends (Nothing \/ B)
+  object \/ {
+    def left [A, B]: A => A \/ B = -\/(_)
+    def right[A, B]: B => A \/ B = \/-(_)
+  
+    def fromEither[A, B](e: Either[A, B]): A \/ B = ...
+    def fromTryCatchNonFatal[T](a: => T): Throwable \/ T = ...
+  
+    ...
+  }
+~~~~~~~~
+
+with corresponding syntax
+
+{lang="text"}
+~~~~~~~~
+  final class EitherOps[A](val self: A) extends AnyVal {
+    final def left [B]: (A \/ B) = -\/(self)
+    final def right[B]: (B \/ A) = \/-(self)
+  }
+~~~~~~~~
+
+allowing for easy construction of values. Note that the extension
+method takes the type of the *other side*. So if we wish to create a
+`String \/ Int` and we have an `Int`, we must pass `String` when
+calling `.right`
+
+{lang="text"}
+~~~~~~~~
+  scala> 1.right[String]
+  res: String \/ Int = \/-(1)
+  
+  scala> "hello".left[Int]
+  res: String \/ Int = -\/(hello)
+~~~~~~~~
+
+The symbolic nature of `\/` makes it read well in type signatures when
+shown infix. Be careful that symbolic types in Scala associate from
+the left, so nested `\/` must have parentheses, e.g. `(A \/ (B \/ (C
+\/ D))`.
+
+`\/` has typeclass instances for
+
+-   `Traverse` / `Bitraverse`
+-   `Monad` / `BindRec` / `MonadError`
+-   `Plus`
+-   `Optional`
+-   `Cozip`
+
+and depending on the contents
+
+-   `Equal` / `Order`
+-   `Semigroup` / `Monoid` / `Band`
+
+In addition, there are custom methods
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class \/[+A, +B] { self =>
+    def fold[X](l: A => X, r: B => X): X = self match {
+      case -\/(a) => l(a)
+      case \/-(b) => r(b)
+    }
+  
+    def swap: (B \/ A) = self match {
+      case -\/(a) => \/-(a)
+      case \/-(b) => -\/(b)
+    }
+    def unary_~ : (B \/ A) = swap
+  
+    def |[BB >: B](x: => BB): BB = getOrElse(x) // Optional[_]
+    def |||[C, BB >: B](x: => C \/ BB): C \/ BB = orElse(x) // Optional[_]
+  
+    def toEither: Either[A, B] = ...
+  
+    final class SwitchingDisjunction[X](right: =>X) {
+      def <<?:(left: =>X): X = ...
+    }
+    def :?>>[X](right: =>X) = new SwitchingDisjunction[X](right)
+  
+    ...
+  }
+~~~~~~~~
+
+`.fold` is similar to `Maybe.cata` and requires that both the left and
+right sides are mapped to the same type.
+
+`.swap` (and the `~foo` syntax) swaps a left into a right and a right
+into a left.
+
+The `|` alias to `getOrElse` appears similarly to `Maybe`. We also get
+`|||` as an alias to `orElse`.
+
+`.toEither` is provided for backwards compatibility with the Scala
+stdlib.
+
+The combination of `:?>>` and `<<?:` allow for a convenient syntax to
+ignore the contents of an `\/`, but pick a default based on its type
+
+{lang="text"}
+~~~~~~~~
+  scala> 1 <<?: foo :?>> 2
+  res: Int = 2 // foo is a \/-
+  
+  scala> 1 <<?: ~foo :?>> 2
+  res: Int = 1
+~~~~~~~~
 
 

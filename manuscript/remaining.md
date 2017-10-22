@@ -1,7 +1,6 @@
 
 # TODO Data Types
 
--   Disjunction `\/` (Either)
 -   Validation
 -   Either3
 -   These
