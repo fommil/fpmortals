@@ -6507,13 +6507,13 @@ instances, such as these methods which are otherwise provided by
 
 #+BEGIN_SRC scala
 sealed abstract class Maybe[A] {
-  final def getOrElse(a: => A): A = cata(identity, a)
-  final def |(a: => A): A = getOrElse(a)
+  def getOrElse(a: => A): A = cata(identity, a)
+  def |(a: => A): A = getOrElse(a)
   ...
 }
 #+END_SRC
 
-However, recent versions of Scala have addressed may bugs and we are
+However, recent versions of Scala have addressed many bugs and we are
 now less likely to encounter problems.
 #+END_ASIDE
 

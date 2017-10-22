@@ -5546,13 +5546,13 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A>   sealed abstract class Maybe[A] {
-A>     final def getOrElse(a: => A): A = cata(identity, a)
-A>     final def |(a: => A): A = getOrElse(a)
+A>     def getOrElse(a: => A): A = cata(identity, a)
+A>     def |(a: => A): A = getOrElse(a)
 A>     ...
 A>   }
 A> ~~~~~~~~
 A> 
-A> However, recent versions of Scala have addressed may bugs and we are
+A> However, recent versions of Scala have addressed many bugs and we are
 A> now less likely to encounter problems.
 
 
