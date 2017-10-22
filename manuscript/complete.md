@@ -5440,7 +5440,7 @@ missing.
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Maybe[A] { ... }
-  object Maybe extends MaybeInstances {
+  object Maybe {
     final case class Empty[A]()    extends Maybe[A]
     final case class Just[A](a: A) extends Maybe[A]
   
@@ -5458,10 +5458,10 @@ The `.empty` and `.just` companion methods are preferred to creating
 raw `Empty` or `Just` instances because they return a `Maybe`, helping
 with type inference. This pattern is often referred to as returning a
 *sum type*, which is when we have multiple implementations of a
-`sealed trait` but never refer to the subtypes.
+`sealed trait` but never use a specific subtype in a method signature.
 
-A convenient `implicit class` allows us to simply call `.just` on any
-value and receive it wrapped as a `Maybe`
+A convenient `implicit class` allows us to call `.just` on any value
+and receive a `Maybe`
 
 {lang="text"}
 ~~~~~~~~
@@ -5502,12 +5502,12 @@ not supported by a polymorphic typeclass.
 
 `.cata` is a terser alternative to `.map(f).getOrElse(b)`.
 
-`orZero` (having `~foo` syntax) allows us to use a `Monoid` to define
-the default value.
+`.orZero` (having `~foo` syntax) takes a `Monoid` to define the
+default value.
 
-`orEmpty` allows us to use an `ApplicativePlus` to create a single
-element or empty container, not forgetting that we get support for
-stdlib collections from the `Foldable` instance.
+`.orEmpty` uses an `ApplicativePlus` to create a single element or
+empty container, not forgetting that we already get support for stdlib
+collections from the `Foldable` instance's `.to` method.
 
 {lang="text"}
 ~~~~~~~~
@@ -5533,8 +5533,8 @@ A> in scalaz and the reason is largely historical:
 A> 
 A> -   text editors failed to find extension methods, but this now works
 A>     seamlessly in IntelliJ, ENSIME and ScalaIDE.
-A> -   there are corner cases were the compiler would not infer the correct
-A>     types.
+A> -   there are corner cases where the compiler would fail to infer the
+A>     types and not be able to find the extension method.
 A> -   the stdlib defines some `implicit class` instances that add methods
 A>     to all values, with conflicting method names. `+` is the most
 A>     prominent example, turning everything into a concatenated `String`.
@@ -5552,7 +5552,7 @@ A>     ...
 A>   }
 A> ~~~~~~~~
 A> 
-A> However, recent versions of Scala have addressed some bugs and we are
+A> However, recent versions of Scala have addressed may bugs and we are
 A> now less likely to encounter problems.
 
 
