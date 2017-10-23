@@ -6631,6 +6631,42 @@ scala> 1 <<?: ~foo :?>> 2
 res: Int = 1
 #+END_SRC
 
+Scalaz also comes with =Either3=, for storing one of three values
+
+#+BEGIN_SRC scala
+sealed abstract class Either3[+A, +B, +C]
+final case class Left3[+A, +B, +C](a: A)   extends Either3[A, B, C]
+final case class Middle3[+A, +B, +C](b: B) extends Either3[A, B, C]
+final case class Right3[+A, +B, +C](c: C)  extends Either3[A, B, C]
+#+END_SRC
+
+However it only has typeclass instances for =Show= and =Equal=.
+
+**** TODO Validation
+
+#+BEGIN_SRC scala
+sealed abstract class Validation[+E, +A] { ... }
+final case class Success[A](a: A) extends Validation[Nothing, A]
+final case class Failure[E](e: E) extends Validation[E, Nothing]
+
+type ValidationNel[E, +X] = Validation[NonEmptyList[E], X]
+
+object Validation {
+  def success[E, A]: A => Validation[E, A] = Success(_)
+  def failure[E, A]: E => Validation[E, A] = Failure(_)
+  def failureNel[E, A](e: E): ValidationNel[E, A] = Failure(NonEmptyList(e))
+
+  def lift[E, A](a: A)(f: A => Boolean, fail: E): Validation[E, A] = ...
+  def liftNel[E, A](a: A)(f: A => Boolean, fail: E): ValidationNel[E, A] = ...
+  def fromTryCatchNonFatal[T](a: => T): Validation[Throwable, T] = ...
+  def fromEither[E, A](e: Either[E, A]): Validation[E, A] = ...
+
+  ...
+}
+#+END_SRC
+
+
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
@@ -6662,7 +6698,6 @@ while continuing to build out the example application.
   :END:
 ** TODO Data Types
 
-- Validation
 - Either3
 - These
 - Coproduct (higher kinded Either)
