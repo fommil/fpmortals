@@ -6566,10 +6566,11 @@ shown infix. Be careful that symbolic types in Scala associate from
 the left, so nested =\/= must have parentheses, e.g. =(A \/ (B \/ (C
 \/ D))=.
 
-=\/= has typeclass instances for
+=\/= has /right-biased/ (i.e. the type hole is =B=) typeclass
+instances for
 
-- =Traverse= / =Bitraverse=
 - =Monad= / =BindRec= / =MonadError=
+- =Traverse= / =Bitraverse=
 - =Plus=
 - =Optional=
 - =Cozip=
@@ -6597,6 +6598,8 @@ sealed abstract class \/[+A, +B] { self =>
   def |[BB >: B](x: => BB): BB = getOrElse(x) // Optional[_]
   def |||[C, BB >: B](x: => C \/ BB): C \/ BB = orElse(x) // Optional[_]
 
+  def +++[AA >: A: Semigroup, BB >: B: Semigroup](x: => AA \/ BB): AA \/ BB = ...
+
   def toEither: Either[A, B] = ...
 
   final class SwitchingDisjunction[X](right: =>X) {
@@ -6616,6 +6619,14 @@ into a left.
 
 The =|= alias to =getOrElse= appears similarly to =Maybe=. We also get
 =|||= as an alias to =orElse=.
+
+=+++= is for combining disjunctions with lefts taking preference over
+right:
+
+- =\/-(v1) +++ \/-(v2)= gives =\/-(v1 |+| v2)=
+- =\/-(v1) +++ -\/(v2)= gives =-\/(v2)=
+- =-\/(v1) +++ \/-(v2)= gives =-\/(v1)=
+- =-\/(v1) +++ -\/(v2)= gives =-\/(v1 |+| v2)=
 
 =.toEither= is provided for backwards compatibility with the Scala
 stdlib.
@@ -6642,13 +6653,17 @@ final case class Right3[+A, +B, +C](c: C)  extends Either3[A, B, C]
 
 However it only has typeclass instances for =Show= and =Equal=.
 
-**** TODO Validation
+**** Validation
+
+At first sight, =Validation= (aliased with =\?/=) appears to be a
+carbon copy of disjunction:
 
 #+BEGIN_SRC scala
 sealed abstract class Validation[+E, +A] { ... }
 final case class Success[A](a: A) extends Validation[Nothing, A]
 final case class Failure[E](e: E) extends Validation[E, Nothing]
 
+type \?/[+E, +A] = Validation[E, A]
 type ValidationNel[E, +X] = Validation[NonEmptyList[E], X]
 
 object Validation {
@@ -6665,7 +6680,48 @@ object Validation {
 }
 #+END_SRC
 
+However, the data structure itself is not the complete story.
+=Validation= intentionally does not have an instance of any =Monad=,
+restricting itself to success-biased versions of:
 
+- =Applicative=
+- =Traverse= / =Bitraverse=
+- =Cozip=
+- =Plus=
+- =Optional=
+
+and depending on the contents
+
+- =Equal= / =Order=
+- =Show=
+- =Semigroup= / =Monoid=
+
+The big advantage of restricting to =Applicative= is that =Validation=
+is explicitly for situations where we wish to report all errors,
+whereas disjunction can be used to stop at the first error. To
+accommodate error accumulation, a popular form of =Validation= is
+=ValidationNel=, with a =NonEmptyList[E]= in the error position.
+
+FIXME: example, compared against =\/=
+
+When reporting
+
+=Validation= has the same methods as disjunction, such as =fold=,
+=swap= and =+++=, plus some extra:
+
+#+BEGIN_SRC scala
+sealed abstract class Validation[+E, +A] {
+  def append[EE >: E: Semigroup, AA >: A: Semigroup](x: EE \?/ AA]): EE \?/ AA = ...
+  def +|+[EE >: E: Semigroup, AA >: A: Semigroup](x: EE \?/ AA): EE \?/ AA = append(x)
+  ...
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+=\?/=, or the /Elvis type/ is never far away from his buddy, =+|+= FIXME
+#+END_ASIDE
+
+=append= (also known as =+|+=) FIXME
 
 * WIP                                                                 :final:
   :PROPERTIES:
