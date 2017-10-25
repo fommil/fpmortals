@@ -5604,12 +5604,11 @@ calling `.right`
 ~~~~~~~~
 
 The symbolic nature of `\/` makes it read well in type signatures when
-shown infix. Be careful that symbolic types in Scala associate from
-the left, so nested `\/` must have parentheses, e.g. `(A \/ (B \/ (C
-\/ D))`.
+shown infix. Note that symbolic types in Scala associate from the left
+and nested `\/` must have parentheses, e.g. `(A \/ (B \/ (C \/ D))`.
 
-`\/` has *right-biased* (i.e. the type hole is `B`) typeclass
-instances for
+`\/` has right-biased (i.e. `flatMap` applies to `\/-`) typeclass
+instances for:
 
 -   `Monad` / `BindRec` / `MonadError`
 -   `Traverse` / `Bitraverse`
@@ -5701,8 +5700,8 @@ However it only has typeclass instances for `Show` and `Equal`.
 
 ### Validation
 
-At first sight, `Validation` (aliased with `\?/`) appears to be a
-carbon copy of disjunction:
+At first sight, `Validation` (aliased with `\?/`, *happy Elvis*)
+appears to be a clone of disjunction:
 
 {lang="text"}
 ~~~~~~~~
@@ -5757,10 +5756,10 @@ and depending on the contents
 -   `Semigroup` / `Monoid`
 
 The big advantage of restricting to `Applicative` is that `Validation`
-is explicitly for situations where we wish to report all errors,
-whereas disjunction is used to stop at the first error. To accommodate
-error accumulation, a popular form of `Validation` is `ValidationNel`,
-having a `NonEmptyList[E]` in the error position.
+is explicitly for situations where we wish to report all failures,
+whereas disjunction is used to stop at the first failure. To accommodate
+failure accumulation, a popular form of `Validation` is `ValidationNel`,
+having a `NonEmptyList[E]` in the failure position.
 
 Consider performing input validation of data provided by a user using
 disjunction and `flatMap`:
@@ -5781,11 +5780,10 @@ disjunction and `flatMap`:
            if (in.isEmpty) "empty real name".left
            else Fullname(in).right
   
-         for {
+  scala> for {
            u <- username("sam halliday")
            r <- realname("")
          } yield Credentials(u, r)
-  
   res = -\/(username contains spaces)
 ~~~~~~~~
 
@@ -5794,31 +5792,28 @@ If we use `|@|` syntax
 {lang="text"}
 ~~~~~~~~
   scala> (username("sam halliday") |@| realname("")) (Credentials.apply)
-  
   res = -\/(username contains spaces)
 ~~~~~~~~
 
-we still get back the first error. This is because disjunction is a
+we still get back the first failure. This is because disjunction is a
 `Monad` and its `map` methods must be consistent with `flatMap` and
 not assume that any operations can be performed out of order.
 
-Compare this to `Validated`
+Compare to:
 
 {lang="text"}
 ~~~~~~~~
-  type Result[A] = ValidationNel[String, A]
+  scala> :paste
+         def username(in: String): ValidationNel[String, Username] =
+           if (in.isEmpty) "empty username".failureNel
+           else if (in.contains(" ")) "username contains spaces".failureNel
+           else Username(in).success
   
-    def username(in: String): Result[Username] =
-      if (in.isEmpty) "empty username".failureNel
-      else if (in.contains(" ")) "username contains spaces".failureNel
-      else Username(in).success
+         def realname(in: String): ValidationNel[String, Fullname] =
+           if (in.isEmpty) "empty real name".failureNel
+           else Fullname(in).success
   
-    def realname(in: String): Result[Fullname] =
-      if (in.isEmpty) "empty real name".failureNel
-      else Fullname(in).success
-  
-    (username("sam halliday") |@| realname("")) (Credentials.apply)
-  
+  scala> (username("sam halliday") |@| realname("")) (Credentials.apply)
   res = Failure(NonEmpty[username contains spaces,empty real name])
 ~~~~~~~~
 
@@ -5849,6 +5844,6 @@ A> `+|+` the surprised c3p0 operator.
 `.disjunction` converts a `Validated[A, B]` into an `A \/ B`.
 Disjunction has the mirror `.validation` and `.validationNel` to
 convert into `Validation`, allowing for easy conversion between
-sequential and parallel error accumulation.
+sequential and parallel failure accumulation.
 
 
