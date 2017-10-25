@@ -1,7 +1,6 @@
 
 # TODO Data Types
 
--   Validation
 -   Either3
 -   These
 -   Coproduct (higher kinded Either)

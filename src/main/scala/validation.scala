@@ -26,9 +26,7 @@ object Disjunction extends App {
 
   println(creds)
 
-  val creds2 = (username("sam halliday") |@| realname("")) {
-    Credentials.apply _
-  }
+  val creds2 = (username("sam halliday") |@| realname(""))(Credentials.apply)
 
   println(creds2)
 }
@@ -46,9 +44,7 @@ object Validated extends App {
     if (in.isEmpty) "empty real name".failureNel
     else Fullname(in).success
 
-  val creds2 = (username("sam halliday") |@| realname("")) {
-    Credentials.apply _
-  }
+  val creds2 = (username("sam halliday") |@| realname(""))(Credentials.apply)
 
   println(creds2)
   // Failure(NonEmpty[username contains spaces,empty real name])

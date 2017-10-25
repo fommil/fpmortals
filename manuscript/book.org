@@ -6031,9 +6031,9 @@ performance reasons, and to provide our own.
 # https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw
 # https://typelevel.org/blog/2016/09/19/variance-phantom.html
 
-Scalaz's data types are typically /invariant/ in their type
-parameters. For example, =IList[A]= is *not* a subtype of =IList[B]=
-when =A <: B=.
+Many of scalaz's data types are /invariant/ in their type parameters.
+For example, =IList[A]= is *not* a subtype of =IList[B]= when =A <:
+B=.
 
 **** Covariance
 
@@ -6425,8 +6425,8 @@ A convenient =implicit class= allows us to call =.just= on any value
 and receive a =Maybe=
 
 #+BEGIN_SRC scala
-final class MaybeOps[A](val self: A) extends AnyVal {
-  final def just: Maybe[A] = Maybe.just(self)
+implicit class MaybeOps[A](val self: A) {
+  def just: Maybe[A] = Maybe.just(self)
 }
 #+END_SRC
 
@@ -6542,7 +6542,7 @@ object \/ {
 with corresponding syntax
 
 #+BEGIN_SRC scala
-final class EitherOps[A](val self: A) extends AnyVal {
+implicit class EitherOps[A](val self: A) {
   final def left [B]: (A \/ B) = -\/(self)
   final def right[B]: (B \/ A) = \/-(self)
 }
@@ -6623,10 +6623,10 @@ The =|= alias to =getOrElse= appears similarly to =Maybe=. We also get
 =+++= is for combining disjunctions with lefts taking preference over
 right:
 
-- =\/-(v1) +++ \/-(v2)= gives =\/-(v1 |+| v2)=
-- =\/-(v1) +++ -\/(v2)= gives =-\/(v2)=
-- =-\/(v1) +++ \/-(v2)= gives =-\/(v1)=
-- =-\/(v1) +++ -\/(v2)= gives =-\/(v1 |+| v2)=
+- =right(v1) +++ right(v2)= gives =right(v1 |+| v2)=
+- =right(v1) +++ left (v2)= gives =left (v2)=
+- =left (v1) +++ right(v2)= gives =left (v1)=
+- =left (v1) +++ left (v2)= gives =left (v1 |+| v2)=
 
 =.toEither= is provided for backwards compatibility with the Scala
 stdlib.
@@ -6663,10 +6663,11 @@ sealed abstract class Validation[+E, +A] { ... }
 final case class Success[A](a: A) extends Validation[Nothing, A]
 final case class Failure[E](e: E) extends Validation[E, Nothing]
 
-type \?/[+E, +A] = Validation[E, A]
 type ValidationNel[E, +X] = Validation[NonEmptyList[E], X]
 
 object Validation {
+  type \?/[+E, +A] = Validation[E, A]
+
   def success[E, A]: A => Validation[E, A] = Success(_)
   def failure[E, A]: E => Validation[E, A] = Failure(_)
   def failureNel[E, A](e: E): ValidationNel[E, A] = Failure(NonEmptyList(e))
@@ -6677,6 +6678,17 @@ object Validation {
   def fromEither[E, A](e: Either[E, A]): Validation[E, A] = ...
 
   ...
+}
+#+END_SRC
+
+With convenient syntax
+
+#+BEGIN_SRC scala
+implicit class ValidationOps[A](val self: A) {
+  def success[X]: Validation[X, A] = Validation.success[X, A](self)
+  def successNel[X]: ValidationNel[X, A] = success
+  def failure[X]: Validation[A, X] = Validation.failure[A, X](self)
+  def failureNel[X]: ValidationNel[A, X] = Validation.failureNel[A, X](self)
 }
 #+END_SRC
 
@@ -6728,13 +6740,17 @@ scala> :paste
 res = -\/(username contains spaces)
 #+END_SRC
 
-or even if we were to use apply syntax
+If we use ~|@|~ syntax
 
 #+BEGIN_SRC scala
-scala> (username("sam halliday") |@| realname("")) { Credentials.apply _ }
+scala> (username("sam halliday") |@| realname("")) (Credentials.apply)
 
 res = -\/(username contains spaces)
 #+END_SRC
+
+we still get back the first error. This is because disjunction is a
+=Monad= and its =map= methods must be consistent with =flatMap= and
+not assume that any operations can be performed out of order.
 
 Compare this to =Validated=
 
@@ -6750,57 +6766,40 @@ Compare this to =Validated=
     if (in.isEmpty) "empty real name".failureNel
     else Fullname(in).success
 
-  (username("sam halliday") |@| realname("")) { Credentials.apply _ }
+  (username("sam halliday") |@| realname("")) (Credentials.apply)
 
 res = Failure(NonEmpty[username contains spaces,empty real name])
 #+END_SRC
 
-We can get back all the failures!
-
-#+BEGIN_ASIDE
-We could have written the more explicit
-
-#+BEGIN_SRC scala
-(username("sam halliday") |@| realname("")) { (u, r) => Credentials(u, r) }
-#+END_SRC
-
-but we choose to /partially apply/ the =Credentials.apply=
-constructor, creating a /function/ that accepts two parameters
-
-#+BEGIN_SRC scala
-scala> val cred = Credentials.apply _
-res: (Username, Fullname) => Credentials = ...
-#+END_SRC
-
-This syntax is particularly useful because we won't need to update the
-code if we add another field to =Credentials=.
-
-The opposite to partial application is /tupling/, which is when we
-have a function that takes multiple parameters but we want to pass a
-tuple:
-
-#+BEGIN_SRC scala
-scala> val t: (Username, Fullname) = ...
-       cred.tupled(t)
-#+END_SRC
-#+END_ASIDE
+This time, we get back all the failures!
 
 =Validation= has the same methods as disjunction, such as =fold=,
 =swap= and =+++=, plus some extra:
 
 #+BEGIN_SRC scala
 sealed abstract class Validation[+E, +A] {
-  def append[EE >: E: Semigroup, AA >: A: Semigroup](x: EE \?/ AA]): EE \?/ AA = ...
-  def +|+[EE >: E: Semigroup, AA >: A: Semigroup](x: EE \?/ AA): EE \?/ AA = append(x)
+  def append[F >: E: Semigroup, B >: A: Semigroup](x: F \?/ B]): F \?/ B = ...
+
+  def disjunction: (E \/ A) = ...
   ...
 }
 #+END_SRC
 
+=.append= (aliased by =+|+=) has the same type signature as =+++= but prefers the =success= case
+
+- =failure(v1) +|+ failure(v2)= gives =failure(v1 |+| v2)=
+- =failure(v1) +|+ success(v2)= gives =success(v2)=
+- =success(v1) +|+ failure(v2)= gives =success(v1)=
+- =success(v1) +|+ success(v2)= gives =success(v1 |+| v2)=
+
 #+BEGIN_ASIDE
-=\?/=, or the /Elvis type/ is never far away from his buddy, =+|+= FIXME
+=+|+= the surprised c3p0 operator.
 #+END_ASIDE
 
-=append= (also known as =+|+=) FIXME
+=.disjunction= converts a =Validated[A, B]= into an =A \/ B=.
+Disjunction has the mirror =.validation= and =.validationNel= to
+convert into =Validation=, allowing for easy conversion between
+sequential and parallel error accumulation.
 
 * WIP                                                                 :final:
   :PROPERTIES:

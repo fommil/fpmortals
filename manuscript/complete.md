@@ -5051,9 +5051,9 @@ performance reasons, and to provide our own.
 
 ## Type Variance
 
-Scalaz's data types are typically *invariant* in their type
-parameters. For example, `IList[A]` is **not** a subtype of `IList[B]`
-when `A <: B`.
+Many of scalaz's data types are *invariant* in their type parameters.
+For example, `IList[A]` is **not** a subtype of `IList[B]` when `A <:
+B`.
 
 
 ### Covariance
@@ -5462,8 +5462,8 @@ and receive a `Maybe`
 
 {lang="text"}
 ~~~~~~~~
-  final class MaybeOps[A](val self: A) extends AnyVal {
-    final def just: Maybe[A] = Maybe.just(self)
+  implicit class MaybeOps[A](val self: A) {
+    def just: Maybe[A] = Maybe.just(self)
   }
 ~~~~~~~~
 
@@ -5583,7 +5583,7 @@ with corresponding syntax
 
 {lang="text"}
 ~~~~~~~~
-  final class EitherOps[A](val self: A) extends AnyVal {
+  implicit class EitherOps[A](val self: A) {
     final def left [B]: (A \/ B) = -\/(self)
     final def right[B]: (B \/ A) = \/-(self)
   }
@@ -5608,10 +5608,11 @@ shown infix. Be careful that symbolic types in Scala associate from
 the left, so nested `\/` must have parentheses, e.g. `(A \/ (B \/ (C
 \/ D))`.
 
-`\/` has typeclass instances for
+`\/` has *right-biased* (i.e. the type hole is `B`) typeclass
+instances for
 
--   `Traverse` / `Bitraverse`
 -   `Monad` / `BindRec` / `MonadError`
+-   `Traverse` / `Bitraverse`
 -   `Plus`
 -   `Optional`
 -   `Cozip`
@@ -5640,6 +5641,8 @@ In addition, there are custom methods
     def |[BB >: B](x: => BB): BB = getOrElse(x) // Optional[_]
     def |||[C, BB >: B](x: => C \/ BB): C \/ BB = orElse(x) // Optional[_]
   
+    def +++[AA >: A: Semigroup, BB >: B: Semigroup](x: => AA \/ BB): AA \/ BB = ...
+  
     def toEither: Either[A, B] = ...
   
     final class SwitchingDisjunction[X](right: =>X) {
@@ -5660,6 +5663,14 @@ into a left.
 The `|` alias to `getOrElse` appears similarly to `Maybe`. We also get
 `|||` as an alias to `orElse`.
 
+`+++` is for combining disjunctions with lefts taking preference over
+right:
+
+-   `right(v1) +++ right(v2)` gives `right(v1 |+| v2)`
+-   `right(v1) +++ left (v2)` gives `left (v2)`
+-   `left (v1) +++ right(v2)` gives `left (v1)`
+-   `left (v1) +++ left (v2)` gives `left (v1 |+| v2)`
+
 `.toEither` is provided for backwards compatibility with the Scala
 stdlib.
 
@@ -5674,5 +5685,170 @@ ignore the contents of an `\/`, but pick a default based on its type
   scala> 1 <<?: ~foo :?>> 2
   res: Int = 1
 ~~~~~~~~
+
+Scalaz also comes with `Either3`, for storing one of three values
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Either3[+A, +B, +C]
+  final case class Left3[+A, +B, +C](a: A)   extends Either3[A, B, C]
+  final case class Middle3[+A, +B, +C](b: B) extends Either3[A, B, C]
+  final case class Right3[+A, +B, +C](c: C)  extends Either3[A, B, C]
+~~~~~~~~
+
+However it only has typeclass instances for `Show` and `Equal`.
+
+
+### Validation
+
+At first sight, `Validation` (aliased with `\?/`) appears to be a
+carbon copy of disjunction:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Validation[+E, +A] { ... }
+  final case class Success[A](a: A) extends Validation[Nothing, A]
+  final case class Failure[E](e: E) extends Validation[E, Nothing]
+  
+  type ValidationNel[E, +X] = Validation[NonEmptyList[E], X]
+  
+  object Validation {
+    type \?/[+E, +A] = Validation[E, A]
+  
+    def success[E, A]: A => Validation[E, A] = Success(_)
+    def failure[E, A]: E => Validation[E, A] = Failure(_)
+    def failureNel[E, A](e: E): ValidationNel[E, A] = Failure(NonEmptyList(e))
+  
+    def lift[E, A](a: A)(f: A => Boolean, fail: E): Validation[E, A] = ...
+    def liftNel[E, A](a: A)(f: A => Boolean, fail: E): ValidationNel[E, A] = ...
+    def fromTryCatchNonFatal[T](a: => T): Validation[Throwable, T] = ...
+    def fromEither[E, A](e: Either[E, A]): Validation[E, A] = ...
+  
+    ...
+  }
+~~~~~~~~
+
+With convenient syntax
+
+{lang="text"}
+~~~~~~~~
+  implicit class ValidationOps[A](val self: A) {
+    def success[X]: Validation[X, A] = Validation.success[X, A](self)
+    def successNel[X]: ValidationNel[X, A] = success
+    def failure[X]: Validation[A, X] = Validation.failure[A, X](self)
+    def failureNel[X]: ValidationNel[A, X] = Validation.failureNel[A, X](self)
+  }
+~~~~~~~~
+
+However, the data structure itself is not the complete story.
+`Validation` intentionally does not have an instance of any `Monad`,
+restricting itself to success-biased versions of:
+
+-   `Applicative`
+-   `Traverse` / `Bitraverse`
+-   `Cozip`
+-   `Plus`
+-   `Optional`
+
+and depending on the contents
+
+-   `Equal` / `Order`
+-   `Show`
+-   `Semigroup` / `Monoid`
+
+The big advantage of restricting to `Applicative` is that `Validation`
+is explicitly for situations where we wish to report all errors,
+whereas disjunction is used to stop at the first error. To accommodate
+error accumulation, a popular form of `Validation` is `ValidationNel`,
+having a `NonEmptyList[E]` in the error position.
+
+Consider performing input validation of data provided by a user using
+disjunction and `flatMap`:
+
+{lang="text"}
+~~~~~~~~
+  scala> :paste
+         final case class Credentials(user: Username, name: Fullname)
+         final case class Username(value: String) extends AnyVal
+         final case class Fullname(value: String) extends AnyVal
+  
+         def username(in: String): String \/ Username =
+           if (in.isEmpty) "empty username".left
+           else if (in.contains(" ")) "username contains spaces".left
+           else Username(in).right
+  
+         def realname(in: String): String \/ Fullname =
+           if (in.isEmpty) "empty real name".left
+           else Fullname(in).right
+  
+         for {
+           u <- username("sam halliday")
+           r <- realname("")
+         } yield Credentials(u, r)
+  
+  res = -\/(username contains spaces)
+~~~~~~~~
+
+If we use `|@|` syntax
+
+{lang="text"}
+~~~~~~~~
+  scala> (username("sam halliday") |@| realname("")) (Credentials.apply)
+  
+  res = -\/(username contains spaces)
+~~~~~~~~
+
+we still get back the first error. This is because disjunction is a
+`Monad` and its `map` methods must be consistent with `flatMap` and
+not assume that any operations can be performed out of order.
+
+Compare this to `Validated`
+
+{lang="text"}
+~~~~~~~~
+  type Result[A] = ValidationNel[String, A]
+  
+    def username(in: String): Result[Username] =
+      if (in.isEmpty) "empty username".failureNel
+      else if (in.contains(" ")) "username contains spaces".failureNel
+      else Username(in).success
+  
+    def realname(in: String): Result[Fullname] =
+      if (in.isEmpty) "empty real name".failureNel
+      else Fullname(in).success
+  
+    (username("sam halliday") |@| realname("")) (Credentials.apply)
+  
+  res = Failure(NonEmpty[username contains spaces,empty real name])
+~~~~~~~~
+
+This time, we get back all the failures!
+
+`Validation` has the same methods as disjunction, such as `fold`,
+`swap` and `+++`, plus some extra:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Validation[+E, +A] {
+    def append[F >: E: Semigroup, B >: A: Semigroup](x: F \?/ B]): F \?/ B = ...
+  
+    def disjunction: (E \/ A) = ...
+    ...
+  }
+~~~~~~~~
+
+`.append` (aliased by `+|+`) has the same type signature as `+++` but prefers the `success` case
+
+-   `failure(v1) +|+ failure(v2)` gives `failure(v1 |+| v2)`
+-   `failure(v1) +|+ success(v2)` gives `success(v2)`
+-   `success(v1) +|+ failure(v2)` gives `success(v1)`
+-   `success(v1) +|+ success(v2)` gives `success(v1 |+| v2)`
+
+A> `+|+` the surprised c3p0 operator.
+
+`.disjunction` converts a `Validated[A, B]` into an `A \/ B`.
+Disjunction has the mirror `.validation` and `.validationNel` to
+convert into `Validation`, allowing for easy conversion between
+sequential and parallel error accumulation.
 
 
