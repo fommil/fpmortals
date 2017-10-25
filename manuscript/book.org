@@ -6698,13 +6698,92 @@ and depending on the contents
 
 The big advantage of restricting to =Applicative= is that =Validation=
 is explicitly for situations where we wish to report all errors,
-whereas disjunction can be used to stop at the first error. To
-accommodate error accumulation, a popular form of =Validation= is
-=ValidationNel=, with a =NonEmptyList[E]= in the error position.
+whereas disjunction is used to stop at the first error. To accommodate
+error accumulation, a popular form of =Validation= is =ValidationNel=,
+having a =NonEmptyList[E]= in the error position.
 
-FIXME: example, compared against =\/=
+Consider performing input validation of data provided by a user using
+disjunction and =flatMap=:
 
-When reporting
+#+BEGIN_SRC scala
+scala> :paste
+       final case class Credentials(user: Username, name: Fullname)
+       final case class Username(value: String) extends AnyVal
+       final case class Fullname(value: String) extends AnyVal
+
+       def username(in: String): String \/ Username =
+         if (in.isEmpty) "empty username".left
+         else if (in.contains(" ")) "username contains spaces".left
+         else Username(in).right
+
+       def realname(in: String): String \/ Fullname =
+         if (in.isEmpty) "empty real name".left
+         else Fullname(in).right
+
+       for {
+         u <- username("sam halliday")
+         r <- realname("")
+       } yield Credentials(u, r)
+
+res = -\/(username contains spaces)
+#+END_SRC
+
+or even if we were to use apply syntax
+
+#+BEGIN_SRC scala
+scala> (username("sam halliday") |@| realname("")) { Credentials.apply _ }
+
+res = -\/(username contains spaces)
+#+END_SRC
+
+Compare this to =Validated=
+
+#+BEGIN_SRC scala
+  type Result[A] = ValidationNel[String, A]
+
+  def username(in: String): Result[Username] =
+    if (in.isEmpty) "empty username".failureNel
+    else if (in.contains(" ")) "username contains spaces".failureNel
+    else Username(in).success
+
+  def realname(in: String): Result[Fullname] =
+    if (in.isEmpty) "empty real name".failureNel
+    else Fullname(in).success
+
+  (username("sam halliday") |@| realname("")) { Credentials.apply _ }
+
+res = Failure(NonEmpty[username contains spaces,empty real name])
+#+END_SRC
+
+We can get back all the failures!
+
+#+BEGIN_ASIDE
+We could have written the more explicit
+
+#+BEGIN_SRC scala
+(username("sam halliday") |@| realname("")) { (u, r) => Credentials(u, r) }
+#+END_SRC
+
+but we choose to /partially apply/ the =Credentials.apply=
+constructor, creating a /function/ that accepts two parameters
+
+#+BEGIN_SRC scala
+scala> val cred = Credentials.apply _
+res: (Username, Fullname) => Credentials = ...
+#+END_SRC
+
+This syntax is particularly useful because we won't need to update the
+code if we add another field to =Credentials=.
+
+The opposite to partial application is /tupling/, which is when we
+have a function that takes multiple parameters but we want to pass a
+tuple:
+
+#+BEGIN_SRC scala
+scala> val t: (Username, Fullname) = ...
+       cred.tupled(t)
+#+END_SRC
+#+END_ASIDE
 
 =Validation= has the same methods as disjunction, such as =fold=,
 =swap= and =+++=, plus some extra:
