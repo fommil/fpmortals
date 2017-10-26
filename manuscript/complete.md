@@ -5803,7 +5803,6 @@ If we use `|@|` syntax
 we still get back the first failure. This is because `Disjunction` is
 a `Monad`, its `.applyX` methods must be consistent with `.flatMap`
 and not assume that any operations can be performed out of order.
-
 Compare to:
 
 {lang="text"}
@@ -5882,14 +5881,13 @@ with convenient construction syntax
     final def wrapThat[B]: B \&/ A = \&/.That(self)
     final def that[B]: B \&/ A = wrapThat
   }
-  
   implicit class ThesePairOps[A, B](val self: (A, B)) {
     final def both: A \&/ B = \&/.Both(self._1, self._2)
   }
 ~~~~~~~~
 
-Annoyingly, `this` is a keyword in Java and Scala and must be called
-with back-ticks, or as `.wrapThis`.
+Annoyingly, `this` is a keyword in Scala and must be called with
+back-ticks, or as `.wrapThis`.
 
 `These` has typeclass instances for
 
@@ -5926,9 +5924,9 @@ because cases of `This` and `That` can always be converted into a
 `Both`.
 
 `.flatMap` is right-biased (`Both` and `That`), taking a `Semigroup`
-of the left content (`This`) to combine rather than break early.
-`.&&&` is a convenient way of binding over two of *these*, creating a
-tuple on the right and dropping data if it is not present in each of
+of the left content (`This`) to combine rather than break early. `&&&`
+is a convenient way of binding over two of *these*, creating a tuple
+on the right and dropping data if it is not present in each of
 *these*.
 
 Although it is tempting to use `\&/` in return types, overuse is an
