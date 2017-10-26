@@ -6522,12 +6522,17 @@ now less likely to encounter problems.
 **** Either
 
 Scalaz's improvement over =scala.Either= is symbolic, but it is common
-to speak about it as /either/ or /disjunction/
+to speak about it as /either/ or =Disjunction=
 
 #+BEGIN_SRC scala
 sealed abstract class \/[+A, +B] { ... }
 final case class -\/[+A](a: A) extends (A \/ Nothing)
 final case class \/-[+B](b: B) extends (Nothing \/ B)
+
+type Disjunction[+A, +B] = \/[A, B]
+type DLeft[+A] = -\/[A]
+type DRight[+B] = \/-[B]
+
 object \/ {
   def left [A, B]: A => A \/ B = -\/(_)
   def right[A, B]: B => A \/ B = \/-(_)
@@ -6655,7 +6660,7 @@ However it only has typeclass instances for =Show= and =Equal=.
 **** Validation
 
 At first sight, =Validation= (aliased with =\?/=, /happy Elvis/)
-appears to be a clone of disjunction:
+appears to be a clone of =Disjunction=:
 
 #+BEGIN_SRC scala
 sealed abstract class Validation[+E, +A] { ... }
@@ -6709,12 +6714,12 @@ and depending on the contents
 
 The big advantage of restricting to =Applicative= is that =Validation=
 is explicitly for situations where we wish to report all failures,
-whereas disjunction is used to stop at the first failure. To accommodate
-failure accumulation, a popular form of =Validation= is =ValidationNel=,
-having a =NonEmptyList[E]= in the failure position.
+whereas =Disjunction= is used to stop at the first failure. To
+accommodate failure accumulation, a popular form of =Validation= is
+=ValidationNel=, having a =NonEmptyList[E]= in the failure position.
 
 Consider performing input validation of data provided by a user using
-disjunction and =flatMap=:
+=Disjunction= and =flatMap=:
 
 #+BEGIN_SRC scala
 scala> :paste
@@ -6745,9 +6750,9 @@ scala> (username("sam halliday") |@| realname("")) (Credentials.apply)
 res = -\/(username contains spaces)
 #+END_SRC
 
-we still get back the first failure. This is because disjunction is a
-=Monad= and its =map= methods must be consistent with =flatMap= and
-not assume that any operations can be performed out of order.
+we still get back the first failure. This is because =Disjunction= is
+a =Monad=, its =.applyX= methods must be consistent with =.flatMap=
+and not assume that any operations can be performed out of order.
 
 Compare to:
 
@@ -6768,8 +6773,8 @@ res = Failure(NonEmpty[username contains spaces,empty real name])
 
 This time, we get back all the failures!
 
-=Validation= has the same methods as disjunction, such as =fold=,
-=swap= and =+++=, plus some extra:
+=Validation= has many of the same methods as =Disjunction=, such as
+=.fold=, =.swap= and =+++=, plus some extra:
 
 #+BEGIN_SRC scala
 sealed abstract class Validation[+E, +A] {
@@ -6780,7 +6785,8 @@ sealed abstract class Validation[+E, +A] {
 }
 #+END_SRC
 
-=.append= (aliased by =+|+=) has the same type signature as =+++= but prefers the =success= case
+=.append= (aliased by =+|+=) has the same type signature as =+++= but
+prefers the =success= case
 
 - =failure(v1) +|+ failure(v2)= gives =failure(v1 |+| v2)=
 - =failure(v1) +|+ success(v2)= gives =success(v2)=
@@ -6795,6 +6801,105 @@ sealed abstract class Validation[+E, +A] {
 Disjunction has the mirror =.validation= and =.validationNel= to
 convert into =Validation=, allowing for easy conversion between
 sequential and parallel failure accumulation.
+
+**** These
+
+We encountered =These=, a data encoding of inclusive logical =OR=,
+when we learnt about =Align=. Let's take a closer look:
+
+#+BEGIN_SRC scala
+sealed abstract class \&/[+A, +B] { ... }
+object \&/ {
+  type These[A, B] = A \&/ B
+
+  final case class This[A](aa: A) extends (A \&/ Nothing)
+  final case class That[B](bb: B) extends (Nothing \&/ B)
+  final case class Both[A, B](aa: A, bb: B) extends (A \&/ B)
+
+  def apply[A, B](a: A, b: B): These[A, B] = Both(a, b)
+}
+#+END_SRC
+
+with convenient construction syntax
+
+#+BEGIN_SRC scala
+implicit class TheseOps[A](val self: A) {
+  final def wrapThis[B]: A \&/ B = \&/.This(self)
+  final def `this`[B]: A \&/ B = wrapThis
+  final def wrapThat[B]: B \&/ A = \&/.That(self)
+  final def that[B]: B \&/ A = wrapThat
+}
+
+implicit class ThesePairOps[A, B](val self: (A, B)) {
+  final def both: A \&/ B = \&/.Both(self._1, self._2)
+}
+#+END_SRC
+
+Annoyingly, =this= is a keyword in Java and Scala and must be called
+with back-ticks, or as =.wrapThis=.
+
+=These= has typeclass instances for
+
+- =Monad= / =BindRec=
+- =Bitraverse=
+- =Traverse=
+- =Cobind=
+
+and depending on contents
+
+- =Semigroup= / =Monoid= / =Band=
+- =Equal= / =Order=
+- =Show=
+
+=These= (=\&/=) has many of the methods we have come to expect of
+=Disjunction= (=\/=) and =Validation= (=\?/=)
+
+#+BEGIN_SRC scala
+sealed abstract class \&/[+A, +B] {
+  def fold[X](s: A => X, t: B => X, q: (A, B) => X): X = ...
+  def swap: (B \&/ A) = ...
+  def unary_~ : (B \&/ A) = swap
+
+  def append[X >: A: Semigroup, Y >: B: Semigroup](o: =>(X \&/ Y)): X \&/ Y = ...
+
+  def &&&[X >: A: Semigroup, C](t: X \&/ C): X \&/ (B, C) = ...
+  ...
+}
+#+END_SRC
+
+=.append= has 9 possible arrangements and data is never thrown away
+because cases of =This= and =That= can always be converted into a
+=Both=.
+
+=.flatMap= is right-biased (=Both= and =That=), taking a =Semigroup=
+of the left content (=This=) to combine rather than break early.
+=.&&&= is a convenient way of binding over two of /these/, creating a
+tuple on the right and dropping data if it is not present in each of
+/these/.
+
+Although it is tempting to use =\&/= in return types, overuse is an
+anti-pattern. The main reason to use =\&/= is to combine or split
+potentially infinite /streams/ of data in finite memory. Convenient
+functions exist on the companion to deal with =EphemeralStream=
+(aliased here to fit in a single line) or anything with a =MonadPlus=
+
+#+BEGIN_SRC scala
+type EStream[A] = EphemeralStream[A]
+
+object \&/ {
+  def concatThisStream[A, B](x: EStream[A \&/ B]): EStream[A] = ...
+  def concatThis[F[_]: MonadPlus, A, B](x: F[A \&/ B]): F[A] = ...
+
+  def concatThatStream[A, B](x: EStream[A \&/ B]): EStream[B] = ...
+  def concatThat[F[_]: MonadPlus, A, B](x: F[A \&/ B]): F[B] = ...
+
+  def unalignStream[A, B](x: EStream[A \&/ B]): (EStream[A], EStream[B]) = ...
+  def unalign[F[_]: MonadPlus, A, B](x: F[A \&/ B]): (F[A], F[B]) = ...
+
+  def merge[A: Semigroup](t: A \&/ A): A = ...
+  ...
+}
+#+END_SRC
 
 * WIP                                                                 :final:
   :PROPERTIES:
@@ -6827,7 +6932,6 @@ while continuing to build out the example application.
   :END:
 ** TODO Data Types
 
-- These
 - Coproduct (higher kinded Either)
 - LazyEither
 - LazyOption

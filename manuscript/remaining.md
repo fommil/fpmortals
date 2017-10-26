@@ -1,7 +1,6 @@
 
 # TODO Data Types
 
--   These
 -   Coproduct (higher kinded Either)
 -   LazyEither
 -   LazyOption
