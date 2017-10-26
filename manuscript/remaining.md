@@ -1,7 +1,6 @@
 
 # TODO Data Types
 
--   Either3
 -   These
 -   Coproduct (higher kinded Either)
 -   LazyEither

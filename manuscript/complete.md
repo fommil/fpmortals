@@ -5012,8 +5012,8 @@ and are not needed in typical FP applications.
 
 That was a lot of material! We have just explored a standard library
 of polymorphic functionality. But to put it into perspective: there
-are more traits in the Scala stdlib Collections API than their are
-typeclasses in scalaz.
+are more traits in the Scala stdlib Collections API than typeclasses
+in scalaz.
 
 It is normal for an FP application to only touch a small percentage of
 the typeclass hierarchy, with most functionality coming from
