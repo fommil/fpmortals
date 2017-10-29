@@ -6237,7 +6237,7 @@ a1, a2, a3, a4, a5, a6`
 
 which can be visualised as
 
-{width=70%}
+{width=30%}
 ![](images/dequeue.png)
 
 Note that the list holding the `back` is in reverse order.

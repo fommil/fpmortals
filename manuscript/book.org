@@ -7200,7 +7200,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 70
+#+CAPTION: 30
 #+RESULTS:
 [[file:images/dequeue.png]]
 
