@@ -5710,20 +5710,20 @@ We can write methods that let us move the focus one to the left
     }
 #+END_SRC
 
-By introducing =iterate= to repeatedly apply an optional function to
+By introducing =more= to repeatedly apply an optional function to
 =Hood= we can calculate /all/ the =positions= that =Hood= can take in
 the list
 
 #+BEGIN_SRC scala
 ...
-    def iterate(f: Hood[A] => Maybe[Hood[A]]): IList[Hood[A]] =
+    def more(f: Hood[A] => Maybe[Hood[A]]): IList[Hood[A]] =
       f(hood) match {
         case Empty() => INil()
-        case Just(r) => ICons(r, r.iterate(f))
+        case Just(r) => ICons(r, r.more(f))
       }
     def positions: Hood[Hood[A]] = {
-      val left  = hood.iterate(_.previous)
-      val right = hood.iterate(_.next)
+      val left  = hood.more(_.previous)
+      val right = hood.more(_.next)
       Hood(left, hood, right)
     }
   }
@@ -7060,25 +7060,57 @@ type LazyList[A] = EphemeralStream[A]
 Naming and caching stuff is hard!
 #+END_ASIDE
 
-All the same typeclass instances exist as for =IList=.
+All the same typeclass instances exist for =EStream= as for =IList=.
 
 =.cons=, =.unfold= and =.iterate= are mechanisms for creating streams,
-with the convenient syntax =##::= to cons to a by-name =EStream=
-reference. =.unfold= is for creating a finite (but possibly infinite)
-stream by repeatedly applying a function =f= to get the next value and
-the input to the following =f=. =.iterate= creates an infinite stream
-by repeating a function =f= on the previous element.
+with the convenient syntax =##::= to put a new element at the head of
+a by-name =EStream= reference. =.unfold= is for creating a finite (but
+possibly infinite) stream by repeatedly applying a function =f= to get
+the next value and input for the following =f=. =.iterate= creates an
+infinite stream by repeating a function =f= on the previous element.
 
-=EphemeralStream= can be used in pattern matches with the symbol =##::=
+=EStream= can appear in pattern matches with the symbol =##::=,
+matching the syntax for =.cons=.
 
 Although =EStream= addresses the value memory retention problem, it is
 still possible to suffer from /slow memory leaks/ if a live reference
 points to the head of an infinite stream. Problems of this nature, as
 well as the need to compose effectful streams, are why fs2 exists.
 
-**** TODO OneAnd / OneOr
+**** =ImmutableArray=
+
+A simple wrapper around mutable stdlib =Array=, with primitive
+specialisations:
+
+#+BEGIN_SRC scala
+sealed abstract class ImmutableArray[+A] {
+  def ++[B >: A: ClassTag](o: ImmutableArray[B]): ImmutableArray[B]
+  ...
+}
+object ImmutableArray {
+  final class StringArray(s: String) extends ImmutableArray[Char] { ... }
+  sealed class ImmutableArray1[+A](as: Array[A]) extends ImmutableArray[A] { ... }
+  final class ofRef[A <: AnyRef](as: Array[A]) extends ImmutableArray1[A](as)
+  ...
+  final class ofLong(as: Array[Long]) extends ImmutableArray1[Long](as)
+
+  def fromArray[A](x: Array[A]): ImmutableArray[A] = ...
+  def fromString(str: String): ImmutableArray[Char] = ...
+  ...
+}
+#+END_SRC
+
+=ImmutableArray= is one of the oldest data types in scalaz and
+predates much of the typeclass hierarchy: providing only =Foldable=,
+=Zip=, and depending on contents, =Equal=.
+
+=Array= is unrivalled in terms of read performance and heap size.
+However, there is zero structural sharing when creating new arrays,
+therefore arrays are typically used only when their contents are not
+expected to change, or as a way of safely wrapping raw data from a
+legacy system.
+
 **** TODO DList (difference list)
-**** TODO ImmutableArray
 **** TODO Dequeue
 **** TODO Heap (priority queues)
 **** TODO FingerTree
@@ -7090,7 +7122,7 @@ well as the need to compose effectful streams, are why fs2 exists.
 **** TODO Tree
 **** TODO Map
 **** TODO ISet
-
+**** TODO OneAnd / OneOr
 
 * WIP                                                                 :final:
   :PROPERTIES:
