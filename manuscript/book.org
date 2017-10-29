@@ -2723,9 +2723,9 @@ object UrlEncoded {
 
   implicit val string: UrlEncoded[String] = { s => URLEncoder.encode(s, "UTF-8") }
   implicit val long: UrlEncoded[Long] = _.toString
-  implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
+  implicit val stringySeq: UrlEncoded[Seq[(String, String)]] =
     _.map { case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}" }.mkString("&")
-  implicit val UrlEncodedUri: UrlEncoded[Uri] = { u =>
+  implicit val uri: UrlEncoded[Uri] = { u =>
     val scheme = u.scheme.toString
     val host   = u.host.host
     val port   = u.host.port.fold("")(p => s":$p")
@@ -2737,8 +2737,8 @@ object UrlEncoded {
 #+END_SRC
 
 #+BEGIN_ASIDE
-=UrlEncoded= is making use of the Scala /Single Abstract Method/ (SAM
-types) language feature. The full form of the above is
+=UrlEncoded= is making use of the /Single Abstract Method/ (SAM types)
+Scala language feature. The full form of the above is
 
 #+BEGIN_SRC scala
   implicit val string: UrlEncoded[String] = new UrlEncoded[String] {
@@ -2770,9 +2770,9 @@ Scala, or for typeclasses instances that need to provide more than one
 method.
 #+END_ASIDE
 
-In a dedicated chapter on /Generic Programming/ we will write generic
-instances of =QueryEncoded= and =UrlEncoded=, but for now we will
-write the boilerplate for the types we wish to convert:
+In a dedicated chapter on /Typeclass Derivation/ we will calculate
+instances of =QueryEncoded= and =UrlEncoded= automatically, but for
+now we will write the boilerplate for the types we wish to convert:
 
 #+BEGIN_SRC scala
   import java.net.URLDecoder
@@ -5122,7 +5122,7 @@ Generally, if encoder typeclasses can provide an instance of =Divide=,
 rather than stopping at =Contravariant=, it makes it possible to
 derive instances for any =case class=. Similarly, decoder typeclasses
 can provide an =Apply= instance. We will explore this in a dedicated
-chapter on Generic Derivation.
+chapter on Typeclass Derivation.
 
 =Divisible= is the =Contravariant= analogue of =Applicative= and
 introduces =conquer=, the equivalent of =pure=
@@ -6927,6 +6927,29 @@ sealed abstract class LazyTuple4[A, B, C, D] {
 }
 #+END_SRC
 
+*** Collections
+
+**** =IList=
+
+
+**** TODO NonEmptyList
+**** TODO EphemeralStream
+**** TODO OneAnd / OneOr
+**** TODO DList (difference list)
+**** TODO ImmutableArray
+**** TODO Dequeue
+**** TODO Heap (priority queues)
+**** TODO FingerTree
+**** TODO Cord
+**** TODO Const
+**** TODO CorecursiveList (huh? see CorecursiveListImpl)
+**** TODO Diev (Discrete Interval Encoding Tree)
+**** TODO StrictTree
+**** TODO Tree
+**** TODO Map
+**** TODO ISet
+
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
@@ -6942,7 +6965,7 @@ You can expect to see chapters covering the following topics:
 - Scalaz Data Types (more to come)
 - Scalaz Advanced Monads
 - Scalaz Utilities
-- Generic Derivation
+- Typeclass Derivation
 - Optics
 - Type Refinement
 - Recursion Schemes
@@ -6957,24 +6980,6 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 ** TODO Data Types
-
-- IList
-- NonEmptyList
-- OneAnd / OneOr
-- DList (difference list)
-- ImmutableArray
-- Dequeue
-- Heap (priority queues)
-- EphemeralStream
-- FingerTree
-- Cord
-- Const
-- CorecursiveList (huh? see CorecursiveListImpl)
-- Diev (Discrete Interval Encoding Tree)
-- StrictTree
-- Tree
-- Map
-- ISet
 
 Dare we tackle Free in this section?
 
@@ -7179,20 +7184,13 @@ allow them to happen at your layer if you can get away with it.
 
 Protect yourself from mistyping
 
-** TODO Generic Programming
+** TODO Typeclass Derivation
 
-- a mini Shapeless for Mortals
-- typeclass derivation (UrlEncoding, QueryEncoding)
-- scalacheck-shapeless
-- cachedImplicit into a val
-- downside is compile time speeds for ADTs of 50+
-- alternative is https://github.com/propensive/magnolia
+- scalaz-deriving
+- magnolia
+- shapeless
+- macros
 - export-hook
-- some advanced cases, e.g. spray-json-shapeless stuff, typeclass
-  hierarchy / ambiguities
-- https://issues.scala-lang.org/browse/SI-2509
-- gotchas with nested =object= and knownSubclasses
-- semi-auto
 
 ** TODO Recursion Schemes
 ** TODO Optics

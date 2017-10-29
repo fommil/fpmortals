@@ -2335,9 +2335,9 @@ We need to provide typeclass instances for basic types:
   
     implicit val string: UrlEncoded[String] = { s => URLEncoder.encode(s, "UTF-8") }
     implicit val long: UrlEncoded[Long] = _.toString
-    implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
+    implicit val stringySeq: UrlEncoded[Seq[(String, String)]] =
       _.map { case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}" }.mkString("&")
-    implicit val UrlEncodedUri: UrlEncoded[Uri] = { u =>
+    implicit val uri: UrlEncoded[Uri] = { u =>
       val scheme = u.scheme.toString
       val host   = u.host.host
       val port   = u.host.port.fold("")(p => s":$p")
@@ -2348,8 +2348,8 @@ We need to provide typeclass instances for basic types:
   }
 ~~~~~~~~
 
-A> `UrlEncoded` is making use of the Scala *Single Abstract Method* (SAM
-A> types) language feature. The full form of the above is
+A> `UrlEncoded` is making use of the *Single Abstract Method* (SAM types)
+A> Scala language feature. The full form of the above is
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -2383,9 +2383,9 @@ A> This pattern is still used in code that must support older versions of
 A> Scala, or for typeclasses instances that need to provide more than one
 A> method.
 
-In a dedicated chapter on *Generic Programming* we will write generic
-instances of `QueryEncoded` and `UrlEncoded`, but for now we will
-write the boilerplate for the types we wish to convert:
+In a dedicated chapter on *Typeclass Derivation* we will calculate
+instances of `QueryEncoded` and `UrlEncoded` automatically, but for
+now we will write the boilerplate for the types we wish to convert:
 
 {lang="text"}
 ~~~~~~~~
@@ -4344,7 +4344,7 @@ Generally, if encoder typeclasses can provide an instance of `Divide`,
 rather than stopping at `Contravariant`, it makes it possible to
 derive instances for any `case class`. Similarly, decoder typeclasses
 can provide an `Apply` instance. We will explore this in a dedicated
-chapter on Generic Derivation.
+chapter on Typeclass Derivation.
 
 `Divisible` is the `Contravariant` analogue of `Applicative` and
 introduces `conquer`, the equivalent of `pure`
@@ -5982,5 +5982,59 @@ typeclass instances:
     def _4: D
   }
 ~~~~~~~~
+
+
+## Collections
+
+
+### `IList`
+
+
+### TODO NonEmptyList
+
+
+### TODO EphemeralStream
+
+
+### TODO OneAnd / OneOr
+
+
+### TODO DList (difference list)
+
+
+### TODO ImmutableArray
+
+
+### TODO Dequeue
+
+
+### TODO Heap (priority queues)
+
+
+### TODO FingerTree
+
+
+### TODO Cord
+
+
+### TODO Const
+
+
+### TODO CorecursiveList (huh? see CorecursiveListImpl)
+
+
+### TODO Diev (Discrete Interval Encoding Tree)
+
+
+### TODO StrictTree
+
+
+### TODO Tree
+
+
+### TODO Map
+
+
+### TODO ISet
 
 

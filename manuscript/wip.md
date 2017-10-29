@@ -9,7 +9,7 @@ You can expect to see chapters covering the following topics:
 -   Scalaz Data Types (more to come)
 -   Scalaz Advanced Monads
 -   Scalaz Utilities
--   Generic Derivation
+-   Typeclass Derivation
 -   Optics
 -   Type Refinement
 -   Recursion Schemes

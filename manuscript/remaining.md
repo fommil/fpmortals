@@ -1,24 +1,6 @@
 
 # TODO Data Types
 
--   IList
--   NonEmptyList
--   OneAnd / OneOr
--   DList (difference list)
--   ImmutableArray
--   Dequeue
--   Heap (priority queues)
--   EphemeralStream
--   FingerTree
--   Cord
--   Const
--   CorecursiveList (huh? see CorecursiveListImpl)
--   Diev (Discrete Interval Encoding Tree)
--   StrictTree
--   Tree
--   Map
--   ISet
-
 Dare we tackle Free in this section?
 
 
@@ -247,20 +229,13 @@ allow them to happen at your layer if you can get away with it.
 Protect yourself from mistyping
 
 
-# TODO Generic Programming
+# TODO Typeclass Derivation
 
--   a mini Shapeless for Mortals
--   typeclass derivation (UrlEncoding, QueryEncoding)
--   scalacheck-shapeless
--   cachedImplicit into a val
--   downside is compile time speeds for ADTs of 50+
--   alternative is <https://github.com/propensive/magnolia>
+-   scalaz-deriving
+-   magnolia
+-   shapeless
+-   macros
 -   export-hook
--   some advanced cases, e.g. spray-json-shapeless stuff, typeclass
-    hierarchy / ambiguities
--   <https://issues.scala-lang.org/browse/SI-2509>
--   gotchas with nested `object` and knownSubclasses
--   semi-auto
 
 
 # TODO Recursion Schemes
