@@ -9,7 +9,6 @@ import scala.{ Long, StringContext, Symbol }
 import scala.collection.immutable.Seq
 import scala.language.implicitConversions
 
-import export._
 import shapeless.{ :: => :*:, _ }
 import shapeless.labelled._
 import java.net.URLEncoder
@@ -22,26 +21,22 @@ trait UrlEncoded[A] {
   def urlEncoded(a: A): String
 }
 
-object UrlEncoded extends UrlEncodedLowPriority {
+object UrlEncoded {
   import ops._
-  def instance[A](f: A => String): UrlEncoded[A] = new UrlEncoded[A] {
-    override def urlEncoded(a: A): String = f(a)
-  }
 
-  implicit val UrlEncodedString: UrlEncoded[String] = instance { s =>
+  implicit val UrlEncodedString: UrlEncoded[String] = { s =>
     URLEncoder.encode(s, "UTF-8")
   }
-  implicit val UrlEncodedLong: UrlEncoded[Long] = instance { n =>
+  implicit val UrlEncodedLong: UrlEncoded[Long] = { n =>
     n.toString
   }
 
-  implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
-    instance { m =>
-      m.map {
-        case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-      }.mkString("&")
-    }
-  implicit val UrlEncodedUri: UrlEncoded[Uri] = instance { u =>
+  implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] = { m =>
+    m.map {
+      case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
+    }.mkString("&")
+  }
+  implicit val UrlEncodedUri: UrlEncoded[Uri] = { u =>
     // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
     //             (which would also let us remove UrlEncodedStringySeq)
     val scheme = u.scheme.toString
@@ -54,55 +49,33 @@ object UrlEncoded extends UrlEncodedLowPriority {
 
 }
 
-// https://github.com/milessabin/export-hook/issues/28
-@java.lang.SuppressWarnings(
-  scala.Array(
-    "org.wartremover.warts.Null",
-    "org.wartremover.warts.ExplicitImplicitTypes"
-  )
-)
-@imports[UrlEncoded]
-trait UrlEncodedLowPriority
-
 trait DerivedUrlEncoded[T] extends UrlEncoded[T]
-// https://github.com/milessabin/export-hook/issues/28
-@java.lang.SuppressWarnings(
-  scala.Array(
-    "org.wartremover.warts.Null",
-    "org.wartremover.warts.ExplicitImplicitTypes"
-  )
-)
-@exports object DerivedUrlEncoded {
+object DerivedUrlEncoded {
   import UrlEncoded.ops._
-  private def instance[A](f: A => String): DerivedUrlEncoded[A] =
-    new DerivedUrlEncoded[A] {
-      override def urlEncoded(a: A): String = f(a)
-    }
 
-  implicit def gen[T, Repr](
+  def gen[T, Repr](
     implicit
     G: LabelledGeneric.Aux[T, Repr],
     R: Cached[Strict[DerivedUrlEncoded[Repr]]]
-  ): DerivedUrlEncoded[T] = instance { t =>
+  ): DerivedUrlEncoded[T] = { t =>
     R.value.value.urlEncoded(G.to(t))
   }
 
-  implicit val hnil: DerivedUrlEncoded[HNil] = instance { _ =>
+  implicit val hnil: DerivedUrlEncoded[HNil] = { _ =>
     ""
   }
   implicit def hcons[Key <: Symbol, Value, Remaining <: HList](
     implicit Key: Witness.Aux[Key],
     LV: Lazy[UrlEncoded[Value]],
     DR: DerivedUrlEncoded[Remaining]
-  ): DerivedUrlEncoded[FieldType[Key, Value] :*: Remaining] =
-    instance {
-      case head :*: tail =>
-        val rest = {
-          val rest = DR.urlEncoded(tail)
-          if (rest.isEmpty) "" else s"&$rest"
-        }
-        val key   = Key.value.name.urlEncoded
-        val value = LV.value.urlEncoded(head)
-        s"$key=$value$rest"
-    }
+  ): DerivedUrlEncoded[FieldType[Key, Value] :*: Remaining] = {
+    case head :*: tail =>
+      val rest = {
+        val rest = DR.urlEncoded(tail)
+        if (rest.isEmpty) "" else s"&$rest"
+      }
+      val key   = Key.value.name.urlEncoded
+      val value = LV.value.urlEncoded(head)
+      s"$key=$value$rest"
+  }
 }

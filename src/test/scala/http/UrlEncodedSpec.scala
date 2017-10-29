@@ -12,10 +12,11 @@ import scala.Predef.ArrowAssoc
 import org.scalatest._
 import org.scalatest.Matchers._
 import spinoco.protocol.http.Uri
+import stalactite._
 
 import UrlEncoded.ops._
-import DerivedUrlEncoded.exports._
 
+@deriving(UrlEncoded, QueryEncoded)
 final case class Foo(apple: String, bananas: Long, pears: String)
 
 class UrlEncodedSpec extends FlatSpec {

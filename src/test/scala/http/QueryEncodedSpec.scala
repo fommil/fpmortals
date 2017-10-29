@@ -9,7 +9,6 @@ import scala.Predef.ArrowAssoc
 import org.scalatest._
 import org.scalatest.Matchers._
 import QueryEncoded.ops._
-import DerivedQueryEncoded.exports._
 
 class QueryEncodedSpec extends FlatSpec {
   "QueryEncoded" should "encode case classes" in {

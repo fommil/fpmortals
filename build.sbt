@@ -11,9 +11,9 @@ inThisBuild(
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
+  "com.fommil"           %% "stalactite"    % "0.0.5",
   "com.github.mpilquist" %% "simulacrum"    % "0.11.0",
   "com.chuusai"          %% "shapeless"     % "2.3.2",
-  "org.typelevel"        %% "export-hook"   % "1.2.0",
   "io.circe"             %% "circe-core"    % circeVersion,
   "io.circe"             %% "circe-generic" % circeVersion,
   "io.circe"             %% "circe-parser"  % circeVersion,
@@ -43,6 +43,14 @@ scalacOptions += "-Ywarn-unused:explicits,patvars,linted"
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )
+
+scalacOptions ++= {
+  val dir = (baseDirectory in ThisBuild).value / "project"
+  Seq(
+    s"-Xmacro-settings:stalactite.targets=$dir/stalactite-targets.conf",
+    s"-Xmacro-settings:stalactite.defaults=$dir/stalactite-defaults.conf"
+  )
+}
 
 wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
   Wart.FinalCaseClass,

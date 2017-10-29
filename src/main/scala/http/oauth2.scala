@@ -116,6 +116,9 @@ import scala.language.higherKinds
 import scalaz._
 import Scalaz._
 import spinoco.protocol.http.Uri
+import stalactite.deriving
+
+import http.encoding._
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
@@ -183,8 +186,6 @@ package logic {
     import api._
     import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
-    import http.encoding.DerivedUrlEncoded.exports._
-    import http.encoding.DerivedQueryEncoded.exports._
 
     // for use in one-shot apps requiring user interaction
     def authenticate: F[CodeToken] =
@@ -234,6 +235,7 @@ package logic {
 /** The API as defined by the OAuth 2.0 server */
 package api {
 
+  @deriving(QueryEncoded)
   final case class AuthRequest(
     redirect_uri: Uri,
     scope: String,
@@ -245,6 +247,7 @@ package api {
   // AuthResponse is to send the user's browser to redirect_uri with a
   // `code` param (yup, seriously).
 
+  @deriving(UrlEncoded)
   final case class AccessRequest(
     code: String,
     redirect_uri: Uri,
@@ -260,12 +263,14 @@ package api {
     refresh_token: String
   )
 
+  @deriving(UrlEncoded)
   final case class RefreshRequest(
     client_secret: String,
     refresh_token: String,
     client_id: String,
     grant_type: String = "refresh_token"
   )
+  @deriving(UrlEncoded)
   final case class RefreshResponse(
     access_token: String,
     token_type: String,
