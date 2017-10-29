@@ -38,7 +38,7 @@ scalacOptions ++= Seq(
 )
 
 scalacOptions -= "-Ywarn-unused:implicits,imports,-locals,-params,-patvars,-privates"
-scalacOptions += "-Ywarn-unused:params,patvars,linted"
+scalacOptions += "-Ywarn-unused:explicits,patvars,linted"
 
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
