@@ -2064,9 +2064,11 @@ package object math {
 math.sin(1.0)
 #+END_SRC
 
-However, it can sometimes be clunky to use =object= methods since it
-reads inside-out, not left to right: it's the same problem as Java's
-static methods vs class methods.
+However, it can be clunky to use =object= methods since it reads
+inside-out, not left to right. In addition, a function on an =object=
+steals the namespace. If we were to define =sin(t: T)= somewhere else
+we get /ambiguous reference/ errors. This is the same problem as
+Java's static methods vs class methods.
 
 #+BEGIN_WARNING
 If you like to put methods on a =trait=, requiring users to mix your
@@ -2718,23 +2720,12 @@ import spinoco.protocol.http.Uri
 
 object UrlEncoded {
   import ops._
-  def instance[A](f: A => String): UrlEncoded[A] = new UrlEncoded[A] {
-    override def urlEncoded(a: A): String = f(a)
-  }
 
-  implicit val UrlEncodedString: UrlEncoded[String] = instance { s =>
-    URLEncoder.encode(s, "UTF-8")
-  }
-  implicit val UrlEncodedLong: UrlEncoded[Long] = instance { n =>
-    n.toString
-  }
+  implicit val string: UrlEncoded[String] = { s => URLEncoder.encode(s, "UTF-8") }
+  implicit val long: UrlEncoded[Long] = _.toString
   implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
-    instance { m =>
-      m.map {
-        case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-      }.mkString("&")
-    }
-  implicit val UrlEncodedUri: UrlEncoded[Uri] = instance { u =>
+    _.map { case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}" }.mkString("&")
+  implicit val UrlEncodedUri: UrlEncoded[Uri] = { u =>
     val scheme = u.scheme.toString
     val host   = u.host.host
     val port   = u.host.port.fold("")(p => s":$p")
@@ -2746,17 +2737,21 @@ object UrlEncoded {
 #+END_SRC
 
 #+BEGIN_ASIDE
-Typing or reading
+=UrlEncoded= is making use of the Scala /Single Abstract Method/ (SAM
+types) language feature. The full form of the above is
 
 #+BEGIN_SRC scala
-  implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
+  implicit val string: UrlEncoded[String] = new UrlEncoded[String] {
     override def urlEncoded(s: String): String = ...
   }
 #+END_SRC
 
-can be tiresome. We've basically said =UrlEncoded=, =String= four
-times. A common pattern is to define a method named =instance= on the
-typeclass companion
+When the Scala compiler expects a class (which has a single abstract
+method) but receives a lambda, it fills in the boilerplate
+automatically.
+
+Prior to SAM types, a common pattern was to define a method named
+=instance= on the typeclass companion
 
 #+BEGIN_SRC scala
 def instance[T](f: T => String): UrlEncoded[T] = new UrlEncoded[T] {
@@ -2764,19 +2759,15 @@ def instance[T](f: T => String): UrlEncoded[T] = new UrlEncoded[T] {
 }
 #+END_SRC
 
-which then allows for instances to be defined more tersely as
+allowing for
 
 #+BEGIN_SRC scala
 implicit val string: UrlEncoded[String] = instance { s => ... }
 #+END_SRC
 
-A recent Scala feature is /Single Abstract Method/ (SAM) types, which
-means that =instance= is not needed for typeclasses with a single
-method:
-
-#+BEGIN_SRC scala
-implicit val string: UrlEncoded[String] = { s => ... }
-#+END_SRC
+This pattern is still used in code that must support older versions of
+Scala, or for typeclasses instances that need to provide more than one
+method.
 #+END_ASIDE
 
 In a dedicated chapter on /Generic Programming/ we will write generic
@@ -2789,46 +2780,40 @@ write the boilerplate for the types we wish to convert:
   import UrlEncoded.ops._
 
   object AuthRequest {
-    implicit val QueryEncoder: QueryEncoded[AuthRequest] =
-      new QueryEncoded[AuthRequest] {
-        private def stringify[T: UrlEncoded](t: T) =
-          URLDecoder.decode(t.urlEncoded, "UTF-8")
+    private def stringify[T: UrlEncoded](t: T) =
+      URLDecoder.decode(t.urlEncoded, "UTF-8")
 
-        def queryEncoded(a: AuthRequest): Uri.Query =
-          Uri.Query.empty :+
-            ("redirect_uri"  -> stringify(a.redirect_uri)) :+
-            ("scope"         -> stringify(a.scope)) :+
-            ("client_id"     -> stringify(a.client_id)) :+
-            ("prompt"        -> stringify(a.prompt)) :+
-            ("response_type" -> stringify(a.response_type)) :+
-            ("access_type"   -> stringify(a.access_type))
-      }
+    implicit val QueryEncoded: QueryEncoded[AuthRequest] = { a =>
+      Uri.Query.empty :+
+        ("redirect_uri"  -> stringify(a.redirect_uri)) :+
+        ("scope"         -> stringify(a.scope)) :+
+        ("client_id"     -> stringify(a.client_id)) :+
+        ("prompt"        -> stringify(a.prompt)) :+
+        ("response_type" -> stringify(a.response_type)) :+
+        ("access_type"   -> stringify(a.access_type))
+    }
   }
   object AccessRequest {
-    implicit val UrlEncoder: UrlEncoded[AccessRequest] =
-      new UrlEncoded[AccessRequest] {
-        def urlEncoded(a: AccessRequest): String =
-          Seq(
-            "code"          -> a.code.urlEncoded,
-            "redirect_uri"  -> a.redirect_uri.urlEncoded,
-            "client_id"     -> a.client_id.urlEncoded,
-            "client_secret" -> a.client_secret.urlEncoded,
-            "scope"         -> a.scope.urlEncoded,
-            "grant_type"    -> a.grant_type.urlEncoded
-          ).urlEncoded
-      }
+    implicit val UrlEncoded: UrlEncoded[AccessRequest] = { a =>
+      Seq(
+        "code"          -> a.code.urlEncoded,
+        "redirect_uri"  -> a.redirect_uri.urlEncoded,
+        "client_id"     -> a.client_id.urlEncoded,
+        "client_secret" -> a.client_secret.urlEncoded,
+        "scope"         -> a.scope.urlEncoded,
+        "grant_type"    -> a.grant_type.urlEncoded
+      ).urlEncoded
+    }
   }
   object RefreshRequest {
-    implicit val UrlEncoder: UrlEncoded[RefreshRequest] =
-      new UrlEncoded[RefreshRequest] {
-        def urlEncoded(r: RefreshRequest): String =
-          Seq(
-            "client_secret" -> r.client_secret.urlEncoded,
-            "refresh_token" -> r.refresh_token.urlEncoded,
-            "client_id"     -> r.client_id.urlEncoded,
-            "grant_type"    -> r.grant_type.urlEncoded
-          ).urlEncoded
-      }
+    implicit val UrlEncoded: UrlEncoded[RefreshRequest] = { r =>
+      Seq(
+        "client_secret" -> r.client_secret.urlEncoded,
+        "refresh_token" -> r.refresh_token.urlEncoded,
+        "client_id"     -> r.client_id.urlEncoded,
+        "grant_type"    -> r.grant_type.urlEncoded
+      ).urlEncoded
+    }
   }
 #+END_SRC
 
@@ -3654,7 +3639,7 @@ the wild. For the remaining typeclasses, we'll skip the niche methods.
 =Functor= also has some special syntax
 
 #+BEGIN_SRC scala
-implicit class FunctorOps[F[_]: Functor, A](val self: F[A]) {
+implicit class FunctorOps[F[_]: Functor, A](self: F[A]) {
   def as[B](b: =>B): F[B] = Functor[F].map(self)(_ => b)
   def >|[B](b: =>B): F[B] = as(b)
 }
@@ -4574,7 +4559,7 @@ then map over their combined output. Although it's /possible/ to use
 =Apply= has special syntax:
 
 #+BEGIN_SRC scala
-implicit class ApplyOps[F[_]: Apply, A](val self: F[A]) {
+implicit class ApplyOps[F[_]: Apply, A](self: F[A]) {
   def *>[B](fb: F[B]): F[B] = Apply[F].apply2(self,fb)((_,b) => b)
   def <*[B](fb: F[B]): F[A] = Apply[F].apply2(self,fb)((a,_) => a)
   def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
@@ -4772,7 +4757,7 @@ detail in the next chapter.
 =Bind= also has some special syntax
 
 #+BEGIN_SRC scala
-implicit class BindOps[F[_]: Bind, A] (val self: F[A]) {
+implicit class BindOps[F[_]: Bind, A] (self: F[A]) {
   def >>[B](b: =>F[B]): F[B] = Bind[F].bind(self)(_ => b)
   def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => f(a).map(_ => a))
 }
@@ -5485,7 +5470,7 @@ returns =Option[Nothing] \/ A=, i.e. =None \/ A=.
 Scalaz gives a ternary operator to things that have an =Optional=
 
 #+BEGIN_SRC scala
-implicit class OptionalOps[F[_]: Optional, A](val fa: F[A]) {
+implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
   def ?[X](some: =>X): Conditional[X] = new Conditional[X](some)
   final class Conditional[X](some: =>X) {
     def |(none: =>X): X = if (Optional[F].isDefined(fa)) some else none
@@ -6425,7 +6410,7 @@ A convenient =implicit class= allows us to call =.just= on any value
 and receive a =Maybe=
 
 #+BEGIN_SRC scala
-implicit class MaybeOps[A](val self: A) {
+implicit class MaybeOps[A](self: A) {
   def just: Maybe[A] = Maybe.just(self)
 }
 #+END_SRC
@@ -6688,7 +6673,7 @@ object Validation {
 With convenient syntax
 
 #+BEGIN_SRC scala
-implicit class ValidationOps[A](val self: A) {
+implicit class ValidationOps[A](self: A) {
   def success[X]: Validation[X, A] = Validation.success[X, A](self)
   def successNel[X]: ValidationNel[X, A] = success
   def failure[X]: Validation[A, X] = Validation.failure[A, X](self)
@@ -6822,13 +6807,13 @@ object \&/ {
 with convenient construction syntax
 
 #+BEGIN_SRC scala
-implicit class TheseOps[A](val self: A) {
+implicit class TheseOps[A](self: A) {
   final def wrapThis[B]: A \&/ B = \&/.This(self)
   final def `this`[B]: A \&/ B = wrapThis
   final def wrapThat[B]: B \&/ A = \&/.That(self)
   final def that[B]: B \&/ A = wrapThat
 }
-implicit class ThesePairOps[A, B](val self: (A, B)) {
+implicit class ThesePairOps[A, B](self: (A, B)) {
   final def both: A \&/ B = \&/.Both(self._1, self._2)
 }
 #+END_SRC
@@ -6899,6 +6884,49 @@ object \&/ {
 }
 #+END_SRC
 
+**** Higher Kinded Either
+
+The =Coproduct= data type (not to be confused with the more general
+concept of a /coproduct/ in an ADT) wraps =Disjunction= for type
+constructors:
+
+#+BEGIN_SRC scala
+final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A]) { ... }
+#+END_SRC
+
+Typeclass instances simply delegate to those of the =F[_]= and =G[_]=.
+
+# https://github.com/scala/scala/pull/5538
+
+**** Not So Eager
+
+Built-in Scala tuples, and basic data types like =Maybe= and
+=Disjunction= are eagerly-evaluated value types. /by-name/
+alternatives to using =Name= are provided and have the expected
+typeclass instances:
+
+#+BEGIN_SRC scala
+sealed abstract class LazyOption[+A] { ... }
+private final case class LazySome[A](a: () => A) extends LazyOption[A]
+private case object LazyNone extends LazyOption[Nothing]
+
+sealed abstract class LazyEither[+A, +B] { ... }
+private case class LazyLeft[A, B](a: () => A) extends LazyEither[A, B]
+private case class LazyRight[A, B](b: () => B) extends LazyEither[A, B]
+
+sealed abstract class LazyTuple2[A, B] {
+  def _1: A
+  def _2: B
+}
+...
+sealed abstract class LazyTuple4[A, B, C, D] {
+  def _1: A
+  def _2: B
+  def _3: C
+  def _4: D
+}
+#+END_SRC
+
 * WIP                                                                 :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: wip.md
@@ -6929,11 +6957,6 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 ** TODO Data Types
-
-- Coproduct (higher kinded Either)
-- LazyEither
-- LazyOption
-- LazyTuple
 
 - IList
 - NonEmptyList

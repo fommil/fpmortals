@@ -1649,9 +1649,11 @@ Pure functions are typically defined as methods on an `object`.
   math.sin(1.0)
 ~~~~~~~~
 
-However, it can sometimes be clunky to use `object` methods since it
-reads inside-out, not left to right: it's the same problem as Java's
-static methods vs class methods.
+However, it can be clunky to use `object` methods since it reads
+inside-out, not left to right. In addition, a function on an `object`
+steals the namespace. If we were to define `sin(t: T)` somewhere else
+we get *ambiguous reference* errors. This is the same problem as
+Java's static methods vs class methods.
 
 W> If you like to put methods on a `trait`, requiring users to mix your
 W> traits into their `classes` or `objects` with the *cake pattern*,
@@ -2330,23 +2332,12 @@ We need to provide typeclass instances for basic types:
   
   object UrlEncoded {
     import ops._
-    def instance[A](f: A => String): UrlEncoded[A] = new UrlEncoded[A] {
-      override def urlEncoded(a: A): String = f(a)
-    }
   
-    implicit val UrlEncodedString: UrlEncoded[String] = instance { s =>
-      URLEncoder.encode(s, "UTF-8")
-    }
-    implicit val UrlEncodedLong: UrlEncoded[Long] = instance { n =>
-      n.toString
-    }
+    implicit val string: UrlEncoded[String] = { s => URLEncoder.encode(s, "UTF-8") }
+    implicit val long: UrlEncoded[Long] = _.toString
     implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] =
-      instance { m =>
-        m.map {
-          case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-        }.mkString("&")
-      }
-    implicit val UrlEncodedUri: UrlEncoded[Uri] = instance { u =>
+      _.map { case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}" }.mkString("&")
+    implicit val UrlEncodedUri: UrlEncoded[Uri] = { u =>
       val scheme = u.scheme.toString
       val host   = u.host.host
       val port   = u.host.port.fold("")(p => s":$p")
@@ -2357,18 +2348,22 @@ We need to provide typeclass instances for basic types:
   }
 ~~~~~~~~
 
-A> Typing or reading
+A> `UrlEncoded` is making use of the Scala *Single Abstract Method* (SAM
+A> types) language feature. The full form of the above is
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   implicit val UrlEncodedString: UrlEncoded[String] = new UrlEncoded[String] {
+A>   implicit val string: UrlEncoded[String] = new UrlEncoded[String] {
 A>     override def urlEncoded(s: String): String = ...
 A>   }
 A> ~~~~~~~~
 A> 
-A> can be tiresome. We've basically said `UrlEncoded`, `String` four
-A> times. A common pattern is to define a method named `instance` on the
-A> typeclass companion
+A> When the Scala compiler expects a class (which has a single abstract
+A> method) but receives a lambda, it fills in the boilerplate
+A> automatically.
+A> 
+A> Prior to SAM types, a common pattern was to define a method named
+A> `instance` on the typeclass companion
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -2377,21 +2372,16 @@ A>     override def urlEncoded(t: T): String = f(t)
 A>   }
 A> ~~~~~~~~
 A> 
-A> which then allows for instances to be defined more tersely as
+A> allowing for
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
 A>   implicit val string: UrlEncoded[String] = instance { s => ... }
 A> ~~~~~~~~
 A> 
-A> A recent Scala feature is *Single Abstract Method* (SAM) types, which
-A> means that `instance` is not needed for typeclasses with a single
-A> method:
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   implicit val string: UrlEncoded[String] = { s => ... }
-A> ~~~~~~~~
+A> This pattern is still used in code that must support older versions of
+A> Scala, or for typeclasses instances that need to provide more than one
+A> method.
 
 In a dedicated chapter on *Generic Programming* we will write generic
 instances of `QueryEncoded` and `UrlEncoded`, but for now we will
@@ -2404,46 +2394,40 @@ write the boilerplate for the types we wish to convert:
   import UrlEncoded.ops._
   
   object AuthRequest {
-    implicit val QueryEncoder: QueryEncoded[AuthRequest] =
-      new QueryEncoded[AuthRequest] {
-        private def stringify[T: UrlEncoded](t: T) =
-          URLDecoder.decode(t.urlEncoded, "UTF-8")
+    private def stringify[T: UrlEncoded](t: T) =
+      URLDecoder.decode(t.urlEncoded, "UTF-8")
   
-        def queryEncoded(a: AuthRequest): Uri.Query =
-          Uri.Query.empty :+
-            ("redirect_uri"  -> stringify(a.redirect_uri)) :+
-            ("scope"         -> stringify(a.scope)) :+
-            ("client_id"     -> stringify(a.client_id)) :+
-            ("prompt"        -> stringify(a.prompt)) :+
-            ("response_type" -> stringify(a.response_type)) :+
-            ("access_type"   -> stringify(a.access_type))
-      }
+    implicit val QueryEncoded: QueryEncoded[AuthRequest] = { a =>
+      Uri.Query.empty :+
+        ("redirect_uri"  -> stringify(a.redirect_uri)) :+
+        ("scope"         -> stringify(a.scope)) :+
+        ("client_id"     -> stringify(a.client_id)) :+
+        ("prompt"        -> stringify(a.prompt)) :+
+        ("response_type" -> stringify(a.response_type)) :+
+        ("access_type"   -> stringify(a.access_type))
+    }
   }
   object AccessRequest {
-    implicit val UrlEncoder: UrlEncoded[AccessRequest] =
-      new UrlEncoded[AccessRequest] {
-        def urlEncoded(a: AccessRequest): String =
-          Seq(
-            "code"          -> a.code.urlEncoded,
-            "redirect_uri"  -> a.redirect_uri.urlEncoded,
-            "client_id"     -> a.client_id.urlEncoded,
-            "client_secret" -> a.client_secret.urlEncoded,
-            "scope"         -> a.scope.urlEncoded,
-            "grant_type"    -> a.grant_type.urlEncoded
-          ).urlEncoded
-      }
+    implicit val UrlEncoded: UrlEncoded[AccessRequest] = { a =>
+      Seq(
+        "code"          -> a.code.urlEncoded,
+        "redirect_uri"  -> a.redirect_uri.urlEncoded,
+        "client_id"     -> a.client_id.urlEncoded,
+        "client_secret" -> a.client_secret.urlEncoded,
+        "scope"         -> a.scope.urlEncoded,
+        "grant_type"    -> a.grant_type.urlEncoded
+      ).urlEncoded
+    }
   }
   object RefreshRequest {
-    implicit val UrlEncoder: UrlEncoded[RefreshRequest] =
-      new UrlEncoded[RefreshRequest] {
-        def urlEncoded(r: RefreshRequest): String =
-          Seq(
-            "client_secret" -> r.client_secret.urlEncoded,
-            "refresh_token" -> r.refresh_token.urlEncoded,
-            "client_id"     -> r.client_id.urlEncoded,
-            "grant_type"    -> r.grant_type.urlEncoded
-          ).urlEncoded
-      }
+    implicit val UrlEncoded: UrlEncoded[RefreshRequest] = { r =>
+      Seq(
+        "client_secret" -> r.client_secret.urlEncoded,
+        "refresh_token" -> r.refresh_token.urlEncoded,
+        "client_id"     -> r.client_id.urlEncoded,
+        "grant_type"    -> r.grant_type.urlEncoded
+      ).urlEncoded
+    }
   }
 ~~~~~~~~
 
@@ -3086,7 +3070,7 @@ the wild. For the remaining typeclasses, we'll skip the niche methods.
 
 {lang="text"}
 ~~~~~~~~
-  implicit class FunctorOps[F[_]: Functor, A](val self: F[A]) {
+  implicit class FunctorOps[F[_]: Functor, A](self: F[A]) {
     def as[B](b: =>B): F[B] = Functor[F].map(self)(_ => b)
     def >|[B](b: =>B): F[B] = as(b)
   }
@@ -3909,7 +3893,7 @@ then map over their combined output. Although it's *possible* to use
 
 {lang="text"}
 ~~~~~~~~
-  implicit class ApplyOps[F[_]: Apply, A](val self: F[A]) {
+  implicit class ApplyOps[F[_]: Apply, A](self: F[A]) {
     def *>[B](fb: F[B]): F[B] = Apply[F].apply2(self,fb)((_,b) => b)
     def <*[B](fb: F[B]): F[A] = Apply[F].apply2(self,fb)((a,_) => a)
     def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
@@ -4120,7 +4104,7 @@ A> detail in the next chapter.
 
 {lang="text"}
 ~~~~~~~~
-  implicit class BindOps[F[_]: Bind, A] (val self: F[A]) {
+  implicit class BindOps[F[_]: Bind, A] (self: F[A]) {
     def >>[B](b: =>F[B]): F[B] = Bind[F].bind(self)(_ => b)
     def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => f(a).map(_ => a))
   }
@@ -4637,7 +4621,7 @@ Scalaz gives a ternary operator to things that have an `Optional`
 
 {lang="text"}
 ~~~~~~~~
-  implicit class OptionalOps[F[_]: Optional, A](val fa: F[A]) {
+  implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
     def ?[X](some: =>X): Conditional[X] = new Conditional[X](some)
     final class Conditional[X](some: =>X) {
       def |(none: =>X): X = if (Optional[F].isDefined(fa)) some else none
@@ -5462,7 +5446,7 @@ and receive a `Maybe`
 
 {lang="text"}
 ~~~~~~~~
-  implicit class MaybeOps[A](val self: A) {
+  implicit class MaybeOps[A](self: A) {
     def just: Maybe[A] = Maybe.just(self)
   }
 ~~~~~~~~
@@ -5736,7 +5720,7 @@ With convenient syntax
 
 {lang="text"}
 ~~~~~~~~
-  implicit class ValidationOps[A](val self: A) {
+  implicit class ValidationOps[A](self: A) {
     def success[X]: Validation[X, A] = Validation.success[X, A](self)
     def successNel[X]: ValidationNel[X, A] = success
     def failure[X]: Validation[A, X] = Validation.failure[A, X](self)
@@ -5875,13 +5859,13 @@ with convenient construction syntax
 
 {lang="text"}
 ~~~~~~~~
-  implicit class TheseOps[A](val self: A) {
+  implicit class TheseOps[A](self: A) {
     final def wrapThis[B]: A \&/ B = \&/.This(self)
     final def `this`[B]: A \&/ B = wrapThis
     final def wrapThat[B]: B \&/ A = \&/.That(self)
     final def that[B]: B \&/ A = wrapThat
   }
-  implicit class ThesePairOps[A, B](val self: (A, B)) {
+  implicit class ThesePairOps[A, B](self: (A, B)) {
     final def both: A \&/ B = \&/.Both(self._1, self._2)
   }
 ~~~~~~~~
@@ -5951,6 +5935,51 @@ functions exist on the companion to deal with `EphemeralStream`
   
     def merge[A: Semigroup](t: A \&/ A): A = ...
     ...
+  }
+~~~~~~~~
+
+
+### Higher Kinded Either
+
+The `Coproduct` data type (not to be confused with the more general
+concept of a *coproduct* in an ADT) wraps `Disjunction` for type
+constructors:
+
+{lang="text"}
+~~~~~~~~
+  final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A]) { ... }
+~~~~~~~~
+
+Typeclass instances simply delegate to those of the `F[_]` and `G[_]`.
+
+
+### Not So Eager
+
+Built-in Scala tuples, and basic data types like `Maybe` and
+`Disjunction` are eagerly-evaluated value types. *by-name*
+alternatives to using `Name` are provided and have the expected
+typeclass instances:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class LazyOption[+A] { ... }
+  private final case class LazySome[A](a: () => A) extends LazyOption[A]
+  private case object LazyNone extends LazyOption[Nothing]
+  
+  sealed abstract class LazyEither[+A, +B] { ... }
+  private case class LazyLeft[A, B](a: () => A) extends LazyEither[A, B]
+  private case class LazyRight[A, B](b: () => B) extends LazyEither[A, B]
+  
+  sealed abstract class LazyTuple2[A, B] {
+    def _1: A
+    def _2: B
+  }
+  ...
+  sealed abstract class LazyTuple4[A, B, C, D] {
+    def _1: A
+    def _2: B
+    def _3: C
+    def _4: D
   }
 ~~~~~~~~
 

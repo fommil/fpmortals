@@ -1,11 +1,6 @@
 
 # TODO Data Types
 
--   Coproduct (higher kinded Either)
--   LazyEither
--   LazyOption
--   LazyTuple
-
 -   IList
 -   NonEmptyList
 -   OneAnd / OneOr
