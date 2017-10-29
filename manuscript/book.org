@@ -7162,9 +7162,8 @@ object Dequeue {
 and, depending on content, =Equal=.
 
 The way it works is that there are two lists, one for the front data
-and another for the back (stored in reverse).
-
-Visualise an instance holding symbols =a0, a1, a2, a3, a4, a5, a6=
+and another for the back. Consider an instance holding symbols =a0,
+a1, a2, a3, a4, a5, a6=
 
 #+BEGIN_SRC scala
 FullDequeue(
@@ -7172,7 +7171,7 @@ FullDequeue(
   NonEmptyList('a6, IList('a5, 'a4)), 3)
 #+END_SRC
 
-which can be visualised a
+which can be visualised as
 
 #+BEGIN_SRC dot :cmd dot :file images/dequeue.png :exports results
 digraph G {
@@ -7189,18 +7188,18 @@ digraph G {
     }
 
     subgraph cluster_back {
-        node [style=filled];
+        node [style=filled,fontcolor=white,color=lightgray];
         a5 -> a4
         label = "back     tail";
-        color=lightgray;
     }
     a0 [label="a0: frontMaybe"];
-    a6 [label="a6: backMaybe"];
+    a6 [label="a6: backMaybe",style=filled,color=lightgray,fontcolor=white];
     a0 -> a1;
     a6 -> a5;
 }
 #+END_SRC
 
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/dequeue.png]]
 

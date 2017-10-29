@@ -6225,9 +6225,8 @@ end is constant time on average.
 and, depending on content, `Equal`.
 
 The way it works is that there are two lists, one for the front data
-and another for the back (stored in reverse).
-
-Visualise an instance holding symbols `a0, a1, a2, a3, a4, a5, a6`
+and another for the back. Consider an instance holding symbols `a0,
+a1, a2, a3, a4, a5, a6`
 
 {lang="text"}
 ~~~~~~~~
@@ -6236,9 +6235,9 @@ Visualise an instance holding symbols `a0, a1, a2, a3, a4, a5, a6`
     NonEmptyList('a6, IList('a5, 'a4)), 3)
 ~~~~~~~~
 
-which can be visualised a
+which can be visualised as
 
-{width=60%}
+{width=70%}
 ![](images/dequeue.png)
 
 Note that the list holding the `back` is in reverse order.
