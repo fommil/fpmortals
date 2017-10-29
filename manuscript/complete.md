@@ -6174,10 +6174,89 @@ expected to change, or as a way of safely wrapping raw data from a
 legacy system.
 
 
+### `Dequeue`
+
+A `Dequeue` (pronounced like a "deck" of cards) is a linked list that
+allows items to be put onto or retrieved from the front (`cons`) or
+the back (`snoc`) in constant time. Removing an element from either
+end is constant time on average.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Dequeue[A] {
+    def frontMaybe: Maybe[A]
+    def backMaybe: Maybe[A]
+  
+    def ++(o: Dequeue[A]): Dequeue[A] = ...
+    def +:(a: A): Dequeue[A] = cons(a)
+    def :+(a: A): Dequeue[A] = snoc(a)
+    def cons(a: A): Dequeue[A] = ...
+    def snoc(a: A): Dequeue[A] = ...
+    def uncons: Maybe[(A, Dequeue[A])] = ...
+    def unsnoc: Maybe[(A, Dequeue[A])] = ...
+    ...
+  }
+  private final case class SingletonDequeue[A](single: A) extends Dequeue[A] { ... }
+  private final case class FullDequeue[A](
+    front: NonEmptyList[A],
+    fsize: Int,
+    back: NonEmptyList[A],
+    backSize: Int) extends Dequeue[A] { ... }
+  private final case object EmptyDequeue extends Dequeue[Nothing] { ... }
+  
+  object Dequeue {
+    def empty[A]: Dequeue[A] = EmptyDequeue()
+    def apply[A](as: A*): Dequeue[A] = ...
+    def fromFoldable[F[_]: Foldable, A](fa: F[A]): Dequeue[A] = ...
+    ...
+  }
+~~~~~~~~
+
+`Dequeue` provides instances for:
+
+-   `Monoid`
+-   `Foldable`
+-   `IsEmpty`
+-   `Functor`
+
+and, depending on content, `Equal`.
+
+The way it works is that there are two lists, one for the front data
+and another for the back (stored in reverse).
+
+Visualise an instance holding symbols `a0, a1, a2, a3, a4, a5, a6`
+
+{lang="text"}
+~~~~~~~~
+  FullDequeue(
+    NonEmptyList('a0, IList('a1, 'a2, 'a3)), 4,
+    NonEmptyList('a6, IList('a5, 'a4)), 3)
+~~~~~~~~
+
+which can be visualised a
+
+{width=60%}
+![](images/dequeue.png)
+
+Note that the list holding the `back` is in reverse order.
+
+Reading the `snoc` (final element) is a simple lookup into
+`back.head`. Adding an element to the end of the `Dequeue` means
+adding a new element to the head of the `back`, and recreating the
+`FullDequeue` wrapper (which will increase `backSize` by one). Almost
+all of the original structure is shared. Compare to adding a new
+element to the end of an `IList`, which would involve recreating the
+entire structure.
+
+The `frontSize` and `backSize` are used to re-balance the `front` and
+`back` so that they are always approximately the same size.
+Re-balancing means that some operations can be slower than others
+(e.g. when the entire structure must be rebuilt) but because it
+happens only occasionally, we can take the average of the cost and say
+that it is constant.
+
+
 ### TODO DList (difference list)
-
-
-### TODO Dequeue
 
 
 ### TODO Heap (priority queues)
