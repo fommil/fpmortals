@@ -6089,14 +6089,8 @@ retention problem, and removing unsafe methods in the same spirit as
   object EphemeralStream extends EphemeralStreamInstances {
     type EStream[A] = EphemeralStream[A]
   
-    def emptyEphemeralStream[A]: EStream[A] = new EStream[A] {
-      override def headOption = None
-      override def tailOption = None
-    }
-    def cons[A](a: =>A, as: =>EStream[A]): EStream[A] = new EStream[A] {
-      override def headOption = Option(a)
-      override def tailOption = Option(as)
-    }
+    def emptyEphemeralStream[A]: EStream[A] = ...
+    def cons[A](a: =>A, as: =>EStream[A]): EStream[A] = ...
     def unfold[A, B](start: =>B)(f: B => Option[(A, B)]): EStream[A] = ...
     def iterate[A](start: A)(f: A => A): EStream[A] = ...
   
