@@ -5956,20 +5956,13 @@ Typeclass instances simply delegate to those of the `F[_]` and `G[_]`.
 ### Not So Eager
 
 Built-in Scala tuples, and basic data types like `Maybe` and
-`Disjunction` are eagerly-evaluated value types. *by-name*
-alternatives to using `Name` are provided and have the expected
-typeclass instances:
+`Disjunction` are eagerly-evaluated value types.
+
+For convenience, *by-name* alternatives to `Name` are provided, having
+the expected typeclass instances:
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class LazyOption[+A] { ... }
-  private final case class LazySome[A](a: () => A) extends LazyOption[A]
-  private case object LazyNone extends LazyOption[Nothing]
-  
-  sealed abstract class LazyEither[+A, +B] { ... }
-  private case class LazyLeft[A, B](a: () => A) extends LazyEither[A, B]
-  private case class LazyRight[A, B](b: () => B) extends LazyEither[A, B]
-  
   sealed abstract class LazyTuple2[A, B] {
     def _1: A
     def _2: B
@@ -5981,19 +5974,174 @@ typeclass instances:
     def _3: C
     def _4: D
   }
+  
+  sealed abstract class LazyOption[+A] { ... }
+  private final case class LazySome[A](a: () => A) extends LazyOption[A]
+  private case object LazyNone extends LazyOption[Nothing]
+  
+  sealed abstract class LazyEither[+A, +B] { ... }
+  private case class LazyLeft[A, B](a: () => A) extends LazyEither[A, B]
+  private case class LazyRight[A, B](b: () => B) extends LazyEither[A, B]
 ~~~~~~~~
+
+The astute reader will note that `Lazy*` is a misnomer, and these data
+types should perhaps be: `ByNameTupleX`, `ByNameOption` and
+`ByNameEither`.
 
 
 ## Collections
 
 
-### `IList`
+### Lists
+
+We have used `IList[A]` and `NonEmptyList[A]` so many times by now
+that they should be familiar. A classic linked list data structure:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class IList[A] {
+    def ::(a: A): IList[A] = ...
+    def :::(as: IList[A]): IList[A] = ...
+    def toList: List[A] = ...
+    def toNel: Option[NonEmptyList[A]] = ...
+    ...
+  }
+  final case class INil[A]() extends IList[A]
+  final case class ICons[A](head: A, tail: IList[A]) extends IList[A]
+  
+  final case class NonEmptyList[A](head: A, tail: IList[A]) {
+    def <::(b: A): NonEmptyList[A] = nel(b, head :: tail)
+    def <:::(bs: IList[A]): NonEmptyList[A] = ...
+    ...
+  }
+~~~~~~~~
+
+`IList` has typeclass instances for:
+
+-   `Monoid`
+-   `Traverse`
+-   `MonadPlus` / `IsEmpty` / `BindRec`
+-   `Cobind`
+-   `Zip` / `Unzip`
+-   `Align`
+
+However, `NonEmptyList` is slightly more powerful and can provide
+instances for
+
+-   `Semigroup`
+-   `Traverse1`
+-   `Monad` / `Plus` / `BindRec`
+-   `Comonad`
+-   `Zip` / `Unzip`
+-   `Align`
+
+Both provide further instances depending on the content `A`:
+
+-   `Equal` / `Order`
+-   `Show`
+
+The main advantage of `IList` over stdlib `List` is that there are no
+unsafe methods, like `.head` which throws an exception on an empty
+list.
+
+In addition, `IList` is a **lot** simpler, having no hierarchy and a
+much smaller bytecode footprint. Furthermore, the stdlib `List` has a
+terrifying implementation that uses `var` to workaround performance
+problems in the stdlib collection design:
+
+{lang="text"}
+~~~~~~~~
+  package scala.collection.immutable
+  
+  sealed abstract class List[+A]
+    extends AbstractSeq[A]
+    with LinearSeq[A]
+    with GenericTraversableTemplate[A, List]
+    with LinearSeqOptimized[A, List[A]] { ... }
+  case object Nil extends List[Nothing] { ... }
+  final case class ::[B](
+    override val head: B,
+    private[scala] var tl: List[B]
+  ) extends List[B] { ... }
+~~~~~~~~
+
+`List` creation requires careful, and slow, `Thread` synchronisation
+to ensure safe publishing. `IList` requires no such hacks and can
+therefore outperform `List`.
 
 
-### TODO NonEmptyList
+### `EphemeralStream`
 
+The stdlib `Stream` is a lazy version of `List`, but is riddled with
+memory leaks and unsafe methods. `EphemeralStream` does not keep
+references to computed values, helping to alleviate the memory
+retention problem, and removing unsafe methods in the same spirit as
+`IList`.
 
-### TODO EphemeralStream
+{lang="text"}
+~~~~~~~~
+  sealed abstract class EphemeralStream[A] {
+    def headOption: Option[A]
+    def tailOption: Option[EphemeralStream[A]]
+    ...
+  }
+  // private implementations
+  object EphemeralStream extends EphemeralStreamInstances {
+    type EStream[A] = EphemeralStream[A]
+  
+    def emptyEphemeralStream[A]: EStream[A] = new EStream[A] {
+      override def headOption = None
+      override def tailOption = None
+    }
+    def cons[A](a: =>A, as: =>EStream[A]): EStream[A] = new EStream[A] {
+      override def headOption = Option(a)
+      override def tailOption = Option(as)
+    }
+    def unfold[A, B](start: =>B)(f: B => Option[(A, B)]): EStream[A] = ...
+    def iterate[A](start: A)(f: A => A): EStream[A] = ...
+  
+    implicit class ConsWrap[A](e: =>EStream[A]) {
+      def ##::(h: A): EStream[A] = cons(h, e)
+    }
+    object ##:: {
+      def unapply[A](xs: EStream[A]): Option[(A, EStream[A])] =
+        if (xs.isEmpty) None
+        else Some((xs.head(), xs.tail()))
+    }
+    ...
+  }
+~~~~~~~~
+
+A> The use of the word *stream* for a data structure of this nature comes
+A> down to legacy. *Stream* is now more commonly used to refer to the
+A> *Reactive Manifesto* and its compatible frameworks such as Akka
+A> Streams and *Functional Streams for Scala* (fs2). We will tour fs2
+A> (formerly `scalaz-stream`) in a later chapter.
+A> 
+A> In the spirit of misnomers, consider setting up an alias:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   type LazyList[A] = EphemeralStream[A]
+A> ~~~~~~~~
+A> 
+A> Naming and caching stuff is hard!
+
+All the same typeclass instances exist as for `IList`.
+
+`.cons`, `.unfold` and `.iterate` are mechanisms for creating streams,
+with the convenient syntax `##::` to cons to a by-name `EStream`
+reference. `.unfold` is for creating a finite (but possibly infinite)
+stream by repeatedly applying a function `f` to get the next value and
+the input to the following `f`. `.iterate` creates an infinite stream
+by repeating a function `f` on the previous element.
+
+`EphemeralStream` can be used in pattern matches with the symbol `##::`
+
+Although `EStream` addresses the value memory retention problem, it is
+still possible to suffer from *slow memory leaks* if a live reference
+points to the head of an infinite stream. Problems of this nature, as
+well as the need to compose effectful streams, are why fs2 exists.
 
 
 ### TODO OneAnd / OneOr
