@@ -24,19 +24,19 @@ trait UrlEncoded[A] {
 object UrlEncoded {
   import ops._
 
-  implicit val UrlEncodedString: UrlEncoded[String] = { s =>
+  implicit val string: UrlEncoded[String] = { s =>
     URLEncoder.encode(s, "UTF-8")
   }
-  implicit val UrlEncodedLong: UrlEncoded[Long] = { n =>
+  implicit val long: UrlEncoded[Long] = { n =>
     n.toString
   }
 
-  implicit val UrlEncodedStringySeq: UrlEncoded[Seq[(String, String)]] = { m =>
+  implicit val stringySeq: UrlEncoded[Seq[(String, String)]] = { m =>
     m.map {
       case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
     }.mkString("&")
   }
-  implicit val UrlEncodedUri: UrlEncoded[Uri] = { u =>
+  implicit val uri: UrlEncoded[Uri] = { u =>
     // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
     //             (which would also let us remove UrlEncodedStringySeq)
     val scheme = u.scheme.toString
