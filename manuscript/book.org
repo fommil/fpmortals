@@ -7191,9 +7191,10 @@ digraph G {
         node [style=filled,fontcolor=white,color=lightgray];
         a5 -> a4
         label = "back     tail";
+        color=lightgray;
     }
-    a0 [label="a0: frontMaybe"];
-    a6 [label="a6: backMaybe",style=filled,color=lightgray,fontcolor=white];
+    a0 [label="a0: head"];
+    a6 [label="a6: head",style=filled,color=lightgray,fontcolor=white];
     a0 -> a1;
     a6 -> a5;
 }
