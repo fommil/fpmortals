@@ -6130,8 +6130,11 @@ possibly infinite) stream by repeatedly applying a function `f` to get
 the next value and input for the following `f`. `.iterate` creates an
 infinite stream by repeating a function `f` on the previous element.
 
-`EStream` can appear in pattern matches with the symbol `##::`,
+`EStream` may appear in pattern matches with the symbol `##::`,
 matching the syntax for `.cons`.
+
+A> `##::` sort of looks like an Exogorth: a giant space worm that lives
+A> on an asteroid.
 
 Although `EStream` addresses the value memory retention problem, it is
 still possible to suffer from *slow memory leaks* if a live reference
