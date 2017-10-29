@@ -1,22 +1,25 @@
 inThisBuild(
   Seq(
-    scalaVersion := "2.12.3",
-    sonatypeGithub := ("fommil", "drone-dynamic-agents"),
-    licenses := Seq(GPL3)
+    scalaVersion := "2.12.4",
+    sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
+    licenses := Seq(GPL3),
+    scalafmtOnCompile := true,
+    scalafmtConfig := file("project/scalafmt.conf"),
+    scalafmtVersion := "1.3.0"
   )
 )
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"    % "0.10.0",
+  "com.github.mpilquist" %% "simulacrum"    % "0.11.0",
   "com.chuusai"          %% "shapeless"     % "2.3.2",
   "org.typelevel"        %% "export-hook"   % "1.2.0",
   "io.circe"             %% "circe-core"    % circeVersion,
   "io.circe"             %% "circe-generic" % circeVersion,
   "io.circe"             %% "circe-parser"  % circeVersion,
   "io.circe"             %% "circe-fs2"     % circeVersion,
-  "org.scalaz"           %% "scalaz-core"   % "7.2.15",
-  "com.spinoco"          %% "fs2-http"      % "0.1.7"
+  "org.scalaz"           %% "scalaz-core"   % "7.2.16",
+  "com.spinoco"          %% "fs2-http"      % "0.1.8"
 )
 
 scalacOptions ++= Seq(
@@ -34,7 +37,8 @@ scalacOptions ++= Seq(
   "-Yno-predef"
 )
 
-scalacOptions += "-Ywarn-unused:implicits,imports,locals,params,patvars,privates"
+scalacOptions -= "-Ywarn-unused:implicits,imports,-locals,-params,-patvars,-privates"
+scalacOptions += "-Ywarn-unused:params,patvars,linted"
 
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
@@ -46,10 +50,6 @@ wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
 )
 wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
 wartremoverWarnings in (Compile, compile) -= Wart.Any              // too many false positives
-
-scalafmtOnCompile in ThisBuild := true
-scalafmtConfig in ThisBuild := file("project/scalafmt.conf")
-scalafmtVersion in ThisBuild := "1.2.0"
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(
