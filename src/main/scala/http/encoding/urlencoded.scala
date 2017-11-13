@@ -37,8 +37,8 @@ object UrlEncoded {
     }.mkString("&")
   }
   implicit val uri: UrlEncoded[Uri] = { u =>
-    // WORKAROUND: https://github.com/Spinoco/fs2-http/issues/15
-    //             (which would also let us remove UrlEncodedStringySeq)
+    // this is not the same as creating a URL... this is about including a URL
+    // as URL encoded parameter value. So we should expect lots of escaping.
     val scheme = u.scheme.toString
     val host   = u.host.host
     val port   = u.host.port.fold("")(p => s":$p")
