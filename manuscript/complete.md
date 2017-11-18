@@ -2670,13 +2670,13 @@ available when we `import scalaz._, Scalaz._`
   @typeclass trait Semigroup[A] {
     @op("|+|") def append(x: A, y: =>A): A
   
-    def multiply1(value: F, n: Int): F = ...
+    def multiply1(value: A, n: Int): A = ...
   }
   
   @typeclass trait Monoid[A] extends Semigroup[A] {
     def zero: A
   
-    def multiply(value: F, n: Int): F =
+    def multiply(value: A, n: Int): A =
       if (n <= 0) zero else multiply1(value, n - 1)
   }
   
