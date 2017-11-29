@@ -22,4 +22,4 @@ reading early drafts of this book.
 
 If you are an expert in FP, you can help out by assisting the author
 in his journey to understand, e.g. answering questions in
-[[https://github.com/fommil/drone-dynamic-agents/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+guru%22][drone-dynamic-agents]].
+[[https://gitlab.com/fommil/drone-dynamic-agents][drone-dynamic-agents]].
