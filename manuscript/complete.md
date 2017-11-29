@@ -1414,7 +1414,7 @@ with `final case class` definitions that simply wrap the desired type:
 Pattern matching on these forms of coproduct can be tedious, which is
 why [Union Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation scala
 compiler. Workarounds such as [totalitarian](https://github.com/propensive/totalitarian)'s `Disjunct` exist as
-another way of encoding anonymous coproducts and [stalagmite](https://github.com/fommil/stalagmite/issues/37) aims to
+another way of encoding anonymous coproducts and [stalagmite](https://gitlab.com/fommil/stalagmite/issues/37) aims to
 reduce the boilerplate for the approaches presented here.
 
 A> We can also use a `sealed trait` in place of a `sealed abstract class`
@@ -1581,7 +1581,7 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, [stalagmite](https://github.com/fommil/stalagmite) aims to pack `Boolean` and `Option` fields
+For example, [stalagmite](https://gitlab.com/fommil/stalagmite) aims to pack `Boolean` and `Option` fields
 into an `Array[Byte]`, cache instances, memoise `hashCode`, optimise
 `equals`, enforce validation, use `@switch` statements when pattern
 matching, and much more. [iota](https://www.47deg.com/blog/iota-v0-1-0-release/) has performance improvements for nested
