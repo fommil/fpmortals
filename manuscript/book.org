@@ -2441,6 +2441,13 @@ compiler will fail to find it. A workaround is to add implicit
 conversions to the companion of =Ordering= that up-cast more specific
 instances. [[https://github.com/lampepfl/dotty/issues/2047][Fixed In Dotty]].
 
+Implicit resolution is particularly hit-or-miss [[https://github.com/scala/bug/issues/10582][if type aliases are used]] where
+the /shape/ of the implicit parameters are changed. For example an implicit
+parameter using an alias such as ~type Values[A] = List[Option[A]]~ will
+probably fail to find implicits defined as raw =List[Option[A]]= because the
+shape is changed from a thing of things of =A= (~_[_[A]]~) to a thing of =A=
+(~_[A]~).
+
 # might also be fixed in scato
 # https://github.com/aloiscochard/scato/issues/15
 
@@ -3632,11 +3639,11 @@ before reading further:
    signature to =pure= but requires the caller to provide the =F[A =>
    B]=.
 
-=fpair=, =strengthL= and =strengthR= are here because they are simple
-examples of reading type signatures, but they are pretty useless in
-the wild. For the remaining typeclasses, we'll skip the niche methods.
+=fpair=, =strengthL= and =strengthR= look pretty useless, but they are
+useful when we wish to retain some information that would otherwise be
+lost to scope.
 
-=Functor= also has some special syntax
+=Functor= has some special syntax:
 
 #+BEGIN_SRC scala
 implicit class FunctorOps[F[_]: Functor, A](self: F[A]) {
@@ -6276,6 +6283,15 @@ Because there is no language level support for lazy method parameters,
 methods typically ask for a /by-name/ parameter and then convert it
 into a =Need= internally, getting a boost to performance.
 
+#+BEGIN_ASIDE
+=Lazy= (with a capital =L=) is often used in core Scala libraries for
+data types with /by-name/ semantics: a misnomer that has stuck.
+
+More generally, we're all pretty lazy about how we talk about laziness: it can
+be good to seek clarification about what kind of laziness is being discussed. Or
+don't. Because, lazy.
+#+END_ASIDE
+
 =Name= provides instances of the following typeclasses
 
 - =Monad= / =BindRec=
@@ -6933,6 +6949,10 @@ types should perhaps be: =ByNameTupleX=, =ByNameOption= and
 =ByNameEither=.
 
 *** Collections
+
+FIXME: don't repeat typeclasses, everything has Foldable and ???, which is why
+methods should take C:Foldable instead of specific data types, i.e. constrain
+by features not implementation.
 
 **** Lists
 
