@@ -5296,8 +5296,10 @@ scala> List(2,3) <+> List(7)
 res = List(2, 3, 7)
 #+END_SRC
 
-it is best to think of it as operating only at the =F[_]= level, never
-looking into the =A=
+it is best to think of it as operating only at the =F[_]= level, never looking
+into the contents. =Plus= has the convention that it should ignore failures and
+"pick the first winner". =<+>= can therefore be used as a mechanism for early
+exit (losing information) and failure-handling via fallbacks:
 
 #+BEGIN_SRC scala
 scala> Option(1) |+| Option(2)
@@ -5310,20 +5312,26 @@ scala> Option.empty[Int] <+> Option(1)
 res = Some(1)
 #+END_SRC
 
-Whereas =List= can be concatenated at the data structure level,
-=Option= must choose one value and discard the rest, using a "first
-wins" policy. =<+>= can therefore be used as a mechanism for early
-exit and fallback logic.
+For example, if we have a =NonEmptyList[Option[Int]]= and we want to ignore
+=None= values (failures) and pick the first winner (=Some=), we can call =<+>=
+from =Foldable1.foldRight1=:
 
-That also means we didn't need to define our own =Monoid[Option[A]]=
-when combining our =TradeTemplate=, we could have defined
+#+BEGIN_SRC scala
+scala> NonEmptyList(None, None, Some(1), Some(2), None)
+       .foldRight1(_ <+> _)
+res: Option[Int] = Some(1)
+#+END_SRC
+
+In fact, we didn't need to define our own =Monoid[Option[A]]= when combining our
+=TradeTemplate= in the section on Appendable Things. Our objective was to "pick
+the last winner", which is the same as "pick the winner" on a reversed list. We
+could have defined
 
 #+BEGIN_SRC scala
 implicit def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
 #+END_SRC
 
-and =templates.foldRight= (or =.reverse.foldLeft=) to get the
-=lastWins= behaviour we want.
+and =.reverse= to get the =lastWins= behaviour we need.
 
 =Applicative= and =Monad= have specialised versions of =PlusEmpty=
 
