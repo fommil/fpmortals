@@ -4097,11 +4097,11 @@ structures that are then joined.
   }
 ~~~~~~~~
 
-The `join` may be familiar if you have ever used `flatten` in the
-stdlib, it takes nested contexts and squashes them into one.
+The `.join` may be familiar if you have ever used `.flatten` in the stdlib, it
+takes a nested context and squashes it into one.
 
-Although not necessarily implemented as such, we can think of `bind`
-as being a `Functor.map` followed by `join`
+Although not necessarily implemented as such, we can think of `.bind` as being a
+`Functor.map` followed by `.join`
 
 {lang="text"}
 ~~~~~~~~
@@ -4211,31 +4211,28 @@ From a functionality point of view, `Applicative` is `Apply` with a
   @typeclass trait Monad[F[_]] extends Applicative[F] with Bind[F]
 ~~~~~~~~
 
-In many ways, `Applicative` and `Monad` are the culmination of
-everything we've seen in this chapter. `pure` (or `point` as it is
-more commonly known for data structures) allows us to create effects
-or data structures from values.
+In many ways, `Applicative` and `Monad` are the culmination of everything we've
+seen in this chapter. `.pure` (or `.point` as it is more commonly known for data
+structures) allows us to create effects or data structures from values.
 
 Instances of `Applicative` must meet some laws, effectively asserting
 that all the methods are consistent:
 
--   **Identity**: `fa <*> pure(identity) === fa`, (where `fa` is an
-    `F[A]`) i.e. applying `pure(identity)` does nothing.
--   **Homomorphism**: `pure(a) <*> pure(ab) === pure(ab(a))` (where `ab`
-    is an `A => B`), i.e. applying a `pure` function to a `pure` value
-    is the same as applying the function to the value and then using
-    `pure` on the result.
--   **Interchange**: `pure(a) <*> ab === ab <*> pure(f => f(a))`, (where
-    `fab` is an `F[A => B]`), i.e. `pure` is a left and right identity
+-   **Identity**: `fa <*> pure(identity) === fa`, (where `fa` is an `F[A]`) i.e.
+    applying `pure(identity)` does nothing.
+-   **Homomorphism**: `pure(a) <*> pure(ab) === pure(ab(a))` (where `ab` is an `A =>
+      B`), i.e. applying a `pure` function to a `pure` value is the same as applying
+    the function to the value and then using `pure` on the result.
+-   **Interchange**: `pure(a) <*> fab === fab <*> pure(f => f(a))`, (where `fab` is
+    an `F[A => B]`), i.e. `pure` is a left and right identity
 -   **Mappy**: `map(fa)(f) === fa <*> pure(f)`
 
 `Monad` adds additional laws:
 
 -   **Left Identity**: `pure(a).bind(f) === f(a)`
 -   **Right Identity**: `a.bind(pure(_)) === a`
--   **Associativity**: `fa.bind(f).bind(g) === fa.bind(a =>
-      f(a).bind(g))` where `fa` is an `F[A]`, `f` is an `A => F[B]` and
-    `g` is a `B => F[C]`.
+-   **Associativity**: `fa.bind(f).bind(g) === fa.bind(a => f(a).bind(g))` where
+    `fa` is an `F[A]`, `f` is an `A => F[B]` and `g` is a `B => F[C]`.
 
 Associativity says that chained `bind` calls must agree with nested
 `bind`. However, it does not mean that we can rearrange the order,
