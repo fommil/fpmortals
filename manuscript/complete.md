@@ -6127,6 +6127,11 @@ problems in the stdlib collection design:
 to ensure safe publishing. `IList` requires no such hacks and can
 therefore outperform `List`.
 
+A> Isn't `NonEmptyList` just the same as `ICons`? Yes, at a data structure level.
+A> But the difference is that `ICons` is part of the `IList` ADT whereas
+A> `NonEmptyList` is outside it. Typeclass instances should always be provided at
+A> the level of an ADT, not for each entry, to avoid complexity.
+
 
 ### `EphemeralStream`
 

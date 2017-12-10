@@ -7065,6 +7065,13 @@ final case class ::[B](
 to ensure safe publishing. =IList= requires no such hacks and can
 therefore outperform =List=.
 
+#+BEGIN_ASIDE
+Isn't =NonEmptyList= just the same as =ICons=? Yes, at a data structure level.
+But the difference is that =ICons= is part of the =IList= ADT whereas
+=NonEmptyList= is outside it. Typeclass instances should always be provided at
+the level of an ADT, not for each entry, to avoid complexity.
+#+END_ASIDE
+
 **** =EphemeralStream=
 
 The stdlib =Stream= is a lazy version of =List=, but is riddled with
