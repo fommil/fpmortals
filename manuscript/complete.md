@@ -4399,11 +4399,11 @@ introduces `conquer`, the equivalent of `pure`
   }
 ~~~~~~~~
 
-`conquer` allows creating fallback implementations that effectively
-ignore the type parameter. For example, the
-`Divisible[Equal].conquer[String]` returns a trivial implementation of
-`Equal` that always returns `true`, which might be useful for some
-cases, e.g. if we wanted to implement `contramap` in terms of `divide`
+`conquer` allows creating fallback implementations that effectively ignore the
+type parameter. Such values are called *universally quantified*. For example,
+the `Divisible[Equal].conquer[String]` returns a trivial implementation of
+`Equal` that always returns `true`, which allows us to implement `contramap` in
+terms of `divide`
 
 {lang="text"}
 ~~~~~~~~
@@ -6050,15 +6050,35 @@ types should perhaps be: `ByNameTupleX`, `ByNameOption` and
 
 ## Collections
 
-FIXME: don't repeat typeclasses, everything has Foldable and ???, which is why
-methods should take C:Foldable instead of specific data types, i.e. constrain
-by features not implementation.
+Unlike the stdlib Collections API, the scalaz approach describes collection
+behaviours in the typeclass hierarchy, e.g. `Foldable`, `Traverse`, `Monoid`.
+What remains to be studied are the implementations in terms of data structures,
+which have different performance characteristics and niche methods.
+
+Because all the collection data types provide more or less the same list of
+typeclass instances, we shall avoid repeating the list, which is often some variation of:
+
+-   `Monoid`
+-   `Traverse` / `Foldable`
+-   `MonadPlus` / `IsEmpty` / `BindRec`
+-   `Cobind`
+-   `Zip` / `Unzip`
+-   `Align`
+-   `Equal` / `Order`
+-   `Show`
+
+Data structures that are provably non-empty are able to provide
+
+-   `Traverse1` / `Foldable1`
+-   `Comonad`
+
+and provide `Semigroup` instead of `Monoid`, `Plus` instead of `IsEmpty`.
 
 
 ### Lists
 
-We have used `IList[A]` and `NonEmptyList[A]` so many times by now
-that they should be familiar. A classic linked list data structure:
+We have used `IList[A]` and `NonEmptyList[A]` so many times by now that they
+should be familiar. They codify a classic linked list data structure:
 
 {lang="text"}
 ~~~~~~~~
@@ -6078,30 +6098,6 @@ that they should be familiar. A classic linked list data structure:
     ...
   }
 ~~~~~~~~
-
-`IList` has typeclass instances for:
-
--   `Monoid`
--   `Traverse`
--   `MonadPlus` / `IsEmpty` / `BindRec`
--   `Cobind`
--   `Zip` / `Unzip`
--   `Align`
-
-However, `NonEmptyList` is slightly more powerful and can provide
-instances for
-
--   `Semigroup`
--   `Traverse1`
--   `Monad` / `Plus` / `BindRec`
--   `Comonad`
--   `Zip` / `Unzip`
--   `Align`
-
-Both provide further instances depending on the content `A`:
-
--   `Equal` / `Order`
--   `Show`
 
 The main advantage of `IList` over stdlib `List` is that there are no
 unsafe methods, like `.head` which throws an exception on an empty
@@ -6169,22 +6165,10 @@ retention problem, and removing unsafe methods in the same spirit as
   }
 ~~~~~~~~
 
-A> The use of the word *stream* for a data structure of this nature comes
-A> down to legacy. *Stream* is now more commonly used to refer to the
-A> *Reactive Manifesto* and its compatible frameworks such as Akka
-A> Streams and *Functional Streams for Scala* (fs2). We will tour fs2
-A> (formerly `scalaz-stream`) in a later chapter.
-A> 
-A> In the spirit of misnomers, consider setting up an alias:
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   type LazyList[A] = EphemeralStream[A]
-A> ~~~~~~~~
-A> 
-A> Naming and caching stuff is hard!
-
-All the same typeclass instances exist for `EStream` as for `IList`.
+A> The use of the word *stream* for a data structure of this nature comes down to
+A> legacy. *Stream* is now more commonly used to refer to the *Reactive Manifesto*
+A> and its compatible frameworks such as Akka Streams and *Functional Streams for
+A> Scala* (fs2). We will tour fs2 / `scalaz-stream` in a later chapter.
 
 `.cons`, `.unfold` and `.iterate` are mechanisms for creating streams,
 with the convenient syntax `##::` to put a new element at the head of
@@ -6228,10 +6212,6 @@ specialisations:
     ...
   }
 ~~~~~~~~
-
-`ImmutableArray` is one of the oldest data types in scalaz and
-predates much of the typeclass hierarchy: providing only `Foldable`,
-`Zip`, and depending on contents, `Equal`.
 
 `Array` is unrivalled in terms of read performance and heap size.
 However, there is zero structural sharing when creating new arrays,
@@ -6277,15 +6257,6 @@ end is constant time on average.
     ...
   }
 ~~~~~~~~
-
-`Dequeue` provides instances for:
-
--   `Monoid`
--   `Foldable`
--   `IsEmpty`
--   `Functor`
-
-and, depending on content, `Equal`.
 
 The way it works is that there are two lists, one for the front data
 and another for the back. Consider an instance holding symbols `a0,
