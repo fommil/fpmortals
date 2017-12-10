@@ -3589,22 +3589,28 @@ signatures to understand the purpose of a method.
 a `C` and returns a lifted function from a tuple of `F[A]` and `F[B]`
 to an `F[C]`. `align` constructs a `\&/` out of two `F[_]`.
 
-`merge` allows us to combine two `F[A]` when `A` has a `Semigroup`. A
-practical example is the merging of multi-maps and independent tallies
+`merge` allows us to combine two `F[A]` when `A` has a `Semigroup`. For example,
+the implementation of `Semigroup[Map[K, V]]` defers to `Semigroup[V]`, combining
+two entries results in combining their values, having the consequence that
+`Map[K, List[A]]` behaves like a multimap:
 
 {lang="text"}
 ~~~~~~~~
   scala> Map("foo" -> List(1)) merge Map("foo" -> List(1), "bar" -> List(2))
   res = Map(foo -> List(1, 1), bar -> List(2))
-  
+~~~~~~~~
+
+and a `Map[K, Int]` simply tally their contents when merging:
+
+{lang="text"}
+~~~~~~~~
   scala> Map("foo" -> 1) merge Map("foo" -> 1, "bar" -> 2)
   res = Map(foo -> 2, bar -> 2)
 ~~~~~~~~
 
-`pad` and `padWith` are for partially merging two data structures that
-might be missing values on one side. For example if we wanted to
-aggregate independent votes and retain the knowledge of where the
-votes came from
+`.pad` and `.padWith` are for partially merging two data structures that might
+be missing values on one side. For example if we wanted to aggregate independent
+votes and retain the knowledge of where the votes came from
 
 {lang="text"}
 ~~~~~~~~
