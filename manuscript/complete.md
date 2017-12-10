@@ -6061,7 +6061,7 @@ typeclass instances, we shall avoid repeating the list, which is often some vari
 -   `Monoid`
 -   `Traverse` / `Foldable`
 -   `MonadPlus` / `IsEmpty` / `BindRec`
--   `Cobind`
+-   `Cobind` / `Comonad`
 -   `Zip` / `Unzip`
 -   `Align`
 -   `Equal` / `Order`
@@ -6070,7 +6070,6 @@ typeclass instances, we shall avoid repeating the list, which is often some vari
 Data structures that are provably non-empty are able to provide
 
 -   `Traverse1` / `Foldable1`
--   `Comonad`
 
 and provide `Semigroup` instead of `Monoid`, `Plus` instead of `IsEmpty`.
 
