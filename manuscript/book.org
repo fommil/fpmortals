@@ -3852,10 +3852,11 @@ index, including a bunch of other related methods:
   def element[A: Equal](fa: F[A], a: A): Boolean = ...
 #+END_SRC
 
-Remember that scalaz is a pure library of only /total functions/ so
-=index= returns an =Option=, not an exception like =.apply= in the
-stdlib. =index= is like =.get=, =indexOr= is like =.getOrElse= and
-=element= is like =.contains= (requiring an =Equal=).
+Scalaz is a pure library of only /total functions/, whereas the stdlib =.apply=
+returns =A= and can throw an exception, =Foldable.index= returns an =Option[A]=
+with the convenient =.indexOr= returning an =A= when a default value is
+provided. =.element= is similar to the stdlib =.contains= but uses =Equal=
+rather than ill-defined JVM equality.
 
 These methods /really/ sound like a collections API. And, of course,
 anything with a =Foldable= can be converted into a =List=

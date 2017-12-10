@@ -1414,7 +1414,7 @@ with `final case class` definitions that simply wrap the desired type:
 Pattern matching on these forms of coproduct can be tedious, which is
 why [Union Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation scala
 compiler. Workarounds such as [totalitarian](https://github.com/propensive/totalitarian)'s `Disjunct` exist as
-another way of encoding anonymous coproducts and [stalagmite](https://gitlab.com/fommil/stalagmite/issues/37) aims to
+another way of encoding anonymous coproducts and [stalagmite](https://github.com/fommil/stalagmite/issues/37) aims to
 reduce the boilerplate for the approaches presented here.
 
 A> We can also use a `sealed trait` in place of a `sealed abstract class`
@@ -1581,7 +1581,7 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, [stalagmite](https://gitlab.com/fommil/stalagmite) aims to pack `Boolean` and `Option` fields
+For example, [stalagmite](https://github.com/fommil/stalagmite) aims to pack `Boolean` and `Option` fields
 into an `Array[Byte]`, cache instances, memoise `hashCode`, optimise
 `equals`, enforce validation, use `@switch` statements when pattern
 matching, and much more. [iota](https://www.47deg.com/blog/iota-v0-1-0-release/) has performance improvements for nested
@@ -2042,6 +2042,13 @@ an instance of `Numeric` defined on the `Numeric` companion, the
 compiler will fail to find it. A workaround is to add implicit
 conversions to the companion of `Ordering` that up-cast more specific
 instances. [Fixed In Dotty](https://github.com/lampepfl/dotty/issues/2047).
+
+Implicit resolution is particularly hit-or-miss [if type aliases are used](https://github.com/scala/bug/issues/10582) where
+the *shape* of the implicit parameters are changed. For example an implicit
+parameter using an alias such as `type Values[A] = List[Option[A]]` will
+probably fail to find implicits defined as raw `List[Option[A]]` because the
+shape is changed from a thing of things of `A` (`_[_[A]]`) to a thing of `A`
+(`_[A]`).
 
 
 ## Modelling OAuth2
@@ -2670,13 +2677,13 @@ available when we `import scalaz._, Scalaz._`
   @typeclass trait Semigroup[A] {
     @op("|+|") def append(x: A, y: =>A): A
   
-    def multiply1(value: A, n: Int): A = ...
+    def multiply1(value: F, n: Int): F = ...
   }
   
   @typeclass trait Monoid[A] extends Semigroup[A] {
     def zero: A
   
-    def multiply(value: A, n: Int): A =
+    def multiply(value: F, n: Int): F =
       if (n <= 0) zero else multiply1(value, n - 1)
   }
   
@@ -3062,11 +3069,11 @@ before reading further:
     signature to `pure` but requires the caller to provide the `F[A =>
        B]`.
 
-`fpair`, `strengthL` and `strengthR` are here because they are simple
-examples of reading type signatures, but they are pretty useless in
-the wild. For the remaining typeclasses, we'll skip the niche methods.
+`fpair`, `strengthL` and `strengthR` look pretty useless, but they are
+useful when we wish to retain some information that would otherwise be
+lost to scope.
 
-`Functor` also has some special syntax
+`Functor` has some special syntax:
 
 {lang="text"}
 ~~~~~~~~
@@ -3290,10 +3297,11 @@ index, including a bunch of other related methods:
   def element[A: Equal](fa: F[A], a: A): Boolean = ...
 ~~~~~~~~
 
-Remember that scalaz is a pure library of only *total functions* so
-`index` returns an `Option`, not an exception like `.apply` in the
-stdlib. `index` is like `.get`, `indexOr` is like `.getOrElse` and
-`element` is like `.contains` (requiring an `Equal`).
+Scalaz is a pure library of only *total functions*, whereas the stdlib `.apply`
+returns `A` and can throw an exception, `Foldable.index` returns an `Option[A]`
+with the convenient `.indexOr` returning an `A` when a default value is
+provided. `.element` is similar to the stdlib `.contains` but uses `Equal`
+rather than ill-defined JVM equality.
 
 These methods *really* sound like a collections API. And, of course,
 anything with a `Foldable` can be converted into a `List`
@@ -5306,6 +5314,13 @@ Because there is no language level support for lazy method parameters,
 methods typically ask for a *by-name* parameter and then convert it
 into a `Need` internally, getting a boost to performance.
 
+A> `Lazy` (with a capital `L`) is often used in core Scala libraries for
+A> data types with *by-name* semantics: a misnomer that has stuck.
+A> 
+A> More generally, we're all pretty lazy about how we talk about laziness: it can
+A> be good to seek clarification about what kind of laziness is being discussed. Or
+A> don't. Because, lazy.
+
 `Name` provides instances of the following typeclasses
 
 -   `Monad` / `BindRec`
@@ -5990,6 +6005,10 @@ types should perhaps be: `ByNameTupleX`, `ByNameOption` and
 
 
 ## Collections
+
+FIXME: don't repeat typeclasses, everything has Foldable and ???, which is why
+methods should take C:Foldable instead of specific data types, i.e. constrain
+by features not implementation.
 
 
 ### Lists
