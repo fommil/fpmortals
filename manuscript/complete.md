@@ -3891,19 +3891,51 @@ with `ap`, the function is in a similar context to the values.
 ~~~~~~~~
   @typeclass trait Apply[F[_]] extends Functor[F] {
     @op("<*>") def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B]
-  
+    ...
+~~~~~~~~
+
+It's worth taking a moment to consider what that means for a simple data
+structure like `Option[A]`, having the following implementation of `.ap`
+
+{lang="text"}
+~~~~~~~~
+  implicit def option[A]: Apply[Option[A]] = new Apply[Option[A]] {
+    override def ap[A, B](fa: =>Option[A])(f: =>Option[A => B]) = f match {
+      case Some(ff) => fa.map(ff)
+      case None    => None
+    }
+    ...
+  }
+~~~~~~~~
+
+To implement `.ap`, we must first extract the function `ff: A => B` from `f:
+Option[A => B]`, then we can map over `fa`. The extraction of the function from
+the context is the important power that `Apply` brings, allowing multiple
+function to be combined inside the context.
+
+Returning to `Apply`, we find `.applyX` boilerplate that allows us to combine
+parallel functions and then map over their combined output:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Apply[F[_]] extends Functor[F] {
+    ...
     def apply2[A,B,C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
     def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
     ...
     def apply12[...]
 ~~~~~~~~
 
-The `applyX` boilerplate allows us to combine parallel functions and
-then map over their combined output. Although it's *possible* to use
-`<*>` on data structures, it is far more valuable when operating on
-*effects* like the drone and google algebras we created in Chapter 3.
+Read `.apply2` as a contract promising: "if you give me an `F` of `A` and an `F`
+of `B`, with a way of combining `A` and `B` into a `C`, then I can give you an
+`F` of `C`". There are many uses for this contract and the two most important are:
 
-`Apply` has special syntax:
+-   constructing some typeclasses for a product type `C` from its constituents `A`
+    and `B`
+-   performing *effects* in parallel, like the drone and google algebras we
+    created in Chapter 3, and then combining their results.
+
+Indeed, `Apply` is so useful that it has special syntax:
 
 {lang="text"}
 ~~~~~~~~
@@ -3914,7 +3946,7 @@ then map over their combined output. Although it's *possible* to use
   }
   
   class ApplicativeBuilder[F[_]: Apply, A, B](a: F[A], b: F[B]) {
-    def tupled: F[(A, B)] = Apply[F].apply2(a, b)(f)
+    def tupled: F[(A, B)] = Apply[F].apply2(a, b)(Tuple2(_))
     def |@|[C](cc: F[C]): ApplicativeBuilder3[C] = ...
   
     sealed abstract class ApplicativeBuilder3[C](c: F[C]) {
