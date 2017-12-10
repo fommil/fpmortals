@@ -4300,7 +4300,7 @@ since =Functor= is so popular it gets the nickname. Likewise
 
 @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
   def contramap[A, B](fa: F[A])(f: B => A): F[B]
-  def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(f)
+  def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(g)
   ...
 }
 #+END_SRC
