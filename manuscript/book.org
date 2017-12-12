@@ -7364,8 +7364,7 @@ Difference lists suffer from bad marketing. If they were called a
 
 **** =ISet=
 
-=ISet= is an implementation of a /size balanced tree/. Most methods require
-their contents to have an =Order=
+=ISet= is an implementation of a /size balanced tree/.
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7381,8 +7380,8 @@ sealed abstract class ISet[A] {
   ...
 }
 object ISet {
-  final case class Tip[A]() extends ISet[A]
-  final case class Bin[A](a: A, l: ISet[A], r: ISet[A]) extends ISet[A]
+  private final case class Tip[A]() extends ISet[A]
+  private final case class Bin[A](a: A, l: ISet[A], r: ISet[A]) extends ISet[A]
 
   def empty[A]: ISet[A] = Tip()
   def singleton[A](x: A): ISet[A] = Bin(x, Tip(), Tip())
@@ -7393,8 +7392,9 @@ object ISet {
 }
 #+END_SRC
 
-The heart of =ISet= is in its implementation of =.insert=, which is how we build
-up the sorted tree.
+Most methods require the =A= to have an =Order=, matching how the data structure
+is laid out. The heart of =ISet= is =.insert=, which guarantees the ordering at
+insertion time:
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7407,17 +7407,49 @@ sealed abstract class ISet[A] {
       case EQ => Bin(x, l, r)
     }
   }
-
   ...
 }
 #+END_SRC
 
-The private methods =.balanceL= and =.balanceR= are very verbose, so we will
-only look into how =.balanceL= works, which is called in the case that the value
-we are inserting is /less than/ the central value in the set. In this case the
-=right= is reused without modification in the final =ISet=.
+The private methods =.balanceL= and =.balanceR= are mirrors of each other, so we
+will only study =.balanceL=, which is called in the case that the value we are
+inserting is /less than/ the central value in the set.
 
 Rebalancing classifies the center of the set into 7 categories
+
+#+BEGIN_SRC dot :cmd dot :file images/balanceL.png :exports results
+digraph G {
+    graph [dpi=100];
+    node [fontname=Hack];
+    compound=true;
+
+    subgraph case1 {
+      x1;
+      left1 [shape=diamond];
+      right1 [shape=diamond];
+      left1 -> x1;
+      right1 -> x1;
+
+      DUMMY_1 [shape=point style=invis];
+    }
+    subgraph case1_res {
+      x1_res;
+      left1_res [shape=diamond];
+      right1_res [shape=diamond];
+      left1_res -> x1_res;
+      right1_res -> x1_res;
+
+      DUMMY_1_RES [shape=point style=invis];
+    }
+
+    #DUMMY_1 -> DUMMY_1_RES [ltail=case1,lhead=case1_res];
+
+}
+#+END_SRC
+
+#+CAPTION: 50
+#+RESULTS:
+[[file:images/balanceL.png]]
 
 #+BEGIN_SRC scala
 private def balanceL[A](x: A, l: ISet[A], r: ISet[A]): ISet[A] = r match {
