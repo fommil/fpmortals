@@ -6296,7 +6296,68 @@ happens only occasionally, we can take the average of the cost and say
 that it is constant.
 
 
-### TODO DList (difference list)
+### Difference List `DList`
+
+Linked lists have poor performance characteristics when large lists are appended
+together. Consider the work that goes into evaluating the following:
+
+{lang="text"}
+~~~~~~~~
+  ((as ::: bs) ::: (cs ::: ds)) ::: (es ::: (fs ::: gs))
+~~~~~~~~
+
+{width=50%}
+![](images/dlist-list-append.png)
+
+This creates six intermediate lists, traversing and rebuilding every list three
+times (except for `gs` which is shared between all stages).
+
+The `DList` is a more efficient solution for this scenario. Instead of
+performing the calculations at each stage, it is represented as a function
+`IList[A] => IList[A]`
+
+{lang="text"}
+~~~~~~~~
+  final case class DList[A](f: IList[A] => IList[A]) {
+    def toIList: IList[A] = f(IList.empty)
+    def ++(as: DList[A]): DList[A] = DList(xs => f(as.f(xs)))
+    ...
+  }
+  object DList {
+    def fromIList[A](as: IList[A]): DList[A] = DList(xs => as ::: xs)
+  }
+~~~~~~~~
+
+A> This is a simplified implementation: it has a stack overflow bug that we will
+A> fix in the chapter on Advanced Monads.
+
+The equivalent calculation is (the symbols created via `DList.fromIList`)
+
+{lang="text"}
+~~~~~~~~
+  (((a ++ b) ++ (c ++ d)) ++ (e ++ (f ++ g))).toIList
+~~~~~~~~
+
+which breaks the work into *right-associative* (i.e. fast) appends
+
+{lang="text"}
+~~~~~~~~
+  (as ::: (bs ::: (cs ::: (ds ::: (es ::: (fs ::: gs))))))
+~~~~~~~~
+
+utilising the fast constructor on `IList`.
+
+As always, there is no free lunch. There is a memory allocation overhead that
+can slow down code that naturally results in right-associative appends. The
+largest speedup is when `IList` operations are *left-associative*, e.g.
+
+{lang="text"}
+~~~~~~~~
+  ((((((as ::: bs) ::: cs) ::: ds) ::: es) ::: fs) ::: gs)
+~~~~~~~~
+
+Difference lists suffer from bad marketing. If they were called a
+`ListBuilderFactory` they'd probably be in the standard library.
 
 
 ### TODO Heap (priority queues)

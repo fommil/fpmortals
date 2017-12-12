@@ -7218,24 +7218,30 @@ digraph G {
     node [fontname=Hack];
 
     subgraph cluster_front {
-        style=filled;
-        color=lightgrey;
-        node [style=filled,color=white];
-        a1;
-        a1 -> a2 -> a3;
-        label = "front    tail";
+        label = "front";
+        subgraph cluster_front_tail {
+            label = "tail        "
+            style=filled;
+            color=lightgrey;
+            node [style=filled,color=white];
+            a1;
+            a1 -> a2 -> a3;
+        }
+        a0;
+        a0 -> a1;
     }
 
     subgraph cluster_back {
-        node [style=filled,fontcolor=white,color=lightgray];
-        a5 -> a4
-        label = "back     tail";
-        color=lightgray;
+        label = "back";
+        subgraph cluster_back_tail {
+            node [style=filled,fontcolor=white,color=lightgray];
+            a5 -> a4
+            label = "tail        ";
+            color=lightgray;
+        }
+        a6 [style=filled,color=lightgray,fontcolor=white];
+        a6 -> a5;
     }
-    a0 [label="a0: head"];
-    a6 [label="a6: head",style=filled,color=lightgray,fontcolor=white];
-    a0 -> a1;
-    a6 -> a5;
 }
 #+END_SRC
 
@@ -7260,8 +7266,214 @@ Re-balancing means that some operations can be slower than others
 happens only occasionally, we can take the average of the cost and say
 that it is constant.
 
-**** TODO DList (difference list)
-**** TODO Heap (priority queues)
+**** Difference List =DList=
+
+# http://h2.jaguarpaw.co.uk/posts/demystifying-dlist/
+
+Linked lists have poor performance characteristics when large lists are appended
+together. Consider the work that goes into evaluating the following:
+
+#+BEGIN_SRC scala
+((as ::: bs) ::: (cs ::: ds)) ::: (es ::: (fs ::: gs))
+#+END_SRC
+
+#+BEGIN_SRC dot :cmd dot :file images/dlist-list-append.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    as;bs;cs;ds;es;fs;gs;
+    c1 [label = ":::", ];
+    c2 [label = ":::"];
+    c3 [label = ":::"];
+    c4 [label = ":::"];
+    c5 [label = ":::"];
+    c6 [label = ":::"];
+
+    as -> c1 [penwidth=3];
+    bs -> c1;
+
+    cs -> c2 [penwidth=3];
+    ds -> c2;
+
+    c1 -> c3 [penwidth=3];
+    c2 -> c3;
+
+    es -> c4 [penwidth=3];
+
+    fs -> c5 [penwidth=3];
+    gs -> c5;
+    c5 -> c4;
+
+    c3 -> c6 [penwidth=3];
+    c4 -> c6;
+}
+#+END_SRC
+
+#+CAPTION: 50
+#+RESULTS:
+[[file:images/dlist-list-append.png]]
+
+This creates six intermediate lists, traversing and rebuilding every list three
+times (except for =gs= which is shared between all stages).
+
+The =DList= is a more efficient solution for this scenario. Instead of
+performing the calculations at each stage, it is represented as a function
+~IList[A] => IList[A]~
+
+#+BEGIN_SRC scala
+final case class DList[A](f: IList[A] => IList[A]) {
+  def toIList: IList[A] = f(IList.empty)
+  def ++(as: DList[A]): DList[A] = DList(xs => f(as.f(xs)))
+  ...
+}
+object DList {
+  def fromIList[A](as: IList[A]): DList[A] = DList(xs => as ::: xs)
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+This is a simplified implementation: it has a stack overflow bug that we will
+fix in the chapter on Advanced Monads.
+#+END_ASIDE
+
+The equivalent calculation is (the symbols created via =DList.fromIList=)
+
+#+BEGIN_SRC scala
+(((a ++ b) ++ (c ++ d)) ++ (e ++ (f ++ g))).toIList
+#+END_SRC
+
+which breaks the work into /right-associative/ (i.e. fast) appends
+
+#+BEGIN_SRC scala
+(as ::: (bs ::: (cs ::: (ds ::: (es ::: (fs ::: gs))))))
+#+END_SRC
+
+utilising the fast constructor on =IList=.
+
+As always, there is no free lunch. There is a memory allocation overhead that
+can slow down code that naturally results in right-associative appends. The
+largest speedup is when =IList= operations are /left-associative/, e.g.
+
+#+BEGIN_SRC scala
+((((((as ::: bs) ::: cs) ::: ds) ::: es) ::: fs) ::: gs)
+#+END_SRC
+
+Difference lists suffer from bad marketing. If they were called a
+=ListBuilderFactory= they'd probably be in the standard library.
+
+**** =ISet=
+
+=ISet= is an implementation of a /size balanced tree/. Most methods require
+their contents to have an =Order=
+
+#+BEGIN_SRC scala
+sealed abstract class ISet[A] {
+  val size: Int = this match {
+    case Tip()        => 0
+    case Bin(_, l, r) => 1 + l.size + r.size
+  }
+
+  def contains(x: A)(implicit o: Order[A]): Boolean = ...
+  def insert(x: A)(implicit o: Order[A]): ISet[A] = ...
+  def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
+  def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
+  ...
+}
+object ISet {
+  final case class Tip[A]() extends ISet[A]
+  final case class Bin[A](a: A, l: ISet[A], r: ISet[A]) extends ISet[A]
+
+  def empty[A]: ISet[A] = Tip()
+  def singleton[A](x: A): ISet[A] = Bin(x, Tip(), Tip())
+  def fromFoldable[F[_]: Foldable, A: Order](xs: F[A]): ISet[A] =
+    xs.foldLeft(empty[A])((a, b) => a insert b)
+
+  ...
+}
+#+END_SRC
+
+The heart of =ISet= is in its implementation of =.insert=, which is how we build
+up the sorted tree.
+
+#+BEGIN_SRC scala
+sealed abstract class ISet[A] {
+  ...
+  def insert(x: A)(implicit o: Order[A]): ISet[A] = this match {
+    case Tip() => ISet.singleton(x)
+    case Bin(y, l, r) => o.order(x, y) match {
+      case LT => balanceL(y, l.insert(x), r)
+      case GT => balanceR(y, l, r.insert(x))
+      case EQ => Bin(x, l, r)
+    }
+  }
+
+  ...
+}
+#+END_SRC
+
+The private methods =.balanceL= and =.balanceR= are very verbose, so we will
+only look into how =.balanceL= works, which is called in the case that the value
+we are inserting is /less than/ the central value in the set. In this case the
+=right= is reused without modification in the final =ISet=.
+
+Rebalancing classifies the center of the set into 7 categories
+
+#+BEGIN_SRC scala
+private def balanceL[A](x: A, l: ISet[A], r: ISet[A]): ISet[A] = r match {
+  case Tip() => l match {
+    case Tip()                           => singleton(x)
+    case Bin(_, Tip(), Tip())            => Bin(x, l, Tip())
+    case Bin(lx, Tip(), Bin(lrx, _, _))  => Bin(lrx, singleton(lx), singleton(x))
+    case Bin(lx, ll@Bin(_, _, _), Tip()) => Bin(lx, ll, singleton(x))
+    case Bin(lx, ll@Bin(_, _, _), lr@Bin(lrx, lrl, lrr)) =>
+      if (lr.size < 2*ll.size) Bin(lx, ll, Bin(x, lr, Tip()))
+      else Bin(lrx, Bin(lx, ll, lrl), Bin(x, lrr, Tip()))
+  }
+  case Bin(_, _, _) => l match {
+    case Tip() => Bin(x, Tip(), r)
+    case Bin(lx, ll, lr) =>
+      if (l.size > 3*r.size) {
+        (ll, lr) match {
+          case (Bin(_, _, _), Bin(lrx, lrl, lrr)) =>
+            if (lr.size < 2*ll.size) Bin(lx, ll, Bin(x, lr, r))
+            else Bin(lrx, Bin(lx, ll, lrl), Bin(x, lrr, r))
+          case _ => sys.error("Failure in ISet.balanceL")
+        }
+      } else Bin(x, l, r)
+  }
+}
+#+END_SRC
+
+
+
+It is worth noting that many typeclass methods /cannot/ be implemented as
+efficiently as we would like. Consider the signature of =Foldable.element=
+
+#+BEGIN_SRC scala
+@typeclass trait Foldable[F[_]] {
+  ...
+  def element[A: Equal](fa: F[A], a: A): Boolean
+  ...
+}
+#+END_SRC
+
+The obvious implementation for =.element= is to defer to =ISet.contains=, but it
+is not possible because =.element= provides =Equal= whereas =.contains= requires
+=Order=. This is why =.contains= is a method specific to =ISet=, functionally
+the same but giving better performance guarantees.
+
+=ISet= is unable to provide a =Functor= for the same reason. In practice this
+turns out to be a sensible constraint: performing a =.map= would involve
+rebuilding the entire structure so it makes more sense to convert to some other
+datatype, such as =IList=, perform the =.map=, and convert back. A consequence
+is that it is not possible to have =Traverse= or =Applicative=.
+
+As this is a tree structure, it should be of no surprise that =Foldable= is
+implemented in terms of depth-first search along the =left= or =right=, as
+appropriate. Methods such as =.minimum= and =.maximum= can be implemented
+optimally since the data structure already encodes its ordering.
+
 **** TODO FingerTree
 **** TODO Cord
 **** TODO Const
@@ -7269,8 +7481,13 @@ that it is constant.
 **** TODO Diev (Discrete Interval Encoding Tree)
 **** TODO StrictTree
 **** TODO Tree
+**** TODO Priority Queue =Heap=
+
+# http://www.brics.dk/RS/96/37/BRICS-RS-96-37.pdf
+
+(depends on =Tree=)
+
 **** TODO Map
-**** TODO ISet
 **** TODO OneAnd / OneOr
 
 * WIP                                                                 :final:
