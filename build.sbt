@@ -9,10 +9,10 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"  % "0.11.0",
-  "com.chuusai"          %% "shapeless"   % "2.3.2",
-  "com.fommil"           %% "stalactite"  % "0.0.5",
-  "org.scalaz"           %% "scalaz-core" % "7.2.16"
+  "com.github.mpilquist" %% "simulacrum"     % "0.11.0",
+  "com.chuusai"          %% "shapeless"      % "2.3.2",
+  "com.fommil"           %% "deriving-macro" % "0.9.0",
+  "org.scalaz"           %% "scalaz-core"    % "7.2.16"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
