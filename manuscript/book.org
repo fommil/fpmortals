@@ -7666,6 +7666,8 @@ case Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)) =>
   else Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 #+END_SRC
 
+For the first branch, ~lr.size < 2*ll.size~
+
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-5a.png :exports results
 digraph G {
     graph [dpi=100, rankdir=BT,nodesep=1];
@@ -7717,6 +7719,8 @@ digraph G {
 #+CAPTION: 50
 #+RESULTS:
 [[file:images/balanceL-5a.png]]
+
+and for the second branch ~2*ll.size <= lr.size~
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-5b.png :exports results
 digraph G {

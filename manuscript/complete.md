@@ -6512,8 +6512,12 @@ on how to re-balance.
     else Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 ~~~~~~~~
 
+For the first branch, `lr.size < 2*ll.size`
+
 {width=50%}
 ![](images/balanceL-5a.png)
+
+and for the second branch `2*ll.size <= lr.size`
 
 {width=50%}
 ![](images/balanceL-5b.png)
