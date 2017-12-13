@@ -6499,9 +6499,6 @@ The fourth case is the mirror of the third case.
 {width=50%}
 ![](images/balanceL-4.png)
 
-Using size balancing logic, we know (without looking) that `ll` is a `Bin(_,
-Tip(), Tip())`, because it is the only way the `lx` layer would be balanced.
-
 The fifth case is when we have full trees on both sides of the `left` and we
 must use their relative sizes to decide on how to re-balance.
 
