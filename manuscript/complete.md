@@ -6360,7 +6360,232 @@ Difference lists suffer from bad marketing. If they were called a
 `ListBuilderFactory` they'd probably be in the standard library.
 
 
-### TODO Heap (priority queues)
+### `ISet`
+
+`ISet` is an implementation of a *size balanced tree*.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ISet[A] {
+    val size: Int = this match {
+      case Tip()        => 0
+      case Bin(_, l, r) => 1 + l.size + r.size
+    }
+  
+    def contains(x: A)(implicit o: Order[A]): Boolean = ...
+    def insert(x: A)(implicit o: Order[A]): ISet[A] = ...
+    def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
+    def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
+    ...
+  }
+  object ISet {
+    private final case class Tip[A]() extends ISet[A]
+    private final case class Bin[A](a: A, l: ISet[A], r: ISet[A]) extends ISet[A]
+  
+    def empty[A]: ISet[A] = Tip()
+    def singleton[A](x: A): ISet[A] = Bin(x, Tip(), Tip())
+    def fromFoldable[F[_]: Foldable, A: Order](xs: F[A]): ISet[A] =
+      xs.foldLeft(empty[A])((a, b) => a insert b)
+  
+    ...
+  }
+~~~~~~~~
+
+Size balancing means that both the left and right side of any `Bin` node have the same size plus or minus 1.
+
+Most methods require the `A` to have an `Order`, matching how the data structure
+is laid out. The heart of `ISet` is `.insert`, which guarantees the ordering at
+insertion time:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ISet[A] {
+    ...
+    def insert(x: A)(implicit o: Order[A]): ISet[A] = this match {
+      case Tip() => ISet.singleton(x)
+      case Bin(y, l, r) => o.order(x, y) match {
+        case LT => balanceL(y, l.insert(x), r)
+        case GT => balanceR(y, l, r.insert(x))
+        case EQ => Bin(x, l, r)
+      }
+    }
+    ...
+  }
+~~~~~~~~
+
+The private methods `.balanceL` and `.balanceR` are mirrors of each other, so we
+will only study `.balanceL`, which is called in the case that the value we are
+inserting is *less than* the central value in the set.
+
+Rebalancing first requires us to classify `y: A`, `left: ISet[A] = l.insert(x)`
+and `right: ISet[A] = r` into the scenarios that can occur.
+
+{lang="text"}
+~~~~~~~~
+  def balanceL[A](y: A, left: ISet[A], right: ISet[A]): ISet[A] = (left, right) match {
+  ...
+~~~~~~~~
+
+In the following diagrams, we visualise the `(y, left right)` on the left side
+of the page, with the rebalanced structure on the right. The legend to the
+symbols is:
+
+-   filled circles visualise a `Tip`
+-   three columns visualise the `left | value | right` fields of `Bin`
+-   diamonds visualise any `ISet`
+
+The first case is the trivial case, which is when both the `left` and `right`
+are `Tip`. In fact we will never encounter this scenario because `left` is never
+empty when we call `balanceL` from `insert`, but we nevertheless consider it so
+that the compiler can perform exhaustiveness checking.
+
+{lang="text"}
+~~~~~~~~
+  case (Tip(), Tip()) => singleton(y)
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-1.png)
+
+The second case is when `left` is a `Bin` containing only `Tip`, we don't need
+to balance anything, we just create the obvious connection:
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(_, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-2.png)
+
+The third case is when it starts to get interesting: `left` is a `Bin`
+containing a `Bin` in its `right`
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip()) =>
+    Bin(lrx, singleton(lx), singleton(y))
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-3.png)
+
+But what happened to the two diamonds sitting below `lrx`? Didn't we just lose
+information? We use size balancing reasoning to assume that they are always
+`Tip`, without having to look!
+
+Consider what happens if either of the diamonds are non-empty: that would make
+the size of the right hand side of `Bin(lx, _, _)` have a size of 2 or more,
+which would mean it is unbalanced.
+
+The pattern match could also be written as
+
+{lang="text"}
+~~~~~~~~
+  case Bin(lx, Tip(), Bin(lrx, Tip(), Tip())) => Bin(lrx, singleton(lx), singleton(y))
+  case Bin(lx, Tip(), Bin(lrx, _, _))         => sys.error(s"unbalanced")
+~~~~~~~~
+
+but this variation is slightly slower, since the runtime would need to confirm
+the `Tip` matches, and always check a `case` that is impossible. Instead, we
+trust the mathematics, and more importantly, our suite of unit tests.
+
+The fourth case is the mirror of the third case
+
+{lang="text"}
+~~~~~~~~
+  case Bin(lx, ll, Tip()) => Bin(lx, ll, singleton(y))
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-4.png)
+
+Using our size balancing logic, we know without looking that `ll` is in fact a
+`Bin(_, Tip(), Tip())`, otherwise the original `lx` layer would have been
+wobbly.
+
+{lang="text"}
+~~~~~~~~
+  -- balanceL is called when left subtree might have been inserted to or when
+  -- right subtree might have been deleted from.
+  balanceL :: a -> Set a -> Set a -> Set a
+  balanceL x l r = case r of
+    Tip -> case l of
+             Tip -> Bin 1 x Tip Tip
+             (Bin _ _ Tip Tip) -> Bin 2 x l Tip
+             (Bin _ lx Tip (Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
+             (Bin _ lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
+             (Bin ls lx ll@(Bin lls _ _ _) lr@(Bin lrs lrx lrl lrr))
+               | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
+               | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
+  
+    (Bin rs _ _ _) -> case l of
+             Tip -> Bin (1+rs) x Tip r
+  
+             (Bin ls lx ll lr)
+                | ls > delta*rs  -> case (ll, lr) of
+                     (Bin lls _ _ _, Bin lrs lrx lrl lrr)
+                       | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
+                       | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
+                     (_, _) -> error "Failure in Data.Map.balanceL"
+                | otherwise -> Bin (1+ls+rs) x l r
+  {-# NOINLINE balanceL #-}
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  private def balanceL[A](x: A, l: ISet[A], r: ISet[A]): ISet[A] = r match {
+    case Tip() => l match {
+      case Tip()                           => singleton(x)
+      case Bin(_, Tip(), Tip())            => Bin(x, l, Tip())
+      case Bin(lx, Tip(), Bin(lrx, _, _))  => Bin(lrx, singleton(lx), singleton(x))
+      case Bin(lx, ll@Bin(_, _, _), Tip()) => Bin(lx, ll, singleton(x))
+      case Bin(lx, ll@Bin(_, _, _), lr@Bin(lrx, lrl, lrr)) =>
+        if (lr.size < 2*ll.size) Bin(lx, ll, Bin(x, lr, Tip()))
+        else Bin(lrx, Bin(lx, ll, lrl), Bin(x, lrr, Tip()))
+    }
+    case Bin(_, _, _) => l match {
+      case Tip() => Bin(x, Tip(), r)
+      case Bin(lx, ll, lr) =>
+        if (l.size > 3*r.size) {
+          (ll, lr) match {
+            case (Bin(_, _, _), Bin(lrx, lrl, lrr)) =>
+              if (lr.size < 2*ll.size) Bin(lx, ll, Bin(x, lr, r))
+              else Bin(lrx, Bin(lx, ll, lrl), Bin(x, lrr, r))
+            case _ => sys.error("Failure in ISet.balanceL")
+          }
+        } else Bin(x, l, r)
+    }
+  }
+~~~~~~~~
+
+It is worth noting that many typeclass methods *cannot* be implemented as
+efficiently as we would like. Consider the signature of `Foldable.element`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Foldable[F[_]] {
+    ...
+    def element[A: Equal](fa: F[A], a: A): Boolean
+    ...
+  }
+~~~~~~~~
+
+The obvious implementation for `.element` is to defer to `ISet.contains`, but it
+is not possible because `.element` provides `Equal` whereas `.contains` requires
+`Order`. This is why `.contains` is a method specific to `ISet`, functionally
+the same but giving better performance guarantees.
+
+`ISet` is unable to provide a `Functor` for the same reason. In practice this
+turns out to be a sensible constraint: performing a `.map` would involve
+rebuilding the entire structure so it makes more sense to convert to some other
+datatype, such as `IList`, perform the `.map`, and convert back. A consequence
+is that it is not possible to have `Traverse` or `Applicative`.
+
+As this is a tree structure, it should be of no surprise that `Foldable` is
+implemented in terms of depth-first search along the `left` or `right`, as
+appropriate. Methods such as `.minimum` and `.maximum` can be implemented
+optimally since the data structure already encodes its ordering.
 
 
 ### TODO FingerTree
@@ -6384,10 +6609,12 @@ Difference lists suffer from bad marketing. If they were called a
 ### TODO Tree
 
 
+### TODO Priority Queue `Heap`
+
+(depends on `Tree`)
+
+
 ### TODO Map
-
-
-### TODO ISet
 
 
 ### TODO OneAnd / OneOr

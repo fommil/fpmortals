@@ -7392,6 +7392,8 @@ object ISet {
 }
 #+END_SRC
 
+Size balancing means that both the left and right side of any =Bin= node have the same size plus or minus 1.
+
 Most methods require the =A= to have an =Order=, matching how the data structure
 is laid out. The heart of =ISet= is =.insert=, which guarantees the ordering at
 insertion time:
@@ -7415,41 +7417,275 @@ The private methods =.balanceL= and =.balanceR= are mirrors of each other, so we
 will only study =.balanceL=, which is called in the case that the value we are
 inserting is /less than/ the central value in the set.
 
-Rebalancing classifies the center of the set into 7 categories
+Rebalancing first requires us to classify ~y: A~, ~left: ISet[A] = l.insert(x)~
+and ~right: ISet[A] = r~ into the scenarios that can occur.
 
-#+BEGIN_SRC dot :cmd dot :file images/balanceL.png :exports results
+# https://downloads.haskell.org/~ghc/latest/docs/html/libraries/containers-0.5.10.2/src/Data-Set-Internal.html#Set
+
+#+BEGIN_SRC scala
+def balanceL[A](y: A, left: ISet[A], right: ISet[A]): ISet[A] = (left, right) match {
+...
+#+END_SRC
+
+In the following diagrams, we visualise the =(y, left right)= on the left side
+of the page, with the rebalanced structure on the right. The legend to the
+symbols is:
+
+- filled circles visualise a =Tip=
+- three columns visualise the =left | value | right= fields of =Bin=
+- diamonds visualise any =ISet=
+
+The first case is the trivial case, which is when both the =left= and =right=
+are =Tip=. In fact we will never encounter this scenario because =left= is never
+empty when we call =balanceL= from =insert=, but we nevertheless consider it so
+that the compiler can perform exhaustiveness checking.
+
+#+BEGIN_SRC scala
+case (Tip(), Tip()) => singleton(y)
+#+END_SRC
+
+#+BEGIN_SRC dot :cmd dot :file images/balanceL-1.png :exports results
 digraph G {
-    graph [dpi=100];
+    graph [dpi=100, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
-    subgraph case1 {
-      x1;
-      left1 [shape=diamond];
-      right1 [shape=diamond];
-      left1 -> x1;
-      right1 -> x1;
-
-      DUMMY_1 [shape=point style=invis];
-    }
-    subgraph case1_res {
-      x1_res;
-      left1_res [shape=diamond];
-      right1_res [shape=diamond];
-      left1_res -> x1_res;
-      right1_res -> x1_res;
-
-      DUMMY_1_RES [shape=point style=invis];
+    subgraph case {
+      y [label="y",color=white];
+      left [shape=point,width=0.2];
+      right [shape=point,width=0.2];
+      left -> y [style=invis];
+      right -> y [style=invis];
     }
 
-    #DUMMY_1 -> DUMMY_1_RES [ltail=case1,lhead=case1_res];
+    goes_to [shape=rarrow,label="",color=lightgray];
+    hack_2 [style=invis];
+    hack_2 -> goes_to [style=invis];
 
+    subgraph case_ {
+      y_ [shape=record, label="<left> | <y> y | <right>"];
+      left_ [shape=point,width=0.2];
+      right_ [shape=point,width=0.2];
+      left_ -> y_:left;
+      right_ -> y_:right;
+    }
 }
 #+END_SRC
 
 #+CAPTION: 50
 #+RESULTS:
-[[file:images/balanceL.png]]
+[[file:images/balanceL-1.png]]
+
+The second case is when =left= is a =Bin= containing only =Tip=, we don't need
+to balance anything, we just create the obvious connection:
+
+#+BEGIN_SRC scala
+case (Bin(_, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
+#+END_SRC
+
+#+BEGIN_SRC dot :cmd dot :file images/balanceL-2.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT,nodesep=1];
+    node [fontname=Hack];
+    compound=true;
+
+    subgraph case {
+      y [label="y",color=white];
+      left [shape=record, label="<left> | <y> lx | <right>"];
+      right [shape=point,width=0.2];
+      left -> y [style=invis];
+      right -> y [style=invis];
+      left_left [shape=point,width=0.2];
+      left_right [shape=point,width=0.2];
+      left_left -> left:left;
+      left_right -> left:right;
+    }
+
+    goes_to [shape=rarrow,label="",color=lightgray];
+    hack_2 [style=invis];
+    hack_2 -> goes_to [style=invis];
+
+    subgraph case_ {
+      y_ [shape=record, label="<left> | <y> y | <right>"];
+      left_ [shape=record, label="<left> | <y> lx | <right>"];
+      right_ [shape=point,width=0.2];
+      left_ -> y_:left;
+      right_ -> y_:right;
+
+      left_left_ [shape=point,width=0.2];
+      left_right_ [shape=point,width=0.2];
+      left_left_ -> left_:left;
+      left_right_ -> left_:right;
+
+    }
+}
+#+END_SRC
+
+#+CAPTION: 50
+#+RESULTS:
+[[file:images/balanceL-2.png]]
+
+The third case is when it starts to get interesting: =left= is a =Bin=
+containing a =Bin= in its =right=
+
+#+BEGIN_SRC scala
+case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip()) =>
+  Bin(lrx, singleton(lx), singleton(y))
+#+END_SRC
+
+#+BEGIN_SRC dot :cmd dot :file images/balanceL-3.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT,nodesep=1];
+    node [fontname=Hack];
+    compound=true;
+
+    subgraph case {
+      y [label="y",color=white];
+      left [shape=record, label="<left> | <y> lx | <right>"];
+      right [shape=point,width=0.2];
+      left -> y [style=invis];
+      right -> y [style=invis];
+      left_left [shape=point,width=0.2];
+      left_right [shape=record, label="<left> | <y> lrx | <right>"];
+      left_left -> left:left;
+      left_right -> left:right;
+      left_right_left [label="",shape=diamond];
+      left_right_right [label="",shape=diamond];
+      left_right_left -> left_right:left;
+      left_right_right -> left_right:right;
+    }
+
+    goes_to [shape=rarrow,label="",color=lightgray];
+    hack_2 [style=invis];
+    hack_2 -> goes_to [style=invis];
+    hack_3 [style=invis];
+    hack_3 -> hack_2 [style=invis];
+
+    subgraph case_ {
+      y_ [shape=record, label="<left> | <y> lrx | <right>"];
+      left_ [shape=record, label="<left> | <y> lx | <right>"];
+      right_ [shape=record, label="<left> | <y> y | <right>"];
+      left_ -> y_:left;
+      right_ -> y_:right;
+
+      left_left_ [shape=point,width=0.2];
+      left_right_ [shape=point,width=0.2];
+      left_left_ -> left_:left;
+      left_right_ -> left_:right;
+
+      right_left_ [shape=point,width=0.2];
+      right_right_ [shape=point,width=0.2];
+      right_left_ -> right_:left;
+      right_right_ -> right_:right;
+
+    }
+}
+#+END_SRC
+
+#+CAPTION: 50
+#+RESULTS:
+[[file:images/balanceL-3.png]]
+
+But what happened to the two diamonds sitting below =lrx=? Didn't we just lose
+information? We use size balancing reasoning to assume that they are always
+=Tip=, without having to look!
+
+Consider what happens if either of the diamonds are non-empty: that would make
+the size of the right hand side of =Bin(lx, _, _)= have a size of 2 or more,
+which would mean it is unbalanced.
+
+The pattern match could also be written as
+
+#+BEGIN_SRC scala
+case Bin(lx, Tip(), Bin(lrx, Tip(), Tip())) => Bin(lrx, singleton(lx), singleton(y))
+case Bin(lx, Tip(), Bin(lrx, _, _))         => sys.error(s"unbalanced")
+#+END_SRC
+
+but this variation is slightly slower, since the runtime would need to confirm
+the =Tip= matches, and always check a =case= that is impossible. Instead, we
+trust the mathematics, and more importantly, our suite of unit tests.
+
+The fourth case is the mirror of the third case
+
+#+BEGIN_SRC scala
+case Bin(lx, ll, Tip()) => Bin(lx, ll, singleton(y))
+#+END_SRC
+
+#+BEGIN_SRC dot :cmd dot :file images/balanceL-4.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT,nodesep=1];
+    node [fontname=Hack];
+    compound=true;
+
+    subgraph case {
+      y [label="y",color=white];
+      left [shape=record, label="<left> | <y> lx | <right>"];
+      right [shape=point,width=0.2];
+      left -> y [style=invis];
+      right -> y [style=invis];
+      left_left [label="ll",shape=diamond];
+      left_right [shape=point,width=0.2];
+      left_left -> left:left;
+      left_right -> left:right;
+    }
+
+    goes_to [shape=rarrow,label="",color=lightgray];
+    hack_2 [style=invis];
+    hack_2 -> goes_to [style=invis];
+
+    subgraph case_ {
+      y_ [shape=record, label="<left> | <y> lx | <right>"];
+      left_ [label="ll",shape=diamond];
+      right_ [shape=record, label="<left> | <y> y | <right>"];
+      left_ -> y_:left;
+      right_ -> y_:right;
+
+      right_left_ [shape=point,width=0.2];
+      right_right_ [shape=point,width=0.2];
+      right_left_ -> right_:left;
+      right_right_ -> right_:right;
+
+    }
+}
+#+END_SRC
+
+#+CAPTION: 50
+#+RESULTS:
+[[file:images/balanceL-4.png]]
+
+Using our size balancing logic, we know without looking that =ll= is in fact a
+=Bin(_, Tip(), Tip())=, otherwise the original =lx= layer would have been
+wobbly.
+
+
+#+BEGIN_SRC haskell
+-- balanceL is called when left subtree might have been inserted to or when
+-- right subtree might have been deleted from.
+balanceL :: a -> Set a -> Set a -> Set a
+balanceL x l r = case r of
+  Tip -> case l of
+           Tip -> Bin 1 x Tip Tip
+           (Bin _ _ Tip Tip) -> Bin 2 x l Tip
+           (Bin _ lx Tip (Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
+           (Bin _ lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
+           (Bin ls lx ll@(Bin lls _ _ _) lr@(Bin lrs lrx lrl lrr))
+             | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
+             | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
+
+  (Bin rs _ _ _) -> case l of
+           Tip -> Bin (1+rs) x Tip r
+
+           (Bin ls lx ll lr)
+              | ls > delta*rs  -> case (ll, lr) of
+                   (Bin lls _ _ _, Bin lrs lrx lrl lrr)
+                     | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
+                     | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
+                   (_, _) -> error "Failure in Data.Map.balanceL"
+              | otherwise -> Bin (1+ls+rs) x l r
+{-# NOINLINE balanceL #-}
+#+END_SRC
+
+
 
 #+BEGIN_SRC scala
 private def balanceL[A](x: A, l: ISet[A], r: ISet[A]): ISet[A] = r match {
