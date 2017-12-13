@@ -6391,8 +6391,6 @@ Difference lists suffer from bad marketing. If they were called a
   }
 ~~~~~~~~
 
-Size balancing means that both the left and right side of any `Bin` node have the same size plus or minus 1.
-
 Most methods require the `A` to have an `Order`, matching how the data structure
 is laid out. The heart of `ISet` is `.insert`, which guarantees the ordering at
 insertion time:
@@ -6471,12 +6469,13 @@ containing a `Bin` in its `right`
 ![](images/balanceL-3.png)
 
 But what happened to the two diamonds sitting below `lrx`? Didn't we just lose
-information? We use size balancing reasoning to assume that they are always
-`Tip`, without having to look!
+information? No, we didn't lose information, because we use size balancing to
+know that they are always `Tip`! There is no rule in any of the following
+scenarios that can produce a tree of the shape where the diamonds are `Bin`.
 
-Consider what happens if either of the diamonds are non-empty: that would make
-the size of the right hand side of `Bin(lx, _, _)` have a size of 2 or more,
-which would mean it is unbalanced.
+A> TODO: I am unhappy with this description of "size balancing". Read the research
+A> paper and come up with something more tangible that hand waving and, sigh,
+A> forward / recursive references.
 
 The pattern match could also be written as
 
@@ -6490,7 +6489,9 @@ but this variation is slightly slower, since the runtime would need to confirm
 the `Tip` matches, and always check a `case` that is impossible. Instead, we
 trust the mathematics, and more importantly, our suite of unit tests.
 
-The fourth case is the mirror of the third case
+The fourth case is the mirror of the third case. Using size balancing logic, we
+know (without looking) that `ll` is a `Bin(_, Tip(), Tip())`, because it is the
+only way the `lx` layer would be balanced, letting us re-balance
 
 {lang="text"}
 ~~~~~~~~
@@ -6500,37 +6501,22 @@ The fourth case is the mirror of the third case
 {width=50%}
 ![](images/balanceL-4.png)
 
-Using our size balancing logic, we know without looking that `ll` is in fact a
-`Bin(_, Tip(), Tip())`, otherwise the original `lx` layer would have been
-wobbly.
+The fifth case is when it starts to get interesting. This is when we have full
+trees on both sides of the `left` and we must use their relative sizes to decide
+on how to re-balance.
 
 {lang="text"}
 ~~~~~~~~
-  -- balanceL is called when left subtree might have been inserted to or when
-  -- right subtree might have been deleted from.
-  balanceL :: a -> Set a -> Set a -> Set a
-  balanceL x l r = case r of
-    Tip -> case l of
-             Tip -> Bin 1 x Tip Tip
-             (Bin _ _ Tip Tip) -> Bin 2 x l Tip
-             (Bin _ lx Tip (Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
-             (Bin _ lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
-             (Bin ls lx ll@(Bin lls _ _ _) lr@(Bin lrs lrx lrl lrr))
-               | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
-               | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
-  
-    (Bin rs _ _ _) -> case l of
-             Tip -> Bin (1+rs) x Tip r
-  
-             (Bin ls lx ll lr)
-                | ls > delta*rs  -> case (ll, lr) of
-                     (Bin lls _ _ _, Bin lrs lrx lrl lrr)
-                       | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
-                       | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
-                     (_, _) -> error "Failure in Data.Map.balanceL"
-                | otherwise -> Bin (1+ls+rs) x l r
-  {-# NOINLINE balanceL #-}
+  case Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)) =>
+    if (lr.size < 2*ll.size) Bin(lx, ll, Bin(y, lr, Tip()))
+    else Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 ~~~~~~~~
+
+{width=50%}
+![](images/balanceL-5a.png)
+
+{width=50%}
+![](images/balanceL-5b.png)
 
 {lang="text"}
 ~~~~~~~~
