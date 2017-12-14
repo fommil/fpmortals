@@ -6296,7 +6296,7 @@ happens only occasionally, we can take the average of the cost and say
 that it is constant.
 
 
-### Difference List `DList`
+### `DList`
 
 Linked lists have poor performance characteristics when large lists are appended
 together. Consider the work that goes into evaluating the following:
@@ -6312,9 +6312,9 @@ together. Consider the work that goes into evaluating the following:
 This creates six intermediate lists, traversing and rebuilding every list three
 times (except for `gs` which is shared between all stages).
 
-The `DList` is a more efficient solution for this scenario. Instead of
-performing the calculations at each stage, it is represented as a function
-`IList[A] => IList[A]`
+The `DList` (for *difference list*) is a more efficient solution for this
+scenario. Instead of performing the calculations at each stage, it is
+represented as a function `IList[A] => IList[A]`
 
 {lang="text"}
 ~~~~~~~~
@@ -6362,7 +6362,14 @@ Difference lists suffer from bad marketing. If they were called a
 
 ### `ISet`
 
-`ISet` is an implementation of a *size balanced tree*.
+Tree structures are excellent for storing ordered data, with every node holding
+elements that are *less than* in one branch, and *greater than* in the other.
+However, naive implementations of a tree structure can become unbalanced
+depending on the insertion order and require balancing.
+
+`ISet` is an implementation of a *size-balanced tree* which means that the
+`size` of each node is maintained and used tactically to rebalance the tree such
+that every node has approximately the same size in each branch.
 
 {lang="text"}
 ~~~~~~~~
@@ -6386,14 +6393,28 @@ Difference lists suffer from bad marketing. If they were called a
     def singleton[A](x: A): ISet[A] = Bin(x, Tip(), Tip())
     def fromFoldable[F[_]: Foldable, A: Order](xs: F[A]): ISet[A] =
       xs.foldLeft(empty[A])((a, b) => a insert b)
-  
     ...
   }
 ~~~~~~~~
 
-Most methods require the `A` to have an `Order`, matching how the data structure
-is laid out. The heart of `ISet` is `.insert`, which guarantees the ordering at
-insertion time:
+`ISet` requires the content `A` to have an `Order`, which is respected in the
+tree structure. The `Order[A]` instance must not change between calls or the
+internal assumptions will be invalid and the results will be meaningless.
+
+A> There is a school of thought that no typeclass should have more than one
+A> instance for a given type parameter, e.g. there is only one `Order[A]` for any
+A> `A` in the program. This is called *typeclass coherence* and has some heavy
+A> consequences for typeclass hierarchies: `Order` inherits from `Equal`, so under
+A> coherence, `Order[A]` and `Equal[A]` should be the same.
+A> 
+A> `ISet` assumes typeclass coherence with regards to `Order[A]` which allows us to
+A> make performance optimisations. But for other typeclasses, e.g. `Applicative` /
+A> `Monad`, it means that some optimisations are forbidden due the additional laws
+A> that are imposed on the inheritors. This has such an impact that the Scalaz 8
+A> design has abandoned typeclasses inheritance, in favour of composition.
+A> 
+A> *Orphan instances*, as discussed in Chapter 4, are the most common way to
+A> (accidentally) break type coherence.
 
 {lang="text"}
 ~~~~~~~~
@@ -6413,10 +6434,8 @@ insertion time:
 
 The private methods `.balanceL` and `.balanceR` are mirrors of each other, so we
 will only study `.balanceL`, which is called in the case that the value we are
-inserting is *less than* the central value in the set.
-
-Rebalancing first requires us to classify `y: A`, `left: ISet[A] = l.insert(x)`
-and `right: ISet[A] = r` into the scenarios that can occur.
+inserting is *less than* the central value in the set. It is also called by the
+`.delete` method.
 
 {lang="text"}
 ~~~~~~~~
@@ -6424,18 +6443,18 @@ and `right: ISet[A] = r` into the scenarios that can occur.
   ...
 ~~~~~~~~
 
-In the following diagrams, we visualise the `(y, left right)` on the left side
-of the page, with the rebalanced structure on the right. The legend to the
-symbols is:
+Rebalancing requires us to classify the scenarios that can occur.
+
+In the following diagrams, we visualise the `(y, left, right)` on the left side
+of the page, with the rebalanced structure on the right. The legend is:
 
 -   filled circles visualise a `Tip`
 -   three columns visualise the `left | value | right` fields of `Bin`
 -   diamonds visualise any `ISet`
 
-The first case is the trivial case, which is when both the `left` and `right`
-are `Tip`. In fact we will never encounter this scenario because `left` is never
-empty when we call `balanceL` from `insert`, but we nevertheless consider it so
-that the compiler can perform exhaustiveness checking.
+The first scenario is the trivial case, which is when both the `left` and
+`right` are `Tip`. In fact we will never encounter this scenario from `.insert`,
+but we hit it in `.delete`
 
 {lang="text"}
 ~~~~~~~~
@@ -6450,10 +6469,10 @@ to balance anything, we just create the obvious connection:
 
 {lang="text"}
 ~~~~~~~~
-  case (Bin(_, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
+  case (Bin(lx, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
 ~~~~~~~~
 
-{width=50%}
+{width=60%}
 ![](images/balanceL-2.png)
 
 The third case is when it starts to get interesting: `left` is a `Bin`
@@ -6465,7 +6484,7 @@ containing a `Bin` in its `right`
     Bin(lrx, singleton(lx), singleton(y))
 ~~~~~~~~
 
-{width=50%}
+{width=70%}
 ![](images/balanceL-3.png)
 
 But what happened to the two diamonds sitting below `lrx`? Didn't we just lose
@@ -6473,30 +6492,14 @@ information? No, we didn't lose information, because we use size balancing to
 know that they are always `Tip`! There is no rule in any of the following
 scenarios that can produce a tree of the shape where the diamonds are `Bin`.
 
-A> TODO: I am unhappy with this description of "size balancing". Read the research
-A> paper and come up with something more tangible that hand waving and, sigh,
-A> forward / recursive references.
-
-The pattern match could also be written as
-
-{lang="text"}
-~~~~~~~~
-  case (Bin(lx, Tip(), Bin(lrx, Tip(), Tip())), Tip()) => Bin(lrx, singleton(lx), singleton(y))
-  case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip())         => sys.error(s"unbalanced")
-~~~~~~~~
-
-but this variation is slightly slower, since the runtime would need to confirm
-the `Tip` matches, and always check a `case` that is impossible. Instead, we
-trust the mathematics, and more importantly, our suite of unit tests.
-
-The fourth case is the mirror of the third case.
+The fourth case is the opposite of the third case.
 
 {lang="text"}
 ~~~~~~~~
   case (Bin(lx, ll, Tip()), Tip()) => Bin(lx, ll, singleton(y))
 ~~~~~~~~
 
-{width=50%}
+{width=70%}
 ![](images/balanceL-4.png)
 
 The fifth case is when we have full trees on both sides of the `left` and we
@@ -6513,17 +6516,20 @@ must use their relative sizes to decide on how to re-balance.
 
 For the first branch, `lr.size < 2*ll.size`
 
-{width=50%}
+{width=70%}
 ![](images/balanceL-5a.png)
 
 and for the second branch `2*ll.size <= lr.size`
 
-{width=50%}
+{width=70%}
 ![](images/balanceL-5b.png)
 
 The sixth scenario introduces a tree on the `right`. When the `left` is empty we
-create the obvious connection. However, this scenario never arises from `insert`
-because the `left` is always non-empty:
+create the obvious connection. This scenario never arises from `.insert` because
+the `left` is always non-empty:
+
+A> FIXME: isn't this the forbidden tree from scenario 3? Check if this is a very
+A> subtle bug.
 
 {lang="text"}
 ~~~~~~~~
@@ -6532,8 +6538,6 @@ because the `left` is always non-empty:
 
 {width=50%}
 ![](images/balanceL-6.png)
-
-A> TODO: remove scenarios 1 and 6. They never occur, so why talk about them?
 
 The final scenario is when we have non-empty trees on both sides. It is similar
 to scenario four but we must first make a decision based on if the `right` is
@@ -6548,9 +6552,11 @@ connection
 {width=50%}
 ![](images/balanceL-7a.png)
 
-Knowing that the `left` is larger than three times the size of the `right` means
-that we can assume it is a non-empty tree with another non-empty tree in its
-`right` side and we make a similar decision to scenario five:
+In what remains, we know that the `left` is at least three times the size of the
+`right`, so we can assume it is a non-empty tree with another non-empty tree in
+its `right` side and we make a similar decision to scenario five:
+
+A> FIXME: I don't see why it follows that the nested tree must be a `Bin`
 
 {lang="text"}
 ~~~~~~~~
@@ -6561,10 +6567,10 @@ that we can assume it is a non-empty tree with another non-empty tree in its
       Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
 ~~~~~~~~
 
-{width=50%}
+{width=70%}
 ![](images/balanceL-7b.png)
 
-{width=50%}
+{width=70%}
 ![](images/balanceL-7c.png)
 
 This concludes our study of the `.insert` method and how the `ISet` is

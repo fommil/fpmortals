@@ -7266,7 +7266,7 @@ Re-balancing means that some operations can be slower than others
 happens only occasionally, we can take the average of the cost and say
 that it is constant.
 
-**** Difference List =DList=
+**** =DList=
 
 # http://h2.jaguarpaw.co.uk/posts/demystifying-dlist/
 
@@ -7317,9 +7317,9 @@ digraph G {
 This creates six intermediate lists, traversing and rebuilding every list three
 times (except for =gs= which is shared between all stages).
 
-The =DList= is a more efficient solution for this scenario. Instead of
-performing the calculations at each stage, it is represented as a function
-~IList[A] => IList[A]~
+The =DList= (for /difference list/) is a more efficient solution for this
+scenario. Instead of performing the calculations at each stage, it is
+represented as a function ~IList[A] => IList[A]~
 
 #+BEGIN_SRC scala
 final case class DList[A](f: IList[A] => IList[A]) {
@@ -7364,7 +7364,14 @@ Difference lists suffer from bad marketing. If they were called a
 
 **** =ISet=
 
-=ISet= is an implementation of a /size balanced tree/.
+Tree structures are excellent for storing ordered data, with every node holding
+elements that are /less than/ in one branch, and /greater than/ in the other.
+However, naive implementations of a tree structure can become unbalanced
+depending on the insertion order and require balancing.
+
+=ISet= is an implementation of a /size-balanced tree/ which means that the
+=size= of each node is maintained and used tactically to rebalance the tree such
+that every node has approximately the same size in each branch.
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7387,14 +7394,30 @@ object ISet {
   def singleton[A](x: A): ISet[A] = Bin(x, Tip(), Tip())
   def fromFoldable[F[_]: Foldable, A: Order](xs: F[A]): ISet[A] =
     xs.foldLeft(empty[A])((a, b) => a insert b)
-
   ...
 }
 #+END_SRC
 
-Most methods require the =A= to have an =Order=, matching how the data structure
-is laid out. The heart of =ISet= is =.insert=, which guarantees the ordering at
-insertion time:
+=ISet= requires the content =A= to have an =Order=, which is respected in the
+tree structure. The =Order[A]= instance must not change between calls or the
+internal assumptions will be invalid and the results will be meaningless.
+
+#+BEGIN_ASIDE
+There is a school of thought that no typeclass should have more than one
+instance for a given type parameter, e.g. there is only one =Order[A]= for any
+=A= in the program. This is called /typeclass coherence/ and has some heavy
+consequences for typeclass hierarchies: =Order= inherits from =Equal=, so under
+coherence, =Order[A]= and =Equal[A]= should be the same.
+
+=ISet= assumes typeclass coherence with regards to =Order[A]= which allows us to
+make performance optimisations. But for other typeclasses, e.g. =Applicative= /
+=Monad=, it means that some optimisations are forbidden due the additional laws
+that are imposed on the inheritors. This has such an impact that the Scalaz 8
+design has abandoned typeclasses inheritance, in favour of composition.
+
+/Orphan instances/, as discussed in Chapter 4, are the most common way to
+(accidentally) break type coherence.
+#+END_ASIDE
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7413,10 +7436,8 @@ sealed abstract class ISet[A] {
 
 The private methods =.balanceL= and =.balanceR= are mirrors of each other, so we
 will only study =.balanceL=, which is called in the case that the value we are
-inserting is /less than/ the central value in the set.
-
-Rebalancing first requires us to classify ~y: A~, ~left: ISet[A] = l.insert(x)~
-and ~right: ISet[A] = r~ into the scenarios that can occur.
+inserting is /less than/ the central value in the set. It is also called by the
+=.delete= method.
 
 # https://downloads.haskell.org/~ghc/latest/docs/html/libraries/containers-0.5.10.2/src/Data-Set-Internal.html#Set
 
@@ -7425,18 +7446,18 @@ def balanceL[A](y: A, left: ISet[A], right: ISet[A]): ISet[A] = (left, right) ma
 ...
 #+END_SRC
 
-In the following diagrams, we visualise the =(y, left right)= on the left side
-of the page, with the rebalanced structure on the right. The legend to the
-symbols is:
+Rebalancing requires us to classify the scenarios that can occur.
+
+In the following diagrams, we visualise the =(y, left, right)= on the left side
+of the page, with the rebalanced structure on the right. The legend is:
 
 - filled circles visualise a =Tip=
 - three columns visualise the =left | value | right= fields of =Bin=
 - diamonds visualise any =ISet=
 
-The first case is the trivial case, which is when both the =left= and =right=
-are =Tip=. In fact we will never encounter this scenario because =left= is never
-empty when we call =balanceL= from =insert=, but we nevertheless consider it so
-that the compiler can perform exhaustiveness checking.
+The first scenario is the trivial case, which is when both the =left= and
+=right= are =Tip=. In fact we will never encounter this scenario from =.insert=,
+but we hit it in =.delete=
 
 #+BEGIN_SRC scala
 case (Tip(), Tip()) => singleton(y)
@@ -7478,7 +7499,7 @@ The second case is when =left= is a =Bin= containing only =Tip=, we don't need
 to balance anything, we just create the obvious connection:
 
 #+BEGIN_SRC scala
-case (Bin(_, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
+case (Bin(lx, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
 #+END_SRC
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-2.png :exports results
@@ -7519,7 +7540,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 50
+#+CAPTION: 60
 #+RESULTS:
 [[file:images/balanceL-2.png]]
 
@@ -7580,7 +7601,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 50
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/balanceL-3.png]]
 
@@ -7589,24 +7610,7 @@ information? No, we didn't lose information, because we use size balancing to
 know that they are always =Tip=! There is no rule in any of the following
 scenarios that can produce a tree of the shape where the diamonds are =Bin=.
 
-#+BEGIN_ASIDE
-TODO: I am unhappy with this description of "size balancing". Read the research
-paper and come up with something more tangible that hand waving and, sigh,
-forward / recursive references.
-#+END_ASIDE
-
-The pattern match could also be written as
-
-#+BEGIN_SRC scala
-case (Bin(lx, Tip(), Bin(lrx, Tip(), Tip())), Tip()) => Bin(lrx, singleton(lx), singleton(y))
-case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip())         => sys.error(s"unbalanced")
-#+END_SRC
-
-but this variation is slightly slower, since the runtime would need to confirm
-the =Tip= matches, and always check a =case= that is impossible. Instead, we
-trust the mathematics, and more importantly, our suite of unit tests.
-
-The fourth case is the mirror of the third case.
+The fourth case is the opposite of the third case.
 
 #+BEGIN_SRC scala
 case (Bin(lx, ll, Tip()), Tip()) => Bin(lx, ll, singleton(y))
@@ -7650,7 +7654,7 @@ digraph G {
 }
 #+END_SRC
 
-#+CAPTION: 50
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/balanceL-4.png]]
 
@@ -7715,7 +7719,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 50
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/balanceL-5a.png]]
 
@@ -7769,13 +7773,18 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 50
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/balanceL-5b.png]]
 
 The sixth scenario introduces a tree on the =right=. When the =left= is empty we
-create the obvious connection. However, this scenario never arises from =insert=
-because the =left= is always non-empty:
+create the obvious connection. This scenario never arises from =.insert= because
+the =left= is always non-empty:
+
+#+BEGIN_ASIDE
+FIXME: isn't this the forbidden tree from scenario 3? Check if this is a very
+subtle bug.
+#+END_ASIDE
 
 #+BEGIN_SRC scala
 case (Tip(), r) => Bin(y, Tip(), r)
@@ -7812,10 +7821,6 @@ digraph G {
 #+CAPTION: 50
 #+RESULTS:
 [[file:images/balanceL-6.png]]
-
-#+BEGIN_ASIDE
-TODO: remove scenarios 1 and 6. They never occur, so why talk about them?
-#+END_ASIDE
 
 The final scenario is when we have non-empty trees on both sides. It is similar
 to scenario four but we must first make a decision based on if the =right= is
@@ -7858,9 +7863,13 @@ digraph G {
 #+RESULTS:
 [[file:images/balanceL-7a.png]]
 
-Knowing that the =left= is larger than three times the size of the =right= means
-that we can assume it is a non-empty tree with another non-empty tree in its
-=right= side and we make a similar decision to scenario five:
+In what remains, we know that the =left= is at least three times the size of the
+=right=, so we can assume it is a non-empty tree with another non-empty tree in
+its =right= side and we make a similar decision to scenario five:
+
+#+BEGIN_ASIDE
+FIXME: I don't see why it follows that the nested tree must be a =Bin=
+#+END_ASIDE
 
 #+BEGIN_SRC scala
 case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), r) =>
@@ -7918,7 +7927,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 50
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/balanceL-7b.png]]
 
@@ -7970,7 +7979,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 50
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/balanceL-7c.png]]
 
