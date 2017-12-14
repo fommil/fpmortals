@@ -6481,8 +6481,8 @@ The pattern match could also be written as
 
 {lang="text"}
 ~~~~~~~~
-  case Bin(lx, Tip(), Bin(lrx, Tip(), Tip())) => Bin(lrx, singleton(lx), singleton(y))
-  case Bin(lx, Tip(), Bin(lrx, _, _))         => sys.error(s"unbalanced")
+  case (Bin(lx, Tip(), Bin(lrx, Tip(), Tip())), Tip()) => Bin(lrx, singleton(lx), singleton(y))
+  case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip())         => sys.error(s"unbalanced")
 ~~~~~~~~
 
 but this variation is slightly slower, since the runtime would need to confirm
@@ -6493,7 +6493,7 @@ The fourth case is the mirror of the third case.
 
 {lang="text"}
 ~~~~~~~~
-  case Bin(lx, ll, Tip()) => Bin(lx, ll, singleton(y))
+  case (Bin(lx, ll, Tip()), Tip()) => Bin(lx, ll, singleton(y))
 ~~~~~~~~
 
 {width=50%}
@@ -6504,9 +6504,11 @@ must use their relative sizes to decide on how to re-balance.
 
 {lang="text"}
 ~~~~~~~~
-  case Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)) =>
-    if (lr.size < 2*ll.size) Bin(lx, ll, Bin(y, lr, Tip()))
-    else Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
+  case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), Tip()) =>
+    if (lr.size < 2*ll.size)
+      Bin(lx, ll, Bin(y, lr, Tip()))
+    else
+      Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 ~~~~~~~~
 
 For the first branch, `lr.size < 2*ll.size`
@@ -6519,34 +6521,60 @@ and for the second branch `2*ll.size <= lr.size`
 {width=50%}
 ![](images/balanceL-5b.png)
 
+The sixth scenario introduces a tree on the `right`. When the `left` is empty we
+create the obvious connection. However, this scenario never arises from `insert`
+because the `left` is always non-empty:
+
 {lang="text"}
 ~~~~~~~~
-  private def balanceL[A](x: A, l: ISet[A], r: ISet[A]): ISet[A] = r match {
-    case Tip() => l match {
-      case Tip()                           => singleton(x)
-      case Bin(_, Tip(), Tip())            => Bin(x, l, Tip())
-      case Bin(lx, Tip(), Bin(lrx, _, _))  => Bin(lrx, singleton(lx), singleton(x))
-      case Bin(lx, ll@Bin(_, _, _), Tip()) => Bin(lx, ll, singleton(x))
-      case Bin(lx, ll@Bin(_, _, _), lr@Bin(lrx, lrl, lrr)) =>
-        if (lr.size < 2*ll.size) Bin(lx, ll, Bin(x, lr, Tip()))
-        else Bin(lrx, Bin(lx, ll, lrl), Bin(x, lrr, Tip()))
-    }
-    case Bin(_, _, _) => l match {
-      case Tip() => Bin(x, Tip(), r)
-      case Bin(lx, ll, lr) =>
-        if (l.size > 3*r.size) {
-          (ll, lr) match {
-            case (Bin(_, _, _), Bin(lrx, lrl, lrr)) =>
-              if (lr.size < 2*ll.size) Bin(lx, ll, Bin(x, lr, r))
-              else Bin(lrx, Bin(lx, ll, lrl), Bin(x, lrr, r))
-            case _ => sys.error("Failure in ISet.balanceL")
-          }
-        } else Bin(x, l, r)
-    }
-  }
+  case (Tip(), r) => Bin(y, Tip(), r)
 ~~~~~~~~
 
-It is worth noting that many typeclass methods *cannot* be implemented as
+{width=50%}
+![](images/balanceL-6.png)
+
+A> TODO: remove scenarios 1 and 6. They never occur, so why talk about them?
+
+The final scenario is when we have non-empty trees on both sides. It is similar
+to scenario four but we must first make a decision based on if the `right` is
+more than 3 times the size of `left`, in which case we just create the obvious
+connection
+
+{lang="text"}
+~~~~~~~~
+  case _ if l.size <= 3 * r.size => Bin(y, l, r)
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-7a.png)
+
+Knowing that the `left` is larger than three times the size of the `right` means
+that we can assume it is a non-empty tree with another non-empty tree in its
+`right` side and we make a similar decision to scenario five:
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), r) =>
+    if (lr.size < 2*ll.size)
+      Bin(lx, ll, Bin(y, lr, r))
+    else
+      Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-7b.png)
+
+{width=50%}
+![](images/balanceL-7c.png)
+
+This concludes our study of the `.insert` method and how the `ISet` is
+constructed. It should be of no surprise that `Foldable` is implemented in terms
+of depth-first search along the `left` or `right`, as appropriate. Methods such
+as `.minimum` and `.maximum` can be implemented optimally since the data
+structure already encodes the ordering, which assumes that the `Order` instance
+is consistent across all method calls.
+
+It is worth noting that some typeclass methods *cannot* be implemented as
 efficiently as we would like. Consider the signature of `Foldable.element`
 
 {lang="text"}
@@ -6565,14 +6593,9 @@ the same but giving better performance guarantees.
 
 `ISet` is unable to provide a `Functor` for the same reason. In practice this
 turns out to be a sensible constraint: performing a `.map` would involve
-rebuilding the entire structure so it makes more sense to convert to some other
+rebuilding the entire structure. It is sensible to convert to some other
 datatype, such as `IList`, perform the `.map`, and convert back. A consequence
-is that it is not possible to have `Traverse` or `Applicative`.
-
-As this is a tree structure, it should be of no surprise that `Foldable` is
-implemented in terms of depth-first search along the `left` or `right`, as
-appropriate. Methods such as `.minimum` and `.maximum` can be implemented
-optimally since the data structure already encodes its ordering.
+is that it is not possible to have `Traverse[ISet]` or `Applicative[ISet]`.
 
 
 ### TODO FingerTree
