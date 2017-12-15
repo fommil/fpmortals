@@ -7400,23 +7400,20 @@ object ISet {
 
 =ISet= requires the content =A= to have an =Order=, which is respected in the
 tree structure. The =Order[A]= instance must not change between calls or the
-internal assumptions will be invalid and the results will be meaningless.
+internal assumptions will be invalid, leading to data corruption.
 
 #+BEGIN_ASIDE
 There is a school of thought that no typeclass should have more than one
 instance for a given type parameter, e.g. there is only one =Order[A]= for any
-=A= in the program. This is called /typeclass coherence/ and has some heavy
-consequences for typeclass hierarchies: =Order= inherits from =Equal=, so under
-coherence, =Order[A]= and =Equal[A]= should be the same.
+=A= in the program. This is called /typeclass coherence/ and /orphan instances/,
+as discussed in Chapter 4, are the most common way to (accidentally) break type
+coherence.
 
-=ISet= assumes typeclass coherence with regards to =Order[A]= which allows us to
-make performance optimisations. But for other typeclasses, e.g. =Applicative= /
-=Monad=, it means that some optimisations are forbidden due the additional laws
-that are imposed on the inheritors. This has such an impact that the Scalaz 8
-design has abandoned typeclasses inheritance, in favour of composition.
-
-/Orphan instances/, as discussed in Chapter 4, are the most common way to
-(accidentally) break type coherence.
+Typeclass coherence also has consequences for typeclass hierarchies: =Monad=
+extends from =Applicative= which forbids some =Applicative= optimisations due to
+the additional laws that are imposed by =Monad=. Typeclass coherence has such a
+huge impact that the Scalaz 8 design has abandoned typeclasses inheritance, in
+favour of composition.
 #+END_ASIDE
 
 #+BEGIN_SRC scala

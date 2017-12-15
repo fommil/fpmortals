@@ -6399,22 +6399,19 @@ that every node has approximately the same size in each branch.
 
 `ISet` requires the content `A` to have an `Order`, which is respected in the
 tree structure. The `Order[A]` instance must not change between calls or the
-internal assumptions will be invalid and the results will be meaningless.
+internal assumptions will be invalid, leading to data corruption.
 
 A> There is a school of thought that no typeclass should have more than one
 A> instance for a given type parameter, e.g. there is only one `Order[A]` for any
-A> `A` in the program. This is called *typeclass coherence* and has some heavy
-A> consequences for typeclass hierarchies: `Order` inherits from `Equal`, so under
-A> coherence, `Order[A]` and `Equal[A]` should be the same.
+A> `A` in the program. This is called *typeclass coherence* and *orphan instances*,
+A> as discussed in Chapter 4, are the most common way to (accidentally) break type
+A> coherence.
 A> 
-A> `ISet` assumes typeclass coherence with regards to `Order[A]` which allows us to
-A> make performance optimisations. But for other typeclasses, e.g. `Applicative` /
-A> `Monad`, it means that some optimisations are forbidden due the additional laws
-A> that are imposed on the inheritors. This has such an impact that the Scalaz 8
-A> design has abandoned typeclasses inheritance, in favour of composition.
-A> 
-A> *Orphan instances*, as discussed in Chapter 4, are the most common way to
-A> (accidentally) break type coherence.
+A> Typeclass coherence also has consequences for typeclass hierarchies: `Monad`
+A> extends from `Applicative` which forbids some `Applicative` optimisations due to
+A> the additional laws that are imposed by `Monad`. Typeclass coherence has such a
+A> huge impact that the Scalaz 8 design has abandoned typeclasses inheritance, in
+A> favour of composition.
 
 {lang="text"}
 ~~~~~~~~
