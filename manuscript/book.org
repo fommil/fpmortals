@@ -7366,12 +7366,14 @@ Difference lists suffer from bad marketing. If they were called a
 
 Tree structures are excellent for storing ordered data, with every node holding
 elements that are /less than/ in one branch, and /greater than/ in the other.
-However, naive implementations of a tree structure can become unbalanced
-depending on the insertion order and require balancing.
+However, naive implementations of a tree structure can become /unbalanced/
+depending on the insertion order. It is possible to maintain a perfectly
+balanced tree, but it is incredibly inefficient as every insertion effectively
+rebuilds the entire tree.
 
-=ISet= is an implementation of a /size-balanced tree/ which means that the
-=size= of each node is maintained and used tactically to rebalance the tree such
-that every node has approximately the same size in each branch.
+=ISet= is an implementation of a tree of /bounded balance/, meaning that it is
+approximately balanced. =ISet= uses the =size= of each node and ensures that no
+branch is ever more than twice the =size= of its sibling.
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7379,11 +7381,6 @@ sealed abstract class ISet[A] {
     case Tip()        => 0
     case Bin(_, l, r) => 1 + l.size + r.size
   }
-
-  def contains(x: A)(implicit o: Order[A]): Boolean = ...
-  def insert(x: A)(implicit o: Order[A]): ISet[A] = ...
-  def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
-  def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
   ...
 }
 object ISet {
@@ -7419,6 +7416,9 @@ favour of composition.
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
   ...
+  def contains(x: A)(implicit o: Order[A]): Boolean = ...
+  def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
+  def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
   def insert(x: A)(implicit o: Order[A]): ISet[A] = this match {
     case Tip() => ISet.singleton(x)
     case Bin(y, l, r) => o.order(x, y) match {
