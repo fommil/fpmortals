@@ -6370,8 +6370,8 @@ balanced tree, but it is incredibly inefficient as every insertion effectively
 rebuilds the entire tree.
 
 `ISet` is an implementation of a tree of *bounded balance*, meaning that it is
-approximately balanced. `ISet` uses the `size` of each node and ensures that no
-branch is ever more than twice the `size` of its sibling.
+approximately balanced. `ISet` uses the `size` of each node to ensure that
+branches are approximately the same `size` as their siblings.
 
 {lang="text"}
 ~~~~~~~~
@@ -6394,9 +6394,9 @@ branch is ever more than twice the `size` of its sibling.
   }
 ~~~~~~~~
 
-`ISet` requires the content `A` to have an `Order`, which is respected in the
-tree structure. The `Order[A]` instance must not change between calls or the
-internal assumptions will be invalid, leading to data corruption.
+`ISet` requires `A` to have an `Order`. The `Order[A]` instance must not change
+between calls or the internal assumptions will be invalid, leading to data
+corruption.
 
 A> There is a school of thought that no typeclass should have more than one
 A> instance for a given type parameter, e.g. there is only one `Order[A]` for any
@@ -6405,10 +6405,15 @@ A> as discussed in Chapter 4, are the most common way to (accidentally) break ty
 A> coherence.
 A> 
 A> Typeclass coherence also has consequences for typeclass hierarchies: `Monad`
-A> extends from `Applicative` which forbids some `Applicative` optimisations due to
-A> the additional laws that are imposed by `Monad`. Typeclass coherence has such a
-A> huge impact that the Scalaz 8 design has abandoned typeclasses inheritance, in
-A> favour of composition.
+A> extends `Applicative`, which forbids some `Applicative` optimisations due to the
+A> additional laws that are imposed by `Monad`.
+A> 
+A> Typeclass coherence has such a huge impact that the Scalaz 8 design has
+A> abandoned typeclasses inheritance, in favour of composition.
+
+The ADT (`Tip` and `Bin`) permits many invalid trees, so they are `private` and
+can only be accessed inside `ISet`. At the heart of `ISet` is `.insert`, which
+builds, and there defines what constitutes, a valid tree.
 
 {lang="text"}
 ~~~~~~~~
@@ -6430,9 +6435,8 @@ A> favour of composition.
 ~~~~~~~~
 
 The private methods `.balanceL` and `.balanceR` are mirrors of each other, so we
-will only study `.balanceL`, which is called in the case that the value we are
-inserting is *less than* the central value in the set. It is also called by the
-`.delete` method.
+only study `.balanceL`, which is called when the value we are inserting is *less
+than* the current node. It is also called by the `.delete` method.
 
 {lang="text"}
 ~~~~~~~~
@@ -6440,10 +6444,10 @@ inserting is *less than* the central value in the set. It is also called by the
   ...
 ~~~~~~~~
 
-Rebalancing requires us to classify the scenarios that can occur.
-
-In the following diagrams, we visualise the `(y, left, right)` on the left side
-of the page, with the rebalanced structure on the right. The legend is:
+Balancing requires us to classify the scenarios that can occur. We will go
+through each possible scenario, visualising the `(y, left, right)` on the left
+side of the page, with the balanced structure on the right, also known as the
+*rotated tree*.
 
 -   filled circles visualise a `Tip`
 -   three columns visualise the `left | value | right` fields of `Bin`
@@ -6485,9 +6489,10 @@ containing a `Bin` in its `right`
 ![](images/balanceL-3.png)
 
 But what happened to the two diamonds sitting below `lrx`? Didn't we just lose
-information? No, we didn't lose information, because we use size balancing to
-know that they are always `Tip`! There is no rule in any of the following
-scenarios that can produce a tree of the shape where the diamonds are `Bin`.
+information? No, we didn't lose information, because we can reason (based on
+size balancing) that they are always `Tip`! There is no rule in any of the
+following scenarios (or in `.balanceR`) that can produce a tree of the shape
+where the diamonds are `Bin`.
 
 The fourth case is the opposite of the third case.
 
@@ -6505,13 +6510,13 @@ must use their relative sizes to decide on how to re-balance.
 {lang="text"}
 ~~~~~~~~
   case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), Tip()) =>
-    if (lr.size < 2*ll.size)
+    if (2*ll.size > lr.size)
       Bin(lx, ll, Bin(y, lr, Tip()))
     else
       Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 ~~~~~~~~
 
-For the first branch, `lr.size < 2*ll.size`
+For the first branch, `2*ll.size > lr.size`
 
 {width=70%}
 ![](images/balanceL-5a.png)
@@ -6525,9 +6530,6 @@ The sixth scenario introduces a tree on the `right`. When the `left` is empty we
 create the obvious connection. This scenario never arises from `.insert` because
 the `left` is always non-empty:
 
-A> FIXME: isn't this the forbidden tree from scenario 3? Check if this is a very
-A> subtle bug.
-
 {lang="text"}
 ~~~~~~~~
   case (Tip(), r) => Bin(y, Tip(), r)
@@ -6537,8 +6539,8 @@ A> subtle bug.
 ![](images/balanceL-6.png)
 
 The final scenario is when we have non-empty trees on both sides. It is similar
-to scenario four but we must first make a decision based on if the `right` is
-more than 3 times the size of `left`, in which case we just create the obvious
+to scenario four but we must first deal with the corner case where `right` is
+the same or more than three times the size of `left`, creating the obvious
 connection
 
 {lang="text"}
@@ -6549,19 +6551,16 @@ connection
 {width=50%}
 ![](images/balanceL-7a.png)
 
-In what remains, we know that the `left` is at least three times the size of the
-`right`, so we can assume it is a non-empty tree with another non-empty tree in
-its `right` side and we make a similar decision to scenario five:
-
-A> FIXME: I don't see why it follows that the nested tree must be a `Bin`
+Knowing that the `left` is at least three times the size of the `right`, we
+balance based on the relative sizes of `ll` and `lr`, just like in scenario
+five. When `lr` is the larger, we know that it must be a `Bin`
 
 {lang="text"}
 ~~~~~~~~
-  case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), r) =>
-    if (lr.size < 2*ll.size)
-      Bin(lx, ll, Bin(y, lr, r))
-    else
-      Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
+  case (Bin(lx, ll, lr), r) if (2*ll.size > lr.size) =>
+    Bin(lx, ll, Bin(y, lr, r))
+  case (Bin(lx, ll, Bin(lrx, lrl, lrr)), r) =>
+    Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
 ~~~~~~~~
 
 {width=70%}
