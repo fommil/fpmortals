@@ -7406,17 +7406,20 @@ instance for a given type parameter, e.g. there is only one =Order[A]= for any
 as discussed in Chapter 4, are the most common way to (accidentally) break type
 coherence.
 
-Typeclass coherence also has consequences for typeclass hierarchies: =Monad=
-extends =Applicative=, which forbids some =Applicative= optimisations due to the
-additional laws that are imposed by =Monad=.
+Typeclass coherence also has consequences for hierarchies: e.g. =Monad= extends
+=Applicative=, which forbids optimisations for =Applicative= instances that also
+have a =Monad=.
 
 Typeclass coherence has such a huge impact that the Scalaz 8 design has
 abandoned typeclasses inheritance, in favour of composition.
 #+END_ASIDE
 
-The ADT (=Tip= and =Bin=) permits many invalid trees, so they are =private= and
-can only be accessed inside =ISet=. At the heart of =ISet= is =.insert=, which
-builds, and there defines what constitutes, a valid tree.
+This ADT unfortunately permits many invalid trees. Although we strive to write
+ADTs that fully describe what is and isn't allowed, sometimes there are
+situations like these where a type representation requires an immortal. Instead,
+=Tip= / =Bin= are =private= so users of the =ISet= cannot construct invalid
+values, with =.insert= building, and therefore defining what constitutes, a
+valid tree.
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7436,9 +7439,9 @@ sealed abstract class ISet[A] {
 }
 #+END_SRC
 
-The private methods =.balanceL= and =.balanceR= are mirrors of each other, so we
-only study =.balanceL=, which is called when the value we are inserting is /less
-than/ the current node. It is also called by the =.delete= method.
+The internal methods =.balanceL= and =.balanceR= are mirrors of each other, so
+we only study =.balanceL=, which is called when the value we are inserting is
+/less than/ the current node. It is also called by the =.delete= method.
 
 # https://downloads.haskell.org/~ghc/latest/docs/html/libraries/containers-0.5.10.2/src/Data-Set-Internal.html#Set
 
@@ -7664,11 +7667,10 @@ The fifth case is when we have full trees on both sides of the =left= and we
 must use their relative sizes to decide on how to re-balance.
 
 #+BEGIN_SRC scala
-case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), Tip()) =>
-  if (2*ll.size > lr.size)
-    Bin(lx, ll, Bin(y, lr, Tip()))
-  else
-    Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
+case (Bin(lx, ll, lr), Tip()) if (2*ll.size > lr.size) =>
+  Bin(lx, ll, Bin(y, lr, Tip()))
+case (Bin(lx, ll, Bin(lrx, lrl, lrr)), Tip()) =>
+  Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 #+END_SRC
 
 For the first branch, ~2*ll.size > lr.size~
@@ -7686,13 +7688,9 @@ digraph G {
       left -> y [style=invis];
       right -> y [style=invis];
       left_left [shape=diamond,label="ll",penwidth=3];
-      left_right [shape=record, label="<left> | <y> lrx | <right>"];
+      left_right [shape=diamond, label="lr"];
       left_left -> left:left;
       left_right -> left:right;
-      left_right_left [label="lrl",shape=diamond];
-      left_right_right [label="lrr",shape=diamond];
-      left_right_left -> left_right:left;
-      left_right_right -> left_right:right;
     }
 
     goes_to [shape=rarrow,label="",color=lightgray];
@@ -7721,7 +7719,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 50
 #+RESULTS:
 [[file:images/balanceL-5a.png]]
 
@@ -7775,7 +7773,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 75
 #+RESULTS:
 [[file:images/balanceL-5b.png]]
 
@@ -7902,20 +7900,15 @@ digraph G {
       left_ -> y_:left;
       right_ -> y_:right;
 
-      right_left_ [shape=record,label="<left> | <y> lrx | <right>"];
+      right_left_ [shape=diamond,label="ll"];
       right_right_ [shape=diamond,label="r"];
       right_left_ -> right_:left;
       right_right_ -> right_:right;
-
-      right_left_left_ [shape=diamond,label="lrl"];
-      right_left_right_ [shape=diamond,label="lrr"];
-      right_left_left_ -> right_left_:left;
-      right_left_right_ -> right_left_:right;
     }
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 50
 #+RESULTS:
 [[file:images/balanceL-7b.png]]
 
@@ -7967,7 +7960,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 75
 #+RESULTS:
 [[file:images/balanceL-7c.png]]
 

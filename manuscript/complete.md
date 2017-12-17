@@ -6404,16 +6404,19 @@ A> `A` in the program. This is called *typeclass coherence* and *orphan instance
 A> as discussed in Chapter 4, are the most common way to (accidentally) break type
 A> coherence.
 A> 
-A> Typeclass coherence also has consequences for typeclass hierarchies: `Monad`
-A> extends `Applicative`, which forbids some `Applicative` optimisations due to the
-A> additional laws that are imposed by `Monad`.
+A> Typeclass coherence also has consequences for hierarchies: e.g. `Monad` extends
+A> `Applicative`, which forbids optimisations for `Applicative` instances that also
+A> have a `Monad`.
 A> 
 A> Typeclass coherence has such a huge impact that the Scalaz 8 design has
 A> abandoned typeclasses inheritance, in favour of composition.
 
-The ADT (`Tip` and `Bin`) permits many invalid trees, so they are `private` and
-can only be accessed inside `ISet`. At the heart of `ISet` is `.insert`, which
-builds, and there defines what constitutes, a valid tree.
+This ADT unfortunately permits many invalid trees. Although we strive to write
+ADTs that fully describe what is and isn't allowed, sometimes there are
+situations like these where a type representation requires an immortal. Instead,
+`Tip` / `Bin` are `private` so users of the `ISet` cannot construct invalid
+values, with `.insert` building, and therefore defining what constitutes, a
+valid tree.
 
 {lang="text"}
 ~~~~~~~~
@@ -6434,9 +6437,9 @@ builds, and there defines what constitutes, a valid tree.
   }
 ~~~~~~~~
 
-The private methods `.balanceL` and `.balanceR` are mirrors of each other, so we
-only study `.balanceL`, which is called when the value we are inserting is *less
-than* the current node. It is also called by the `.delete` method.
+The internal methods `.balanceL` and `.balanceR` are mirrors of each other, so
+we only study `.balanceL`, which is called when the value we are inserting is
+*less than* the current node. It is also called by the `.delete` method.
 
 {lang="text"}
 ~~~~~~~~
@@ -6509,21 +6512,20 @@ must use their relative sizes to decide on how to re-balance.
 
 {lang="text"}
 ~~~~~~~~
-  case (Bin(lx, ll, lr @ Bin(lrx, lrl, lrr)), Tip()) =>
-    if (2*ll.size > lr.size)
-      Bin(lx, ll, Bin(y, lr, Tip()))
-    else
-      Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
+  case (Bin(lx, ll, lr), Tip()) if (2*ll.size > lr.size) =>
+    Bin(lx, ll, Bin(y, lr, Tip()))
+  case (Bin(lx, ll, Bin(lrx, lrl, lrr)), Tip()) =>
+    Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
 ~~~~~~~~
 
 For the first branch, `2*ll.size > lr.size`
 
-{width=70%}
+{width=50%}
 ![](images/balanceL-5a.png)
 
 and for the second branch `2*ll.size <= lr.size`
 
-{width=70%}
+{width=75%}
 ![](images/balanceL-5b.png)
 
 The sixth scenario introduces a tree on the `right`. When the `left` is empty we
@@ -6563,10 +6565,10 @@ five. When `lr` is the larger, we know that it must be a `Bin`
     Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
 ~~~~~~~~
 
-{width=70%}
+{width=50%}
 ![](images/balanceL-7b.png)
 
-{width=70%}
+{width=75%}
 ![](images/balanceL-7c.png)
 
 This concludes our study of the `.insert` method and how the `ISet` is
