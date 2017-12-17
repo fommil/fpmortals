@@ -6370,8 +6370,7 @@ balanced tree, but it is incredibly inefficient as every insertion effectively
 rebuilds the entire tree.
 
 `ISet` is an implementation of a tree of *bounded balance*, meaning that it is
-approximately balanced. `ISet` uses the `size` of each node to ensure that
-branches are approximately the same `size` as their siblings.
+approximately balanced, using the `size` of each branch to balance a `Bin` node.
 
 {lang="text"}
 ~~~~~~~~
@@ -6411,12 +6410,12 @@ A>
 A> Typeclass coherence has such a huge impact that the Scalaz 8 design has
 A> abandoned typeclasses inheritance, in favour of composition.
 
-This ADT unfortunately permits many invalid trees. Although we strive to write
-ADTs that fully describe what is and isn't allowed, sometimes there are
-situations like these where a type representation requires an immortal. Instead,
-`Tip` / `Bin` are `private` so users of the `ISet` cannot construct invalid
-values, with `.insert` building, and therefore defining what constitutes, a
-valid tree.
+The `ISet` ADT unfortunately permits invalid trees. We strive to write ADTs that
+fully describe what is and isn't valid through type restrictions, but sometimes
+there are situations where it can only be achieved by the inspired touch of an
+immortal. Instead, `Tip` / `Bin` are `private`, to stop users from accidentally
+constructing invalid trees. `.insert` is the only way to build an `ISet`,
+therefore defining what constitutes a valid tree.
 
 {lang="text"}
 ~~~~~~~~
@@ -6425,12 +6424,13 @@ valid tree.
     def contains(x: A)(implicit o: Order[A]): Boolean = ...
     def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
     def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
+  
     def insert(x: A)(implicit o: Order[A]): ISet[A] = this match {
       case Tip() => ISet.singleton(x)
-      case Bin(y, l, r) => o.order(x, y) match {
+      case self @ Bin(y, l, r) => o.order(x, y) match {
         case LT => balanceL(y, l.insert(x), r)
         case GT => balanceR(y, l, r.insert(x))
-        case EQ => Bin(x, l, r)
+        case EQ => self
       }
     }
     ...

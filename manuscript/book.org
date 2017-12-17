@@ -7413,12 +7413,12 @@ Typeclass coherence has such a huge impact that the Scalaz 8 design has
 abandoned typeclasses inheritance, in favour of composition.
 #+END_ASIDE
 
-This ADT unfortunately permits many invalid trees. Although we strive to write
-ADTs that fully describe what is and isn't allowed, sometimes there are
-situations like these where a type representation requires an immortal. Instead,
-=Tip= / =Bin= are =private= so users of the =ISet= cannot construct invalid
-values, with =.insert= building, and therefore defining what constitutes, a
-valid tree.
+The =ISet= ADT unfortunately permits invalid trees. We strive to write ADTs that
+fully describe what is and isn't valid through type restrictions, but sometimes
+there are situations where it can only be achieved by the inspired touch of an
+immortal. Instead, =Tip= / =Bin= are =private=, to stop users from accidentally
+constructing invalid trees. =.insert= is the only way to build an =ISet=,
+therefore defining what constitutes a valid tree.
 
 #+BEGIN_SRC scala
 sealed abstract class ISet[A] {
@@ -7426,6 +7426,7 @@ sealed abstract class ISet[A] {
   def contains(x: A)(implicit o: Order[A]): Boolean = ...
   def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
   def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
+
   def insert(x: A)(implicit o: Order[A]): ISet[A] = this match {
     case Tip() => ISet.singleton(x)
     case self @ Bin(y, l, r) => o.order(x, y) match {
