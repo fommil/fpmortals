@@ -6540,10 +6540,9 @@ the `left` is always non-empty:
 {width=50%}
 ![](images/balanceL-6.png)
 
-The final scenario is when we have non-empty trees on both sides. It is similar
-to scenario four but we must first deal with the corner case where `right` is
-the same or more than three times the size of `left`, creating the obvious
-connection
+The final scenario is when we have non-empty trees on both sides. Unless the
+`left` is more than three times the size of the `right`, we can do the simple
+thing and create a new `Bin`
 
 {lang="text"}
 ~~~~~~~~
@@ -6553,8 +6552,8 @@ connection
 {width=50%}
 ![](images/balanceL-7a.png)
 
-Knowing that the `left` is at least three times the size of the `right`, we
-balance based on the relative sizes of `ll` and `lr`, just like in scenario
+However, should the `left` be more than three times the size of the `right`, we
+must balance based on the relative sizes of `ll` and `lr`, like in scenario
 five. When `lr` is the larger, we know that it must be a `Bin`
 
 {lang="text"}
@@ -6593,7 +6592,8 @@ efficiently as we would like. Consider the signature of `Foldable.element`
 The obvious implementation for `.element` is to defer to `ISet.contains`, but it
 is not possible because `.element` provides `Equal` whereas `.contains` requires
 `Order`. This is why `.contains` is a method specific to `ISet`, functionally
-the same but giving better performance guarantees.
+the same as linear-search `.element` but giving better performance
+(approximating binary search).
 
 `ISet` is unable to provide a `Functor` for the same reason. In practice this
 turns out to be a sensible constraint: performing a `.map` would involve
