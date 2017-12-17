@@ -6362,15 +6362,15 @@ Difference lists suffer from bad marketing. If they were called a
 
 ### `ISet`
 
-Tree structures are excellent for storing ordered data, with every node holding
-elements that are *less than* in one branch, and *greater than* in the other.
-However, naive implementations of a tree structure can become *unbalanced*
-depending on the insertion order. It is possible to maintain a perfectly
-balanced tree, but it is incredibly inefficient as every insertion effectively
-rebuilds the entire tree.
+Tree structures are excellent for storing ordered data, with every *binary node*
+holding elements that are *less than* in one branch, and *greater than* in the
+other. However, naive implementations of a tree structure can become
+*unbalanced* depending on the insertion order. It is possible to maintain a
+perfectly balanced tree, but it is incredibly inefficient as every insertion
+effectively rebuilds the entire tree.
 
 `ISet` is an implementation of a tree of *bounded balance*, meaning that it is
-approximately balanced, using the `size` of each branch to balance a `Bin` node.
+approximately balanced, using the `size` of each branch to balance a node.
 
 {lang="text"}
 ~~~~~~~~
@@ -6541,7 +6541,7 @@ the `left` is always non-empty:
 ![](images/balanceL-6.png)
 
 The final scenario is when we have non-empty trees on both sides. Unless the
-`left` is more than three times the size of the `right`, we can do the simple
+`left` is three times or more the size of the `right`, we can do the simple
 thing and create a new `Bin`
 
 {lang="text"}
@@ -6554,7 +6554,7 @@ thing and create a new `Bin`
 
 However, should the `left` be more than three times the size of the `right`, we
 must balance based on the relative sizes of `ll` and `lr`, like in scenario
-five. When `lr` is the larger, we know that it must be a `Bin`
+five.
 
 {lang="text"}
 ~~~~~~~~
@@ -6564,7 +6564,7 @@ five. When `lr` is the larger, we know that it must be a `Bin`
     Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
 ~~~~~~~~
 
-{width=50%}
+{width=60%}
 ![](images/balanceL-7b.png)
 
 {width=75%}
@@ -6573,9 +6573,8 @@ five. When `lr` is the larger, we know that it must be a `Bin`
 This concludes our study of the `.insert` method and how the `ISet` is
 constructed. It should be of no surprise that `Foldable` is implemented in terms
 of depth-first search along the `left` or `right`, as appropriate. Methods such
-as `.minimum` and `.maximum` can be implemented optimally since the data
-structure already encodes the ordering, which assumes that the `Order` instance
-is consistent across all method calls.
+as `.minimum` and `.maximum` are optimal because the data structure already
+encodes the ordering.
 
 It is worth noting that some typeclass methods *cannot* be implemented as
 efficiently as we would like. Consider the signature of `Foldable.element`
@@ -6589,11 +6588,9 @@ efficiently as we would like. Consider the signature of `Foldable.element`
   }
 ~~~~~~~~
 
-The obvious implementation for `.element` is to defer to `ISet.contains`, but it
-is not possible because `.element` provides `Equal` whereas `.contains` requires
-`Order`. This is why `.contains` is a method specific to `ISet`, functionally
-the same as linear-search `.element` but giving better performance
-(approximating binary search).
+The obvious implementation for `.element` is to defer to (almost) binary-search
+`ISet.contains`. However, it is not possible because `.element` provides `Equal`
+whereas `.contains` requires `Order`.
 
 `ISet` is unable to provide a `Functor` for the same reason. In practice this
 turns out to be a sensible constraint: performing a `.map` would involve
