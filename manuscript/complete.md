@@ -6599,6 +6599,55 @@ datatype, such as `IList`, perform the `.map`, and convert back. A consequence
 is that it is not possible to have `Traverse[ISet]` or `Applicative[ISet]`.
 
 
+### `IMap`
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ==>>[A, B] {
+    val size: Int = this match {
+      case Tip()           => 0
+      case Bin(_, _, l, r) => 1 + l.size + r.size
+    }
+  }
+  object ==>> {
+    type IMap[A, B] = A ==>> B
+  
+    private final case class Tip[A, B]() extends (A ==>> B)
+    private final case class Bin[A, B](
+      key: A,
+      value: B,
+      left: A ==>> B,
+      right: A ==>> B
+    ) extends ==>>[A, B]
+  
+    def apply[A: Order, B](x: (A, B)*): A ==>> B = ...
+  
+    def empty[A, B]: A ==>> B = Tip[A, B]()
+    def singleton[A, B](k: A, x: B): A ==>> B = Bin(k, x, Tip(), Tip())
+    def fromFoldable[F[_]: Foldable, A: Order, B](fa: F[(A, B)]): A ==>> B = ...
+    ...
+  }
+~~~~~~~~
+
+This is very familiar! Indeed, `IMap` (an alias to the lightspeed operator
+`==>>`) is another size-balanced tree, but with an extra `value: B` field,
+allowing it to store key/value pairs. Only the key type `A` needs an `Order` and
+a suite of convenient methods are provided to allow easy entry updating
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ==>>[A, B] {
+    ...
+    def adjust(k: A, f: B => B)(implicit o: Order[A]): A ==>> B = ...
+    def adjustWithKey(k: A, f: (A, B) => B)(implicit o: Order[A]): A ==>> B = ...
+    ...
+  }
+~~~~~~~~
+
+
+### TODO `Tree` and `StrictTree`
+
+
 ### TODO FingerTree
 
 
@@ -6614,18 +6663,9 @@ is that it is not possible to have `Traverse[ISet]` or `Applicative[ISet]`.
 ### TODO Diev (Discrete Interval Encoding Tree)
 
 
-### TODO StrictTree
-
-
-### TODO Tree
-
-
 ### TODO Priority Queue `Heap`
 
 (depends on `Tree`)
-
-
-### TODO Map
 
 
 ### TODO OneAnd / OneOr
