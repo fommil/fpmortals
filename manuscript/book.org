@@ -7979,6 +7979,7 @@ The obvious implementation for =.element= is to defer to (almost) binary-search
 =ISet.contains=. However, it is not possible because =.element= provides =Equal=
 whereas =.contains= requires =Order=.
 
+# http://okmij.org/ftp/Haskell/types.html#restricted-datatypes
 # https://github.com/scalaz/scalaz/pull/1576
 
 =ISet= is unable to provide a =Functor= for the same reason. In practice this
