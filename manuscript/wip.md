@@ -16,6 +16,7 @@ You can expect to see chapters covering the following topics:
 -   Dependent Types
 -   Functional Streams
 -   Category Theory
+-   Bluffing Haskell
 
 while continuing to build out the example application.
 

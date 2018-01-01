@@ -6630,9 +6630,10 @@ is that it is not possible to have `Traverse[ISet]` or `Applicative[ISet]`.
 ~~~~~~~~
 
 This is very familiar! Indeed, `IMap` (an alias to the lightspeed operator
-`==>>`) is another size-balanced tree, but with an extra `value: B` field,
-allowing it to store key/value pairs. Only the key type `A` needs an `Order` and
-a suite of convenient methods are provided to allow easy entry updating
+`==>>`) is another size-balanced tree, but with an extra `value: B` field in
+each binary branch, allowing it to store key/value pairs. Only the key type `A`
+needs an `Order` and a suite of convenient methods are provided to allow easy
+entry updating
 
 {lang="text"}
 ~~~~~~~~
@@ -6645,7 +6646,51 @@ a suite of convenient methods are provided to allow easy entry updating
 ~~~~~~~~
 
 
-### TODO `Tree` and `StrictTree`
+### `StrictTree` and `Tree`
+
+Both `StrictTree` and `Tree` are implementations of a *Rose Tree*, a tree
+structure with an unbounded number of branches in every node.
+
+{lang="text"}
+~~~~~~~~
+  case class StrictTree[A](
+    rootLabel: A,
+    subForest: Vector[StrictTree[A]]
+  )
+~~~~~~~~
+
+`Tree` is a *by-need* version of `StrictTree` with convenient constructors
+(unfortunately built from standard library collections for legacy reasons):
+
+{lang="text"}
+~~~~~~~~
+  class Tree[A](
+    private rootc: Need[A],
+    private forestc: Need[Stream[Tree[A]]]
+  ) {
+    def rootLabel = rootc.value
+    def subForest = forestc.value
+  }
+  object Tree {
+    object Node {
+      def apply[A](root: =>A, forest: =>Stream[Tree[A]]): Tree[A] = ...
+    }
+    object Leaf {
+      def apply[A](root: =>A): Tree[A] = ...
+    }
+  }
+~~~~~~~~
+
+A major disadvantage of Rose Trees vs balanced trees, such as `ISet`, is that
+the user is expected to manually balance. However, a major advantage of Rose
+Trees is that the user can manually balance according to some domain knowledge.
+
+For example, in artificial intelligence, a Rose Tree can be used in [clustering
+algorithms](https://arxiv.org/abs/1203.3468) to organise data into a hierarchy of similar things. It is possible
+to represent XML documents with a Rose Tree.
+
+If we find ourselves working with hierarchical data, consider using a Rose Tree
+instead of writing a custom data structure.
 
 
 ### TODO FingerTree
