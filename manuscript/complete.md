@@ -2855,6 +2855,27 @@ polymorphism we can have a different implementation of `append`
 depending on the `E` in `List[E]`, not just the base runtime class
 `List`.
 
+A> There is a school of thought that says no typeclass should have more than one
+A> implicit instance for a given type, e.g. there is only one
+A> `Monoid[Option[Boolean]]` in the program. This is called *typeclass coherence*
+A> and *orphan instances* such as `lastWins` are the easiest way to break
+A> coherence.
+A> 
+A> Typeclass coherence is primarily about consistency. It is very difficult to
+A> reason about code that looks the same but performs differently depending on the
+A> implicit imports that are in scope. Typeclass coherence effectively says that
+A> imports should not impact the behaviour of the code.
+A> 
+A> In addition, if we can assume typeclass coherence, we can globally cache
+A> implicits at runtime and save on memory allocations, gaining performance
+A> improvements from reduced pressure on the garbage collector.
+A> 
+A> We can justify breaking typeclass coherence if we make `lastWins` private,
+A> because we are exporting `Monoid[TradeTemplate]` not `Monoid[Option[A]]`. The
+A> *surprise factor* of this code justifies a comment explaining why coherence is
+A> being (locally)
+A>  broken.
+
 
 ## Objecty Things
 
@@ -4487,10 +4508,11 @@ could have defined
 
 {lang="text"}
 ~~~~~~~~
-  implicit def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
+  implicit private def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
 ~~~~~~~~
 
-and `.reverse` to get the `lastWins` behaviour we need.
+and `.reverse` to get the `lastWins` behaviour we need. Recall that our
+`Monoid[Option[A]]` is private to avoid breaking typeclass coherence.
 
 `Applicative` and `Monad` have specialised versions of `PlusEmpty`
 
@@ -5070,18 +5092,35 @@ To help further, Valentin Kasas explains how to [combine `N` things](https://twi
 
 # Scalaz Data Types
 
-Who doesn't love a good data structure? Although a vector and a list
-can do the same things, their performance characteristics are very
-different.
+Who doesn't love a good data structure? The answer is *nobody*, because data
+structures are awesome.
 
-In this chapter we'll explore the *collection-like* data types in
-scalaz, as well as data types that augment the Scala language with
-useful semantics and additional type safety.
+In this chapter we'll explore the *collection-like* data types in scalaz, as
+well as data types that augment the Scala language with useful semantics and
+additional type safety.
 
-Unlike the Java and Scala collections, there is no hierarchy to the
-data types in scalaz. Polymorphic functionality is provided by
-optimised instances of the typeclasses we studied in the previous
-chapter. This makes it a lot easier to swap implementations for
+The primary reason we care about having lots of collections at our disposal is
+performance. A vector and a list can do the same things, but their performance
+characteristics are different: a vector has constant lookup cost whereas a list
+must be traversed.
+
+W> Performance estimates - including claims in this chapter - should be taken with
+W> a pinch of salt. Modern processor design, memory pipelining, and JVM garbage
+W> collection can invalidate intuitive reasoning based on operation counting.
+W> 
+W> A hard truth of modern computers is that empirical performance tests, for a
+W> specific task, can shock and surprise: e.g. lookup in a `List` is often faster
+W> in practice than in a `Vector`. Use a tool such as [JMH](http://openjdk.java.net/projects/code-tools/jmh/) when performance testing.
+
+All of the collections presented here are *persistent*: if we add or remove an
+element we can still use the old version. Structural sharing is essential to the
+performance of persistent data structures, otherwise the entire collection is
+rebuilt with every operation.
+
+Unlike the Java and Scala collections, there is no hierarchy to the data types
+in scalaz: these collections are much simpler to understand. Polymorphic
+functionality is provided by optimised instances of the typeclasses we studied
+in the previous chapter. This makes it a lot easier to swap implementations for
 performance reasons, and to provide our own.
 
 
@@ -5404,10 +5443,7 @@ diversity of implementations:
     def arrayMemo[V >: Null : ClassTag](n: Int): Memo[Int, V] = ...
     def doubleArrayMemo(n: Int, sentinel: Double = 0.0): Memo[Int, Double] = ...
   
-    def mutableHashMapMemo[K, V]: Memo[K, V] = ...
-    def weakHashMapMemo[K, V]: Memo[K, V] = ..
     def immutableHashMapMemo[K, V]: Memo[K, V] = ...
-    def immutableListMapMemo[K, V]: Memo[K, V] = ...
     def immutableTreeMapMemo[K: scala.Ordering, V]: Memo[K, V] = ...
   }
 ~~~~~~~~
@@ -6393,22 +6429,10 @@ approximately balanced, using the `size` of each branch to balance a node.
   }
 ~~~~~~~~
 
-`ISet` requires `A` to have an `Order`. The `Order[A]` instance must not change
-between calls or the internal assumptions will be invalid, leading to data
-corruption.
-
-A> There is a school of thought that no typeclass should have more than one
-A> instance for a given type parameter, e.g. there is only one `Order[A]` for any
-A> `A` in the program. This is called *typeclass coherence* and *orphan instances*,
-A> as discussed in Chapter 4, are the most common way to (accidentally) break type
-A> coherence.
-A> 
-A> Typeclass coherence also has consequences for hierarchies: e.g. `Monad` extends
-A> `Applicative`, which forbids optimisations for `Applicative` instances that also
-A> have a `Monad`.
-A> 
-A> Typeclass coherence has such a huge impact that the Scalaz 8 design has
-A> abandoned typeclasses inheritance, in favour of composition.
+`ISet` requires `A` to have an `Order`. The `Order[A]` instance must remain the
+same between calls or internal assumptions will be invalid, leading to data
+corruption: i.e. we are assuming typeclass coherence such that `Order[A]` is
+unique for any `A`.
 
 The `ISet` ADT unfortunately permits invalid trees. We strive to write ADTs that
 fully describe what is and isn't valid through type restrictions, but sometimes
@@ -6681,16 +6705,14 @@ structure with an unbounded number of branches in every node.
   }
 ~~~~~~~~
 
-A major disadvantage of Rose Trees vs balanced trees, such as `ISet`, is that
-the user is expected to manually balance. However, a major advantage of Rose
-Trees is that the user can manually balance according to some domain knowledge.
-
-For example, in artificial intelligence, a Rose Tree can be used in [clustering
+The user of a Rose Tree is expected to manually balance it, which makes it
+suitable for cases where domain knowledge of a hierarchy is available. For
+example, in artificial intelligence, a Rose Tree can be used in [clustering
 algorithms](https://arxiv.org/abs/1203.3468) to organise data into a hierarchy of similar things. It is possible
 to represent XML documents with a Rose Tree.
 
-If we find ourselves working with hierarchical data, consider using a Rose Tree
-instead of writing a custom data structure.
+If you find yourself working with hierarchical data, consider using a Rose Tree
+instead of rolling a custom data structure.
 
 
 ### TODO FingerTree
