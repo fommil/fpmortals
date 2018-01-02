@@ -3363,8 +3363,8 @@ way to break coherence.
 Typeclass coherence is primarily about consistency. It is difficult to reason
 about code that performs differently depending on the implicit imports that are
 in scope. Typeclass coherence effectively says that imports should not impact
-the behaviour of the code. Either the code compiles and does what you think, or
-it should not compile.
+the behaviour of the code: either the code does what it says it does, or it does
+not compile.
 
 If we can assume typeclass coherence, we can globally cache implicits at runtime
 and save memory allocations, gaining performance improvements from reduced
@@ -3372,7 +3372,7 @@ pressure on the garbage collector.
 
 We could try to justify locally breaking typeclass coherence by making
 =lastWins= private, but when we get to the =Plus= typeclass we will see the
-correct way to do this.
+correct way to implement our =Monoid=.
 
 Please don't break typeclass coherence at home, kids.
 #+END_ASIDE

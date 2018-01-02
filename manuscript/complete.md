@@ -2865,8 +2865,8 @@ A>
 A> Typeclass coherence is primarily about consistency. It is difficult to reason
 A> about code that performs differently depending on the implicit imports that are
 A> in scope. Typeclass coherence effectively says that imports should not impact
-A> the behaviour of the code. Either the code compiles and does what you think, or
-A> it should not compile.
+A> the behaviour of the code: either the code does what it says it does, or it does
+A> not compile.
 A> 
 A> If we can assume typeclass coherence, we can globally cache implicits at runtime
 A> and save memory allocations, gaining performance improvements from reduced
@@ -2874,7 +2874,7 @@ A> pressure on the garbage collector.
 A> 
 A> We could try to justify locally breaking typeclass coherence by making
 A> `lastWins` private, but when we get to the `Plus` typeclass we will see the
-A> correct way to do this.
+A> correct way to implement our `Monoid`.
 A> 
 A> Please don't break typeclass coherence at home, kids.
 
