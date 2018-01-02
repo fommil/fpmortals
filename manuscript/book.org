@@ -3280,12 +3280,14 @@ But to get =zero= or call =|+|= we must have an instance of
 later chapter, for now we'll create an instance on the companion:
 
 #+BEGIN_SRC scala
-implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
-  (a, b) => TradeTemplate(a.payments |+| b.payments,
-                          a.ccy |+| b.ccy,
-                          a.otc |+| b.otc),
- TradeTemplate(Nil, None, None)
-)
+object TradeTemplate {
+  implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+    (a, b) => TradeTemplate(a.payments |+| b.payments,
+                            a.ccy |+| b.ccy,
+                            a.otc |+| b.otc),
+    TradeTemplate(Nil, None, None)
+  )
+}
 #+END_SRC
 
 However, this fails to compile because =Monoid[Option[T]]= defers to
@@ -3305,9 +3307,9 @@ res: Option[Int] = Some(3)
 
 We can see the content's =append= has been called, integer addition.
 
-But our business rules state that we use "last rule wins" on
-conflicts, so we introduce a higher priority implicit
-=Monoid[Option[T]]= instance and use it instead of the default:
+But our business rules state that we use "last rule wins" on conflicts, so we
+introduce a locally scoped priority implicit =Monoid[Option[T]]= instance and
+use it instead of the default:
 
 #+BEGIN_SRC scala
 implicit def lastWins[A]: Monoid[Option[A]] = Monoid.instance(
@@ -3353,26 +3355,26 @@ depending on the =E= in =List[E]=, not just the base runtime class
 =List=.
 
 #+BEGIN_ASIDE
-There is a school of thought that says no typeclass should have more than one
-implicit instance for a given type, e.g. there is only one
-=Monoid[Option[Boolean]]= in the program. This is called /typeclass coherence/
-and /orphan instances/ such as =lastWins= are the easiest way to break
-coherence.
+Scalaz follows the school of thought that typeclass instances should be unique,
+e.g. there is only one =Monoid[Option[Boolean]]= in the program. This is called
+/typeclass coherence/ and /orphan instances/ such as =lastWins= are the easiest
+way to break coherence.
 
-Typeclass coherence is primarily about consistency. It is very difficult to
-reason about code that looks the same but performs differently depending on the
-implicit imports that are in scope. Typeclass coherence effectively says that
-imports should not impact the behaviour of the code.
+Typeclass coherence is primarily about consistency. It is difficult to reason
+about code that performs differently depending on the implicit imports that are
+in scope. Typeclass coherence effectively says that imports should not impact
+the behaviour of the code. Either the code compiles and does what you think, or
+it should not compile.
 
-In addition, if we can assume typeclass coherence, we can globally cache
-implicits at runtime and save on memory allocations, gaining performance
-improvements from reduced pressure on the garbage collector.
+If we can assume typeclass coherence, we can globally cache implicits at runtime
+and save memory allocations, gaining performance improvements from reduced
+pressure on the garbage collector.
 
-We can justify breaking typeclass coherence if we make =lastWins= private,
-because we are exporting =Monoid[TradeTemplate]= not =Monoid[Option[A]]=. The
-/surprise factor/ of this code justifies a comment explaining why coherence is
-being (locally)
- broken.
+We could try to justify locally breaking typeclass coherence by making
+=lastWins= private, but when we get to the =Plus= typeclass we will see the
+correct way to do this.
+
+Please don't break typeclass coherence at home, kids.
 #+END_ASIDE
 
 *** Objecty Things
@@ -5291,13 +5293,9 @@ the equivalent of =Monoid= (they even have the same laws) whereas
 #+BEGIN_SRC scala
 @typeclass trait Plus[F[_]] {
   @op("<+>") def plus[A](a: F[A], b: =>F[A]): F[A]
-
-  def semigroup[A]: Semigroup[F[A]] = ...
 }
 @typeclass trait PlusEmpty[F[_]] extends Plus[F] {
   def empty[A]: F[A]
-
-  def monoid[A]: Monoid[F[A]] = ...
 }
 @typeclass trait IsEmpty[F[_]] extends PlusEmpty[F] {
   def isEmpty[A](fa: F[A]): Boolean
@@ -5345,17 +5343,21 @@ scala> NonEmptyList(None, None, Some(1), Some(2), None)
 res: Option[Int] = Some(1)
 #+END_SRC
 
-In fact, we didn't need to define our own =Monoid[Option[A]]= when combining our
-=TradeTemplate= in the section on Appendable Things. Our objective was to "pick
-the last winner", which is the same as "pick the winner" on a reversed list. We
-could have defined
+In fact, now that we know about =Plus=, we release that we didn't need to break
+typeclass coherence (when we defined a locally scoped =Monoid[Option[A]]=) in
+the section on Appendable Things. Our objective was to "pick the last winner",
+which is the same as "pick the winner" if the arguments are swapped. Note the
+use of the TIE Interceptor for =ccy= and =otc= and that =b= comes before =a= in
 
 #+BEGIN_SRC scala
-implicit private def firstWins[A]: Monoid[Option[A]] = PlusEmpty[Option].monoid[A]
+implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+  (a, b) =>
+    TradeTemplate(a.payments |+| b.payments,
+                  b.ccy <+> a.ccy,
+                  b.otc <+> a.otc),
+  TradeTemplate(Nil, None, None)
+)
 #+END_SRC
-
-and =.reverse= to get the =lastWins= behaviour we need. Recall that our
-=Monoid[Option[A]]= is private to avoid breaking typeclass coherence.
 
 =Applicative= and =Monad= have specialised versions of =PlusEmpty=
 
