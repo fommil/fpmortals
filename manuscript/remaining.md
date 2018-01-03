@@ -1,10 +1,10 @@
 
 # TODO Data Types
 
-Dare we tackle Free in this section?
-
 
 ## TODO Refinements
+
+(kick to later)
 
 -   Alpha (represents an alphabetic character), maybe save for generators / laws
 -   Digit (0-9)
@@ -32,14 +32,12 @@ Dare we tackle Free in this section?
 -   Inject (something about data types a la carte... seems important)
 -   Lens / PLens ... tricky, we really want to use monocle
 -   MonoidCoproduct lists of disjunction of monoidal things
--   NaturalTransformation
+-   NaturalTransformation (this maybe be useful)
 -   NotNothing (mini version of shapeless' equivalent)
 -   NullArgument (?=> ... drugged up elvis)
 -   NullResult
 -   Representable (should probably be a typeclass, X => A implies F[A]: Functor)
 
--   Tag
--   Tags
 -   Dual
 
 
@@ -47,7 +45,7 @@ Dare we tackle Free in this section?
 
 -   Alter (utility to get a Monoid rather than the Plus for what it wraps)
 -   Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
--   Generator / Reducer
+-   Generator
 
 
 ## TODO Monad Transformers

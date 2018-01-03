@@ -3292,13 +3292,8 @@ object TradeTemplate {
 }
 #+END_SRC
 
-However, this fails to compile because =Monoid[Option[T]]= defers to
-=Monoid[T]= and we have neither a =Monoid[Currency]= (we did not
-provide one) nor a =Monoid[Boolean]= (inclusive or exclusive logic
-must be explicitly chosen).
-
-To explain what we mean by "defers to", consider
-=Monoid[Option[Int]]=:
+However, this doesn't do what we want because =Monoid[Option[A]]= will append
+its contents, e.g.
 
 #+BEGIN_SRC scala
 scala> Option(2) |+| None
@@ -3307,11 +3302,8 @@ scala> Option(2) |+| Option(1)
 res: Option[Int] = Some(3)
 #+END_SRC
 
-We can see the content's =append= has been called, integer addition.
-
-But our business rules state that we use "last rule wins" on conflicts, so we
-introduce a locally scoped priority implicit =Monoid[Option[T]]= instance and
-use it instead of the default:
+whereas we want "last rule wins". We can override the default
+=Monoid[Option[A]]= with our own:
 
 #+BEGIN_SRC scala
 implicit def lastWins[A]: Monoid[Option[A]] = Monoid.instance(
@@ -6473,6 +6465,122 @@ memoisation managed by their runtime environment and ~Memo~ is our way
 of extending the JVM to have similar support, unfortunately only on an
 opt-in basis.
 
+*** Tagging
+
+In the section introducing =Monoid= we built a =Monoid[TradeTemplate]= and
+realised that scalaz does not do what we wanted with =Monoid[Option[A]]=. This
+is not an oversight of scalaz: often we find that a data type can implement a
+fundamental typeclass in multiple valid ways and that the default implementation
+doesn't do what we want, or simply isn't defined.
+
+Basic examples are =Monoid[Boolean]= (conjunction ~&&~ vs disjunction ~||~) and
+=Monoid[Int]= (multiplication vs addition).
+
+To implement =Monoid[TradeTemplate]= we found ourselves either breaking
+typeclass coherency, or using a different typeclass.
+
+=scalaz.Tag= is designed to address the multiple typeclass implementation
+problem without breaking typeclass coherency.
+
+The definition is quite contorted, but the syntax to use it is very clean. This
+is how we trick the compiler into allowing us to define an infix type =A @@ T=
+that is erased to =A= at runtime:
+
+#+BEGIN_SRC scala
+type @@[A, T] = Tag.k.@@[A, T]
+
+object Tag {
+  @inline val k: TagKind = IdTagKind
+  @inline def apply[A, T](a: A): A @@ T = k(a)
+  ...
+
+  final class TagOf[T] private[Tag]() { ... }
+  def of[T]: TagOf[T] = new TagOf[T]
+}
+sealed abstract class TagKind {
+  type @@[A, T]
+  def apply[A, T](a: A): A @@ T
+  ...
+}
+private[scalaz] object IdTagKind extends TagKind {
+  type @@[A, T] = A
+  @inline override def apply[A, T](a: A): A = a
+  ...
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+i.e. we tag things with Princess Leia hair buns ~@@~.
+#+END_ASIDE
+
+Some useful tags are provided in the =Tags= object
+
+#+BEGIN_SRC scala
+object Tags {
+  sealed trait First
+  val First = Tag.of[First]
+
+  sealed trait Last
+  val Last = Tag.of[Last]
+
+  sealed trait Multiplication
+  val Multiplication = Tag.of[Multiplication]
+
+  sealed trait Disjunction
+  val Disjunction = Tag.of[Disjunction]
+
+  sealed trait Conjunction
+  val Conjunction = Tag.of[Conjunction]
+
+  ...
+}
+#+END_SRC
+
+=First= / =Last= are used to select =Monoid= instances that pick the first or
+last non-zero operand. =Multiplication= is for numeric multiplication instead of
+addition. =Disjunction= / =Conjunction= are to select =&&= or =||=,
+respectively.
+
+In our =TradeTemplate=, instead of using =Option[Currency]= we can use
+=Option[Currency] @@ Tags.Last=. Indeed this is so common that we can use the
+built-in alias, =LastOption=
+
+#+BEGIN_SRC scala
+type LastOption[A] = Option[A] @@ Tags.Last
+#+END_SRC
+
+letting us write a much cleaner =Monoid[TradeTemplate]=
+
+#+BEGIN_SRC scala
+final case class TradeTemplate(
+  payments: List[java.time.LocalDate],
+  ccy: LastOption[Currency],
+  otc: LastOption[Boolean]
+)
+object TradeTemplate {
+  implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+    (a, b) =>
+      TradeTemplate(a.payments |+| b.payments,
+                    a.ccy |+| b.ccy,
+                    a.otc |+| b.otc),
+      TradeTemplate(Nil, Tag(None), Tag(None))
+  )
+}
+#+END_SRC
+
+To create a raw value of type =LastOption=, we apply =Tag= to an =Option=. Here
+we are calling =Tag(None)=.
+
+In the chapter on typeclass derivation, we'll go one step further and
+automatically derive the =monoid=.
+
+It is tempting to use =Tag= to markup data types for some form of validation
+(e.g. =String @@ PersonName=), but this should be avoided because there are no
+checks on the content of the runtime value. =Tag= should only be used for
+typeclass selection purposes, and we will dedicate a chapter on /type
+refinement/ which is how we can mark up types with arbitrary value-level
+constraints.
+
 *** Containers
 
 **** Maybe
@@ -8106,25 +8214,30 @@ Rose Tree.
 If you find yourself working with hierarchical data, consider using a Rose Tree
 instead of rolling a custom data structure.
 
-**** =FingerTree= / =IndSeq=
+**** =FingerTree= / =IndSeq= / =OrdSeq= / =Cord=
 
 # http://www.staff.city.ac.uk/~ross/papers/FingerTree.html
 # https://github.com/scalaz/scalaz/issues/1609
 
 Finger trees are generalised sequences with amortised constant cost lookup and
-logarithmic concatenation. =V= is the index and has a =Monoid[V]=. =A= is the
-data.
+logarithmic concatenation. =V= is a domain-specific measure that has a
+=Monoid[V]=. =A= is the data.
 
 #+BEGIN_SRC scala
-sealed abstract class FingerTree[V, A]
+sealed abstract class FingerTree[V, A] {
+  def +:(a: A): FingerTree[V, A] = ...
+  def :+(a: => A): FingerTree[V, A] = ...
+  def <++>(right: =>FingerTree[V, A]): FingerTree[V, A] = ...
+  ...
+}
 object FingerTree {
   private class Empty[V, A]() extends FingerTree[V, A]
   private class Single[V, A](v: V, a: =>A) extends FingerTree[V, A]
   private class Deep[V, A](
     v: V,
-    pr: Finger[V, A],
-    m: =>FingerTree[V, Node[V, A]],
-    sf: Finger[V, A]
+    left: Finger[V, A],
+    spine: =>FingerTree[V, Node[V, A]],
+    right: Finger[V, A]
   ) extends FingerTree[V, A]
 
   sealed abstract class Finger[V, A]
@@ -8139,15 +8252,16 @@ object FingerTree {
 }
 #+END_SRC
 
-It may help to mentally set =V= to =Int= as per =IndSeq=, in which case we get
-index based lookup comparable to =Vector=:
+#+BEGIN_ASIDE
+~<++>~ is the TIE Bomber. Admittedly, sending in the proton torpedoes is a bit
+of an overreaction: it's the same thing as the regular =Monoid= TIE Fighter
+=|+|=.
+#+END_ASIDE
 
-#+BEGIN_SRC scala
-final class IndSeq[A](val self: FingerTree[Int, A])
-#+END_SRC
+It may help to ignore the measure =V= for now.
 
-For example, visualising =FingerTree= as dots, =Finger= as boxes and =Node= as
-boxes within boxes:
+Visualising =FingerTree= as dots, =Finger= as boxes and =Node= as boxes within
+boxes:
 
 #+BEGIN_SRC dot :cmd dot :file images/fingertree.png :exports results
 digraph G {
@@ -8205,15 +8319,95 @@ digraph G {
 #+RESULTS:
 [[file:images/fingertree.png]]
 
-FIXME: may need to go back and add =Reducer= to the typeclass hierarchy, or
-should we just introduce it here as a kind of companion typeclass?
+Prepending =+:= (or appending =:+=) elements to a =FingerTree= is reasonably
+efficient because =Empty= becomes =Single=, =Single= becomes =Deep=, and =Deep=
+simply adds the element to its =left= finger. If the finger is a =Four=, we
+rebuild the =spine= to take 3 of the elements in as a =Node3=, having a =Two= in
+the left.
 
-FIXME: omg, the actual impl of this fingertree is terrible, the =(implicit R:
-Reducer[A, V])= thing is insane. We can't hide this, but we can't recommend it
-to anybody either.
+Appending =|+|= (also =<++>=) is more efficient than adding one element at a
+time because the case of two =Deep= trees can retain the left branch and the
+right branch, only needing to rebuild the spine based on the 16 possible
+combinations of the two =Finger= values in the middle.
 
-**** TODO Cord
+In the above we skipped over the measure =V=. Not shown in the ADT description
+is an =implicit measurer: Reducer[A, V]= on every element of the ADT.
+
+#+BEGIN_ASIDE
+Storing typeclass instances on the ADT is considered bad style and also
+increases the memory requirement by 64 bits for every entry. The implementation
+of =FingerTree= is almost a decade old and is due a rewrite.
+#+END_ASIDE
+
+=Reducer= is an extension of =Monoid= that allows for single elements to be
+added to an =M= for efficiency
+
+#+BEGIN_SRC scala
+trait Reducer[C, M] extends Monoid[M] {
+  def unit(c: C): M
+
+  def snoc(m: M, c: C): M = append(m, unit(c))
+  def cons(c: C, m: M): M = append(unit(c), m)
+}
+#+END_SRC
+
+For example, =Reducer[A, List[A]]= can provide a more efficient =.cons= for
+appending elements to the start.
+
+If we use =Int= as the measure =V=, we get an indexed sequence, =IndSeq= where
+the measure is the size of each part and allowing us to perform fast index
+lookup, comparable to =Vector=:
+
+#+BEGIN_SRC scala
+final class IndSeq[A](val self: FingerTree[Int, A])
+object IndSeq {
+  private implicit def sizer[A]: Reducer[A, Int] = _ => 1
+  def apply[A](as: A*): IndSeq[A] = ...
+}
+#+END_SRC
+
+Another use of =FingerTree= is as an ordered sequence, =OrdSeq=, where the
+measure uses =LastOption= to store the highest value in each part:
+
+#+BEGIN_SRC scala
+final class OrdSeq[A: Order](val self: FingerTree[LastOption[A], A]) {
+  def partition(a: A): (OrdSeq[A], OrdSeq[A]) = ...
+  def insert(a: A): OrdSeq[A] = ...
+  def ++(xs: OrdSeq[A]): OrdSeq[A] = ...
+}
+object OrdSeq {
+  private implicit def keyer: Reducer[A, LastOption[A]] = a => Tag(Some(a))
+  def apply[A: Order](as: A*): OrdSeq[A] = ...
+}
+#+END_SRC
+
+but =OrdSeq= has no typeclass instances so it is only useful to build up an
+ordered sequence.
+
+By far the most common use of =FingerTree= is as an efficient intermediate
+holder for =String= representations for use in the =Show= typeclass, which uses
+a locally scoped mutable =StringBuilder= for maximum efficiency.
+
+Building a single =String= can be thousands of times faster than the default
+=case class= implementation of =.toString=, which builds a =String= for every
+layer in the ADT.
+
+#+BEGIN_SRC scala
+final case class Cord(self: FingerTree[Int, String]) {
+  override def toString: String = {
+    val sb = new java.lang.StringBuilder(self.measure)
+    self.foreach(sb.append) // locally scoped side effect
+    sb.toString
+  }
+  ...
+}
+#+END_SRC
+
 **** TODO Const
+
+# potentially useful example:
+# https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
+
 **** TODO CorecursiveList (huh? see CorecursiveListImpl)
 **** TODO Diev (Discrete Interval Encoding Tree)
 **** TODO Priority Queue =Heap=
@@ -8256,9 +8450,9 @@ while continuing to build out the example application.
   :END:
 ** TODO Data Types
 
-Dare we tackle Free in this section?
-
 *** TODO Refinements
+
+(kick to later)
 
 - Alpha (represents an alphabetic character), maybe save for generators / laws
 - Digit (0-9)
@@ -8284,21 +8478,19 @@ Dare we tackle Free in this section?
 - Inject (something about data types a la carte... seems important)
 - Lens / PLens ... tricky, we really want to use monocle
 - MonoidCoproduct lists of disjunction of monoidal things
-- NaturalTransformation
+- NaturalTransformation (this maybe be useful)
 - NotNothing (mini version of shapeless' equivalent)
 - NullArgument (?=> ... drugged up elvis)
 - NullResult
 - Representable (should probably be a typeclass, X => A implies F[A]: Functor)
 
-- Tag
-- Tags
 - Dual
 
 *** TODO Conversions
 
 - Alter (utility to get a Monoid rather than the Plus for what it wraps)
 - Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
-- Generator / Reducer
+- Generator
 
 *** TODO Monad Transformers
 
@@ -8362,6 +8554,9 @@ trait ApMonad[F[_], G[_]] {
 #+END_SRC
 
 *** TODO Free Monad
+
+# "initial" vs "final" encodings
+# https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
 
 **** TODO [[https://github.com/djspiewak/smock][smock]]
 

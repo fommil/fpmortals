@@ -2790,13 +2790,8 @@ later chapter, for now we'll create an instance on the companion:
   }
 ~~~~~~~~
 
-However, this fails to compile because `Monoid[Option[T]]` defers to
-`Monoid[T]` and we have neither a `Monoid[Currency]` (we did not
-provide one) nor a `Monoid[Boolean]` (inclusive or exclusive logic
-must be explicitly chosen).
-
-To explain what we mean by "defers to", consider
-`Monoid[Option[Int]]`:
+However, this doesn't do what we want because `Monoid[Option[A]]` will append
+its contents, e.g.
 
 {lang="text"}
 ~~~~~~~~
@@ -2806,11 +2801,8 @@ To explain what we mean by "defers to", consider
   res: Option[Int] = Some(3)
 ~~~~~~~~
 
-We can see the content's `append` has been called, integer addition.
-
-But our business rules state that we use "last rule wins" on conflicts, so we
-introduce a locally scoped priority implicit `Monoid[Option[T]]` instance and
-use it instead of the default:
+whereas we want "last rule wins". We can override the default
+`Monoid[Option[A]]` with our own:
 
 {lang="text"}
 ~~~~~~~~
@@ -5502,6 +5494,125 @@ of extending the JVM to have similar support, unfortunately only on an
 opt-in basis.
 
 
+## Tagging
+
+In the section introducing `Monoid` we built a `Monoid[TradeTemplate]` and
+realised that scalaz does not do what we wanted with `Monoid[Option[A]]`. This
+is not an oversight of scalaz: often we find that a data type can implement a
+fundamental typeclass in multiple valid ways and that the default implementation
+doesn't do what we want, or simply isn't defined.
+
+Basic examples are `Monoid[Boolean]` (conjunction `&&` vs disjunction `||`) and
+`Monoid[Int]` (multiplication vs addition).
+
+To implement `Monoid[TradeTemplate]` we found ourselves either breaking
+typeclass coherency, or using a different typeclass.
+
+`scalaz.Tag` is designed to address the multiple typeclass implementation
+problem without breaking typeclass coherency.
+
+The definition is quite contorted, but the syntax to use it is very clean. This
+is how we trick the compiler into allowing us to define an infix type `A @@ T`
+that is erased to `A` at runtime:
+
+{lang="text"}
+~~~~~~~~
+  type @@[A, T] = Tag.k.@@[A, T]
+  
+  object Tag {
+    @inline val k: TagKind = IdTagKind
+    @inline def apply[A, T](a: A): A @@ T = k(a)
+    ...
+  
+    final class TagOf[T] private[Tag]() { ... }
+    def of[T]: TagOf[T] = new TagOf[T]
+  }
+  sealed abstract class TagKind {
+    type @@[A, T]
+    def apply[A, T](a: A): A @@ T
+    ...
+  }
+  private[scalaz] object IdTagKind extends TagKind {
+    type @@[A, T] = A
+    @inline override def apply[A, T](a: A): A = a
+    ...
+  }
+~~~~~~~~
+
+A> i.e. we tag things with Princess Leia hair buns `@@`.
+
+Some useful tags are provided in the `Tags` object
+
+{lang="text"}
+~~~~~~~~
+  object Tags {
+    sealed trait First
+    val First = Tag.of[First]
+  
+    sealed trait Last
+    val Last = Tag.of[Last]
+  
+    sealed trait Multiplication
+    val Multiplication = Tag.of[Multiplication]
+  
+    sealed trait Disjunction
+    val Disjunction = Tag.of[Disjunction]
+  
+    sealed trait Conjunction
+    val Conjunction = Tag.of[Conjunction]
+  
+    ...
+  }
+~~~~~~~~
+
+`First` / `Last` are used to select `Monoid` instances that pick the first or
+last non-zero operand. `Multiplication` is for numeric multiplication instead of
+addition. `Disjunction` / `Conjunction` are to select `&&` or `||`,
+respectively.
+
+In our `TradeTemplate`, instead of using `Option[Currency]` we can use
+`Option[Currency] @@ Tags.Last`. Indeed this is so common that we can use the
+built-in alias, `LastOption`
+
+{lang="text"}
+~~~~~~~~
+  type LastOption[A] = Option[A] @@ Tags.Last
+~~~~~~~~
+
+letting us write a much cleaner `Monoid[TradeTemplate]`
+
+{lang="text"}
+~~~~~~~~
+  final case class TradeTemplate(
+    payments: List[java.time.LocalDate],
+    ccy: LastOption[Currency],
+    otc: LastOption[Boolean]
+  )
+  object TradeTemplate {
+    implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+      (a, b) =>
+        TradeTemplate(a.payments |+| b.payments,
+                      a.ccy |+| b.ccy,
+                      a.otc |+| b.otc),
+        TradeTemplate(Nil, Tag(None), Tag(None))
+    )
+  }
+~~~~~~~~
+
+To create a raw value of type `LastOption`, we apply `Tag` to an `Option`. Here
+we are calling `Tag(None)`.
+
+In the chapter on typeclass derivation, we'll go one step further and
+automatically derive the `monoid`.
+
+It is tempting to use `Tag` to markup data types for some form of validation
+(e.g. `String @@ PersonName`), but this should be avoided because there are no
+checks on the content of the runtime value. `Tag` should only be used for
+typeclass selection purposes, and we will dedicate a chapter on *type
+refinement* which is how we can mark up types with arbitrary value-level
+constraints.
+
+
 ## Containers
 
 
@@ -6719,23 +6830,28 @@ If you find yourself working with hierarchical data, consider using a Rose Tree
 instead of rolling a custom data structure.
 
 
-### `FingerTree` / `IndSeq`
+### `FingerTree` / `IndSeq` / `OrdSeq` / `Cord`
 
 Finger trees are generalised sequences with amortised constant cost lookup and
-logarithmic concatenation. `V` is the index and has a `Monoid[V]`. `A` is the
-data.
+logarithmic concatenation. `V` is a domain-specific measure that has a
+`Monoid[V]`. `A` is the data.
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class FingerTree[V, A]
+  sealed abstract class FingerTree[V, A] {
+    def +:(a: A): FingerTree[V, A] = ...
+    def :+(a: => A): FingerTree[V, A] = ...
+    def <++>(right: =>FingerTree[V, A]): FingerTree[V, A] = ...
+    ...
+  }
   object FingerTree {
     private class Empty[V, A]() extends FingerTree[V, A]
     private class Single[V, A](v: V, a: =>A) extends FingerTree[V, A]
     private class Deep[V, A](
       v: V,
-      pr: Finger[V, A],
-      m: =>FingerTree[V, Node[V, A]],
-      sf: Finger[V, A]
+      left: Finger[V, A],
+      spine: =>FingerTree[V, Node[V, A]],
+      right: Finger[V, A]
     ) extends FingerTree[V, A]
   
     sealed abstract class Finger[V, A]
@@ -6750,29 +6866,103 @@ data.
   }
 ~~~~~~~~
 
-It may help to mentally set `V` to `Int` as per `IndSeq`, in which case we get
-index based lookup comparable to `Vector`:
+A> `<++>` is the TIE Bomber. Admittedly, sending in the proton torpedoes is a bit
+A> of an overreaction: it's the same thing as the regular `Monoid` TIE Fighter
+A> `|+|`.
 
-{lang="text"}
-~~~~~~~~
-  final class IndSeq[A](val self: FingerTree[Int, A])
-~~~~~~~~
+It may help to ignore the measure `V` for now.
 
-For example, visualising `FingerTree` as dots, `Finger` as boxes and `Node` as
-boxes within boxes:
+Visualising `FingerTree` as dots, `Finger` as boxes and `Node` as boxes within
+boxes:
 
 {width=50%}
 ![](images/fingertree.png)
 
-FIXME: may need to go back and add `Reducer` to the typeclass hierarchy, or
-should we just introduce it here as a kind of companion typeclass?
+Prepending `+:` (or appending `:+`) elements to a `FingerTree` is reasonably
+efficient because `Empty` becomes `Single`, `Single` becomes `Deep`, and `Deep`
+simply adds the element to its `left` finger. If the finger is a `Four`, we
+rebuild the `spine` to take 3 of the elements in as a `Node3`, having a `Two` in
+the left.
 
-FIXME: omg, the actual impl of this fingertree is terrible, the `(implicit R:
-Reducer[A, V])` thing is insane. We can't hide this, but we can't recommend it
-to anybody either.
+Appending `|+|` (also `<++>`) is more efficient than adding one element at a
+time because the case of two `Deep` trees can retain the left branch and the
+right branch, only needing to rebuild the spine based on the 16 possible
+combinations of the two `Finger` values in the middle.
 
+In the above we skipped over the measure `V`. Not shown in the ADT description
+is an `implicit measurer: Reducer[A, V]` on every element of the ADT.
 
-### TODO Cord
+A> Storing typeclass instances on the ADT is considered bad style and also
+A> increases the memory requirement by 64 bits for every entry. The implementation
+A> of `FingerTree` is almost a decade old and is due a rewrite.
+
+`Reducer` is an extension of `Monoid` that allows for single elements to be
+added to an `M` for efficiency
+
+{lang="text"}
+~~~~~~~~
+  trait Reducer[C, M] extends Monoid[M] {
+    def unit(c: C): M
+  
+    def snoc(m: M, c: C): M = append(m, unit(c))
+    def cons(c: C, m: M): M = append(unit(c), m)
+  }
+~~~~~~~~
+
+For example, `Reducer[A, List[A]]` can provide a more efficient `.cons` for
+appending elements to the start.
+
+If we use `Int` as the measure `V`, we get an indexed sequence, `IndSeq` where
+the measure is the size of each part and allowing us to perform fast index
+lookup, comparable to `Vector`:
+
+{lang="text"}
+~~~~~~~~
+  final class IndSeq[A](val self: FingerTree[Int, A])
+  object IndSeq {
+    private implicit def sizer[A]: Reducer[A, Int] = _ => 1
+    def apply[A](as: A*): IndSeq[A] = ...
+  }
+~~~~~~~~
+
+Another use of `FingerTree` is as an ordered sequence, `OrdSeq`, where the
+measure uses `LastOption` to store the highest value in each part:
+
+{lang="text"}
+~~~~~~~~
+  final class OrdSeq[A: Order](val self: FingerTree[LastOption[A], A]) {
+    def partition(a: A): (OrdSeq[A], OrdSeq[A]) = ...
+    def insert(a: A): OrdSeq[A] = ...
+    def ++(xs: OrdSeq[A]): OrdSeq[A] = ...
+  }
+  object OrdSeq {
+    private implicit def keyer: Reducer[A, LastOption[A]] = a => Tag(Some(a))
+    def apply[A: Order](as: A*): OrdSeq[A] = ...
+  }
+~~~~~~~~
+
+but `OrdSeq` has no typeclass instances so it is only useful to build up an
+ordered sequence.
+
+By far the most common use of `FingerTree` is as an efficient intermediate
+holder for `String` representations for use in the `Show` typeclass, which uses
+a locally scoped mutable `StringBuilder` for maximum efficiency.
+
+Building a single `String` can be thousands of times faster than the default
+`case class` implementation of `.toString`, which builds a `String` for every
+layer in the ADT.
+
+{lang="text"}
+~~~~~~~~
+  final case class Cord(self: FingerTree[Int, String]) {
+    override def toString: String = {
+      val sb = new java.lang.StringBuilder(self.measure)
+      self.foreach(sb.append) // locally scoped side effect
+      sb.toString
+    }
+    ...
+  }
+~~~~~~~~
 
 
 ### TODO Const
