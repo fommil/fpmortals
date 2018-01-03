@@ -1027,7 +1027,7 @@ state (but this is not threadsafe).
       def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
     }
   
-    val program = DynAgents[Id]
+    val program = new DynAgents[Id]
   }
 ~~~~~~~~
 
@@ -6720,31 +6720,48 @@ instead of rolling a custom data structure.
 
 ### `FingerTree`
 
-Finger trees are sequences with amortised constant cost lookup and logarithmic
-concatenation.
-
-FIXME: may need to go back and add `Reducer` to the typeclass hierarchy
-
-FIXME: omg, the actual impl of this fingertree is terrible, the `(implicit R:
-Reducer[A, V])` thing is insane. We can't hide this, but we can't recommend it
-to anybody either.
+Finger trees are generalised sequences with amortised constant cost lookup and
+logarithmic concatenation. `V` is the index and has a `Monoid[V]`. `A` is the
+data. It may help to mentally set `V` to `Int` to allow for a comparison with
+`Vector`
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class FingerTree[V, A]
   object FingerTree {
-    private case class Empty[V, A]() extends FingerTree[V, A]
-    private case class Single[V, A](v: V, a: =>A) extends FingerTree[V, A]
-    private case class Deep[V, A](
+    private class Empty[V, A]() extends FingerTree[V, A]
+    private class Single[V, A](v: V, a: =>A) extends FingerTree[V, A]
+    private class Deep[V, A](
       v: V,
       pr: Finger[V, A],
       m: =>FingerTree[V, Node[V, A]],
       sf: Finger[V, A]
     ) extends FingerTree[V, A]
   
-    // FIXME Finger and Node...
+    sealed abstract class Finger[V, A]
+    final case class One[V, A](v: V, a1: A) extends Finger[V, A]
+    final case class Two[V, A](v: V, a1: A, a2: A) extends Finger[V, A]
+    final case class Three[V, A](v: V, a1: A, a2: A, a3: A) extends Finger[V, A]
+    final case class Four[V, A](v: V, a1: A, a2: A, a3: A, a4: A) extends Finger[V, A]
+  
+    sealed abstract class Node[V, A]
+    private class Node2[V, A](v: V, a1: =>A, a2: =>A) extends Node[V, A]
+    private class Node3[V, A](v: V, a1: =>A, a2: =>A, a3: =>A) extends Node[V, A]
   }
 ~~~~~~~~
+
+For example, with `FingerTree` as dots, `Finger` as boxes and `Node` as boxes
+within boxes:
+
+{width=50%}
+![](images/fingertree.png)
+
+FIXME: may need to go back and add `Reducer` to the typeclass hierarchy, or
+should we just introduce it here as a kind of companion typeclass?
+
+FIXME: omg, the actual impl of this fingertree is terrible, the `(implicit R:
+Reducer[A, V])` thing is insane. We can't hide this, but we can't recommend it
+to anybody either.
 
 
 ### TODO Cord
