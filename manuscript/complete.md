@@ -2873,8 +2873,9 @@ A> and save memory allocations, gaining performance improvements from reduced
 A> pressure on the garbage collector.
 A> 
 A> We could try to justify locally breaking typeclass coherence by making
-A> `lastWins` private, but when we get to the `Plus` typeclass we will see the
-A> correct way to implement our `Monoid`.
+A> `lastWins` private, but when we get to the `Plus` typeclass we will see a better
+A> way to implement our `Monoid`. When we get to tagged types, we will see an even
+A> better way: using `LastOption` instead of `Option` in our data model.
 A> 
 A> Please don't break typeclass coherence at home, kids.
 
@@ -6718,12 +6719,11 @@ If you find yourself working with hierarchical data, consider using a Rose Tree
 instead of rolling a custom data structure.
 
 
-### `FingerTree`
+### `FingerTree` / `IndSeq`
 
 Finger trees are generalised sequences with amortised constant cost lookup and
 logarithmic concatenation. `V` is the index and has a `Monoid[V]`. `A` is the
-data. It may help to mentally set `V` to `Int` to allow for a comparison with
-`Vector`
+data.
 
 {lang="text"}
 ~~~~~~~~
@@ -6750,8 +6750,16 @@ data. It may help to mentally set `V` to `Int` to allow for a comparison with
   }
 ~~~~~~~~
 
-For example, with `FingerTree` as dots, `Finger` as boxes and `Node` as boxes
-within boxes:
+It may help to mentally set `V` to `Int` as per `IndSeq`, in which case we get
+index based lookup comparable to `Vector`:
+
+{lang="text"}
+~~~~~~~~
+  final class IndSeq[A](val self: FingerTree[Int, A])
+~~~~~~~~
+
+For example, visualising `FingerTree` as dots, `Finger` as boxes and `Node` as
+boxes within boxes:
 
 {width=50%}
 ![](images/fingertree.png)

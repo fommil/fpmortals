@@ -8,8 +8,8 @@ case object USD extends Currency
 
 final case class TradeTemplate(
   payments: List[java.time.LocalDate],
-  ccy: Option[Currency],
-  otc: Option[Boolean]
+  ccy: LastOption[Currency],
+  otc: LastOption[Boolean]
 )
 object TradeTemplate {
   // implicit private[this] def lastWins[A]: Monoid[Option[A]] = Monoid.instance(
@@ -22,11 +22,19 @@ object TradeTemplate {
   //   None
   // )
 
+  // implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+  //   (a, b) =>
+  //     TradeTemplate(a.payments |+| b.payments,
+  //                   b.ccy <+> a.ccy,
+  //                   b.otc <+> a.otc),
+  //   TradeTemplate(Nil, None, None)
+  // )
+
   implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
     (a, b) =>
       TradeTemplate(a.payments |+| b.payments,
-                    b.ccy <+> a.ccy,
-                    b.otc <+> a.otc),
-    TradeTemplate(Nil, None, None)
+                    a.ccy |+| b.ccy,
+                    a.otc |+| b.otc),
+    TradeTemplate(Nil, Tag(None), Tag(None))
   )
 }

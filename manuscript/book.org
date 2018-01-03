@@ -3373,8 +3373,9 @@ and save memory allocations, gaining performance improvements from reduced
 pressure on the garbage collector.
 
 We could try to justify locally breaking typeclass coherence by making
-=lastWins= private, but when we get to the =Plus= typeclass we will see the
-correct way to implement our =Monoid=.
+=lastWins= private, but when we get to the =Plus= typeclass we will see a better
+way to implement our =Monoid=. When we get to tagged types, we will see an even
+better way: using =LastOption= instead of =Option= in our data model.
 
 Please don't break typeclass coherence at home, kids.
 #+END_ASIDE
@@ -8105,15 +8106,14 @@ Rose Tree.
 If you find yourself working with hierarchical data, consider using a Rose Tree
 instead of rolling a custom data structure.
 
-**** =FingerTree=
+**** =FingerTree= / =IndSeq=
 
 # http://www.staff.city.ac.uk/~ross/papers/FingerTree.html
 # https://github.com/scalaz/scalaz/issues/1609
 
 Finger trees are generalised sequences with amortised constant cost lookup and
 logarithmic concatenation. =V= is the index and has a =Monoid[V]=. =A= is the
-data. It may help to mentally set =V= to =Int= to allow for a comparison with
-=Vector=
+data.
 
 #+BEGIN_SRC scala
 sealed abstract class FingerTree[V, A]
@@ -8139,8 +8139,15 @@ object FingerTree {
 }
 #+END_SRC
 
-For example, with =FingerTree= as dots, =Finger= as boxes and =Node= as boxes
-within boxes:
+It may help to mentally set =V= to =Int= as per =IndSeq=, in which case we get
+index based lookup comparable to =Vector=:
+
+#+BEGIN_SRC scala
+final class IndSeq[A](val self: FingerTree[Int, A])
+#+END_SRC
+
+For example, visualising =FingerTree= as dots, =Finger= as boxes and =Node= as
+boxes within boxes:
 
 #+BEGIN_SRC dot :cmd dot :file images/fingertree.png :exports results
 digraph G {
