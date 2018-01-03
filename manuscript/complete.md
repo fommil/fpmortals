@@ -6863,6 +6863,7 @@ logarithmic concatenation. `V` is a domain-specific measure that has a
     sealed abstract class Node[V, A]
     private class Node2[V, A](v: V, a1: =>A, a2: =>A) extends Node[V, A]
     private class Node3[V, A](v: V, a1: =>A, a2: =>A, a3: =>A) extends Node[V, A]
+    ...
   }
 ~~~~~~~~
 
@@ -6875,7 +6876,7 @@ It may help to ignore the measure `V` for now.
 Visualising `FingerTree` as dots, `Finger` as boxes and `Node` as boxes within
 boxes:
 
-{width=50%}
+{width=35%}
 ![](images/fingertree.png)
 
 Prepending `+:` (or appending `:+`) elements to a `FingerTree` is reasonably
@@ -6897,11 +6898,11 @@ A> increases the memory requirement by 64 bits for every entry. The implementati
 A> of `FingerTree` is almost a decade old and is due a rewrite.
 
 `Reducer` is an extension of `Monoid` that allows for single elements to be
-added to an `M` for efficiency
+added to an `M`
 
 {lang="text"}
 ~~~~~~~~
-  trait Reducer[C, M] extends Monoid[M] {
+  class Reducer[C, M: Monoid] {
     def unit(c: C): M
   
     def snoc(m: M, c: C): M = append(m, unit(c))
@@ -6909,12 +6910,19 @@ added to an `M` for efficiency
   }
 ~~~~~~~~
 
-For example, `Reducer[A, List[A]]` can provide a more efficient `.cons` for
-appending elements to the start.
+For example, `Reducer[A, IList[A]]` can provide an efficient `.cons`
 
-If we use `Int` as the measure `V`, we get an indexed sequence, `IndSeq` where
-the measure is the size of each part and allowing us to perform fast index
-lookup, comparable to `Vector`:
+{lang="text"}
+~~~~~~~~
+  implicit def reducer[A]: Reducer[A, IList[A]] = new Reducer[A, IList[A]] {
+    override def unit(a: A): IList[A] = IList.single(a)
+    override def cons(a: A, as: IList[A]): IList[A] = a :: as
+  }
+~~~~~~~~
+
+If we use `Int` as `V`, we can get an indexed sequence, where the measure is
+*size*, allowing us to perform fast index-based lookup by comparing the desired
+index with the size at each branch in the structure:
 
 {lang="text"}
 ~~~~~~~~
@@ -6925,8 +6933,8 @@ lookup, comparable to `Vector`:
   }
 ~~~~~~~~
 
-Another use of `FingerTree` is as an ordered sequence, `OrdSeq`, where the
-measure uses `LastOption` to store the highest value in each part:
+Another use of `FingerTree` is as an ordered sequence, where the measure stores
+the largest value contained by the branch:
 
 {lang="text"}
 ~~~~~~~~
@@ -6936,21 +6944,18 @@ measure uses `LastOption` to store the highest value in each part:
     def ++(xs: OrdSeq[A]): OrdSeq[A] = ...
   }
   object OrdSeq {
-    private implicit def keyer: Reducer[A, LastOption[A]] = a => Tag(Some(a))
+    private implicit def keyer[A]: Reducer[A, LastOption[A]] = a => Tag(Some(a))
     def apply[A: Order](as: A*): OrdSeq[A] = ...
   }
 ~~~~~~~~
 
-but `OrdSeq` has no typeclass instances so it is only useful to build up an
-ordered sequence.
+but `OrdSeq` has no typeclass instances so it is only useful for building up an
+ordered sequence. We can extract the underlying `FingerTree` if needed.
 
-By far the most common use of `FingerTree` is as an efficient intermediate
-holder for `String` representations for use in the `Show` typeclass, which uses
-a locally scoped mutable `StringBuilder` for maximum efficiency.
-
-Building a single `String` can be thousands of times faster than the default
-`case class` implementation of `.toString`, which builds a `String` for every
-layer in the ADT.
+But the most common use of `FingerTree` is as an efficient intermediate holder
+for `String` representations in `Show`. Building a single `String` can be
+thousands of times faster than the default `case class` implementation of nested
+`.toString`, which builds a `String` for every layer in the ADT.
 
 {lang="text"}
 ~~~~~~~~
