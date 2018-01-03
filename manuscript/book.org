@@ -15,6 +15,8 @@
 :END:
 {frontmatter}
 
+[[file:images/z.png]]
+
 #+BEGIN_QUOTE
 "Love is wise; hatred is foolish. In this world, which is getting more
 and more closely interconnected, we have to learn to tolerate each

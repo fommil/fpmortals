@@ -1,5 +1,8 @@
 {frontmatter}
 
+{width=60%}
+![](images/z.png)
+
 > "Love is wise; hatred is foolish. In this world, which is getting more
 > and more closely interconnected, we have to learn to tolerate each
 > other, we have to learn to put up with the fact that some people say

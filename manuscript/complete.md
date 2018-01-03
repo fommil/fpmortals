@@ -6675,7 +6675,8 @@ entry updating
 ### `StrictTree` and `Tree`
 
 Both `StrictTree` and `Tree` are implementations of a *Rose Tree*, a tree
-structure with an unbounded number of branches in every node.
+structure with an unbounded number of branches in every node (unfortunately
+built from standard library collections for legacy reasons):
 
 {lang="text"}
 ~~~~~~~~
@@ -6686,13 +6687,12 @@ structure with an unbounded number of branches in every node.
 ~~~~~~~~
 
 `Tree` is a *by-need* version of `StrictTree` with convenient constructors
-(unfortunately built from standard library collections for legacy reasons):
 
 {lang="text"}
 ~~~~~~~~
   class Tree[A](
-    private rootc: Need[A],
-    private forestc: Need[Stream[Tree[A]]]
+    rootc: Need[A],
+    forestc: Need[Stream[Tree[A]]]
   ) {
     def rootLabel = rootc.value
     def subForest = forestc.value
@@ -6708,16 +6708,43 @@ structure with an unbounded number of branches in every node.
 ~~~~~~~~
 
 The user of a Rose Tree is expected to manually balance it, which makes it
-suitable for cases where domain knowledge of a hierarchy is available. For
-example, in artificial intelligence, a Rose Tree can be used in [clustering
-algorithms](https://arxiv.org/abs/1203.3468) to organise data into a hierarchy of similar things. It is possible
-to represent XML documents with a Rose Tree.
+suitable for cases where it is useful to encode domain knowledge of a hierarchy
+into the data structure. For example, in artificial intelligence, a Rose Tree
+can be used in [clustering algorithms](https://arxiv.org/abs/1203.3468) to organise data into a hierarchy of
+increasingly similar things. It is possible to represent XML documents with a
+Rose Tree.
 
 If you find yourself working with hierarchical data, consider using a Rose Tree
 instead of rolling a custom data structure.
 
 
-### TODO FingerTree
+### `FingerTree`
+
+Finger trees are sequences with amortised constant cost lookup and logarithmic
+concatenation.
+
+FIXME: may need to go back and add `Reducer` to the typeclass hierarchy
+
+FIXME: omg, the actual impl of this fingertree is terrible, the `(implicit R:
+Reducer[A, V])` thing is insane. We can't hide this, but we can't recommend it
+to anybody either.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class FingerTree[V, A]
+  object FingerTree {
+    private case class Empty[V, A]() extends FingerTree[V, A]
+    private case class Single[V, A](v: V, a: =>A) extends FingerTree[V, A]
+    private case class Deep[V, A](
+      v: V,
+      pr: Finger[V, A],
+      m: =>FingerTree[V, Node[V, A]],
+      sf: Finger[V, A]
+    ) extends FingerTree[V, A]
+  
+    // FIXME Finger and Node...
+  }
+~~~~~~~~
 
 
 ### TODO Cord
