@@ -6830,11 +6830,11 @@ If you find yourself working with hierarchical data, consider using a Rose Tree
 instead of rolling a custom data structure.
 
 
-### `FingerTree` / `IndSeq` / `OrdSeq` / `Cord`
+### `FingerTree`
 
 Finger trees are generalised sequences with amortised constant cost lookup and
-logarithmic concatenation. `V` is a domain-specific measure that has a
-`Monoid[V]`. `A` is the data.
+logarithmic concatenation. `A` is the type of data and it may help to ignore
+`V`:
 
 {lang="text"}
 ~~~~~~~~
@@ -6871,27 +6871,24 @@ A> `<++>` is the TIE Bomber. Admittedly, sending in the proton torpedoes is a bi
 A> of an overreaction: it's the same thing as the regular `Monoid` TIE Fighter
 A> `|+|`.
 
-It may help to ignore the measure `V` for now.
-
 Visualising `FingerTree` as dots, `Finger` as boxes and `Node` as boxes within
 boxes:
 
 {width=35%}
 ![](images/fingertree.png)
 
-Prepending `+:` (or appending `:+`) elements to a `FingerTree` is reasonably
-efficient because `Empty` becomes `Single`, `Single` becomes `Deep`, and `Deep`
-simply adds the element to its `left` finger. If the finger is a `Four`, we
-rebuild the `spine` to take 3 of the elements in as a `Node3`, having a `Two` in
-the left.
+Adding elements to the front of a `FingerTree` with `+:` is efficient because
+`Deep` simply adds the new element to its `left` finger. If the finger is a
+`Four`, we rebuild the `spine` to take 3 of the elements as a `Node3`. Adding to
+the end, `:+`, is the same but in reverse.
 
 Appending `|+|` (also `<++>`) is more efficient than adding one element at a
-time because the case of two `Deep` trees can retain the left branch and the
-right branch, only needing to rebuild the spine based on the 16 possible
-combinations of the two `Finger` values in the middle.
+time because the case of two `Deep` trees can retain the outer branches,
+rebuilding the spine based on the 16 possible combinations of the two `Finger`
+values in the middle.
 
-In the above we skipped over the measure `V`. Not shown in the ADT description
-is an `implicit measurer: Reducer[A, V]` on every element of the ADT.
+In the above we skipped over `V`. Not shown in the ADT description is an
+`implicit measurer: Reducer[A, V]` on every element of the ADT.
 
 A> Storing typeclass instances on the ADT is considered bad style and also
 A> increases the memory requirement by 64 bits for every entry. The implementation
@@ -6920,9 +6917,12 @@ For example, `Reducer[A, IList[A]]` can provide an efficient `.cons`
   }
 ~~~~~~~~
 
+
+#### `IndSeq`
+
 If we use `Int` as `V`, we can get an indexed sequence, where the measure is
-*size*, allowing us to perform fast index-based lookup by comparing the desired
-index with the size at each branch in the structure:
+*size*, allowing us to perform index-based lookup by comparing the desired index
+with the size at each branch in the structure:
 
 {lang="text"}
 ~~~~~~~~
@@ -6934,7 +6934,10 @@ index with the size at each branch in the structure:
 ~~~~~~~~
 
 Another use of `FingerTree` is as an ordered sequence, where the measure stores
-the largest value contained by the branch:
+the largest value contained by each branch:
+
+
+#### `OrdSeq`
 
 {lang="text"}
 ~~~~~~~~
@@ -6949,12 +6952,16 @@ the largest value contained by the branch:
   }
 ~~~~~~~~
 
-but `OrdSeq` has no typeclass instances so it is only useful for building up an
-ordered sequence. We can extract the underlying `FingerTree` if needed.
+`OrdSeq` has no typeclass instances so it is only useful for incrementally
+building up an ordered sequence, with duplicates. We can access the underlying
+`FingerTree` when needed.
 
-But the most common use of `FingerTree` is as an efficient intermediate holder
-for `String` representations in `Show`. Building a single `String` can be
-thousands of times faster than the default `case class` implementation of nested
+
+#### `Cord`
+
+The most common use of `FingerTree` is as an efficient intermediate holder for
+`String` representations in `Show`. Building a single `String` can be thousands
+of times faster than the default `case class` implementation of nested
 `.toString`, which builds a `String` for every layer in the ADT.
 
 {lang="text"}
