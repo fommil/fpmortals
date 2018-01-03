@@ -15,8 +15,6 @@
 :END:
 {frontmatter}
 
-[[file:images/z.png]]
-
 #+BEGIN_QUOTE
 "Love is wise; hatred is foolish. In this world, which is getting more
 and more closely interconnected, we have to learn to tolerate each
@@ -28,6 +26,8 @@ continuation of human life on this planet."
 
 ― Bertrand Russell
 #+END_QUOTE
+
+[[file:images/z.png]]
 
 ** About This Book
 
