@@ -7142,6 +7142,39 @@ The astute reader will note that =Lazy*= is a misnomer, and these data
 types should perhaps be: =ByNameTupleX=, =ByNameOption= and
 =ByNameEither=.
 
+**** TODO Const
+
+# potentially useful example:
+# https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
+# https://github.com/facebook/Haxl
+
+=Const=, for /constant/, is a wrapper for a value of type =A=, along with a
+spare type parameter =B=.
+
+#+BEGIN_SRC scala
+final case class Const[A, B](getConst: A)
+#+END_SRC
+
+=Const= provides an instance for =Applicative[Const[A, ?]]= (and =Divisible=) if
+there is a =Monoid[A]= available, e.g. aligning the =B= types (there are no
+values) and using the =Monoid= to ensure that all the =A= values are taken into
+account:
+
+#+BEGIN_SRC scala
+implicit def applicative[A: Monoid]: Applicative[Const[A, ?]] =
+  new Applicative[Const[A, ?]] {
+    def point[B](b: =>B): Const[A, B] =
+      Const(Monoid[A].zero)
+    def ap[B, C](fa: =>Const[A, B])(f: =>Const[A, B => C]): Const[A, C] =
+      Const(f.getConst |+| fa.getConst)
+  }
+#+END_SRC
+
+It might feel like we smashed some typeclasses together just because we could,
+but this has some practical applications.
+
+FIXME: the =Const= section is a work in progress.
+
 *** Collections
 
 Unlike the stdlib Collections API, the scalaz approach describes collection
@@ -8411,10 +8444,23 @@ final case class Cord(self: FingerTree[Int, String]) {
 }
 #+END_SRC
 
-**** TODO Const
+For example, the =Cord[String]= instance returns a =Three= with the string in
+the middle and quotes on either side
 
-# potentially useful example:
-# https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
+#+BEGIN_SRC scala
+implicit val show: Show[String] = s => Cord(FingerTree.Three("\"", s, "\""))
+#+END_SRC
+
+Therefore a =String= renders as it is written in source code
+
+#+BEGIN_SRC scala
+scala> val s = "foo"
+       s.toString
+res: String = foo
+
+scala> s.show
+res: Cord = "foo"
+#+END_SRC
 
 **** TODO CorecursiveList (huh? see CorecursiveListImpl)
 **** TODO Diev (Discrete Interval Encoding Tree)

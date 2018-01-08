@@ -6198,6 +6198,38 @@ types should perhaps be: `ByNameTupleX`, `ByNameOption` and
 `ByNameEither`.
 
 
+### TODO Const
+
+`Const`, for *constant*, is a wrapper for a value of type `A`, along with a
+spare type parameter `B`.
+
+{lang="text"}
+~~~~~~~~
+  final case class Const[A, B](getConst: A)
+~~~~~~~~
+
+`Const` provides an instance for `Applicative[Const[A, ?]]` (and `Divisible`) if
+there is a `Monoid[A]` available, e.g. aligning the `B` types (there are no
+values) and using the `Monoid` to ensure that all the `A` values are taken into
+account:
+
+{lang="text"}
+~~~~~~~~
+  implicit def applicative[A: Monoid]: Applicative[Const[A, ?]] =
+    new Applicative[Const[A, ?]] {
+      def point[B](b: =>B): Const[A, B] =
+        Const(Monoid[A].zero)
+      def ap[B, C](fa: =>Const[A, B])(f: =>Const[A, B => C]): Const[A, C] =
+        Const(f.getConst |+| fa.getConst)
+    }
+~~~~~~~~
+
+It might feel like we smashed some typeclasses together just because we could,
+but this has some practical applications.
+
+FIXME: the `Const` section is a work in progress.
+
+
 ## Collections
 
 Unlike the stdlib Collections API, the scalaz approach describes collection
@@ -6976,8 +7008,25 @@ of times faster than the default `case class` implementation of nested
   }
 ~~~~~~~~
 
+For example, the `Cord[String]` instance returns a `Three` with the string in
+the middle and quotes on either side
 
-### TODO Const
+{lang="text"}
+~~~~~~~~
+  implicit val show: Show[String] = s => Cord(FingerTree.Three("\"", s, "\""))
+~~~~~~~~
+
+Therefore a `String` renders as it is written in source code
+
+{lang="text"}
+~~~~~~~~
+  scala> val s = "foo"
+         s.toString
+  res: String = foo
+  
+  scala> s.show
+  res: Cord = "foo"
+~~~~~~~~
 
 
 ### TODO CorecursiveList (huh? see CorecursiveListImpl)
