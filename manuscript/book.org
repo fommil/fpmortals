@@ -97,11 +97,11 @@ Miles Sabin for fixing a critical bug in the scala compiler ([[https://issues.sc
 
 The readers who gave feedback on early drafts of this text.
 
-Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On
-Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]],
-Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]], Noel Markham
-for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Yi Lin Wei and Zainab Ali for their tutorials
-at Hack The Tower meetups.
+Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On Free
+Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For: What is it Good For?]], Erik Bakker
+for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]], Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]],
+Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Yi Lin Wei and Zainab Ali for
+their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin
 Göttlinger, Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert
@@ -7155,23 +7155,25 @@ spare type parameter =B=.
 final case class Const[A, B](getConst: A)
 #+END_SRC
 
-=Const= provides an instance for =Applicative[Const[A, ?]]= (and =Divisible=) if
-there is a =Monoid[A]= available, e.g. aligning the =B= types (there are no
-values) and using the =Monoid= to ensure that all the =A= values are taken into
-account:
+=Const= provides an instance of =Applicative[Const[A, ?]]= (and =Divisible=) if
+there is a =Monoid[A]= available:
 
 #+BEGIN_SRC scala
 implicit def applicative[A: Monoid]: Applicative[Const[A, ?]] =
   new Applicative[Const[A, ?]] {
     def point[B](b: =>B): Const[A, B] =
       Const(Monoid[A].zero)
-    def ap[B, C](fa: =>Const[A, B])(f: =>Const[A, B => C]): Const[A, C] =
-      Const(f.getConst |+| fa.getConst)
+    def ap[B, C](fa: =>Const[A, B])(fbc: =>Const[A, B => C]): Const[A, C] =
+      Const(fbc.getConst |+| fa.getConst)
   }
 #+END_SRC
 
 It might feel like we smashed some typeclasses together just because we could,
-but this has some practical applications.
+but this has practical applications.
+
+
+
+
 
 FIXME: the =Const= section is a work in progress.
 
