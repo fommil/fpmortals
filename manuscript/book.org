@@ -7144,6 +7144,11 @@ types should perhaps be: =ByNameTupleX=, =ByNameOption= and
 
 **** TODO Const
 
+# FIXME: the example optimiser example is broken, but the end conclusion looks
+# sound. However, it's far too complex as an example at this stage so let's punt
+# it into a later section (maybe advanced monads). For now, using Const as a way
+# to write test mocks for Applicative business logic would be good.
+
 # potentially useful example:
 # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
 # https://github.com/facebook/Haxl
