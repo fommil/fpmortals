@@ -3,22 +3,22 @@ inThisBuild(
     scalaVersion := "2.12.4",
     sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
     licenses := Seq(GPL3),
-    scalafmtOnCompile := true,
-    scalafmtConfig := file("project/scalafmt.conf"),
-    scalafmtVersion := "1.3.0"
+    scalafmtConfig := Some(file("project/scalafmt.conf"))
   )
 )
+
+addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
   "com.fommil"           %% "stalactite"    % "0.0.5",
   "com.github.mpilquist" %% "simulacrum"    % "0.11.0",
-  "com.chuusai"          %% "shapeless"     % "2.3.2",
+  "com.chuusai"          %% "shapeless"     % "2.3.3",
   "io.circe"             %% "circe-core"    % circeVersion,
   "io.circe"             %% "circe-generic" % circeVersion,
   "io.circe"             %% "circe-parser"  % circeVersion,
   "io.circe"             %% "circe-fs2"     % circeVersion,
-  "org.scalaz"           %% "scalaz-core"   % "7.2.16",
+  "org.scalaz"           %% "scalaz-core"   % "7.2.18",
   "com.spinoco"          %% "fs2-http"      % "0.1.8"
 )
 
@@ -72,5 +72,3 @@ initialCommands in (Compile, console) := Seq(
   "scalaz._",
   "Scalaz._"
 ).mkString("import ", ",", "")
-
-addCommandAlias("fmt", ";sbt:scalafmt ;scalafmt ;test:scalafmt")
