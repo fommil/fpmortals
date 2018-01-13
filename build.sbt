@@ -40,6 +40,7 @@ scalacOptions ++= Seq(
 scalacOptions -= "-Ywarn-unused:implicits,imports,-locals,-params,-patvars,-privates"
 scalacOptions += "-Ywarn-unused:explicits,patvars,linted"
 
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.5")
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )

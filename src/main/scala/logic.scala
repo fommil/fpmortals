@@ -41,7 +41,7 @@ final case class WorldView(
   time: ZonedDateTime
 )
 
-final class DynAgents[F[_]: Monad](implicit d: Drone[F], m: Machines[F]) {
+final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
 
   def initial: F[WorldView] =
     (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime) {
@@ -49,14 +49,13 @@ final class DynAgents[F[_]: Monad](implicit d: Drone[F], m: Machines[F]) {
     }
 
   def update(old: WorldView): F[WorldView] =
-    for {
-      snap    <- initial
-      changed = symdiff(old.alive.keySet, snap.alive.keySet)
-      pending = (old.pending -- changed).filterNot {
+    initial.map { snap =>
+      val changed = symdiff(old.alive.keySet, snap.alive.keySet)
+      val pending = (old.pending -- changed).filterNot {
         case (_, started) => timediff(started, snap.time) >= 10.minutes
       }
-      update = snap.copy(pending = pending)
-    } yield update
+      snap.copy(pending = pending)
+    }
 
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
@@ -66,11 +65,12 @@ final class DynAgents[F[_]: Monad](implicit d: Drone[F], m: Machines[F]) {
       m.start(node) >| world.copy(pending = Map(node -> world.time))
 
     case Stale(nodes) =>
-      for {
-        stopped <- nodes.traverse(_.pure[F] >>! m.stop)
-        updates = stopped.map(_ -> world.time).toList.toMap
-        update  = world.copy(pending = world.pending ++ updates)
-      } yield update
+      nodes.traverse { node =>
+        m.stop(node) >| node
+      }.map { stopped =>
+        val updates = stopped.map(_ -> world.time).toList.toMap
+        world.copy(pending = world.pending ++ updates)
+      }
 
     case _ => world.pure[F]
   }

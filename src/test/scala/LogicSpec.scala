@@ -3,6 +3,7 @@
 
 package tests
 
+import java.lang.String
 import java.time.ZonedDateTime
 
 import scala.{ Int, Unit }
@@ -51,6 +52,26 @@ final class StaticHandlers(state: WorldView) {
   }
 
   val program = new DynAgents[Id]
+}
+
+object ConstHandlers {
+  type F[a] = Const[String, a]
+
+  implicit val drone: Drone[F] = new Drone[F] {
+    def getBacklog: F[Int] = Const("backlog")
+    def getAgents: F[Int]  = Const("agents")
+  }
+
+  implicit val machines: Machines[F] = new Machines[F] {
+    def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const("alive")
+    def getManaged: F[NonEmptyList[MachineNode]]     = Const("managed")
+    def getTime: F[ZonedDateTime]                    = Const("time")
+    def start(node: MachineNode): F[Unit]            = Const("start")
+    def stop(node: MachineNode): F[Unit]             = Const("stop")
+  }
+
+  val program = new DynAgents[F]
+
 }
 
 final class LogicSpec extends FlatSpec {
@@ -180,4 +201,11 @@ final class LogicSpec extends FlatSpec {
     handlers.stopped shouldBe 0
     handlers.started shouldBe 0
   }
+
+  it should "call the expected methods" in {
+    import ConstHandlers._
+
+    program.initial.getConst shouldBe "backlogagentsmanagedalivetime"
+  }
+
 }
