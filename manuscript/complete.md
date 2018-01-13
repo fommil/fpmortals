@@ -6225,28 +6225,16 @@ spare type parameter `B`.
 It might feel like we smashed some typeclasses together just because we could,
 but this has practical applications.
 
-Going back to our example application `drone-dynamic-agents`, we can refactor
-our `logic.scala` file, such that all of the methods take `Applicative` instead
-of `Monad`
+Going back to our example application `drone-dynamic-agents`, we should first
+refactor our `logic.scala` file to use `Applicative` instead of `Monad`
+
+A> We wrote `logic.scala` before we learnt about `Applicative`: this is a good
+A> refactor that is overdue.
 
 {lang="text"}
 ~~~~~~~~
   final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
-  
-    def initial: F[WorldView] =
-      (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime) {
-        case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
-      }
-  
-    def update(old: WorldView): F[WorldView] =
-      initial.map { snap =>
-        val changed = symdiff(old.alive.keySet, snap.alive.keySet)
-        val pending = (old.pending -- changed).filterNot {
-          case (_, started) => timediff(started, snap.time) >= 10.minutes
-        }
-        snap.copy(pending = pending)
-      }
-  
+    ...
     def act(world: WorldView): F[WorldView] = world match {
       case NeedsAgent(node) =>
         m.start(node) >| world.copy(pending = Map(node -> world.time))
@@ -6261,7 +6249,8 @@ of `Monad`
   
       case _ => world.pure[F]
     }
-  ...
+    ...
+  }
 ~~~~~~~~
 
 We can write tests using anything that provides an `Applicative[F]`, like
@@ -6296,22 +6285,24 @@ We can write a test to assert on the methods that we expect to be called:
   it should "call the expected methods" in {
     import ConstHandlers._
   
-    program.initial.getConst shouldBe "backlogagentsmanagedalivetime"
+    val alive    = Map(node1 -> time1, node2 -> time1)
+    val world    = WorldView(1, 1, managed, alive, Map.empty, time4)
+  
+    program.act(world).getConst shouldBe "stopstop"
   }
 ~~~~~~~~
 
-`Const` combines all calls using the `Monoid[A]`, in this case string
+`Const` combines all calls using the `Monoid[A]`, in this case `String`
 concatenation. Alternatively, we could have counted method calls by using
 `Const[Int, ?]`.
 
 Arguably we can achieve the same with `Validation`, also allowing us to return
-happy path values, but `Const` lets us focus on just the inputs and the
-resulting unhappy path.
+happy path values, but `Const` lets us focus on just the inputs / unhappy path.
 
 Let's take this line of thinking a little further and say we want to monitor (in
 production) the nodes that we are stopping in `act`. We can create handlers of
-`Drone` and `Machines` with `Const`, calling it first from our wrapped version
-of `act`
+`Drone` and `Machines` with `Const`, calling it from our wrapped version of
+`act`
 
 {lang="text"}
 ~~~~~~~~
@@ -6337,10 +6328,12 @@ of `act`
   }
 ~~~~~~~~
 
-This has the effect of now extracting all the calls to the `Machines.stop`
-method and returning it alongside the `WorldView`
+We can do this because `monitor` is *pure* and running it produces no side
+effects.
 
-A unit test for this is
+This runs the program with the `Const` handler, extracting all the calls to
+`Machines.stop`, then returning it alongside the `WorldView`. We can unit test
+this:
 
 {lang="text"}
 ~~~~~~~~
@@ -6357,12 +6350,13 @@ A unit test for this is
 ~~~~~~~~
 
 We have used `Const` to do something that looks like *Aspect Oriented
-Programming*, once popular in Java: we built on top of our business logic to
+Programming*, once popular in Java. We built on top of our business logic to
 support a monitoring concern, without having to complicate the business logic.
 
-In fact it gets even better. We can run the `Const` handler in production to
-gather what we want to `stop`, and then provide an **optimised** implementation
-that can make use of handler-specific batched calls. The code to do this is rather involved, so we will return to it in the chapter on Advanced Monads.
+It gets even better. We can run the `Const` handler in production to gather what
+we want to `stop`, and then provide an **optimised** implementation of `act` that
+can make use of handler-specific batched calls. The code to do this is rather
+involved, so we will return to it in the chapter on Advanced Monads.
 
 
 ## Collections
