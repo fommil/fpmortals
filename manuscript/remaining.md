@@ -113,6 +113,37 @@ And also the issue of parallelisation of applicatives vs the sequential nature o
 ~~~~~~~~
 
 
+### TODO optimisation
+
+Try this with the `act` in our example app. It's tricky because we have two algebras.
+
+{lang="text"}
+~~~~~~~~
+  trait Program[Alg[_[_]], A] {
+    def apply[F[_]: Applicative](interpreter: Alg[F]) : F[A]
+  }
+  
+  trait Optimizer[Alg[_[_]], F[_]] {
+    type M
+  
+    def monoidM: Monoid[M]
+    def monadF: Monad[F]
+  
+    def extract: Alg[Const[M, ?]]
+    def rebuild(m: M, interpreter: Alg[F]): F[Alg[F]]
+  
+    def optimize[A](p: Program[Alg, Applicative, A]): Alg[F] => F[A] = { interpreter =>
+      implicit val M: Monoid[M] = monoidM
+      implicit val F: Monad[F] = monadF
+  
+      val m: M = p(extract).getConst
+  
+      rebuild(m, interpreter).flatMap(interp => p(interp))
+    }
+  }
+~~~~~~~~
+
+
 ## TODO Free Monad
 
 

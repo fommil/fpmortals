@@ -6255,7 +6255,7 @@ of `Monad`
         nodes.traverse { node =>
           m.stop(node) >| node
         }.map { stopped =>
-          val updates = stopped.map(_ -> world.time).toList.toMap
+          val updates = stopped.strengthR(world.time).toList.toMap
           world.copy(pending = world.pending ++ updates)
         }
   
@@ -6308,15 +6308,61 @@ Arguably we can achieve the same with `Validation`, also allowing us to return
 happy path values, but `Const` lets us focus on just the inputs and the
 resulting unhappy path.
 
-Let's take this line of thinking a little further and say we want to monitor the
-production values of `MachineNode` in `act`. We can wrap our `Machines`
-implementation with a `Const` implementation:
+Let's take this line of thinking a little further and say we want to monitor (in
+production) the nodes that we are stopping in `act`. We can create handlers of
+`Drone` and `Machines` with `Const`, calling it first from our wrapped version
+of `act`
 
+{lang="text"}
+~~~~~~~~
+  final class Monitored[U[_]: Functor](program: DynAgents[U]) {
+    type F[a] = Const[Set[MachineNode], a]
+    implicit val drone: Drone[F] = new Drone[F] {
+      def getBacklog: F[Int] = Const(Set.empty)
+      def getAgents: F[Int]  = Const(Set.empty)
+    }
+    implicit val machines: Machines[F] = new Machines[F] {
+      def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const(Set.empty)
+      def getManaged: F[NonEmptyList[MachineNode]]     = Const(Set.empty)
+      def getTime: F[ZonedDateTime]                    = Const(Set.empty)
+      def start(node: MachineNode): F[Unit]            = Const(Set.empty)
+      def stop(node: MachineNode): F[Unit]             = Const(Set(node))
+    }
+    val monitor = new DynAgents[F]
+  
+    def act(world: WorldView): U[(WorldView, Set[MachineNode])] = {
+      val stopped = monitor.act(world).getConst
+      program.act(world).strengthR(stopped)
+    }
+  }
+~~~~~~~~
 
-### CODE implement
+This has the effect of now extracting all the calls to the `Machines.stop`
+method and returning it alongside the `WorldView`
 
+A unit test for this is
 
-### TODO push the example further until we get to optimisation
+{lang="text"}
+~~~~~~~~
+  it should "monitor stopped nodes" in {
+    val underlying = new StaticHandlers(needsAgents).program
+  
+    val alive = Map(node1 -> time1, node2 -> time1)
+    val world = WorldView(1, 1, managed, alive, Map.empty, time4)
+    val expected = world.copy(pending = Map(node1 -> time4, node2 -> time4))
+  
+    val monitored = new Monitored(underlying)
+    monitored.act(world) shouldBe (expected -> Set(node1, node2))
+  }
+~~~~~~~~
+
+We have used `Const` to do something that looks like *Aspect Oriented
+Programming*, once popular in Java: we built on top of our business logic to
+support a monitoring concern, without having to complicate the business logic.
+
+In fact it gets even better. We can run the `Const` handler in production to
+gather what we want to `stop`, and then provide an **optimised** implementation
+that can make use of handler-specific batched calls. The code to do this is rather involved, so we will return to it in the chapter on Advanced Monads.
 
 
 ## Collections
