@@ -1,5 +1,6 @@
 inThisBuild(
   Seq(
+    startYear := Some(2017),
     scalaVersion := "2.12.4",
     sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
     licenses := Seq(GPL3),
