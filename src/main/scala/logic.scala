@@ -68,7 +68,7 @@ final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
       nodes.traverse { node =>
         m.stop(node) >| node
       }.map { stopped =>
-        val updates = stopped.map(_ -> world.time).toList.toMap
+        val updates = stopped.strengthR(world.time).toList.toMap
         world.copy(pending = world.pending ++ updates)
       }
 

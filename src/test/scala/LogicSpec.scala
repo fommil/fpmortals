@@ -7,7 +7,7 @@ import java.lang.String
 import java.time.ZonedDateTime
 
 import scala.{ Int, Unit }
-import scala.collection.immutable.Map
+import scala.collection.immutable.{ Map, Set }
 
 import scala.Predef.ArrowAssoc
 
@@ -206,6 +206,17 @@ final class LogicSpec extends FlatSpec {
     import ConstHandlers._
 
     program.initial.getConst shouldBe "backlogagentsmanagedalivetime"
+  }
+
+  it should "monitor stopped nodes" in {
+    val underlying = new StaticHandlers(needsAgents).program
+
+    val alive    = Map(node1 -> time1, node2 -> time1)
+    val world    = WorldView(1, 1, managed, alive, Map.empty, time4)
+    val expected = world.copy(pending = Map(node1 -> time4, node2 -> time4))
+
+    val monitored = new Monitored(underlying)
+    monitored.act(world) shouldBe (expected -> Set(node1, node2))
   }
 
 }
