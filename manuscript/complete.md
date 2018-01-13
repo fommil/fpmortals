@@ -6198,7 +6198,7 @@ types should perhaps be: `ByNameTupleX`, `ByNameOption` and
 `ByNameEither`.
 
 
-### TODO Const
+### Const
 
 `Const`, for *constant*, is a wrapper for a value of type `A`, along with a
 spare type parameter `B`.
@@ -6208,10 +6208,8 @@ spare type parameter `B`.
   final case class Const[A, B](getConst: A)
 ~~~~~~~~
 
-`Const` provides an instance for `Applicative[Const[A, ?]]` (and `Divisible`) if
-there is a `Monoid[A]` available, e.g. aligning the `B` types (there are no
-values) and using the `Monoid` to ensure that all the `A` values are taken into
-account:
+`Const` provides an instance of `Applicative[Const[A, ?]]` (and `Traverse` /
+`Divisible`) if there is a `Monoid[A]` available:
 
 {lang="text"}
 ~~~~~~~~
@@ -6219,15 +6217,106 @@ account:
     new Applicative[Const[A, ?]] {
       def point[B](b: =>B): Const[A, B] =
         Const(Monoid[A].zero)
-      def ap[B, C](fa: =>Const[A, B])(f: =>Const[A, B => C]): Const[A, C] =
-        Const(f.getConst |+| fa.getConst)
+      def ap[B, C](fa: =>Const[A, B])(fbc: =>Const[A, B => C]): Const[A, C] =
+        Const(fbc.getConst |+| fa.getConst)
     }
 ~~~~~~~~
 
 It might feel like we smashed some typeclasses together just because we could,
-but this has some practical applications.
+but this has practical applications.
 
-FIXME: the `Const` section is a work in progress.
+Going back to our example application `drone-dynamic-agents`, we can refactor
+our `logic.scala` file, such that all of the methods take `Applicative` instead
+of `Monad`
+
+{lang="text"}
+~~~~~~~~
+  final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
+  
+    def initial: F[WorldView] =
+      (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime) {
+        case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
+      }
+  
+    def update(old: WorldView): F[WorldView] =
+      initial.map { snap =>
+        val changed = symdiff(old.alive.keySet, snap.alive.keySet)
+        val pending = (old.pending -- changed).filterNot {
+          case (_, started) => timediff(started, snap.time) >= 10.minutes
+        }
+        snap.copy(pending = pending)
+      }
+  
+    def act(world: WorldView): F[WorldView] = world match {
+      case NeedsAgent(node) =>
+        m.start(node) >| world.copy(pending = Map(node -> world.time))
+  
+      case Stale(nodes) =>
+        nodes.traverse { node =>
+          m.stop(node) >| node
+        }.map { stopped =>
+          val updates = stopped.map(_ -> world.time).toList.toMap
+          world.copy(pending = world.pending ++ updates)
+        }
+  
+      case _ => world.pure[F]
+    }
+  ...
+~~~~~~~~
+
+We can write tests using anything that provides an `Applicative[F]`, like
+`Const[String, ?]`
+
+{lang="text"}
+~~~~~~~~
+  object ConstHandlers {
+    type F[a] = Const[String, a]
+  
+    implicit val drone: Drone[F] = new Drone[F] {
+        def getBacklog: F[Int] = Const("backlog")
+        def getAgents: F[Int]  = Const("agents")
+      }
+  
+    implicit val machines: Machines[F] = new Machines[F] {
+        def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const("alive")
+        def getManaged: F[NonEmptyList[MachineNode]]     = Const("managed")
+        def getTime: F[ZonedDateTime]                    = Const("time")
+        def start(node: MachineNode): F[Unit]            = Const("start")
+        def stop(node: MachineNode): F[Unit]             = Const("stop")
+      }
+  
+    val program = new DynAgents[F]
+  }
+~~~~~~~~
+
+We can write a test to assert on the methods that we expect to be called:
+
+{lang="text"}
+~~~~~~~~
+  it should "call the expected methods" in {
+    import ConstHandlers._
+  
+    program.initial.getConst shouldBe "backlogagentsmanagedalivetime"
+  }
+~~~~~~~~
+
+`Const` combines all calls using the `Monoid[A]`, in this case string
+concatenation. Alternatively, we could have counted method calls by using
+`Const[Int, ?]`.
+
+Arguably we can achieve the same with `Validation`, also allowing us to return
+happy path values, but `Const` lets us focus on just the inputs and the
+resulting unhappy path.
+
+Let's take this line of thinking a little further and say we want to monitor the
+production values of `MachineNode` in `act`. We can wrap our `Machines`
+implementation with a `Const` implementation:
+
+
+### CODE implement
+
+
+### TODO push the example further until we get to optimisation
 
 
 ## Collections

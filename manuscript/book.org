@@ -7142,16 +7142,7 @@ The astute reader will note that =Lazy*= is a misnomer, and these data
 types should perhaps be: =ByNameTupleX=, =ByNameOption= and
 =ByNameEither=.
 
-**** TODO Const
-
-# FIXME: the example optimiser example is broken, but the end conclusion looks
-# sound. However, it's far too complex as an example at this stage so let's punt
-# it into a later section (maybe advanced monads). For now, using Const as a way
-# to write test mocks for Applicative business logic would be good.
-
-# potentially useful example:
-# https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
-# https://github.com/facebook/Haxl
+**** Const
 
 =Const=, for /constant/, is a wrapper for a value of type =A=, along with a
 spare type parameter =B=.
@@ -7160,8 +7151,8 @@ spare type parameter =B=.
 final case class Const[A, B](getConst: A)
 #+END_SRC
 
-=Const= provides an instance of =Applicative[Const[A, ?]]= (and =Divisible=) if
-there is a =Monoid[A]= available:
+=Const= provides an instance of =Applicative[Const[A, ?]]= (and =Traverse= /
+=Divisible=) if there is a =Monoid[A]= available:
 
 #+BEGIN_SRC scala
 implicit def applicative[A: Monoid]: Applicative[Const[A, ?]] =
@@ -7176,11 +7167,97 @@ implicit def applicative[A: Monoid]: Applicative[Const[A, ?]] =
 It might feel like we smashed some typeclasses together just because we could,
 but this has practical applications.
 
+Going back to our example application =drone-dynamic-agents=, we can refactor
+our =logic.scala= file, such that all of the methods take =Applicative= instead
+of =Monad=
 
+#+BEGIN_SRC scala
+final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
 
+  def initial: F[WorldView] =
+    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime) {
+      case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
+    }
 
+  def update(old: WorldView): F[WorldView] =
+    initial.map { snap =>
+      val changed = symdiff(old.alive.keySet, snap.alive.keySet)
+      val pending = (old.pending -- changed).filterNot {
+        case (_, started) => timediff(started, snap.time) >= 10.minutes
+      }
+      snap.copy(pending = pending)
+    }
 
-FIXME: the =Const= section is a work in progress.
+  def act(world: WorldView): F[WorldView] = world match {
+    case NeedsAgent(node) =>
+      m.start(node) >| world.copy(pending = Map(node -> world.time))
+
+    case Stale(nodes) =>
+      nodes.traverse { node =>
+        m.stop(node) >| node
+      }.map { stopped =>
+        val updates = stopped.map(_ -> world.time).toList.toMap
+        world.copy(pending = world.pending ++ updates)
+      }
+
+    case _ => world.pure[F]
+  }
+...
+#+END_SRC
+
+We can write tests using anything that provides an =Applicative[F]=, like
+=Const[String, ?]=
+
+#+BEGIN_SRC scala
+object ConstHandlers {
+  type F[a] = Const[String, a]
+
+  implicit val drone: Drone[F] = new Drone[F] {
+      def getBacklog: F[Int] = Const("backlog")
+      def getAgents: F[Int]  = Const("agents")
+    }
+
+  implicit val machines: Machines[F] = new Machines[F] {
+      def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const("alive")
+      def getManaged: F[NonEmptyList[MachineNode]]     = Const("managed")
+      def getTime: F[ZonedDateTime]                    = Const("time")
+      def start(node: MachineNode): F[Unit]            = Const("start")
+      def stop(node: MachineNode): F[Unit]             = Const("stop")
+    }
+
+  val program = new DynAgents[F]
+}
+#+END_SRC
+
+We can write a test to assert on the methods that we expect to be called:
+
+#+BEGIN_SRC scala
+  it should "call the expected methods" in {
+    import ConstHandlers._
+
+    program.initial.getConst shouldBe "backlogagentsmanagedalivetime"
+  }
+#+END_SRC
+
+=Const= combines all calls using the =Monoid[A]=, in this case string
+concatenation. Alternatively, we could have counted method calls by using
+=Const[Int, ?]=.
+
+Arguably we can achieve the same with =Validation=, also allowing us to return
+happy path values, but =Const= lets us focus on just the inputs and the
+resulting unhappy path.
+
+# useful (yet broken) example:
+# https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
+# https://github.com/facebook/Haxl
+
+Let's take this line of thinking a little further and say we want to monitor the
+production values of =MachineNode= in =act=. We can wrap our =Machines=
+implementation with a =Const= implementation:
+
+**** CODE implement
+
+**** TODO push the example further until we get to optimisation
 
 *** Collections
 
