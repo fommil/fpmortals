@@ -15,8 +15,8 @@ class GceFs2Spec extends FlatSpec {
   val client = new GceFs2(config)
 
   "GceFs2Spec" should "return Cluster information" ignore {
-    val t = client.getCluster.unsafeRun()
-    scala.Predef.println(t)
-
+    fail
+    // val t = client.getCluster.unsafeRun()
+    // scala.Predef.println(t)
   }
 }

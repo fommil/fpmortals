@@ -205,7 +205,10 @@ final class LogicSpec extends FlatSpec {
   it should "call the expected methods" in {
     import ConstHandlers._
 
-    program.initial.getConst shouldBe "backlogagentsmanagedalivetime"
+    val alive = Map(node1 -> time1, node2 -> time1)
+    val world = WorldView(1, 1, managed, alive, Map.empty, time4)
+
+    program.act(world).getConst shouldBe "stopstop"
   }
 
   it should "monitor stopped nodes" in {

@@ -16,6 +16,4 @@ build_job:
         echo "Please remove TODO or FIXME." ;
         exit 1 ;
       fi
-    - sbt ";update ;test:update ;scalafmt::test ;test:scalafmt::test ;sbt:scalafmt::test ;headerCheck ;test:headerCheck"
-    - sbt ";test:compile ;doc";
-    - sbt "test"
+    - sbt ";check ;test:compile ;lint ;doc ;test";
