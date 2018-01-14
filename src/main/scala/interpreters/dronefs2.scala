@@ -4,6 +4,7 @@
 package interpreters.dronefs2
 
 import java.lang.{ String, SuppressWarnings }
+import java.nio.channels.AsynchronousChannelGroup
 
 import scala.{ Array, Int }
 import scala.Predef.???
@@ -27,10 +28,10 @@ import java.nio.channels.AsynchronousChannelGroup
 import java.util.concurrent.Executors
 
 object Resources {
-  val ES         = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
-  implicit val S = Strategy.fromExecutor(ES)
-  //implicit val Sch = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(4, Strategy.daemonThreadFactory("S")))
-  implicit val AG = AsynchronousChannelGroup.withThreadPool(ES)
+  val ES                   = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
+  implicit val S: Strategy = Strategy.fromExecutor(ES)
+  implicit val AG: AsynchronousChannelGroup =
+    AsynchronousChannelGroup.withThreadPool(ES)
 }
 
 final class DroneFs2(config: DroneConfig) extends Drone[Task] {

@@ -13,7 +13,9 @@ addCommandAlias(
   "check",
   "all headerCheck test:headerCheck scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 )
-addCommandAlias("lint", "all scalafix test:scalafix")
+
+scalafixEnabled := true
+addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(

@@ -35,10 +35,11 @@ final case class GceConfig(
 )
 
 object Resources {
-  val ES         = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
-  implicit val S = Strategy.fromExecutor(ES)
+  val ES                              = Executors.newCachedThreadPool(Strategy.daemonThreadFactory("AG"))
+  implicit val S: _root_.fs2.Strategy = Strategy.fromExecutor(ES)
   //implicit val Sch = Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(4, Strategy.daemonThreadFactory("S")))
-  implicit val AG = AsynchronousChannelGroup.withThreadPool(ES)
+  implicit val AG: _root_.java.nio.channels.AsynchronousChannelGroup =
+    AsynchronousChannelGroup.withThreadPool(ES)
 }
 
 // https://cloud.google.com/container-engine/docs/
