@@ -8592,6 +8592,27 @@ res: Cord = "foo"
 
 (depends on =Tree=)
 
+#+BEGIN_SRC scala
+sealed abstract class Heap[A] {
+  ...
+}
+object Heap {
+  def fromData[F[_]: Foldable, A: Order](as: F[A]): Heap[A] = ...
+
+  case class Ranked[A](rank: Int, value: A)
+
+  private final case class Empty[A]() extends Heap[A]
+  private final case class NonEmpty[A](
+    size: Int,
+    leq: (A, A) => Boolean,
+    t: Tree[Ranked[A]]
+  ) extends Heap[A]
+
+  ...
+}
+
+#+END_SRC
+
 **** TODO OneAnd / OneOr
 
 * WIP                                                                 :final:
