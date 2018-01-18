@@ -8584,22 +8584,32 @@ scala> s.show
 res: Cord = "foo"
 #+END_SRC
 
-**** TODO CorecursiveList (huh? see CorecursiveListImpl)
-**** TODO Diev (Discrete Interval Encoding Tree)
-**** TODO Priority Queue =Heap=
+**** TODO OneAnd / OneOr
+
+FIXME: work in progress
+
+**** =Heap= Priority Queue
 
 # http://www.brics.dk/RS/96/37/BRICS-RS-96-37.pdf
 
-(depends on =Tree=)
+In a tree structure, if every subtree has values greater than its parent node,
+it is called a /Heap Priority Queue/.
+
+Scalaz encodes a priority queue with =Heap=, having fast insertion, union, size
+and dequeue operations:
 
 #+BEGIN_SRC scala
 sealed abstract class Heap[A] {
+  def +(a: A)(implicit O: Order[A]): Heap[A] = ...
+  def union(as: Heap[A]): Heap[A] = ...
+  def uncons: Option[(A, Heap[A])] = ...
+  def minimumO: Option[A] = ...
   ...
 }
 object Heap {
   def fromData[F[_]: Foldable, A: Order](as: F[A]): Heap[A] = ...
 
-  case class Ranked[A](rank: Int, value: A)
+  private final case class Ranked[A](rank: Int, value: A)
 
   private final case class Empty[A]() extends Heap[A]
   private final case class NonEmpty[A](
@@ -8610,10 +8620,28 @@ object Heap {
 
   ...
 }
-
 #+END_SRC
 
-**** TODO OneAnd / OneOr
+=Heap= uses a Rose =Tree=, 
+
+FIXME work in progress
+
+#+BEGIN_SRC scala
+  private[scalaz] def insertWith(f: (A, A) => Boolean, x: A) =
+    fold(singletonWith(f, x), (s, _, t) => {
+      val y = t.rootLabel.value
+      if (f(x, y)) Heap(s + 1, f, Node(Ranked(0, x), Stream(t)))
+      else
+        Heap(s + 1, f, Node(Ranked(0, y),
+          skewInsert(f, Node(Ranked(0, x), Stream()), t.subForest)))
+    })
+  ...
+#+END_SRC
+
+
+**** TODO CorecursiveList (huh? see CorecursiveListImpl)
+**** TODO Diev (Discrete Interval Encoding Tree)
+
 
 * WIP                                                                 :final:
   :PROPERTIES:
