@@ -8600,7 +8600,9 @@ and dequeue operations:
 
 #+BEGIN_SRC scala
 sealed abstract class Heap[A] {
-  def +(a: A)(implicit O: Order[A]): Heap[A] = ...
+  def insert(a: A)(implicit O: Order[A]): Heap[A] = ...
+  def +(a: A)(implicit O: Order[A]): Heap[A] = insert(a)
+
   def union(as: Heap[A]): Heap[A] = ...
   def uncons: Option[(A, Heap[A])] = ...
   def minimumO: Option[A] = ...
@@ -8614,27 +8616,122 @@ object Heap {
   private final case class Empty[A]() extends Heap[A]
   private final case class NonEmpty[A](
     size: Int,
-    leq: (A, A) => Boolean,
-    t: Tree[Ranked[A]]
+    tree: Tree[Ranked[A]]
   ) extends Heap[A]
 
   ...
 }
 #+END_SRC
 
-=Heap= uses a Rose =Tree=, 
-
-FIXME work in progress
+=Heap= is implemented with a Rose =Tree= with the =minimum= value at the top of
+the tree, enforced during insertion:
 
 #+BEGIN_SRC scala
-  private[scalaz] def insertWith(f: (A, A) => Boolean, x: A) =
-    fold(singletonWith(f, x), (s, _, t) => {
-      val y = t.rootLabel.value
-      if (f(x, y)) Heap(s + 1, f, Node(Ranked(0, x), Stream(t)))
-      else
-        Heap(s + 1, f, Node(Ranked(0, y),
-          skewInsert(f, Node(Ranked(0, x), Stream()), t.subForest)))
-    })
+  def insert(a: A)(implicit O: Order[A]): Heap[A] = this match {
+    case Empty() =>
+      NonEmpty(1, Tree.Leaf(Ranked(0, a)))
+    case NonEmpty(size, tree @ Tree.Node(min, _)) if a <= min =>
+      NonEmpty(size + 1, Tree.Node(Ranked(0, a), Stream(tree)))
+  ...
+#+END_SRC
+
+with non-minimal insertions producing an /unordered/ structure:
+
+#+BEGIN_SRC scala
+  ...
+    case NonEmpty(size, Tree.Node(min, t1 #:: t2 #:: ts))
+      if t1.rootLabel.rank == t2.rootLabel.rank =>
+      val xt = Tree.Leaf(Ranked(0, a), Stream())
+      val sub = ... FIXME
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min), sub))
+
+    case NonEmpty(size, Tree.Node(min, rest)) =>
+      // `a` may not be less than the elements in `rest`
+      val xt = Tree.Leaf(Ranked(0, a), Stream())
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min), xt #:: rest))
+  }
+#+END_SRC
+
+The advantage of inserting this way is performance (this is =O(1)=), but we pay
+a price when we take =uncons= the priority item (=O(log n)=).
+
+#+BEGIN_SRC scala
+    def skewInsert[A](f: (A, A) => Boolean, t: Tree[Ranked[A]], ts: Forest[A]): Forest[A] =
+      ts match {
+        case t1 #:: t2 #:: rest =>
+          if (rank(t1) == rank(t2))
+            skewLink(f, t, t1, t2) #:: rest
+          else (t #:: ts)
+        case _                  => t #:: ts
+      }
+
+    def skewLink[A](f: (A, A) => Boolean,
+                    t0: Tree[Ranked[A]],
+                    t1: Tree[Ranked[A]],
+                    t2: Tree[Ranked[A]]): Tree[Ranked[A]] = (t0, t1, t2) match {
+      case (Node(Ranked(r0, x0), cf0), Node(Ranked(r1, x1), cf1), Node(Ranked(r2, x2), cf2)) =>
+        if (f(x1, x0) && f(x1, x2)) Node(Ranked(r1 + 1, x1), t0 #:: t2 #:: cf1)
+        else
+        if (f(x2, x0) && f(x2, x1)) Node(Ranked(r2 + 1, x2), t0 #:: t1 #:: cf2)
+        else
+          Node(Ranked(r1 + 1, x0), t1 #:: t2 #:: cf0)
+    }
+
+
+    def deleteMin: Heap[A] = {
+      fold(Empty[A], (s, leq, t) => t match {
+        case Node(_, Stream()) => Empty[A]
+        case Node(_, f0)       => {
+          val (Node(Ranked(r, x), cf), ts2) = getMin(leq, f0)
+          val (zs, ts1, f1) = splitForest(r, Stream(), Stream(), cf)
+          val f2 = skewMeld(leq, skewMeld(leq, ts1, ts2), f1)
+          val f3 = zs.foldRight(f2)(skewInsert(leq, _, _))
+          Heap(s - 1, leq, Node(Ranked(0, x), f3))
+        }
+      })
+    }
+
+    def getMin[A](f: (A, A) => Boolean, trees: Forest[A]): (Tree[Ranked[A]], Forest[A]) =
+      trees match {
+        case Stream(t) => (t, Stream())
+        case t #:: ts  => {
+          val (tp, tsp) = getMin(f, ts)
+          if (f(t.rootLabel.value, tp.rootLabel.value)) (t, ts) else (tp, t #:: tsp)
+        }
+      }
+
+    def splitForest[A]:
+    (Int, Forest[A], Forest[A], Forest[A]) => (Forest[A], Forest[A], Forest[A]) = {
+      case (0, zs, ts, f)                  => (zs, ts, f)
+      case (1, zs, ts, Stream(t))          => (zs, t #:: ts, Stream())
+      case (1, zs, ts, t1 #:: t2 #:: f)    =>
+        if (rank(t2) == 0) (t1 #:: zs, t2 #:: ts, f)
+        else
+          (zs, t1 #:: ts, t2 #:: f)
+      case (r, zs, ts, (t1 #:: t2 #:: cf)) =>
+        if (rank(t1) == rank(t2)) (zs, t1 #:: t2 #:: ts, cf)
+        else
+        if (rank(t1) == 0) splitForest(r - 1, t1 #:: zs, t2 #:: ts, cf)
+        else
+          splitForest(r - 1, zs, t1 #:: ts, t2 #:: cf)
+      case (_, _, _, _)                    => sys.error("Heap.splitForest: invalid arguments")
+    }
+
+    def skewMeld[A](f: (A, A) => Boolean, ts: Forest[A], tsp: Forest[A]) =
+      unionUniq(f)(uniqify(f)(ts), uniqify(f)(tsp))
+
+    def unionUniq[A](f: (A, A) => Boolean): (Forest[A], Forest[A]) => Forest[A] = {
+      case (Stream(), ts)                         => ts
+      case (ts, Stream())                         => ts
+      case (tts1@(t1 #:: ts1), tts2@(t2 #:: ts2)) =>
+        import std.anyVal._
+        Order[Int].order(rank(t1), rank(t2)) match {
+          case Ordering.LT => t1 #:: unionUniq(f)(ts1, tts2)
+          case Ordering.EQ => ins(f, link(f)(t1, t2))(unionUniq(f)(ts1, ts2))
+          case Ordering.GT => t2 #:: unionUniq(f)(tts1, ts2)
+        }
+    }
+
   ...
 #+END_SRC
 
