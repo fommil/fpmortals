@@ -7158,17 +7158,182 @@ Therefore a `String` renders as it is written in source code
 ~~~~~~~~
 
 
+### TODO OneAnd / OneOr
+
+FIXME: work in progress
+
+
+### `Heap` Priority Queue
+
+In a tree structure, if every subtree has values greater than its parent node,
+it is called a *Heap Priority Queue*.
+
+Scalaz encodes a priority queue with `Heap`, having fast insertion, union, size
+and dequeue operations:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Heap[A] {
+    def insert(a: A)(implicit O: Order[A]): Heap[A] = ...
+    def +(a: A)(implicit O: Order[A]): Heap[A] = insert(a)
+  
+    def union(as: Heap[A]): Heap[A] = ...
+  
+    def uncons: Option[(A, Heap[A])] = minimum0.strengthR(deleteMin)
+    def minimumO: Option[A] = ...
+    def deleteMin: Heap[A] = ...
+  
+    ...
+  }
+  object Heap {
+    def fromData[F[_]: Foldable, A: Order](as: F[A]): Heap[A] = ...
+  
+    private final case class Ranked[A](rank: Int, value: A)
+  
+    private final case class Empty[A]() extends Heap[A]
+    private final case class NonEmpty[A](
+      size: Int,
+      tree: Tree[Ranked[A]]
+    ) extends Heap[A]
+  
+    ...
+  }
+~~~~~~~~
+
+A> `size` is memoized in the ADT to enable instant calculation of
+A> `Foldable.length`, at a cost of 64 bits per entry. A variant of `Heap` could be
+A> created with a smaller footprint, but slower `Foldable.length`.
+
+`Heap` is implemented with a Rose `Tree` with the `minimum` value at the top of
+the tree, enforced during insertion:
+
+{lang="text"}
+~~~~~~~~
+  def insert(a: A)(implicit O: Order[A]): Heap[A] = this match {
+    case Empty() =>
+      NonEmpty(1, Tree.Leaf(Ranked(0, a)))
+    case NonEmpty(size, tree @ Tree.Node(min, _)) if a <= min =>
+      NonEmpty(size + 1, Tree.Node(Ranked(0, a), Stream(tree)))
+  ...
+~~~~~~~~
+
+`Ranked` records the depth of a subtree, allowing us to depth-balance the tree.
+Insertions of non-minimal values result in an *unordered* structure as branches
+of the minimum:
+
+{lang="text"}
+~~~~~~~~
+  ...
+    case NonEmpty(size, Tree.Node(min,
+           (t1 @ Tree.Node(Ranked(r1, x1), xs1)) #::
+           (t2 @ Tree.Node(Ranked(r2, x2), xs2)) #:: ts)) if r1 == r2 =>
+      lazy val t0 = Tree.Leaf(Ranked(0, a), Stream())
+      val sub =
+        if (x1 <= a && x1 <= x2)
+          Tree.Node(Ranked(r1 + 1, x1), t0 #:: t2 #:: xs1)
+        else if (x2 <= a && x2 <= x1)
+          Tree.Node(Ranked(r2 + 1, x2), t0 #:: t1 #:: xs2)
+        else
+          Tree.Node(Ranked(r1 + 1, a), t1 #:: t2 #:: Stream())
+  
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min), sub #:: ts))
+  
+    case NonEmpty(size,  Tree.Node(min, rest)) =>
+      val t0 = Tree.Leaf(Ranked(0, a), Stream())
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min), t0 #:: rest))
+  }
+~~~~~~~~
+
+The only non-trivial case is when we encounter two or more subtrees having equal
+rank, then we put the minimum to the front. However, note that the final `case`,
+when the ranks do not match, may be unordered since `a` is not compared to
+`rest`.
+
+An advantage of encoding the minimum value in the data structure is that
+`minimum0` (also known as *peek*) is a free lookup:
+
+{lang="text"}
+~~~~~~~~
+  def minimumO: Option[A] = this match {
+    case Empty()                        => None
+    case NonEmpty(_, Tree.Node(min, _)) => Some(min.value)
+  }
+~~~~~~~~
+
+Avoiding a full ordering of the tree means that `insert` is very fast, `O(1)`,
+meaning that producers do not suffer. However, the consumer pays the cost when
+calling `uncons`, with `deleteMin` costing `O(log n)`.
+
+FIXME may want to just describe `deleteMin`... the code is very involved.
+
+{lang="text"}
+~~~~~~~~
+  def deleteMin: Heap[A] = FIXME
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  def deleteMin: Heap[A] = {
+      fold(Empty[A], (s, leq, t) => t match {
+        case Node(_, Stream()) => Empty[A]
+        case Node(_, f0)       => {
+          val (Node(Ranked(r, x), cf), ts2) = getMin(leq, f0)
+          val (zs, ts1, f1) = splitForest(r, Stream(), Stream(), cf)
+          val f2 = skewMeld(leq, skewMeld(leq, ts1, ts2), f1)
+          val f3 = zs.foldRight(f2)(skewInsert(leq, _, _))
+          Heap(s - 1, leq, Node(Ranked(0, x), f3))
+        }
+      })
+    }
+  
+    def getMin[A](f: (A, A) => Boolean, trees: Forest[A]): (Tree[Ranked[A]], Forest[A]) =
+      trees match {
+        case Stream(t) => (t, Stream())
+        case t #:: ts  => {
+          val (tp, tsp) = getMin(f, ts)
+          if (f(t.rootLabel.value, tp.rootLabel.value)) (t, ts) else (tp, t #:: tsp)
+        }
+      }
+  
+    def splitForest[A]:
+    (Int, Forest[A], Forest[A], Forest[A]) => (Forest[A], Forest[A], Forest[A]) = {
+      case (0, zs, ts, f)                  => (zs, ts, f)
+      case (1, zs, ts, Stream(t))          => (zs, t #:: ts, Stream())
+      case (1, zs, ts, t1 #:: t2 #:: f)    =>
+        if (rank(t2) == 0) (t1 #:: zs, t2 #:: ts, f)
+        else
+          (zs, t1 #:: ts, t2 #:: f)
+      case (r, zs, ts, (t1 #:: t2 #:: cf)) =>
+        if (rank(t1) == rank(t2)) (zs, t1 #:: t2 #:: ts, cf)
+        else
+        if (rank(t1) == 0) splitForest(r - 1, t1 #:: zs, t2 #:: ts, cf)
+        else
+          splitForest(r - 1, zs, t1 #:: ts, t2 #:: cf)
+      case (_, _, _, _)                    => sys.error("Heap.splitForest: invalid arguments")
+    }
+  
+    def skewMeld[A](f: (A, A) => Boolean, ts: Forest[A], tsp: Forest[A]) =
+      unionUniq(f)(uniqify(f)(ts), uniqify(f)(tsp))
+  
+    def unionUniq[A](f: (A, A) => Boolean): (Forest[A], Forest[A]) => Forest[A] = {
+      case (Stream(), ts)                         => ts
+      case (ts, Stream())                         => ts
+      case (tts1@(t1 #:: ts1), tts2@(t2 #:: ts2)) =>
+        import std.anyVal._
+        Order[Int].order(rank(t1), rank(t2)) match {
+          case Ordering.LT => t1 #:: unionUniq(f)(ts1, tts2)
+          case Ordering.EQ => ins(f, link(f)(t1, t2))(unionUniq(f)(ts1, ts2))
+          case Ordering.GT => t2 #:: unionUniq(f)(tts1, ts2)
+        }
+    }
+  
+  ...
+~~~~~~~~
+
+
 ### TODO CorecursiveList (huh? see CorecursiveListImpl)
 
 
 ### TODO Diev (Discrete Interval Encoding Tree)
-
-
-### TODO Priority Queue `Heap`
-
-(depends on `Tree`)
-
-
-### TODO OneAnd / OneOr
 
 

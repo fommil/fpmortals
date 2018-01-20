@@ -8604,8 +8604,11 @@ sealed abstract class Heap[A] {
   def +(a: A)(implicit O: Order[A]): Heap[A] = insert(a)
 
   def union(as: Heap[A]): Heap[A] = ...
-  def uncons: Option[(A, Heap[A])] = ...
+
+  def uncons: Option[(A, Heap[A])] = minimum0.strengthR(deleteMin)
   def minimumO: Option[A] = ...
+  def deleteMin: Heap[A] = ...
+
   ...
 }
 object Heap {
@@ -8623,6 +8626,12 @@ object Heap {
 }
 #+END_SRC
 
+#+BEGIN_ASIDE
+=size= is memoized in the ADT to enable instant calculation of
+=Foldable.length=, at a cost of 64 bits per entry. A variant of =Heap= could be
+created with a smaller footprint, but slower =Foldable.length=.
+#+END_ASIDE
+
 =Heap= is implemented with a Rose =Tree= with the =minimum= value at the top of
 the tree, enforced during insertion:
 
@@ -8635,49 +8644,58 @@ the tree, enforced during insertion:
   ...
 #+END_SRC
 
-with non-minimal insertions producing an /unordered/ structure:
+=Ranked= records the depth of a subtree, allowing us to depth-balance the tree.
+Insertions of non-minimal values result in an /unordered/ structure as branches
+of the minimum:
 
 #+BEGIN_SRC scala
   ...
-    case NonEmpty(size, Tree.Node(min, t1 #:: t2 #:: ts))
-      if t1.rootLabel.rank == t2.rootLabel.rank =>
-      val xt = Tree.Leaf(Ranked(0, a), Stream())
-      val sub = ... FIXME
-      NonEmpty(size + 1, Tree.Node(Ranked(0, min), sub))
+    case NonEmpty(size, Tree.Node(min,
+           (t1 @ Tree.Node(Ranked(r1, x1), xs1)) #::
+           (t2 @ Tree.Node(Ranked(r2, x2), xs2)) #:: ts)) if r1 == r2 =>
+      lazy val t0 = Tree.Leaf(Ranked(0, a), Stream())
+      val sub =
+        if (x1 <= a && x1 <= x2)
+          Tree.Node(Ranked(r1 + 1, x1), t0 #:: t2 #:: xs1)
+        else if (x2 <= a && x2 <= x1)
+          Tree.Node(Ranked(r2 + 1, x2), t0 #:: t1 #:: xs2)
+        else
+          Tree.Node(Ranked(r1 + 1, a), t1 #:: t2 #:: Stream())
 
-    case NonEmpty(size, Tree.Node(min, rest)) =>
-      // `a` may not be less than the elements in `rest`
-      val xt = Tree.Leaf(Ranked(0, a), Stream())
-      NonEmpty(size + 1, Tree.Node(Ranked(0, min), xt #:: rest))
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min), sub #:: ts))
+
+    case NonEmpty(size,  Tree.Node(min, rest)) =>
+      val t0 = Tree.Leaf(Ranked(0, a), Stream())
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min), t0 #:: rest))
   }
 #+END_SRC
 
-The advantage of inserting this way is performance (this is =O(1)=), but we pay
-a price when we take =uncons= the priority item (=O(log n)=).
+The only non-trivial case is when we encounter two or more subtrees having equal
+rank, then we put the minimum to the front. However, note that the final =case=,
+when the ranks do not match, may be unordered since =a= is not compared to
+=rest=.
+
+An advantage of encoding the minimum value in the data structure is that
+=minimum0= (also known as /peek/) is a free lookup:
 
 #+BEGIN_SRC scala
-    def skewInsert[A](f: (A, A) => Boolean, t: Tree[Ranked[A]], ts: Forest[A]): Forest[A] =
-      ts match {
-        case t1 #:: t2 #:: rest =>
-          if (rank(t1) == rank(t2))
-            skewLink(f, t, t1, t2) #:: rest
-          else (t #:: ts)
-        case _                  => t #:: ts
-      }
+  def minimumO: Option[A] = this match {
+    case Empty()                        => None
+    case NonEmpty(_, Tree.Node(min, _)) => Some(min.value)
+  }
+#+END_SRC
 
-    def skewLink[A](f: (A, A) => Boolean,
-                    t0: Tree[Ranked[A]],
-                    t1: Tree[Ranked[A]],
-                    t2: Tree[Ranked[A]]): Tree[Ranked[A]] = (t0, t1, t2) match {
-      case (Node(Ranked(r0, x0), cf0), Node(Ranked(r1, x1), cf1), Node(Ranked(r2, x2), cf2)) =>
-        if (f(x1, x0) && f(x1, x2)) Node(Ranked(r1 + 1, x1), t0 #:: t2 #:: cf1)
-        else
-        if (f(x2, x0) && f(x2, x1)) Node(Ranked(r2 + 1, x2), t0 #:: t1 #:: cf2)
-        else
-          Node(Ranked(r1 + 1, x0), t1 #:: t2 #:: cf0)
-    }
+Avoiding a full ordering of the tree means that =insert= is very fast, =O(1)=,
+meaning that producers do not suffer. However, the consumer pays the cost when
+calling =uncons=, with =deleteMin= costing =O(log n)=.
 
+FIXME may want to just describe =deleteMin=... the code is very involved.
 
+#+BEGIN_SRC scala
+  def deleteMin: Heap[A] = FIXME
+#+END_SRC
+
+#+BEGIN_SRC scala
     def deleteMin: Heap[A] = {
       fold(Empty[A], (s, leq, t) => t match {
         case Node(_, Stream()) => Empty[A]
@@ -8734,7 +8752,6 @@ a price when we take =uncons= the priority item (=O(log n)=).
 
   ...
 #+END_SRC
-
 
 **** TODO CorecursiveList (huh? see CorecursiveListImpl)
 **** TODO Diev (Discrete Interval Encoding Tree)
