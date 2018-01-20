@@ -7158,18 +7158,12 @@ Therefore a `String` renders as it is written in source code
 ~~~~~~~~
 
 
-### TODO OneAnd / OneOr
-
-FIXME: work in progress
-
-
 ### `Heap` Priority Queue
 
-In a tree structure, if every subtree has values greater than its parent node,
-it is called a *Heap Priority Queue*.
-
-Scalaz encodes a priority queue with `Heap`, having fast insertion, union, size
-and dequeue operations:
+In a tree structure, if every node has a value less than its children, it is
+called a *Heap*. Scalaz encodes a priority queue, allowing duplicates, with
+`Heap`, having fast `insert`, `union`, `size`, dequeue (`uncons`) and peek
+(`minimumO`) operations:
 
 {lang="text"}
 ~~~~~~~~
@@ -7177,11 +7171,11 @@ and dequeue operations:
     def insert(a: A)(implicit O: Order[A]): Heap[A] = ...
     def +(a: A)(implicit O: Order[A]): Heap[A] = insert(a)
   
-    def union(as: Heap[A]): Heap[A] = ...
+    def union(as: Heap[A])(implicit O: Order[A]): Heap[A] = ...
   
-    def uncons: Option[(A, Heap[A])] = minimumO.strengthR(deleteMin)
+    def uncons(implicit O: Order[A]): Option[(A, Heap[A])] = minimumO.strengthR(deleteMin)
     def minimumO: Option[A] = ...
-    def deleteMin: Heap[A] = ...
+    def deleteMin(implicit O: Order[A]): Heap[A] = ...
   
     ...
   }
@@ -7250,23 +7244,48 @@ we optimistically put the minimum to the front:
         else
           Tree.Node(Ranked(r1 + 1, a), t1 #:: t2 #:: Stream())
   
-      NonEmpty(size + 1, Tree.Node(Ranked(0, min), sub #:: ts))
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min.value), sub #:: ts))
   
     case NonEmpty(size,  Tree.Node(min, rest)) =>
       val t0 = Tree.Leaf(Ranked(0, a))
-      NonEmpty(size + 1, Tree.Node(Ranked(0, min), t0 #:: rest))
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min.value), t0 #:: rest))
   }
 ~~~~~~~~
 
-Avoiding a full ordering of the tree means that `insert` is very fast, `O(1)`,
-such that producers adding to the queue are not penalised. However, the consumer
-pays the cost when calling `uncons`, with `deleteMin` costing `O(log n)` because
-it must search for the minimum value, and remove it from the tree by rebuilding.
+Avoiding a full ordering of the tree makes `insert` very fast, `O(1)`, such that
+producers adding to the queue are not penalised. However, the consumer pays the
+cost when calling `uncons`, with `deleteMin` costing `O(log n)` because it must
+search for the minimum value, and remove it from the tree by rebuilding.
+
+The `union` operation also delays ordering allowing it to be `O(1)`.
+
+If the `Order[Foo]` does not correctly capture the priority we want for the
+`Heap[Foo]`, we can use `Tag` and provide a custom `Order[Foo @@ Custom]` for a
+`Heap[Foo @@ Custom]`.
 
 
 ### TODO CorecursiveList (huh? see CorecursiveListImpl)
 
 
 ### TODO Diev (Discrete Interval Encoding Tree)
+
+
+### `OneAnd`
+
+Recall that `Foldable` is the scalaz equivalent of a collections API and
+`Foldable1` is for non-empty collections. So far we have only seen
+`NonEmptyList` to provide a `Foldable1`. The simple data structure `OneAnd`
+wraps any other collection to turn it into a `Foldable1`:
+
+{lang="text"}
+~~~~~~~~
+  final case class OneAnd[F[_], A](head: A, tail: F[A])
+~~~~~~~~
+
+`NonEmptyList[A]` could be an alias to `OneAnd[IList, A]`. Similarly, we can
+create non-empty `Stream`, `DList` and `Tree` structures. However it may break
+ordering and uniqueness characteristics of the underlying structure: a
+`OneAnd[ISet, A]` is not a non-empty `ISet`, it is an `ISet` with a guaranteed
+first element that may also be in the `ISet`.
 
 
