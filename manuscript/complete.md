@@ -7160,10 +7160,37 @@ Therefore a `String` renders as it is written in source code
 
 ### `Heap` Priority Queue
 
-In a tree structure, if every node has a value less than its children, it is
-called a *Heap*. Scalaz encodes a priority queue, allowing duplicates, with
-`Heap`, having fast `insert`, `union`, `size`, dequeue (`uncons`) and peek
-(`minimumO`) operations:
+A *priority queue* is a data structure that allows fast insertion of ordered
+elements, allowing duplicates, with fast access to the *minimum* value (highest
+priority). The structure is not required to store the non-minimal elements in
+order. A naive implementation of a priority queue could be
+
+{lang="text"}
+~~~~~~~~
+  final case class Vip[A] private (val peek: Maybe[A], xs: IList[A]) {
+    def push(a: A)(implicit O: Order[A]): Vip[A] = peek match {
+      case Maybe.Just(min) if a < min => Vip(a.just, min :: xs)
+      case _                          => Vip(peek, a :: xs)
+    }
+  
+    def pop(implicit O: Order[A]): Maybe[(A, Vip[A])] = peek strengthR reorder
+    private def reorder(implicit O: Order[A]): Vip[A] = xs.sorted match {
+      case INil()           => Vip(Maybe.empty, IList.empty)
+      case ICons(min, rest) => Vip(min.just, rest)
+    }
+  }
+  object Vip {
+    def fromList[A: Order](xs: IList[A]): Vip[A] = Vip(Maybe.empty, xs).reorder
+  }
+~~~~~~~~
+
+This `push` is a very fast `O(1)`, but `reorder` (and therefore `pop`) relies on
+`IList.sorted` costing `O(n log n)`.
+
+Scalaz encodes a priority queue, with a tree structure where every node has a
+value less than its children, called a *Heap Priority Queue*. `Heap` has fast
+push (`insert`), `union`, `size`, pop (`uncons`) and peek (`minimumO`)
+operations:
 
 {lang="text"}
 ~~~~~~~~
@@ -7173,7 +7200,7 @@ called a *Heap*. Scalaz encodes a priority queue, allowing duplicates, with
   
     def union(as: Heap[A])(implicit O: Order[A]): Heap[A] = ...
   
-    def uncons(implicit O: Order[A]): Option[(A, Heap[A])] = minimumO.strengthR(deleteMin)
+    def uncons(implicit O: Order[A]): Option[(A, Heap[A])] = minimumO strengthR deleteMin
     def minimumO: Option[A] = ...
     def deleteMin(implicit O: Order[A]): Heap[A] = ...
   
@@ -7265,6 +7292,24 @@ If the `Order[Foo]` does not correctly capture the priority we want for the
 
 
 ### TODO CorecursiveList (huh? see CorecursiveListImpl)
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class CorecursiveList[A] {
+    type S
+    val init: S
+    val step: S => Maybe[(S, A)]
+  }
+  
+  object CorecursiveList {
+    private final case class CorecursiveListImpl[S0, A](
+      init: S0,
+      step: S0 => Maybe[(S0, A)]
+    ) extends CorecursiveList[A] { type S = S0 }
+  
+  
+  }
+~~~~~~~~
 
 
 ### TODO Diev (Discrete Interval Encoding Tree)
