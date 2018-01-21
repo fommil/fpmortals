@@ -7336,7 +7336,67 @@ If the `Order[Foo]` does not correctly capture the priority we want for the
 `Heap[Foo @@ Custom]`.
 
 
-### TODO Diev (Discrete Interval Encoding Tree)
+### `Diev` (Discrete Intervals)
+
+We can efficiently encode the (unordered) integer values 6, 9, 2, 13, 8, 14, 10,
+7, 5 as inclusive intervals `[2, 2], [5, 10], [13, 14]`. `Diev` is an efficient
+encoding of *intervals* for elements `A` that have an `Enum[A]`, getting more
+efficient as the contents become denser.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Diev[A] {
+    def +(interval: (A, A)): Diev[A]
+    def +(value: A): Diev[A]
+    def ++(other: Diev[A]): Diev[A]
+  
+    def -(interval: (A, A)): Diev[A]
+    def -(value: A): Diev[A]
+    def --(other: Diev[A]): Diev[A]
+  
+    def intervals: Vector[(A, A)]
+    def contains(value: A): Boolean
+    def contains(interval: (A, A)): Boolean
+    ...
+  }
+  object Diev {
+    private final case class DieVector[A: Enum](intervals: Vector[(A, A)] = Vector()) extends Diev[A]
+  
+    def empty[A: Enum]: Diev[A] = ...
+    def fromValuesSeq[A: Enum](values: Seq[A]): Diev[A] = ...
+    def fromIntervalsSeq[A: Enum](intervals: Seq[(A, A)]): Diev[A] = ...
+  }
+~~~~~~~~
+
+When updating the `Diev`, adjacent intervals are merged (and then ordered) such
+that there is a unique representation for a given set of values.
+
+{lang="text"}
+~~~~~~~~
+  scala> Diev.fromValuesSeq(List(6, 9, 2, 13, 8, 14, 10, 7, 5))
+  res: Diev[Int] = ((2,2)(5,10)(13,14))
+  
+  scala> Diev.fromValuesSeq(List(6, 9, 2, 13, 8, 14, 10, 7, 5).reverse)
+  res: Diev[Int] = ((2,2)(5,10)(13,14))
+~~~~~~~~
+
+A great usecase for `Diev` is for storing time periods. For example, in our
+`TradeTemplate` from the previous chapter
+
+{lang="text"}
+~~~~~~~~
+  final case class TradeTemplate(
+    payments: List[java.time.LocalDate],
+    ccy: Option[Currency],
+    otc: Option[Boolean]
+  )
+~~~~~~~~
+
+if we find that the `payments` are very dense, we may wish to swap to a `Diev`
+representation for performance reasons, without any change in our business logic
+because we used `Monoid`, not any `List` specific methods. We would, however,
+have to provide an `Enum[LocalDate]`, which is an otherwise useful thing to
+have.
 
 
 ### `OneAnd`
@@ -7356,5 +7416,20 @@ create non-empty `Stream`, `DList` and `Tree` structures. However it may break
 ordering and uniqueness characteristics of the underlying structure: a
 `OneAnd[ISet, A]` is not a non-empty `ISet`, it is an `ISet` with a guaranteed
 first element that may also be in the `ISet`.
+
+
+## Summary
+
+In this chapter we have skimmed over the data types that scalaz has to offer.
+
+It is not necessary to remember everything in this chapter: think of each
+section as having planted the kernel of an idea in your mind. If, in a few
+months, you find yourself thinking "I remember reading about a data structure
+that might be useful here" and you return to these pages, we have succeeded.
+
+The world of functional data structures is an active area of research. Academic
+publications appear regularly with new approaches to old problems. If you are
+the kind of person who would like to contribute back to scalaz, finding a
+functional data structure to implement would be greatly appreciated.
 
 
