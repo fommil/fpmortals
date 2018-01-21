@@ -7422,12 +7422,12 @@ and its compatible frameworks such as Akka Streams and /Functional Streams for
 Scala/ (fs2). We will tour fs2 / =scalaz-stream= in a later chapter.
 #+END_ASIDE
 
-=.cons=, =.unfold= and =.iterate= are mechanisms for creating streams,
-with the convenient syntax =##::= to put a new element at the head of
-a by-name =EStream= reference. =.unfold= is for creating a finite (but
-possibly infinite) stream by repeatedly applying a function =f= to get
-the next value and input for the following =f=. =.iterate= creates an
-infinite stream by repeating a function =f= on the previous element.
+=.cons=, =.unfold= and =.iterate= are mechanisms for creating streams, and the
+convenient syntax =##::= puts a new element at the head of a by-name =EStream=
+reference. =.unfold= is for creating a finite (but possibly infinite) stream by
+repeatedly applying a function =f= to get the next value and input for the
+following =f=. =.iterate= creates an infinite stream by repeating a function =f=
+on the previous element.
 
 =EStream= may appear in pattern matches with the symbol =##::=,
 matching the syntax for =.cons=.
@@ -7441,6 +7441,50 @@ Although =EStream= addresses the value memory retention problem, it is
 still possible to suffer from /slow memory leaks/ if a live reference
 points to the head of an infinite stream. Problems of this nature, as
 well as the need to compose effectful streams, are why fs2 exists.
+
+**** =CorecursiveList=
+
+# https://github.com/scalaz/scalaz/pull/1193
+# http://jyp.github.io/posts/controlled-fusion.html
+
+/Corecursion/ is when we start from a base state and produce subsequent steps
+deterministically, like the =EphemeralStream.unfold= method that we just
+studied:
+
+#+BEGIN_SRC scala
+def unfold[A, B](b: =>B)(f: B => Option[(A, B)]): EStream[A] = ...
+#+END_SRC
+
+Contrast to /recursion/, which breaks data into a base state and then
+terminates.
+
+A =CorecursiveList= is a data encoding of =EphemeralStream.unfold=, offering an
+alternative to =EStream= that may perform better in some circumstances:
+
+#+BEGIN_SRC scala
+sealed abstract class CorecursiveList[A] {
+  type S
+  def init: S
+  def step: S => Maybe[(S, A)]
+}
+
+object CorecursiveList {
+  private final case class CorecursiveListImpl[S0, A](
+    init: S0,
+    step: S0 => Maybe[(S0, A)]
+  ) extends CorecursiveList[A] { type S = S0 }
+
+  def apply[S, A](init: S)(step: S => Maybe[(S, A)]): CorecursiveList[A] =
+    CorecursiveListImpl(init, step)
+
+  ...
+}
+#+END_SRC
+
+Corecursion is useful when implementing =Comonad.cojoin=, like our =Hood=
+example. =CorecursiveList= is a good way to codify non-linear recurrence
+equations like those used in biology population models, drone control systems,
+macro economics, and investment banking models.
 
 **** =ImmutableArray=
 
@@ -8707,33 +8751,14 @@ we optimistically put the minimum to the front:
 Avoiding a full ordering of the tree makes =insert= very fast, =O(1)=, such that
 producers adding to the queue are not penalised. However, the consumer pays the
 cost when calling =uncons=, with =deleteMin= costing =O(log n)= because it must
-search for the minimum value, and remove it from the tree by rebuilding.
+search for the minimum value, and remove it from the tree by rebuilding. That's
+fast when compared to the naive implementation.
 
 The =union= operation also delays ordering allowing it to be =O(1)=.
 
 If the =Order[Foo]= does not correctly capture the priority we want for the
 =Heap[Foo]=, we can use =Tag= and provide a custom =Order[Foo @@ Custom]= for a
 =Heap[Foo @@ Custom]=.
-
-**** TODO CorecursiveList (huh? see CorecursiveListImpl)
-
-#+BEGIN_SRC scala
-sealed abstract class CorecursiveList[A] {
-  type S
-  val init: S
-  val step: S => Maybe[(S, A)]
-}
-
-object CorecursiveList {
-  private final case class CorecursiveListImpl[S0, A](
-    init: S0,
-    step: S0 => Maybe[(S0, A)]
-  ) extends CorecursiveList[A] { type S = S0 }
-
-  
-}
-#+END_SRC
-
 
 **** TODO Diev (Discrete Interval Encoding Tree)
 
