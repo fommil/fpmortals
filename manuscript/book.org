@@ -8859,6 +8859,13 @@ functional data structure to implement would be greatly appreciated.
   :EXPORT_FILE_NAME: wip.md
   :END:
 
+** Advanced Monads
+
+You have to know things like Advanced Monads in order to be an advanced
+functional programmer.
+
+
+
 ** The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
@@ -8866,8 +8873,7 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
-- Scalaz Advanced Monads
-- Scalaz Utilities
+- Advanced Monads (more to come)
 - Typeclass Derivation
 - Optics
 - Type Refinement
@@ -8883,56 +8889,22 @@ while continuing to build out the example application.
   :PROPERTIES:
   :EXPORT_FILE_NAME: remaining.md
   :END:
-** TODO Data Types
 
-*** TODO Refinements
+*** TODO A better Future
+*** TODO Extending from Monad
 
-(kick to later)
+incl ComonadStore
 
-- Alpha (represents an alphabetic character), maybe save for generators / laws
-- Digit (0-9)
-- CaseInsensitive
-- Endo (just wraps A => A)
+functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
 
-*** TODO Missed typeclasses
 
-- Semilattice (added recently, commutative Band)
-- Distributive (dual of Traverse)
-- Zap (Functors that destroy each other)
-
-*** TODO weird shit (mostly type tricks)
-
-- Adjunction (two functors =F= and =G= that give rise to a monad / comonad)
-- Codensity (seems to be a monad of some kind)
-- Zipper / TreeLoc (as discussed earlier)
-- Unapply (workaround for type inference) ... maybe one for data types?
-- Kan / Coyoneda / Yoneda / ContravariantCoyoneda
-- Endomorphic / Isomorphism (will need arrows)
-- Forall (universal quantification)
-- Injective (proof stuff)
-- Inject (something about data types a la carte... seems important)
-- Lens / PLens ... tricky, we really want to use monocle
-- MonoidCoproduct lists of disjunction of monoidal things
-- NaturalTransformation (this maybe be useful)
-- NotNothing (mini version of shapeless' equivalent)
-- NullArgument (?=> ... drugged up elvis)
-- NullResult
-- Representable (should probably be a typeclass, X => A implies F[A]: Functor)
-
-- Dual
-
-*** TODO Conversions
-
-- Alter (utility to get a Monoid rather than the Plus for what it wraps)
-- Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
-- Generator
-
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
 *** TODO Monad Transformers
 
 - MonadTrans
 - ComonadTrans
 
-- Kleisli (or does this need to come earlier?)
+- Kleisli
 - Cokleisli
 
 - IdT
@@ -8954,41 +8926,7 @@ while continuing to build out the example application.
 - UnwriterT
 - WriterT
 
-*** TODO Monads
-
-But these feel like they belong in a chapter about data types...
-
-- FreeAp
-- Cofree
-- Free
-
-** TODO Advanced Monads
-
-You have to know things like Advanced Monads in order to be
-an advanced functional programmer.
-
-incl ComonadStore
-
-incl monad transformers
-
-functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
-
-i.e. Effects
-
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
-
-https://www.irccloud.com/pastebin/dx1r05od/
-
-#+BEGIN_SRC scala
-trait ApMonad[F[_], G[_]] {
-  def to[A](fa: F[A]): G[A]
-  def from[A](ga: G[A]): F[A]
-  implicit val fmonad: Monad[F]
-  implicit val gap: Applicative[G]
-}
-#+END_SRC
-
-**** TODO optimisation
+*** TODO optimisation
 
 # useful (yet broken) example:
 # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
@@ -9021,13 +8959,16 @@ trait Optimizer[Alg[_[_]], F[_]] {
 }
 #+END_SRC
 
-
 *** TODO Free Monad
+
+- FreeAp
+- Cofree
+- Free
 
 # "initial" vs "final" encodings
 # https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
 
-**** TODO [[https://github.com/djspiewak/smock][smock]]
+- [[https://github.com/djspiewak/smock][smock]]
 
 - FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
 
@@ -9075,14 +9016,68 @@ the name. However, from a practical point of view, there needs to be a
 =Monad[S]= in order to interpret it --- so it's more like an interest
 only mortgage where you still have to buy the house at the end.
 
-** TODO Utilities
-*** TODO Other
-e.g. conversion utilities between things
 
-*** TODO Laws
+** TODO Utilities
+
+I'm not sure about this chapter. It may be the case that everything listed here
+is not really worth mentioning, except for a few things.
+
+*** TODO stdlib helpers
+*** TODO Refinements
+
+(kick to later)
+
+- Alpha (represents an alphabetic character), maybe save for generators / laws
+- Digit (0-9)
+- CaseInsensitive
+- Endo (just wraps A => A)
+
+*** TODO Missed typeclasses
+
+- Semilattice (added recently, commutative Band)
+- Distributive (dual of Traverse)
+- Zap (Functors that destroy each other)
+
+*** TODO weird shit (mostly type tricks)
+
+- Adjunction (two functors =F= and =G= that give rise to a monad / comonad)
+- Codensity (seems to be a monad of some kind)
+- Zipper / TreeLoc (as discussed earlier)
+- Unapply (workaround for type inference) ... maybe one for data types?
+- Kan / Coyoneda / Yoneda / ContravariantCoyoneda
+- Endomorphic / Isomorphism (will need arrows)
+- Forall (universal quantification)
+- Injective (proof stuff)
+- Inject (something about data types a la carte... seems important)
+- Lens / PLens ... tricky, we really want to use monocle
+- MonoidCoproduct lists of disjunction of monoidal things
+- NaturalTransformation (this maybe be useful)
+- NotNothing (mini version of shapeless' equivalent)
+- NullArgument (?=> ... drugged up elvis)
+- NullResult
+- Representable (should probably be a typeclass, X => A implies F[A]: Functor)
+- Dual
+
+*** TODO Conversions
+
+- Alter (utility to get a Monoid rather than the Plus for what it wraps)
+- Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
+- Generator
+
+** TODO Typeclass Derivation
+
+- scalaz-deriving
+- magnolia
+- shapeless
+- macros
+- export-hook
+
+
+** TODO Testing / Laws
+
+needs to come after scalaz-deriving, to understand =Arbitrary=
 
 ** TODO FS2
-
 
 Task, Stream
 
@@ -9096,6 +9091,21 @@ for a perf test?
 
 Rewrite our business logic to be streaming, convert our GET api into a
 =Stream= by polling.
+
+** TODO Dependent Types
+
+Jons talks are usually good for this https://www.youtube.com/watch?v=a1whaMzrtsY
+
+** TODO Type Refinement
+instead of needing those =error= calls in the first place, just don't
+allow them to happen at your layer if you can get away with it.
+
+Protect yourself from mistyping
+
+** TODO Recursion Schemes
+** TODO Optics
+
+not sure what the relevance to this project would be yet.
 
 ** TODO Implementing the Application
 
@@ -9113,29 +9123,6 @@ rewritten: reader / writer / state / error / indexed monad. It's ok
 that this is a step you can do later.
 
 **** RESEARCH perf numbers
-
-** TODO Dependent Types
-
-Jons talks are usually good for this https://www.youtube.com/watch?v=a1whaMzrtsY
-
-** TODO Type Refinement
-instead of needing those =error= calls in the first place, just don't
-allow them to happen at your layer if you can get away with it.
-
-Protect yourself from mistyping
-
-** TODO Typeclass Derivation
-
-- scalaz-deriving
-- magnolia
-- shapeless
-- macros
-- export-hook
-
-** TODO Recursion Schemes
-** TODO Optics
-
-not sure what the relevance to this project would be yet.
 
 ** TODO Category Theory
 
