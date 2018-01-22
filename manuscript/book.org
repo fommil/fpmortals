@@ -8785,7 +8785,9 @@ sealed abstract class Diev[A] {
   ...
 }
 object Diev {
-  private final case class DieVector[A: Enum](intervals: Vector[(A, A)] = Vector()) extends Diev[A]
+  private final case class DieVector[A: Enum](
+    intervals: Vector[(A, A)]
+  ) extends Diev[A]
 
   def empty[A: Enum]: Diev[A] = ...
   def fromValuesSeq[A: Enum](values: Seq[A]): Diev[A] = ...
@@ -9080,6 +9082,7 @@ e.g. conversion utilities between things
 *** TODO Laws
 
 ** TODO FS2
+
 
 Task, Stream
 

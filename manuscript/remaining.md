@@ -24,7 +24,7 @@
 -   Adjunction (two functors `F` and `G` that give rise to a monad / comonad)
 -   Codensity (seems to be a monad of some kind)
 -   Zipper / TreeLoc (as discussed earlier)
--   Unapply (workaround for type inference)
+-   Unapply (workaround for type inference) ... maybe one for data types?
 -   Kan / Coyoneda / Yoneda / ContravariantCoyoneda
 -   Endomorphic / Isomorphism (will need arrows)
 -   Forall (universal quantification)

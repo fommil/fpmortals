@@ -7360,7 +7360,9 @@ efficient as the contents become denser.
     ...
   }
   object Diev {
-    private final case class DieVector[A: Enum](intervals: Vector[(A, A)] = Vector()) extends Diev[A]
+    private final case class DieVector[A: Enum](
+      intervals: Vector[(A, A)]
+    ) extends Diev[A]
   
     def empty[A: Enum]: Diev[A] = ...
     def fromValuesSeq[A: Enum](values: Seq[A]): Diev[A] = ...
