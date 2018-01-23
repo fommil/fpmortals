@@ -71,7 +71,7 @@ The simplest implementation of such a `Monad` is `IO`
 
 {lang="text"}
 ~~~~~~~~
-  final class IO[A] private (val interpret: () => A)
+  final class IO[A](val interpret: () => A)
   object IO {
     def apply[A](a: =>A): IO[A] = new IO(() => a)
   
@@ -83,7 +83,7 @@ The simplest implementation of such a `Monad` is `IO`
   }
 ~~~~~~~~
 
-If we create an interpreter for our `Terminal` algebra
+If we create an interpreter for our `Terminal` algebra using `IO`
 
 {lang="text"}
 ~~~~~~~~
@@ -104,8 +104,7 @@ program. It is only when we call `.interpret()` that the side effects run. The
   def main(args: Array[String]): Unit = program.interpret()
 ~~~~~~~~
 
-We can also provide a `MonadError`, allowing programs that can consider the
-unhappy path
+We can also provide a `MonadError`, allowing programs that can fail
 
 {lang="text"}
 ~~~~~~~~
@@ -123,14 +122,21 @@ unhappy path
   }
 ~~~~~~~~
 
-However, there are two big problems with this `IO`:
+However, there are two big problems with this simple `IO`:
 
-1.  it doesn't support asynchronous computations
-2.  it is not stacksafe
+1.  it doesn't implement `BindRec` and can stack overflow
+2.  it doesn't support parallel computations
 
-TODO: scalafix
+Both of these problems will be overcome in this chapter when we explain how
+`scalaz.effect.IO` fixes the stack overflow problem, and how
+`scalaz.effect.Task` can be used for parallelisable calculations.
 
-TODO: scalaz.effect.IO
+A> The scala compiler will happily allow us to call side effecting methods from
+A> unsafe locations, like in a `Future`. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side
+A> effecting methods at compiletime, unless called from inside a deferred `Monad`
+A> like `IO`. This `DisableUnless` rule is an essential tool for quality FP in
+A> Scala, and can also be used to enforce your team's preferences without requiring
+A> manual code review.
 
 
 # The Infinite Sadness
