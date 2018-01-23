@@ -2,16 +2,14 @@
 # Advanced Monads
 
 You have to know things like Advanced Monads in order to be an advanced
-functional programmer. However, we are simple developers, and our idea of
-"advanced" is modest. If you understand how to use `Future`, you already
-understand something that is more complex than anything you will need in
-functional programming.
+functional programmer. However, we are simple developers, yearning for a simpler
+time, and our idea of "advanced" is modest. `scala.concurrent.Future` is more
+complicated and nuanced than any `Monad` in this chapter.
 
-`Monad` is a powerful typeclass that is typically used to direct the control
-flow of an application. In this chapter we will study some of the most important
-implementations of `Monad` and explain why `Future` is a terrible choice that
-needlessly complicates your programs: we will offer simpler and faster
-alternatives.
+`Monad` is a powerful typeclass that can interpret an entire program. In this
+chapter we will study some of the most important implementations of `Monad` and
+explain why `Future` needlessly complicates your programs: we will offer simpler
+and faster alternatives.
 
 
 ## Always in motion is the `Future`
@@ -19,14 +17,9 @@ alternatives.
 In Chapter 1, we used `Future` to build sequential applications with `.flatMap`.
 But the truth is that `Future` is a terrible `Monad`.
 
-A> If `Future` was a Star Wars character, it would be Jar Jar Binks.
-
 The biggest problem with `Future` is that it eagerly schedules work on
-construction. In FP we want to separate the description of a program and running
-it so that we can control the ordering of the effects and reuse descriptions of
-programs for performance reasons.
-
-As a reminder and rewriting Chapter 1 code to use `Monad`:
+construction. Let's see why that's a problem. Rewriting the Chapter 1 example to
+use `Monad`:
 
 {lang="text"}
 ~~~~~~~~
@@ -35,29 +28,87 @@ As a reminder and rewriting Chapter 1 code to use `Monad`:
       in <- T.read
       _  <- T.write(in)
     } yield in
-  
-  import ExecutionContext.Implicits._
-  val futureEcho: Future[String] = echo[Future]
 ~~~~~~~~
 
 We can reasonably expect that calling `echo` will not perform any side effects
 because it is pure. However, if we use `Future` as the `F[_]` it will start
-running immediately, listening to `stdin`. In addition, we cannot reuse
-`futureEcho`, it only works once and has therefore broken referential
-transparency.
+running immediately, listening to `stdin`:
 
-`Future` conflates the definition of a program with its interpretation. As a
-result, applications built with `Future` are difficult to reason about. If we
-wish to use `Future` in FP code, we must avoid performing any side effects, such
-as I/O or mutating state.
+{lang="text"}
+~~~~~~~~
+  import ExecutionContext.Implicits._
+  val futureEcho: Future[String] = echo[Future]
+~~~~~~~~
+
+In addition, we cannot reuse `futureEcho`, it is a one-shot side-effecting
+method that breaks referential transparency.
+
+`Future` conflates the definition of a program with running it, i.e. its
+interpretation. As a result, applications built with `Future` are difficult to
+reason about. If we wish to use `Future` in FP code, we must avoid performing
+any side effects, such as I/O or mutating state inside it.
 
 `Future` is also bad from a performance perspective: every time `.flatMap` is
-called, a closure is submitted to the underlying `Executor`, resulting in a lot
-of unnecessary thread scheduling and object creation. In addition,
-`Future.flatMap` requires an `ExecutionContext` to be in implicit scope. The
-`Monad[Future]` implementation takes an `ExecutionContext` during construction,
-but it means that `Monad[Future].flatMap` and `Future.flatMap` have subtly
-different behaviour, introducing extra cognitive overhead.
+called, a closure is submitted to an `Executor`, resulting in a lot of
+unnecessary thread scheduling and context switching.
+
+In addition, `Future.flatMap` requires an `ExecutionContext` to be in implicit
+scope, meaning that users of the API are forced to think about business logic
+and execution semantics at the same time. We'd much rather consider execution
+strategies in one place.
+
+A> If `Future` was a Star Wars character, it would be Jar Jar Binks.
+
+
+## `IO`
+
+If we can't call side-effecting methods in our business logic, or in `Future`
+(or `Id`, or `Either`, or `Const`, etc) interpreters for our algebras, **when
+can** we write them? The answer is: in a `Monad` that delays execution until it
+is interpreted once for the entire application.
+
+The simplest implementation of such a `Monad` is `IO`
+
+{lang="text"}
+~~~~~~~~
+  final class IO[A](val interpret: () => A)
+  object IO {
+    def apply[A](a: =>A): IO[A] = new IO(() => a)
+  
+    implicit val Monad: Monad[IO] = new Monad[IO] {
+      def point[A](a: =>A): IO[A] = IO(a)
+      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+        IO(f(fa.interpret()).interpret())
+    }
+  }
+~~~~~~~~
+
+If we create an interpreter for our `Terminal` algebra
+
+{lang="text"}
+~~~~~~~~
+  implicit val TerminalIO: Terminal[IO] = new Terminal[IO] {
+    def read: IO[String]           = IO { io.StdIn.readLine }
+    def write(t: String): IO[Unit] = IO { println(t) }
+  }
+  
+  val program: IO[String] = echo[IO]
+~~~~~~~~
+
+we can assign `program` to a `val` and reuse it as the definition of the `echo`
+program. It is only when we call `.interpret()` that the side effects run. The
+`.interpret` method is only called once, in the entrypoint of the application
+
+{lang="text"}
+~~~~~~~~
+  def main(args: Array[String]): Unit = {
+    program.interpret()
+  }
+~~~~~~~~
+
+TODO: scalafix
+
+TODO: scalaz.effect.IO
 
 
 # The Infinite Sadness
