@@ -71,7 +71,7 @@ The simplest implementation of such a `Monad` is `IO`
 
 {lang="text"}
 ~~~~~~~~
-  final class IO[A](val interpret: () => A)
+  final class IO[A] private (val interpret: () => A)
   object IO {
     def apply[A](a: =>A): IO[A] = new IO(() => a)
   
@@ -101,10 +101,32 @@ program. It is only when we call `.interpret()` that the side effects run. The
 
 {lang="text"}
 ~~~~~~~~
-  def main(args: Array[String]): Unit = {
-    program.interpret()
+  def main(args: Array[String]): Unit = program.interpret()
+~~~~~~~~
+
+We can also provide a `MonadError`, allowing programs that can consider the
+unhappy path
+
+{lang="text"}
+~~~~~~~~
+  object IO {
+    ...
+    def fail[A](t: Throwable): IO[A] = IO(throw t)
+  
+    implicit val Monad = new MonadError[IO, Throwable] {
+      ...
+      def raiseError[A](e: Throwable): IO[A] = fail(e)
+      def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+        try IO(fa.interpret())
+        catch { case t: Throwable => f(t) }
+    }
   }
 ~~~~~~~~
+
+However, there are two big problems with this `IO`:
+
+1.  it doesn't support asynchronous computations
+2.  it is not stacksafe
 
 TODO: scalafix
 

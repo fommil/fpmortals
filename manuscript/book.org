@@ -8933,7 +8933,7 @@ The simplest implementation of such a =Monad= is =IO=
 # https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc#io
 
 #+BEGIN_SRC scala
-final class IO[A](val interpret: () => A)
+final class IO[A] private (val interpret: () => A)
 object IO {
   def apply[A](a: =>A): IO[A] = new IO(() => a)
 
@@ -8961,14 +8961,33 @@ program. It is only when we call =.interpret()= that the side effects run. The
 =.interpret= method is only called once, in the entrypoint of the application
 
 #+BEGIN_SRC scala
-  def main(args: Array[String]): Unit = {
-    program.interpret()
-  }
+  def main(args: Array[String]): Unit = program.interpret()
 #+END_SRC
 
-TODO: scalafix
+We can also provide a =MonadError=, allowing programs that can consider the
+unhappy path
 
-TODO: monaderror / comonad
+#+BEGIN_SRC scala
+object IO {
+  ...
+  def fail[A](t: Throwable): IO[A] = IO(throw t)
+
+  implicit val Monad = new MonadError[IO, Throwable] {
+    ...
+    def raiseError[A](e: Throwable): IO[A] = fail(e)
+    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+      try IO(fa.interpret())
+      catch { case t: Throwable => f(t) }
+  }
+}
+#+END_SRC
+
+However, there are two big problems with this =IO=:
+
+1. it doesn't support asynchronous computations
+2. it is not stacksafe
+
+TODO: scalafix
 
 TODO: scalaz.effect.IO
 
