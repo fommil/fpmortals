@@ -8878,18 +8878,11 @@ alternatives.
 In Chapter 1, we used =Future= to build sequential applications with =.flatMap=.
 But the truth is that =Future= is a terrible =Monad=.
 
-#+BEGIN_ASIDE
-If =Future= was a Star Wars character, it would be Jar Jar Binks.
-#+END_ASIDE
-
 # https://www.reddit.com/r/scala/comments/3zofjl/why_is_future_totally_unusable/
 
 The biggest problem with =Future= is that it eagerly schedules work on
-construction. In FP we want to separate the description of a program and running
-it so that we can control the ordering of the effects and reuse descriptions of
-programs for performance reasons.
-
-As a reminder and rewriting Chapter 1 code to use =Monad=:
+construction. Let's see why that's a problem. Rewriting the Chapter 1 example to
+use =Monad=:
 
 #+BEGIN_SRC scala
   def echo[F[_]: Monad](implicit T: Terminal[F]): F[String] =
@@ -8897,21 +8890,24 @@ As a reminder and rewriting Chapter 1 code to use =Monad=:
       in <- T.read
       _  <- T.write(in)
     } yield in
-
-  import ExecutionContext.Implicits._
-  val futureEcho: Future[String] = echo[Future]
 #+END_SRC
 
 We can reasonably expect that calling =echo= will not perform any side effects
 because it is pure. However, if we use =Future= as the =F[_]= it will start
-running immediately, listening to =stdin=. In addition, we cannot reuse
-=futureEcho=, it only works once and has therefore broken referential
-transparency.
+running immediately, listening to =stdin=:
 
-=Future= conflates the definition of a program with its interpretation. As a
-result, applications built with =Future= are difficult to reason about. If we
-wish to use =Future= in FP code, we must avoid performing any side effects, such
-as I/O or mutating state.
+#+BEGIN_SRC scala
+  import ExecutionContext.Implicits._
+  val futureEcho: Future[String] = echo[Future]
+#+END_SRC
+
+In addition, we cannot reuse =futureEcho=, it is now a one-shot side-effecting
+method that breaks referential transparency.
+
+=Future= conflates the definition of a program with running it, i.e. its
+interpretation. As a result, applications built with =Future= are difficult to
+reason about. If we wish to use =Future= in FP code, we must avoid performing
+any side effects, such as I/O or mutating state.
 
 =Future= is also bad from a performance perspective: every time =.flatMap= is
 called, a closure is submitted to the underlying =Executor=, resulting in a lot
@@ -8920,6 +8916,10 @@ of unnecessary thread scheduling and object creation. In addition,
 =Monad[Future]= implementation takes an =ExecutionContext= during construction,
 but it means that =Monad[Future].flatMap= and =Future.flatMap= have subtly
 different behaviour, introducing extra cognitive overhead.
+
+#+BEGIN_ASIDE
+If =Future= was a Star Wars character, it would be Jar Jar Binks.
+#+END_ASIDE
 
 ** The Infinite Sadness
 
@@ -8946,6 +8946,12 @@ while continuing to build out the example application.
   :END:
 
 *** TODO Extending from Monad
+
+#+BEGIN_INFO
+The [[https://scalacenter.github.io/scalafix/][scalafix]] linting tool can be used to enforce, at compiletime, that you do
+not call any known side-effecting functions from a =Future= (or anywhere else,
+for that matter).
+#+END_INFO
 
 incl ComonadStore
 
