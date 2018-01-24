@@ -4748,7 +4748,7 @@ Finally =forever=
 repeating an effect without stopping. The instance of =Apply= must be
 stack safe or we'll get =StackOverflowError=.
 
-**** Bind and BindRec
+**** Bind
 
 =Bind= introduces =bind=, synonymous with =flatMap=, which allows
 functions over the result of an effect to return a new effect, or for
@@ -8978,23 +8978,6 @@ entrypoint of the application, invoking the side effects:
   def main(args: Array[String]): Unit = program.interpret()
 #+END_SRC
 
-We can also provide a =MonadError=, allowing us to write programs that can fail
-
-#+BEGIN_SRC scala
-object IO {
-  ...
-  def fail[A](t: Throwable): IO[A] = IO(throw t)
-
-  implicit val Monad = new MonadError[IO, Throwable] {
-    ...
-    def raiseError[A](e: Throwable): IO[A] = fail(e)
-    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      try IO(fa.interpret())
-      catch { case t: Throwable => f(t) }
-  }
-}
-#+END_SRC
-
 However, there are two big problems with this simple =IO=:
 
 1. it doesn't implement =BindRec= and can stack overflow
@@ -9012,6 +8995,26 @@ unsafe code blocks. The [[https://scalacenter.github.io/scalafix/][scalafix]] li
 compiletime, unless called from inside a deferred =Monad= like =IO=. This
 =DisableUnless= rule is an essential tool for writing FP in Scala.
 #+END_ASIDE
+
+*** Trampolines and the =Free= Monad
+
+
+
+#+BEGIN_SRC scala
+sealed abstract class Free[S[_], A] {
+object Free {
+  type Trampoline[A] = Free[() => ?, A]
+
+  private case class Return[S[_], A](a: A) extends Free[S, A]
+  private case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  private case class Gosub[S[_], A0, B](
+    a: Free[S, A0],
+    f: A0 => Free[S, B]
+  ) extends Free[S, B] { type A = A0 }
+  ...
+}
+#+END_SRC
+
 
 ** The Infinite Sadness
 
@@ -9037,21 +9040,36 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 
+*** TODO Free / FreeAp / Cofree
+*** TODO Parallelism and =Task=
+
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
 *** TODO Extending from Monad
 
-#+BEGIN_INFO
-The [[https://scalacenter.github.io/scalafix/][scalafix]] linting tool can be used to enforce, at compiletime, that you do
-not call any known side-effecting functions from a =Future= (or anywhere else,
-for that matter).
-#+END_INFO
+this is a bit ambiguous... state / reader / etc?
 
 incl ComonadStore
 
-functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
+We can also provide a =MonadError=, allowing us to write programs that can fail
 
+#+BEGIN_SRC scala
+object IO {
+  ...
+  def fail[A](t: Throwable): IO[A] = IO(throw t)
 
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+  implicit val Monad = new MonadError[IO, Throwable] {
+    ...
+    def raiseError[A](e: Throwable): IO[A] = fail(e)
+    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+      try IO(fa.interpret())
+      catch { case t: Throwable => f(t) }
+  }
+}
+#+END_SRC
+
 *** TODO Monad Transformers
+
+composing Applicatives / Monads
 
 - MonadTrans
 - ComonadTrans
@@ -9079,6 +9097,8 @@ And also the issue of parallelisation of applicatives vs the sequential nature o
 - WriterT
 
 *** TODO optimisation
+
+Analogous to bytecode instrumentation.
 
 # useful (yet broken) example:
 # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
@@ -9111,11 +9131,7 @@ trait Optimizer[Alg[_[_]], F[_]] {
 }
 #+END_SRC
 
-*** TODO Free Monad
-
-- FreeAp
-- Cofree
-- Free
+*** TODO Other
 
 # "initial" vs "final" encodings
 # https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
@@ -9223,7 +9239,6 @@ is not really worth mentioning, except for a few things.
 - shapeless
 - macros
 - export-hook
-
 
 ** TODO Testing / Laws
 
