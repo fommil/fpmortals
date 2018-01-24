@@ -1,15 +1,35 @@
 
+## TODO Free / FreeAp / Cofree
+
+
+## TODO Parallelism and `Task`
+
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+
+
 ## TODO Extending from Monad
 
-I> The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can be used to enforce, at compiletime, that you do
-I> not call any known side-effecting functions from a `Future` (or anywhere else,
-I> for that matter).
+this is a bit ambiguous... state / reader / etc?
 
 incl ComonadStore
 
-functor and applicative compose, monad doesn't, it's annoying, one or two detailed examples but mostly just listing what is available.
+We can also provide a `MonadError`, allowing us to write programs that can fail
 
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+{lang="text"}
+~~~~~~~~
+  object IO {
+    ...
+    def fail[A](t: Throwable): IO[A] = IO(throw t)
+  
+    implicit val Monad = new MonadError[IO, Throwable] {
+      ...
+      def raiseError[A](e: Throwable): IO[A] = fail(e)
+      def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+        try IO(fa.interpret())
+        catch { case t: Throwable => f(t) }
+    }
+  }
+~~~~~~~~
 
 
 ## TODO Monad Transformers
@@ -42,6 +62,8 @@ And also the issue of parallelisation of applicatives vs the sequential nature o
 
 ## TODO optimisation
 
+Analogous to bytecode instrumentation.
+
 Try this with the `act` in our example app. It's tricky because we have two algebras.
 
 {lang="text"}
@@ -71,11 +93,7 @@ Try this with the `act` in our example app. It's tricky because we have two alge
 ~~~~~~~~
 
 
-## TODO Free Monad
-
--   FreeAp
--   Cofree
--   Free
+## TODO Other
 
 -   [smock](https://github.com/djspiewak/smock)
 

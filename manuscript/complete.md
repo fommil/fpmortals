@@ -4091,7 +4091,7 @@ repeating an effect without stopping. The instance of `Apply` must be
 stack safe or we'll get `StackOverflowError`.
 
 
-### Bind and BindRec
+### Bind
 
 `Bind` introduces `bind`, synonymous with `flatMap`, which allows
 functions over the result of an effect to return a new effect, or for
@@ -4174,39 +4174,6 @@ A> detail in the next chapter.
 
 `>>` is when we wish to discard the input to `bind` and `>>!` is when
 we want to run an effect but discard its output.
-
-
-### BindRec
-
-`BindRec` is a `Bind` that must use constant stack space when doing
-recursive `bind`. i.e. it's stack safe and can loop `forever` without
-blowing up the stack:
-
-{lang="text"}
-~~~~~~~~
-  trait BindRec[F[_]] extends Bind[F] {
-    def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
-  
-    override def forever[A, B](fa: F[A]): F[B] = ...
-  }
-~~~~~~~~
-
-Arguably `forever` should only be introduced by `BindRec`, not `Apply`
-or `Bind`.
-
-This is what we need to be able to implement the "loop forever" logic
-of our application.
-
-`\/`, called *disjunction*, is a data structure that we will discuss
-in the next chapter. It is an improvement of stdlib's `Either` and
-encodes two exclusive values:
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class \/[+A, +B]
-  final case class -\/ [+A](a: A) extends (A \/ Nothing)
-  final case class  \/-[+B](b: B) extends (Nothing \/ B)
-~~~~~~~~
 
 
 ## Applicative and Monad
@@ -5401,7 +5368,7 @@ A> don't. Because, lazy.
 
 `Name` provides instances of the following typeclasses
 
--   `Monad` / `BindRec`
+-   `Monad`
 -   `Comonad`
 -   `Distributive`
 -   `Traverse1`
@@ -5664,7 +5631,7 @@ and receive a `Maybe`
 
 -   `Align`
 -   `Traverse`
--   `MonadPlus` / `BindRec` / `IsEmpty`
+-   `MonadPlus` / `IsEmpty`
 -   `Cobind`
 -   `Cozip` / `Zip` / `Unzip`
 -   `Optional`
@@ -5808,7 +5775,7 @@ and nested `\/` must have parentheses, e.g. `(A \/ (B \/ (C \/ D))`.
 `\/` has right-biased (i.e. `flatMap` applies to `\/-`) typeclass
 instances for:
 
--   `Monad` / `BindRec` / `MonadError`
+-   `Monad` / `MonadError`
 -   `Traverse` / `Bitraverse`
 -   `Plus`
 -   `Optional`
@@ -6084,7 +6051,7 @@ back-ticks, or as `.wrapThis`.
 
 `These` has typeclass instances for
 
--   `Monad` / `BindRec`
+-   `Monad`
 -   `Bitraverse`
 -   `Traverse`
 -   `Cobind`
@@ -6371,7 +6338,7 @@ typeclass instances, we shall avoid repeating the list, which is often some vari
 
 -   `Monoid`
 -   `Traverse` / `Foldable`
--   `MonadPlus` / `IsEmpty` / `BindRec`
+-   `MonadPlus` / `IsEmpty`
 -   `Cobind` / `Comonad`
 -   `Zip` / `Unzip`
 -   `Align`

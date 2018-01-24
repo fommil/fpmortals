@@ -8832,6 +8832,9 @@ But the truth is that =Future= is a terrible =Monad=.
 # https://www.reddit.com/r/scala/comments/3zofjl/why_is_future_totally_unusable/
 # https://alexn.org/blog/2017/01/30/asynchronous-programming-scala.html#h3
 
+# believe it or not, Viktor Klang thinks a lot of this complexity is a good
+# thing? :-/ http://viktorklang.com/blog/Futures-in-Scala-protips-2.html
+
 The biggest problem with =Future= is that it eagerly schedules work during
 construction. Let's see why that's a problem. Rewriting the Chapter 1 example to
 use =Monad=:
@@ -8949,7 +8952,16 @@ compiletime, unless called from inside a deferred =Monad= like =IO=. This
 =DisableUnless= rule is an essential tool for writing FP in Scala.
 #+END_ASIDE
 
-*** Trampolines and the =Free= Monad
+*** TODO Trampolines and the =Free= Monad
+
+On the JVM, every runtime method call adds an entry to the call stack. When the
+method completes, it returns to the previous entry. The maximum depth of the
+call stack is determined by the =-Xss= flag when starting up =java=. Tail
+recursive methods are detected by the scala compiler and do not add an entry to
+the stack. If we hit the limit, by calling too many chained methods, we get
+a =StackOverflowException=.
+
+FIXME: Work in Progress
 
 **** BindRec
 
@@ -8972,8 +8984,6 @@ or =Bind=.
 This is what we need to be able to implement the "loop forever" logic
 of our application.
 
-
-
 #+BEGIN_SRC scala
 sealed abstract class Free[S[_], A] {
 object Free {
@@ -8988,7 +8998,6 @@ object Free {
   ...
 }
 #+END_SRC
-
 
 ** The Infinite Sadness
 
@@ -9042,8 +9051,6 @@ object IO {
 #+END_SRC
 
 *** TODO Monad Transformers
-
-composing Applicatives / Monads
 
 - MonadTrans
 - ComonadTrans

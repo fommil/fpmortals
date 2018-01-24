@@ -114,27 +114,9 @@ entrypoint of the application, invoking the side effects:
   def main(args: Array[String]): Unit = program.interpret()
 ~~~~~~~~
 
-We can also provide a `MonadError`, allowing us to write programs that can fail
-
-{lang="text"}
-~~~~~~~~
-  object IO {
-    ...
-    def fail[A](t: Throwable): IO[A] = IO(throw t)
-  
-    implicit val Monad = new MonadError[IO, Throwable] {
-      ...
-      def raiseError[A](e: Throwable): IO[A] = fail(e)
-      def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-        try IO(fa.interpret())
-        catch { case t: Throwable => f(t) }
-    }
-  }
-~~~~~~~~
-
 However, there are two big problems with this simple `IO`:
 
-1.  it doesn't implement `BindRec` and can stack overflow
+1.  it can stack overflow
 2.  it doesn't support parallel computations
 
 Both of these problems will be overcome in this chapter. However, no matter how
@@ -147,6 +129,56 @@ A> The scala compiler will happily allow us to call side effecting methods from
 A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side effecting methods at
 A> compiletime, unless called from inside a deferred `Monad` like `IO`. This
 A> `DisableUnless` rule is an essential tool for writing FP in Scala.
+
+
+## TODO Trampolines and the `Free` Monad
+
+On the JVM, every runtime method call adds an entry to the call stack. When the
+method completes, it returns to the previous entry. The maximum depth of the
+call stack is determined by the `-Xss` flag when starting up `java`. Tail
+recursive methods are detected by the scala compiler and do not add an entry to
+the stack. If we hit the limit, by calling too many chained methods, we get
+a `StackOverflowException`.
+
+FIXME: Work in Progress
+
+
+### BindRec
+
+`BindRec` is a `Bind` that must use constant stack space when doing
+recursive `bind`. i.e. it's stack safe and can loop `forever` without
+blowing up the stack:
+
+{lang="text"}
+~~~~~~~~
+  trait BindRec[F[_]] extends Bind[F] {
+    def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
+  
+    override def forever[A, B](fa: F[A]): F[B] = ...
+  }
+~~~~~~~~
+
+Arguably `forever` should only be introduced by `BindRec`, not `Apply`
+or `Bind`.
+
+This is what we need to be able to implement the "loop forever" logic
+of our application.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Free[S[_], A] {
+  object Free {
+    type Trampoline[A] = Free[() => ?, A]
+  
+    private case class Return[S[_], A](a: A) extends Free[S, A]
+    private case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+    private case class Gosub[S[_], A0, B](
+      a: Free[S, A0],
+      f: A0 => Free[S, B]
+    ) extends Free[S, B] { type A = A0 }
+    ...
+  }
+~~~~~~~~
 
 
 # The Infinite Sadness
