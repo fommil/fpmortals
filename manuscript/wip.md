@@ -3,13 +3,14 @@
 
 You have to know things like Advanced Monads in order to be an advanced
 functional programmer. However, we are simple developers, yearning for a simpler
-time, and our idea of "advanced" is modest. `scala.concurrent.Future` is more
-complicated and nuanced than any `Monad` in this chapter.
+time, and our idea of "advanced" is modest. As a comparison,
+`scala.concurrent.Future` is more complicated and nuanced than any `Monad` in
+this chapter.
 
 `Monad` is a powerful typeclass that can interpret an entire program. In this
 chapter we will study some of the most important implementations of `Monad` and
-explain why `Future` needlessly complicates your programs: we will offer simpler
-and faster alternatives.
+explain why `Future` needlessly complicates an application: we will offer
+simpler and faster alternatives.
 
 
 ## Always in motion is the `Future`
@@ -32,7 +33,7 @@ use `Monad`:
 
 We can reasonably expect that calling `echo` will not perform any side effects
 because it is pure. However, if we use `Future` as the `F[_]` it will start
-running immediately, listening to `stdin`:
+running immediately, listening to `stdin`. We've broken the purity rules:
 
 {lang="text"}
 ~~~~~~~~
@@ -40,32 +41,32 @@ running immediately, listening to `stdin`:
   val futureEcho: Future[String] = echo[Future]
 ~~~~~~~~
 
-In addition, we cannot reuse `futureEcho`, it is a one-shot side-effecting
-method that breaks referential transparency.
+In addition, `futureEcho` is a cache of the result of running the `echo`
+program, rather than it defining a computation that can be re-run.
 
-`Future` conflates the definition of a program with running it, i.e. its
-interpretation. As a result, applications built with `Future` are difficult to
+`Future` conflates the definition of a program with *interpreting* it (i.e.
+running it). As a result, applications built with `Future` are difficult to
 reason about. If we wish to use `Future` in FP code, we must avoid performing
-any side effects, such as I/O or mutating state inside it.
+any side effects, such as I/O or mutating state.
 
 `Future` is also bad from a performance perspective: every time `.flatMap` is
-called, a closure is submitted to an `Executor`, resulting in a lot of
-unnecessary thread scheduling and context switching.
+called, a closure is submitted to an `Executor`, resulting in unnecessary thread
+scheduling and context switching.
 
 In addition, `Future.flatMap` requires an `ExecutionContext` to be in implicit
 scope, meaning that users of the API are forced to think about business logic
-and execution semantics at the same time. We'd much rather consider execution
-strategies in one place.
+and execution semantics at the same time.
 
-A> If `Future` was a Star Wars character, it would be Jar Jar Binks.
+A> If `Future` was a Star Wars character, it would be Anakin Skywalker: rushing in
+A> and breaking things without thinking.
 
 
-## `IO`
+## Side Effects
 
 If we can't call side-effecting methods in our business logic, or in `Future`
-(or `Id`, or `Either`, or `Const`, etc) interpreters for our algebras, **when
-can** we write them? The answer is: in a `Monad` that delays execution until it
-is interpreted once for the entire application.
+(or `Id`, or `Either`, or `Const`, etc), **when can** we write them? The answer
+is: in a `Monad` that delays execution until it is interpreted at the
+application entrypoint.
 
 The simplest implementation of such a `Monad` is `IO`
 
@@ -95,9 +96,10 @@ If we create an interpreter for our `Terminal` algebra using `IO`
   val program: IO[String] = echo[IO]
 ~~~~~~~~
 
-we can assign `program` to a `val` and reuse it as the definition of the `echo`
-program. It is only when we call `.interpret()` that the side effects run. The
-`.interpret` method is only called once, in the entrypoint of the application
+we can assign `program` to a `val` and reuse it as much as we like to re-run the
+effects that it describes. It is only when we call `.interpret()` that the side
+effects run. The `.interpret` method is only called once, in the entrypoint of
+the application
 
 {lang="text"}
 ~~~~~~~~
