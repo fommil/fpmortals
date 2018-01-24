@@ -3046,7 +3046,6 @@ digraph G {
     Cobind;
     Comonad;
     Bind;
-    BindRec;
     Contravariant;
     Functor;
     InvariantFunctor;
@@ -3072,7 +3071,6 @@ digraph G {
     Comonad -> Cobind;
 
     Bind -> Apply;
-    BindRec -> Bind;
 
     Contravariant -> InvariantFunctor;
     Functor -> InvariantFunctor;
@@ -3522,7 +3520,6 @@ digraph G {
     Cobind;
     Comonad;
     Bind;
-    BindRec;
     Contravariant;
     Functor [fontcolor=black,color=black];
     InvariantFunctor;
@@ -3548,7 +3545,6 @@ digraph G {
     Comonad -> Cobind;
 
     Bind -> Apply;
-    BindRec -> Bind;
 
     Contravariant -> InvariantFunctor;
     Functor -> InvariantFunctor;
@@ -4237,7 +4233,6 @@ digraph G {
     Comonad;
     Bind;
     Apply;
-    BindRec;
     Contravariant [fontcolor=black,color=black];
     Functor [fontcolor=black,color=black];
     InvariantFunctor [fontcolor=black,color=black];
@@ -4263,7 +4258,6 @@ digraph G {
     Comonad -> Cobind;
 
     Bind -> Apply;
-    BindRec -> Bind;
 
     Contravariant -> InvariantFunctor [color=black];
     Functor -> InvariantFunctor [color=black];
@@ -4506,7 +4500,6 @@ digraph G {
     Comonad;
     Bind [fontcolor=black,color=black];
     Apply [fontcolor=black,color=black];
-    BindRec [fontcolor=black,color=black];
     Contravariant [fontcolor=lightslategray,color=lightslategray];
     Functor [fontcolor=lightslategray,color=lightslategray];
     InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
@@ -4532,7 +4525,6 @@ digraph G {
     Comonad -> Cobind;
 
     Bind -> Apply [color=black];
-    BindRec -> Bind [color=black];
 
     Contravariant -> InvariantFunctor [color=lightslategray];
     Functor -> InvariantFunctor [color=lightslategray];
@@ -4829,37 +4821,6 @@ implicit class BindOps[F[_]: Bind, A] (self: F[A]) {
 =>>= is when we wish to discard the input to =bind= and =>>!= is when
 we want to run an effect but discard its output.
 
-**** BindRec
-
-=BindRec= is a =Bind= that must use constant stack space when doing
-recursive =bind=. i.e. it's stack safe and can loop =forever= without
-blowing up the stack:
-
-#+BEGIN_SRC scala
-trait BindRec[F[_]] extends Bind[F] {
-  def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
-
-  override def forever[A, B](fa: F[A]): F[B] = ...
-}
-#+END_SRC
-
-Arguably =forever= should only be introduced by =BindRec=, not =Apply=
-or =Bind=.
-# https://github.com/scalaz/scalaz/issues/1460
-
-This is what we need to be able to implement the "loop forever" logic
-of our application.
-
-=\/=, called /disjunction/, is a data structure that we will discuss
-in the next chapter. It is an improvement of stdlib's =Either= and
-encodes two exclusive values:
-
-#+BEGIN_SRC scala
-sealed abstract class \/[+A, +B]
-final case class -\/ [+A](a: A) extends (A \/ Nothing)
-final case class  \/-[+B](b: B) extends (Nothing \/ B)
-#+END_SRC
-
 *** Applicative and Monad
 
 From a functionality point of view, =Applicative= is =Apply= with a
@@ -4876,7 +4837,6 @@ digraph G {
     Comonad;
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
-    BindRec [fontcolor=lightslategray,color=lightslategray];
     Contravariant [fontcolor=lightslategray,color=lightslategray];
     Functor [fontcolor=lightslategray,color=lightslategray];
     InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
@@ -4899,7 +4859,6 @@ digraph G {
     MonadPlus;
 
     Bind -> Apply [color=lightslategray];
-    BindRec -> Bind [color=lightslategray];
 
     Contravariant -> InvariantFunctor [color=lightslategray];
     Functor -> InvariantFunctor [color=lightslategray];
@@ -5047,7 +5006,6 @@ digraph G {
     Comonad;
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
-    BindRec [fontcolor=lightslategray,color=lightslategray];
     Contravariant [fontcolor=lightslategray,color=lightslategray];
     Functor [fontcolor=lightslategray,color=lightslategray];
     InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
@@ -5070,7 +5028,6 @@ digraph G {
     MonadPlus;
 
     Bind -> Apply [color=lightslategray];
-    BindRec -> Bind [color=lightslategray];
 
     Contravariant -> InvariantFunctor [color=lightslategray];
     Functor -> InvariantFunctor [color=lightslategray];
@@ -5219,7 +5176,6 @@ digraph G {
     Comonad;
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
-    BindRec [fontcolor=lightslategray,color=lightslategray];
     Contravariant [fontcolor=lightslategray,color=lightslategray];
     Functor [fontcolor=lightslategray,color=lightslategray];
     InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
@@ -5242,7 +5198,6 @@ digraph G {
     MonadPlus [fontcolor=black,color=black];
 
     Bind -> Apply [color=lightslategray];
-    BindRec -> Bind [color=lightslategray];
 
     Contravariant -> InvariantFunctor [color=lightslategray];
     Functor -> InvariantFunctor [color=lightslategray];
@@ -5611,7 +5566,6 @@ digraph G {
     Comonad [fontcolor=black,color=black];
     Bind [fontcolor=lightslategray,color=lightslategray];
     Apply [fontcolor=lightslategray,color=lightslategray];
-    BindRec [fontcolor=lightslategray,color=lightslategray];
     Contravariant [fontcolor=lightslategray,color=lightslategray];
     Functor [fontcolor=lightslategray,color=lightslategray];
     InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
@@ -5634,7 +5588,6 @@ digraph G {
     MonadPlus [fontcolor=lightslategray,color=lightslategray];
 
     Bind -> Apply [color=lightslategray];
-    BindRec -> Bind [color=lightslategray];
 
     Contravariant -> InvariantFunctor [color=lightslategray];
     Functor -> InvariantFunctor [color=lightslategray];
@@ -6375,7 +6328,7 @@ don't. Because, lazy.
 
 =Name= provides instances of the following typeclasses
 
-- =Monad= / =BindRec=
+- =Monad=
 - =Comonad=
 - =Distributive=
 - =Traverse1=
@@ -6629,7 +6582,7 @@ implicit class MaybeOps[A](self: A) {
 
 - =Align=
 - =Traverse=
-- =MonadPlus= / =BindRec= / =IsEmpty=
+- =MonadPlus= / =IsEmpty=
 - =Cobind=
 - =Cozip= / =Zip= / =Unzip=
 - =Optional=
@@ -6768,7 +6721,7 @@ and nested =\/= must have parentheses, e.g. =(A \/ (B \/ (C \/ D))=.
 =\/= has right-biased (i.e. =flatMap= applies to =\/-=) typeclass
 instances for:
 
-- =Monad= / =BindRec= / =MonadError=
+- =Monad= / =MonadError=
 - =Traverse= / =Bitraverse=
 - =Plus=
 - =Optional=
@@ -7033,7 +6986,7 @@ back-ticks, or as =.wrapThis=.
 
 =These= has typeclass instances for
 
-- =Monad= / =BindRec=
+- =Monad=
 - =Bitraverse=
 - =Traverse=
 - =Cobind=
@@ -7309,7 +7262,7 @@ typeclass instances, we shall avoid repeating the list, which is often some vari
 
 - =Monoid=
 - =Traverse= / =Foldable=
-- =MonadPlus= / =IsEmpty= / =BindRec=
+- =MonadPlus= / =IsEmpty=
 - =Cobind= / =Comonad=
 - =Zip= / =Unzip=
 - =Align=
@@ -8980,7 +8933,7 @@ entrypoint of the application, invoking the side effects:
 
 However, there are two big problems with this simple =IO=:
 
-1. it doesn't implement =BindRec= and can stack overflow
+1. it can stack overflow
 2. it doesn't support parallel computations
 
 Both of these problems will be overcome in this chapter. However, no matter how
@@ -8997,6 +8950,27 @@ compiletime, unless called from inside a deferred =Monad= like =IO=. This
 #+END_ASIDE
 
 *** Trampolines and the =Free= Monad
+
+**** BindRec
+
+=BindRec= is a =Bind= that must use constant stack space when doing
+recursive =bind=. i.e. it's stack safe and can loop =forever= without
+blowing up the stack:
+
+#+BEGIN_SRC scala
+trait BindRec[F[_]] extends Bind[F] {
+  def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
+
+  override def forever[A, B](fa: F[A]): F[B] = ...
+}
+#+END_SRC
+
+Arguably =forever= should only be introduced by =BindRec=, not =Apply=
+or =Bind=.
+# https://github.com/scalaz/scalaz/issues/1460
+
+This is what we need to be able to implement the "loop forever" logic
+of our application.
 
 
 
