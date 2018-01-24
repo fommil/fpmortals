@@ -8901,8 +8901,9 @@ running immediately, listening to =stdin=. We've broken the purity rules:
   val futureEcho: Future[String] = echo[Future]
 #+END_SRC
 
-In addition, =futureEcho= is a cache of the result of running the =echo=
-program, rather than it defining a computation that can be re-run.
+=futureEcho= is a cache of the result of running the =echo= program, rather than
+defining a computation that can be re-run: it has broken referential
+transparency.
 
 =Future= conflates the definition of a program with /interpreting/ it (i.e.
 running it). As a result, applications built with =Future= are difficult to
