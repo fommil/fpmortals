@@ -7,13 +7,13 @@ import scalaz._, Scalaz._
 
 final class IO[A] private (val interpret: () => A)
 object IO {
-  def apply[A](a: => A): IO[A] = new IO(() => a)
+  def apply[A](a: =>A): IO[A] = new IO(() => a)
 
   def fail[A](t: Throwable): IO[A] = IO(throw t)
 
   implicit val Monad: MonadError[IO, Throwable] =
     new MonadError[IO, Throwable] {
-      def point[A](a: => A): IO[A] = IO(a)
+      def point[A](a: =>A): IO[A] = IO(a)
       def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
         IO(f(fa.interpret()).interpret())
 
@@ -38,7 +38,12 @@ object Runner {
 
   val program: IO[String] = echo[IO]
 
-  def main(args: Array[String]): Unit =
-    program.interpret()
+  def main(args: Array[String]): Unit = {
+    // program.interpret()
 
+    val hello = IO { println("hello") }
+
+    Apply[IO].forever(hello).interpret()
+
+  }
 }

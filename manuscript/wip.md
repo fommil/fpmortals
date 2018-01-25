@@ -42,9 +42,8 @@ writing FP code:
 ~~~~~~~~
 
 The `val futureEcho` is no longer a definition of the `echo` program that we can
-rerun or substitute using referential transparency, but is instead a cache of
-the result of running the side effecting `echo` program at the moment the
-runtime choose to initialise `futureEcho`.
+rerun or substitute using referential transparency, but is instead the result of
+running `echo` once.
 
 `Future` conflates the definition of a program with *interpreting* it (i.e.
 running it). As a result, applications built with `Future` are difficult to
@@ -61,8 +60,8 @@ Furthermore, `Future.flatMap` requires an `ExecutionContext` to be in implicit
 scope: users are forced to think about business logic and execution semantics at
 the same time.
 
-A> If `Future` was a Star Wars character, it would be Anakin Skywalker: the chosen
-A> one, rushing in and breaking things without thinking.
+A> If `Future` was a Star Wars character, it would be Anakin Skywalker: the fallen
+A> chosen one, rushing in and breaking things without thinking.
 
 
 ## Effects and Side Effects
@@ -70,8 +69,9 @@ A> one, rushing in and breaking things without thinking.
 If we can't call side-effecting methods in our business logic, or in `Future`
 (or `Id`, or `Either`, or `Const`, etc), **when can** we write them? The answer
 is: in a `Monad` that delays execution until it is interpreted at the
-application's entrypoint. We can now refer to them as *effects*, as opposed to
-*side-effects*, because they are intentional and described by the type system.
+application's entrypoint. We can now refer to I/O and mutation as an *effect* on
+the world, as opposed to *side-effects*, because they are intentionally
+described by the type system.
 
 The simplest implementation of such a `Monad` is `IO`
 
@@ -89,9 +89,9 @@ The simplest implementation of such a `Monad` is `IO`
   }
 ~~~~~~~~
 
-Note that `IO` only holds a reference to a `() => A`, which may perform the
-side-effect. The caller must invoke `.interpret()` before anything will execute,
-including nested calls to `.bind` / `.flatMap`.
+Note that `IO` only holds a reference to an impure `() => A`. The caller must
+invoke `.interpret()` before the effect will execute, including nested calls to
+`.bind` / `.flatMap`.
 
 If we create an interpreter for our `Terminal` algebra using `IO`
 
@@ -107,7 +107,7 @@ If we create an interpreter for our `Terminal` algebra using `IO`
 
 we can assign `program` to a `val` and reuse it as much as we like to re-run the
 effects that it describes. The `.interpret` method is only called once, in the
-entrypoint of the application, invoking the side effects:
+entrypoint of the application:
 
 {lang="text"}
 ~~~~~~~~
@@ -121,33 +121,49 @@ However, there are two big problems with this simple `IO`:
 
 Both of these problems will be overcome in this chapter. However, no matter how
 complicated the internal implementation of a `Monad`, the principles described
-here remain true: we're simply splitting up the definition of a program from its
+here remain true: we're modularising the definition of a program and its
 execution, such that we can capture effects in type signatures, allowing us to
 reason about them, and reuse more code.
 
-A> The scala compiler will happily allow us to call side effecting methods from
+A> The scala compiler will happily allow us to call side-effecting methods from
 A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side effecting methods at
-A> compiletime, unless called from inside a deferred `Monad` like `IO`. This
-A> `DisableUnless` rule is an essential tool for writing FP in Scala.
+A> compiletime, unless called from inside a deferred `Monad` like `IO`. The
+A> `DisableUnless` rule is essential for writing safe FP programs in Scala.
 
 
-## TODO Trampolines and the `Free` Monad
+## Stack Safety with the `Free` Monad
 
-On the JVM, every runtime method call adds an entry to the call stack. When the
-method completes, it returns to the previous entry. The maximum depth of the
-call stack is determined by the `-Xss` flag when starting up `java`. Tail
-recursive methods are detected by the scala compiler and do not add an entry to
-the stack. If we hit the limit, by calling too many chained methods, we get
-a `StackOverflowException`.
+On the JVM, every method call adds an entry to the call stack of the `Thread`,
+like adding to the front of a `List`. When the method completes, the method at
+the `head` is thrown away. The maximum length of the call stack is determined by
+the `-Xss` flag when starting up `java`. Tail recursive methods are detected by
+the scala compiler and do not add an entry. If we hit the limit, by calling too
+many chained methods, we get a `StackOverflowException`.
 
-FIXME: Work in Progress
+Unfortunately, every call to a `.bind` / `.flatMap` results in adding another
+method call to the stack, so our simple `IO` can blow up. The easiest way to see
+this is to perform some operation forever, and see if it survives. We can use
+`.forever`, from `Apply` (a parent of `Monad`):
 
+{lang="text"}
+~~~~~~~~
+  scala> val hello = IO { println("hello") }
+  scala> Apply[IO].forever(hello).interpret()
+  
+  hello
+  ...
+  hello
+  java.lang.StackOverflowError
+      at java.io.FileOutputStream.write(FileOutputStream.java:326)
+      at ...
+      at monadio.IO$$anon$1.$anonfun$bind$1(monadio.scala:18)
+      at monadio.IO$$anon$1.$anonfun$bind$1(monadio.scala:18)
+      at ...
+~~~~~~~~
 
-### BindRec
-
-`BindRec` is a `Bind` that must use constant stack space when doing
-recursive `bind`. i.e. it's stack safe and can loop `forever` without
-blowing up the stack:
+Scalaz has a typeclass that `Monad` instances can implement if they provide a
+stack safe: `BindRec` uses constant stack space when doing recursive `bind`,
+i.e. it's stack safe and can loop `forever` without blowing up the stack:
 
 {lang="text"}
 ~~~~~~~~
@@ -158,19 +174,16 @@ blowing up the stack:
   }
 ~~~~~~~~
 
-Arguably `forever` should only be introduced by `BindRec`, not `Apply`
-or `Bind`.
-
-This is what we need to be able to implement the "loop forever" logic
-of our application.
+We don't need `BindRec` for all programs, but it is essential for a general
+purpose `Monad` implementation. The solution to stack safety is to convert stack
+calls into references to objects that live on the heap, i.e. by encoding the
+method calls with an ADT, called the `Free` monad:
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class Free[S[_], A] {
+  sealed abstract class Free[S[_], A]
   object Free {
-    type Trampoline[A] = Free[() => ?, A]
-  
-    private case class Return[S[_], A](a: A) extends Free[S, A]
+    private case class Return[S[_], A](a: A)     extends Free[S, A]
     private case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
     private case class Gosub[S[_], A0, B](
       a: Free[S, A0],
@@ -179,6 +192,68 @@ of our application.
     ...
   }
 ~~~~~~~~
+
+A> `SUSPEND`, `RETURN` and `GOSUB` are a tip of the hat to the `BASIC` commands of
+A> the same name: pausing, completing, and continuing a subroutine, respectively.
+
+However, `Free` is more general than we need for now. Setting the first type
+parameter to `() => ?` we get `Trampoline` and can implement a stack safe
+`Monad`
+
+{lang="text"}
+~~~~~~~~
+  object Free {
+    type Trampoline[A] = Free[() => ?, A]
+    implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
+      new Monad[Trampoline] with BindRec[Trampoline] {
+        def point[A](a: =>A): Trampoline[A] = Return(a)
+        def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] =
+          Gosub(fa, f)
+        def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
+          bind(f(a)) {
+            case -\/(a) => tailrecM(f)(a)
+            case \/-(b) => point(b)
+          }
+      }
+    ...
+  }
+~~~~~~~~
+
+The implementation makes it clear that the `Free` ADT is a natural data type
+representation of the `Monad` interface:
+
+1.  `Return` represents `.point`
+2.  `Gosub` represents `.bind` / `.flatMap`
+
+The `BindRec` implementation, `.tailrecM`, runs `.bind` until we get a `B` then
+exit. Although this is not technically a `@tailrec` implementation, it uses
+constant stack space because each call returns a heap object, with delayed
+recursion.
+
+A> Called `Trampoline` because every time we `.bind` on the stack, we *bounce* back
+A> to the heap.
+A> 
+A> The only Star Wars reference involving bouncing is Yoda's duel with Dooku.
+A> 
+A> So, let's stick with `Trampoline` then...
+
+Convenient functions are provided for eager (`.done`) and by-name (`.delay`)
+semantics creation from a value, and by-name semantics for the definition of a
+`Trampoline` (`.suspend`):
+
+{lang="text"}
+~~~~~~~~
+  object Trampoline {
+    def done[A](a: A): Trampoline[A]                  = Return(a)
+    def delay[A](a: =>A): Trampoline[A]               = suspend(done(a))
+    def suspend[A](a: =>Trampoline[A]): Trampoline[A] = unit >> a
+  
+    private val unit: Trampoline[Unit] = Suspend(() => done(()))
+  }
+~~~~~~~~
+
+TODO `Free` has two type parameters. The `S[_]` can be an algebra and in fact
+`Free` can be used to implement `Terminal` directly.
 
 
 # The Infinite Sadness
