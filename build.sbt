@@ -4,7 +4,8 @@ inThisBuild(
     scalaVersion := "2.12.4",
     sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
     licenses := Seq(GPL3),
-    scalafmtConfig := Some(file("project/scalafmt.conf"))
+    scalafmtConfig := Some(file("project/scalafmt.conf")),
+    scalafixConfig := Some(file("project/scalafix.conf"))
   )
 )
 
@@ -15,7 +16,7 @@ addCommandAlias(
 )
 
 scalafixEnabled := true
-addCommandAlias("lint", "all compile:scalafix test:scalafix")
+addCommandAlias("lint", "all compile:scalafixCli test:scalafixCli")
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
