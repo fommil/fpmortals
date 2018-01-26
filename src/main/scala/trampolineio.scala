@@ -12,16 +12,18 @@ final class IO[A](val tramp: Trampoline[A]) {
 object IO {
   def apply[A](a: =>A): IO[A] = new IO(Trampoline.delay(a))
 
-  implicit val Monad: Monad[IO] = new Monad[IO] {
-    def point[A](a: =>A): IO[A] = IO(a)
-    def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
-      new IO(fa.tramp >>= (a => f(a).tramp))
+  implicit val Monad: Monad[IO] with BindRec[IO] =
+    new Monad[IO] with BindRec[IO] {
+      def point[A](a: =>A): IO[A] = IO(a)
+      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+        new IO(fa.tramp >>= (a => f(a).tramp))
 
-    //IO(f(fa.interpret()).interpret())
-
-    //override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
-    //    IO(f(fa.interpret()))
-  }
+      def tailrecM[A, B](f: A => IO[A \/ B])(a: A): IO[B] =
+        bind(f(a)) {
+          case -\/(a) => tailrecM(f)(a)
+          case \/-(b) => point(b)
+        }
+    }
 }
 
 object Runner {

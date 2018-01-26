@@ -69,8 +69,8 @@ If we can't call side-effecting methods in our business logic, or in `Future`
 (or `Id`, or `Either`, or `Const`, etc), **when can** we write them? The answer
 is: in a `Monad` that delays execution until it is interpreted at the
 application's entrypoint. We can now refer to I/O and mutation as an *effect* on
-the world, as opposed to *side-effects*, because they are intentionally
-described by the type system.
+the world, captured by the type system, as opposed to having a hidden
+*side-effect*.
 
 The simplest implementation of such a `Monad` is `IO`
 
@@ -139,10 +139,10 @@ the `-Xss` flag when starting up `java`. Tail recursive methods are detected by
 the scala compiler and do not add an entry. If we hit the limit, by calling too
 many chained methods, we get a `StackOverflowError`.
 
-Unfortunately, every nested call to our `IO`'s `.flatMap` results in another
-method call to the stack. The easiest way to see this is to repeat an action
-forever, and see if it survives for longer than a few seconds. We can use
-`.forever`, from `Apply` (a parent of `Monad`):
+Unfortunately, every nested call to our `IO`'s `.flatMap` adds another method
+call to the stack. The easiest way to see this is to repeat an action forever,
+and see if it survives for longer than a few seconds. We can use `.forever`,
+from `Apply` (a parent of `Monad`):
 
 {lang="text"}
 ~~~~~~~~
@@ -162,9 +162,8 @@ forever, and see if it survives for longer than a few seconds. We can use
       at ...
 ~~~~~~~~
 
-Scalaz has a typeclass that `Monad` instances can implement if they provide a
-stack safe implementation: `BindRec` uses constant stack space for recursive
-`bind`:
+Scalaz has a typeclass that `Monad` instances can implement if they are stack
+safe: `BindRec` requires a constant stack space for recursive `bind`:
 
 {lang="text"}
 ~~~~~~~~
@@ -176,9 +175,11 @@ stack safe implementation: `BindRec` uses constant stack space for recursive
 ~~~~~~~~
 
 We don't need `BindRec` for all programs, but it is essential for a general
-purpose `Monad` implementation. The solution to stack safety is to convert stack
-calls into references to objects that live on the heap, i.e. by encoding the
-method calls with an ADT, called the `Free` monad:
+purpose `Monad` implementation.
+
+The way to achieve stack safety is to convert method calls into references to an
+ADT, the `Free` monad, named because it can be *generated for free* for some
+algebra `S[_]`:
 
 {lang="text"}
 ~~~~~~~~
@@ -314,7 +315,7 @@ interpret the trampoline with `.run` only when needed, e.g. in `toIList`. The
 changes are minimal, but we now have a stack safe `DList` that can rearrange the
 concatenation of a large number lists without blowing the stack!
 
-`IO` can be implemented with a `Trampoline` over the `.interpret`:
+`IO` can be implemented with a `Trampoline`:
 
 {lang="text"}
 ~~~~~~~~
@@ -324,20 +325,28 @@ concatenation of a large number lists without blowing the stack!
   object IO {
     def apply[A](a: =>A): IO[A] = new IO(Trampoline.delay(a))
   
-    implicit val Monad: Monad[IO] = new Monad[IO] {
-      def point[A](a: =>A): IO[A] = IO(a)
-      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
-        new IO(fa.tramp >>= (a => f(a).tramp))
-    }
+    implicit val Monad: Monad[IO] with BindRec[IO] =
+      new Monad[IO] with BindRec[IO] {
+        def point[A](a: =>A): IO[A] = IO(a)
+        def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+          new IO(fa.tramp >>= (a => f(a).tramp))
+        def tailrecM[A, B](f: A => IO[A \/ B])(a: A): IO[B] = ...
+      }
   }
 ~~~~~~~~
+
+A> We heard you like `Monad`, so we made you a `Monad` out of a `Monad`, so you can
+A> monadically bind when you are monadically binding.
+
+The interpreter, `.unsafePerformIO()`, has an intentionally scary name to try
+and discourage use anywhere except the entrypoint of the application.
 
 This time, we don't get a stack overflow error:
 
 {lang="text"}
 ~~~~~~~~
   scala> val hello = IO { println("hello") }
-  scala> Apply[IO].forever(hello).interpret()
+  scala> Apply[IO].forever(hello).unsafePerformIO()
   
   hello
   hello
