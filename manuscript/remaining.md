@@ -1,12 +1,4 @@
 
-## TODO Free / FreeAp / Cofree
-
-
-## TODO Parallelism and `Task`
-
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
-
-
 ## TODO Extending from Monad
 
 this is a bit ambiguous... state / reader / etc?
@@ -32,35 +24,18 @@ We can also provide a `MonadError`, allowing us to write programs that can fail
 ~~~~~~~~
 
 
-## TODO Monad Transformers
+## TODO Initial vs Final encoding
 
--   MonadTrans
--   ComonadTrans
+Free / FreeAp / Cofree
 
--   Kleisli
--   Cokleisli
+`Free` as the algebra for Terminal. Example of optimisation for Free.
 
--   IdT
--   BijectionT
--   EitherT
--   FreeT
--   IndexedContsT
--   LazyEitherT
--   LazyOptionT
--   ListT
--   MaybeT
--   OptionT
--   ReaderWriterStateT
--   StateT / State
--   StoreT
--   StreamT
--   TheseT
--   TracedT
--   UnwriterT
--   WriterT
+-   TODO `Free` has two type parameters. The `S[_]` can be an algebra and in fact
+
+`Free` can be used to implement `Terminal` directly.
 
 
-## TODO optimisation
+### TODO optimisation
 
 Analogous to bytecode instrumentation.
 
@@ -91,6 +66,39 @@ Try this with the `act` in our example app. It's tricky because we have two alge
     }
   }
 ~~~~~~~~
+
+
+## TODO Parallelism and `Task`
+
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
+
+
+## TODO Monad Transformers
+
+-   MonadTrans
+-   ComonadTrans
+
+-   Kleisli
+-   Cokleisli
+
+-   IdT
+-   BijectionT
+-   EitherT
+-   FreeT
+-   IndexedContsT
+-   LazyEitherT
+-   LazyOptionT
+-   ListT
+-   MaybeT
+-   OptionT
+-   ReaderWriterStateT
+-   StateT / State
+-   StoreT
+-   StreamT
+-   TheseT
+-   TracedT
+-   UnwriterT
+-   WriterT
 
 
 ## TODO Other

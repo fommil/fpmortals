@@ -137,18 +137,20 @@ like adding to the front of a `List`. When the method completes, the method at
 the `head` is thrown away. The maximum length of the call stack is determined by
 the `-Xss` flag when starting up `java`. Tail recursive methods are detected by
 the scala compiler and do not add an entry. If we hit the limit, by calling too
-many chained methods, we get a `StackOverflowException`.
+many chained methods, we get a `StackOverflowError`.
 
-Unfortunately, every call to our `IO`'s `.flatMap` results in another method
-call to the stack. The easiest way to see this is to repeat an action forever,
-and see if it survives for longer than a few seconds. We can use `.forever`,
-from `Apply` (a parent of `Monad`):
+Unfortunately, every nested call to our `IO`'s `.flatMap` results in another
+method call to the stack. The easiest way to see this is to repeat an action
+forever, and see if it survives for longer than a few seconds. We can use
+`.forever`, from `Apply` (a parent of `Monad`):
 
 {lang="text"}
 ~~~~~~~~
   scala> val hello = IO { println("hello") }
   scala> Apply[IO].forever(hello).interpret()
   
+  hello
+  hello
   hello
   ...
   hello
@@ -250,11 +252,99 @@ by-name (`.delay`). We can also create a `Trampoline` from a by-name
   }
 ~~~~~~~~
 
--   TODO interpreter
--   TODO example
--   TODO `Free` has two type parameters. The `S[_]` can be an algebra and in fact
+When we see `Trampoline[A]` in a codebase we can always mentally substitute it
+with `A`, because it is simply adding stack safety to the pure computation. We
+get the `A` by interpreting `Free`, provided by the `.run` method:
 
-`Free` can be used to implement `Terminal` directly.
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Free[S[_], A] {
+    def run(implicit ev: Free[S, A] =:= Trampoline[A]): A = ev(this).go(_())
+  
+    def go(f: S[Free[S, A]] => Free[S, A])(implicit S: Functor[S]): A = {
+      @tailrec def go2(t: Free[S, A]): A = t.resume match {
+        case -\/(s) => go2(f(s))
+        case \/-(r) => r
+      }
+      go2(this)
+    }
+  
+    @tailrec def resume(implicit S: Functor[S]): (S[Free[S, A]] \/ A) = this match {
+      case Return(a) => \/-(a)
+      case Suspend(t) => -\/(t.map(Return(_)))
+      case Gosub(Return(a), f) => f(a).resume
+      case Gosub(Suspend(t), f) => -\/(t.map(f))
+      case Gosub(Gosub(a, g), f) => a >>= (z => g(z) >>= f).resume
+    }
+    ...
+  }
+~~~~~~~~
+
+Take a moment to read through the implementation of `resume` to understand how
+this evaluates a single layer of the `Free`, and that `go` is running it to
+completion. The case that is most likely to cause confusion is when we have
+nested `Gosub`: apply the inner function `g` then pass it to the outer one `f`,
+it's just function composition.
+
+Time for an example. In the previous chapter we described the data type `DList`
+as
+
+{lang="text"}
+~~~~~~~~
+  final case class DList[A](f: IList[A] => IList[A]) {
+    def toIList: IList[A] = f(IList.empty)
+    def ++(as: DList[A]): DList[A] = DList(xs => f(as.f(xs)))
+    ...
+  }
+~~~~~~~~
+
+However, the actual implementation looks more like:
+
+{lang="text"}
+~~~~~~~~
+  final case class DList[A](f: IList[A] => Trampoline[IList[A]]) {
+    def toIList: IList[A] = f(IList.empty).run
+    def ++(as: =>DList[A]): DList[A] = DList(xs => suspend(as.f(xs) >>= f))
+    ...
+  }
+~~~~~~~~
+
+Instead of applying nested calls to `f` we use a suspended `Trampoline`. We
+interpret the trampoline with `.run` only when needed, e.g. in `toIList`. The
+changes are minimal, but we now have a stack safe `DList` that can rearrange the
+concatenation of a large number lists without blowing the stack!
+
+`IO` can be implemented with a `Trampoline` over the `.interpret`:
+
+{lang="text"}
+~~~~~~~~
+  final class IO[A] (val tramp: Trampoline[A]) {
+    def unsafePerformIO(): A = tramp.run
+  }
+  object IO {
+    def apply[A](a: =>A): IO[A] = new IO(Trampoline.delay(a))
+  
+    implicit val Monad: Monad[IO] = new Monad[IO] {
+      def point[A](a: =>A): IO[A] = IO(a)
+      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+        new IO(fa.tramp >>= (a => f(a).tramp))
+    }
+  }
+~~~~~~~~
+
+This time, we don't get a stack overflow error:
+
+{lang="text"}
+~~~~~~~~
+  scala> val hello = IO { println("hello") }
+  scala> Apply[IO].forever(hello).interpret()
+  
+  hello
+  hello
+  hello
+  ...
+  hello
+~~~~~~~~
 
 
 # The Infinite Sadness

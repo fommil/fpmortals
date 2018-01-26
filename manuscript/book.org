@@ -8958,17 +8958,19 @@ like adding to the front of a =List=. When the method completes, the method at
 the =head= is thrown away. The maximum length of the call stack is determined by
 the =-Xss= flag when starting up =java=. Tail recursive methods are detected by
 the scala compiler and do not add an entry. If we hit the limit, by calling too
-many chained methods, we get a =StackOverflowException=.
+many chained methods, we get a =StackOverflowError=.
 
-Unfortunately, every call to our =IO='s =.flatMap= results in another method
-call to the stack. The easiest way to see this is to repeat an action forever,
-and see if it survives for longer than a few seconds. We can use =.forever=,
-from =Apply= (a parent of =Monad=):
+Unfortunately, every nested call to our =IO='s =.flatMap= results in another
+method call to the stack. The easiest way to see this is to repeat an action
+forever, and see if it survives for longer than a few seconds. We can use
+=.forever=, from =Apply= (a parent of =Monad=):
 
 #+BEGIN_SRC scala
 scala> val hello = IO { println("hello") }
 scala> Apply[IO].forever(hello).interpret()
 
+hello
+hello
 hello
 ...
 hello
@@ -9070,10 +9072,94 @@ object Trampoline {
 }
 #+END_SRC
 
-- TODO interpreter
-- TODO example
-- TODO =Free= has two type parameters. The =S[_]= can be an algebra and in fact
-=Free= can be used to implement =Terminal= directly.
+When we see =Trampoline[A]= in a codebase we can always mentally substitute it
+with =A=, because it is simply adding stack safety to the pure computation. We
+get the =A= by interpreting =Free=, provided by the =.run= method:
+
+#+BEGIN_SRC scala
+sealed abstract class Free[S[_], A] {
+  def run(implicit ev: Free[S, A] =:= Trampoline[A]): A = ev(this).go(_())
+
+  def go(f: S[Free[S, A]] => Free[S, A])(implicit S: Functor[S]): A = {
+    @tailrec def go2(t: Free[S, A]): A = t.resume match {
+      case -\/(s) => go2(f(s))
+      case \/-(r) => r
+    }
+    go2(this)
+  }
+
+  @tailrec def resume(implicit S: Functor[S]): (S[Free[S, A]] \/ A) = this match {
+    case Return(a) => \/-(a)
+    case Suspend(t) => -\/(t.map(Return(_)))
+    case Gosub(Return(a), f) => f(a).resume
+    case Gosub(Suspend(t), f) => -\/(t.map(f))
+    case Gosub(Gosub(a, g), f) => a >>= (z => g(z) >>= f).resume
+  }
+  ...
+}
+#+END_SRC
+
+Take a moment to read through the implementation of =resume= to understand how
+this evaluates a single layer of the =Free=, and that =go= is running it to
+completion. The case that is most likely to cause confusion is when we have
+nested =Gosub=: apply the inner function =g= then pass it to the outer one =f=,
+it's just function composition.
+
+Time for an example. In the previous chapter we described the data type =DList=
+as
+
+#+BEGIN_SRC scala
+final case class DList[A](f: IList[A] => IList[A]) {
+  def toIList: IList[A] = f(IList.empty)
+  def ++(as: DList[A]): DList[A] = DList(xs => f(as.f(xs)))
+  ...
+}
+#+END_SRC
+
+However, the actual implementation looks more like:
+
+#+BEGIN_SRC scala
+final case class DList[A](f: IList[A] => Trampoline[IList[A]]) {
+  def toIList: IList[A] = f(IList.empty).run
+  def ++(as: =>DList[A]): DList[A] = DList(xs => suspend(as.f(xs) >>= f))
+  ...
+}
+#+END_SRC
+
+Instead of applying nested calls to =f= we use a suspended =Trampoline=. We
+interpret the trampoline with =.run= only when needed, e.g. in =toIList=. The
+changes are minimal, but we now have a stack safe =DList= that can rearrange the
+concatenation of a large number lists without blowing the stack!
+
+=IO= can be implemented with a =Trampoline= over the =.interpret=:
+
+#+BEGIN_SRC scala
+final class IO[A] (val tramp: Trampoline[A]) {
+  def unsafePerformIO(): A = tramp.run
+}
+object IO {
+  def apply[A](a: =>A): IO[A] = new IO(Trampoline.delay(a))
+
+  implicit val Monad: Monad[IO] = new Monad[IO] {
+    def point[A](a: =>A): IO[A] = IO(a)
+    def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+      new IO(fa.tramp >>= (a => f(a).tramp))
+  }
+}
+#+END_SRC
+
+This time, we don't get a stack overflow error:
+
+#+BEGIN_SRC scala
+scala> val hello = IO { println("hello") }
+scala> Apply[IO].forever(hello).interpret()
+
+hello
+hello
+hello
+...
+hello
+#+END_SRC
 
 ** The Infinite Sadness
 
@@ -9099,10 +9185,6 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 
-*** TODO Free / FreeAp / Cofree
-*** TODO Parallelism and =Task=
-
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
 *** TODO Extending from Monad
 
 this is a bit ambiguous... state / reader / etc?
@@ -9125,6 +9207,56 @@ object IO {
   }
 }
 #+END_SRC
+*** TODO Initial vs Final encoding
+
+Free / FreeAp / Cofree
+
+# "initial" vs "final" encodings
+# https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
+
+=Free= as the algebra for Terminal. Example of optimisation for Free.
+
+- TODO =Free= has two type parameters. The =S[_]= can be an algebra and in fact
+=Free= can be used to implement =Terminal= directly.
+
+**** TODO optimisation
+
+ Analogous to bytecode instrumentation.
+
+ # useful (yet broken) example:
+ # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
+ # https://github.com/facebook/Haxl
+
+ Try this with the =act= in our example app. It's tricky because we have two algebras.
+
+ #+BEGIN_SRC scala
+ trait Program[Alg[_[_]], A] {
+   def apply[F[_]: Applicative](interpreter: Alg[F]) : F[A]
+ }
+
+ trait Optimizer[Alg[_[_]], F[_]] {
+   type M
+
+   def monoidM: Monoid[M]
+   def monadF: Monad[F]
+
+   def extract: Alg[Const[M, ?]]
+   def rebuild(m: M, interpreter: Alg[F]): F[Alg[F]]
+
+   def optimize[A](p: Program[Alg, Applicative, A]): Alg[F] => F[A] = { interpreter =>
+     implicit val M: Monoid[M] = monoidM
+     implicit val F: Monad[F] = monadF
+
+     val m: M = p(extract).getConst
+
+     rebuild(m, interpreter).flatMap(interp => p(interp))
+   }
+ }
+ #+END_SRC
+
+*** TODO Parallelism and =Task=
+
+And also the issue of parallelisation of applicatives vs the sequential nature of Monad
 
 *** TODO Monad Transformers
 
@@ -9153,45 +9285,7 @@ object IO {
 - UnwriterT
 - WriterT
 
-*** TODO optimisation
-
-Analogous to bytecode instrumentation.
-
-# useful (yet broken) example:
-# https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
-# https://github.com/facebook/Haxl
-
-Try this with the =act= in our example app. It's tricky because we have two algebras.
-
-#+BEGIN_SRC scala
-trait Program[Alg[_[_]], A] {
-  def apply[F[_]: Applicative](interpreter: Alg[F]) : F[A]
-}
-
-trait Optimizer[Alg[_[_]], F[_]] {
-  type M
-
-  def monoidM: Monoid[M]
-  def monadF: Monad[F]
-
-  def extract: Alg[Const[M, ?]]
-  def rebuild(m: M, interpreter: Alg[F]): F[Alg[F]]
-
-  def optimize[A](p: Program[Alg, Applicative, A]): Alg[F] => F[A] = { interpreter =>
-    implicit val M: Monoid[M] = monoidM
-    implicit val F: Monad[F] = monadF
-
-    val m: M = p(extract).getConst
-
-    rebuild(m, interpreter).flatMap(interp => p(interp))
-  }
-}
-#+END_SRC
-
 *** TODO Other
-
-# "initial" vs "final" encodings
-# https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
 
 - [[https://github.com/djspiewak/smock][smock]]
 
