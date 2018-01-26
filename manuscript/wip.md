@@ -126,8 +126,7 @@ reason about them, and reuse more code.
 
 A> The scala compiler will happily allow us to call side-effecting methods from
 A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side-effecting methods at
-A> compiletime, unless called from inside a deferred `Monad` like `IO`. The
-A> `DisableUnless` rule is essential for writing safe FP programs in Scala.
+A> compiletime, unless called from inside a deferred `Monad` like `IO`.
 
 
 ## Stack Safety with the `Free` Monad
@@ -167,7 +166,7 @@ safe: `BindRec` requires a constant stack space for recursive `bind`:
 
 {lang="text"}
 ~~~~~~~~
-  trait BindRec[F[_]] extends Bind[F] {
+  @typeclass trait BindRec[F[_]] extends Bind[F] {
     def tailrecM[A, B](f: A => F[A \/ B])(a: A): F[B]
   
     override def forever[A, B](fa: F[A]): F[B] = ...
@@ -185,9 +184,9 @@ algebra `S[_]`:
 ~~~~~~~~
   sealed abstract class Free[S[_], A]
   object Free {
-    private case class Return[S[_], A](a: A)     extends Free[S, A]
-    private case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-    private case class Gosub[S[_], A0, B](
+    private final case class Return[S[_], A](a: A)     extends Free[S, A]
+    private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+    private final case class Gosub[S[_], A0, B](
       a: Free[S, A0],
       f: A0 => Free[S, B]
     ) extends Free[S, B] { type A = A0 }
@@ -234,9 +233,8 @@ stack space because each call returns a heap object, with delayed recursion.
 A> Called `Trampoline` because every time we `.bind` on the stack, we *bounce* back
 A> to the heap.
 A> 
-A> The only Star Wars reference involving bouncing is Yoda's duel with Dooku.
-A> 
-A> So, let's stick with `Trampoline` then...
+A> The only Star Wars reference involving bouncing is Yoda's duel with Dooku. We
+A> shall not speak of this again.
 
 Convenient functions are provided to create a `Trampoline` eagerly (`.done`) or
 by-name (`.delay`). We can also create a `Trampoline` from a by-name
@@ -287,8 +285,10 @@ completion. The case that is most likely to cause confusion is when we have
 nested `Gosub`: apply the inner function `g` then pass it to the outer one `f`,
 it's just function composition.
 
-Time for an example. In the previous chapter we described the data type `DList`
-as
+
+### Example: Stack Safe `DList`
+
+In the previous chapter we described the data type `DList` as
 
 {lang="text"}
 ~~~~~~~~
@@ -314,6 +314,9 @@ Instead of applying nested calls to `f` we use a suspended `Trampoline`. We
 interpret the trampoline with `.run` only when needed, e.g. in `toIList`. The
 changes are minimal, but we now have a stack safe `DList` that can rearrange the
 concatenation of a large number lists without blowing the stack!
+
+
+### Stack Safe `IO`
 
 Similarly, our `IO` can be made stack safe thanks to `Trampoline`:
 
