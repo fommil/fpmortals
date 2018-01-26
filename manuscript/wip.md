@@ -197,9 +197,12 @@ algebra `S[_]`:
 A> `SUSPEND`, `RETURN` and `GOSUB` are a tip of the hat to the `BASIC` commands of
 A> the same name: pausing, completing, and continuing a subroutine, respectively.
 
-However, `Free` is more general than we need for now. Setting the first type
-parameter to `() => ?` we get `Trampoline` and can implement a stack safe
-`Monad`
+
+### `Trampoline`
+
+`Free` is more general than we need for now. Setting the first type parameter to
+`() => ?`, a deferred calculation, we get `Trampoline` and can implement a stack
+safe `Monad`
 
 {lang="text"}
 ~~~~~~~~
