@@ -9132,10 +9132,10 @@ interpret the trampoline with =.run= only when needed, e.g. in =toIList=. The
 changes are minimal, but we now have a stack safe =DList= that can rearrange the
 concatenation of a large number lists without blowing the stack!
 
-=IO= can be implemented with a =Trampoline=:
+Similarly, our =IO= can be made stack safe thanks to =Trampoline=:
 
 #+BEGIN_SRC scala
-final class IO[A] (val tramp: Trampoline[A]) {
+final class IO[A](val tramp: Trampoline[A]) {
   def unsafePerformIO(): A = tramp.run
 }
 object IO {
@@ -9156,8 +9156,8 @@ We heard you like =Monad=, so we made you a =Monad= out of a =Monad=, so you can
 monadically bind when you are monadically binding.
 #+END_ASIDE
 
-The interpreter, =.unsafePerformIO()=, has an intentionally scary name to try
-and discourage use anywhere except the entrypoint of the application.
+The interpreter, =.unsafePerformIO()=, has an intentionally scary name to
+discourage using it except in the entrypoint of the application.
 
 This time, we don't get a stack overflow error:
 
