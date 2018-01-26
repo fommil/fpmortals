@@ -32,8 +32,7 @@ use `Monad`:
 
 We can reasonably expect that calling `echo` will not perform any side effects,
 because it is pure. However, if we use `Future` as `F[_]` it will start running
-immediately, listening to `stdin`. We've broken purity and we are no longer
-writing FP code:
+immediately, listening to `stdin`:
 
 {lang="text"}
 ~~~~~~~~
@@ -41,9 +40,9 @@ writing FP code:
   val futureEcho: Future[String] = echo[Future]
 ~~~~~~~~
 
-The `val futureEcho` is no longer a definition of the `echo` program that we can
-rerun or substitute using referential transparency, but is instead the result of
-running `echo` once.
+We have broken purity and are no longer writing FP code: `futureEcho` is not a
+definition of the `echo` program that we can rerun or substitute using
+referential transparency, but is instead the result of running `echo` once.
 
 `Future` conflates the definition of a program with *interpreting* it (i.e.
 running it). As a result, applications built with `Future` are difficult to
@@ -126,7 +125,7 @@ execution, such that we can capture effects in type signatures, allowing us to
 reason about them, and reuse more code.
 
 A> The scala compiler will happily allow us to call side-effecting methods from
-A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side effecting methods at
+A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side-effecting methods at
 A> compiletime, unless called from inside a deferred `Monad` like `IO`. The
 A> `DisableUnless` rule is essential for writing safe FP programs in Scala.
 
@@ -140,10 +139,10 @@ the `-Xss` flag when starting up `java`. Tail recursive methods are detected by
 the scala compiler and do not add an entry. If we hit the limit, by calling too
 many chained methods, we get a `StackOverflowException`.
 
-Unfortunately, every call to a `.bind` / `.flatMap` results in adding another
-method call to the stack, so our simple `IO` can blow up. The easiest way to see
-this is to perform some operation forever, and see if it survives. We can use
-`.forever`, from `Apply` (a parent of `Monad`):
+Unfortunately, every call to our `IO`'s `.flatMap` results in another method
+call to the stack. The easiest way to see this is to repeat an action forever,
+and see if it survives for longer than a few seconds. We can use `.forever`,
+from `Apply` (a parent of `Monad`):
 
 {lang="text"}
 ~~~~~~~~
@@ -162,8 +161,8 @@ this is to perform some operation forever, and see if it survives. We can use
 ~~~~~~~~
 
 Scalaz has a typeclass that `Monad` instances can implement if they provide a
-stack safe: `BindRec` uses constant stack space when doing recursive `bind`,
-i.e. it's stack safe and can loop `forever` without blowing up the stack:
+stack safe implementation: `BindRec` uses constant stack space for recursive
+`bind`:
 
 {lang="text"}
 ~~~~~~~~
@@ -225,10 +224,9 @@ representation of the `Monad` interface:
 1.  `Return` represents `.point`
 2.  `Gosub` represents `.bind` / `.flatMap`
 
-The `BindRec` implementation, `.tailrecM`, runs `.bind` until we get a `B` then
-exit. Although this is not technically a `@tailrec` implementation, it uses
-constant stack space because each call returns a heap object, with delayed
-recursion.
+The `BindRec` implementation, `.tailrecM`, runs `.bind` until we get a `B`.
+Although this is not technically a `@tailrec` implementation, it uses constant
+stack space because each call returns a heap object, with delayed recursion.
 
 A> Called `Trampoline` because every time we `.bind` on the stack, we *bounce* back
 A> to the heap.
@@ -237,8 +235,8 @@ A> The only Star Wars reference involving bouncing is Yoda's duel with Dooku.
 A> 
 A> So, let's stick with `Trampoline` then...
 
-Convenient functions are provided for eager (`.done`) and by-name (`.delay`)
-semantics creation from a value, and by-name semantics for the definition of a
+Convenient functions are provided to create a `Trampoline` eagerly (`.done`) or
+by-name (`.delay`). We can also create a `Trampoline` from a by-name
 `Trampoline` (`.suspend`):
 
 {lang="text"}
@@ -252,7 +250,10 @@ semantics creation from a value, and by-name semantics for the definition of a
   }
 ~~~~~~~~
 
-TODO `Free` has two type parameters. The `S[_]` can be an algebra and in fact
+-   TODO interpreter
+-   TODO example
+-   TODO `Free` has two type parameters. The `S[_]` can be an algebra and in fact
+
 `Free` can be used to implement `Terminal` directly.
 
 
