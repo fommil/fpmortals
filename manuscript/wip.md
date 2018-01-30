@@ -177,8 +177,7 @@ We don't need `BindRec` for all programs, but it is essential for a general
 purpose `Monad` implementation.
 
 The way to achieve stack safety is to convert method calls into references to an
-ADT, the `Free` monad. It is named *free* because it can be *generated for free*
-for any algebra `S[_]` (like the algebras of Chapter 3)
+ADT, the `Free` monad:
 
 {lang="text"}
 ~~~~~~~~
@@ -197,31 +196,36 @@ for any algebra `S[_]` (like the algebras of Chapter 3)
 A> `SUSPEND`, `RETURN` and `GOSUB` are a tip of the hat to the `BASIC` commands of
 A> the same name: pausing, completing, and continuing a subroutine, respectively.
 
-For example, we could set `S` to be the `Drone` or `Machines` algebras and be
-able to generate a data structure representation of our program. We'll return to
-why this is useful at the end of this chapter.
+The `Free` monad is named because it can be *generated for free* for any `S[_]`.
+For example, we could set `S` to be the `Drone` or `Machines` algebras from
+Chapter 3 and generate a data structure representation of our program. We'll
+return to why this is useful at the end of this chapter.
 
 
 ### `Trampoline`
 
-`Free` is more general than we need for now. Setting the first type parameter
-(the algebra) to `() => ?`, a deferred calculation or *thunk*, we get
-`Trampoline` and can implement a stack safe `Monad`
+`Free` is more general than we need for now. Setting the algebra `S[_]` to `()
+=> ?`, a deferred calculation or *thunk*, we get `Trampoline` and can implement
+a stack safe `Monad`
 
 {lang="text"}
 ~~~~~~~~
-  type Trampoline[A] = Free[() => ?, A]
-  implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
-    new Monad[Trampoline] with BindRec[Trampoline] {
-      def point[A](a: =>A): Trampoline[A] = Return(a)
-      def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] = Gosub(fa, f)
+  object Free {
+    type Trampoline[A] = Free[() => ?, A]
+    implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
+      new Monad[Trampoline] with BindRec[Trampoline] {
+        def point[A](a: =>A): Trampoline[A] = Return(a)
+        def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] =
+          Gosub(fa, f)
   
-      def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
-        bind(f(a)) {
-          case -\/(a) => tailrecM(f)(a)
-          case \/-(b) => point(b)
-        }
-    }
+        def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
+          bind(f(a)) {
+            case -\/(a) => tailrecM(f)(a)
+            case \/-(b) => point(b)
+          }
+      }
+    ...
+  }
 ~~~~~~~~
 
 The `Free` ADT is a natural data type representation of the `Monad` interface:
@@ -360,6 +364,15 @@ This time, we don't get a stack overflow error:
   ...
   hello
 ~~~~~~~~
+
+Using a `Trampoline` typically introduces a performance regression vs a regular
+reference. It is `Free` in the sense of *freely generated*, not *free as in
+beer*.
+
+A> Always benchmark instead of accepting sweeping statements about performance: it
+A> may well be the case that the garbage collector performs better for your
+A> application when using `Free` because of the reduced size of retained objects in
+A> the stack.
 
 
 # The Infinite Sadness
