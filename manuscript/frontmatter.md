@@ -21,9 +21,9 @@ who is both sceptical and curious about the **Functional Programming** (FP)
 paradigm. This book justifies every concept with practical examples, including
 writing a web application.
 
-There are many ways to do Functional Programming in Scala. This book focuses on
-using [scalaz](https://github.com/scalaz/scalaz), the most popular and comprehensive framework, but you can instead
-use the Cats simplified rewrite of scalaz, or roll your own framework.
+There are many ways to do Functional Programming in Scala. This book uses [scalaz
+7.2](https://github.com/scalaz/scalaz), the most popular, stable, principled and comprehensive framework. You could
+instead use the Cats simplified rewrite of scalaz, or roll your own framework.
 
 This book is designed to be read from cover to cover, in the order presented,
 with a rest between chapters. Earlier chapters encourage coding styles that we
