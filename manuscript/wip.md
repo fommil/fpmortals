@@ -14,9 +14,6 @@ offer simpler and faster alternatives.
 
 ## Always in motion is the `Future`
 
-In Chapter 1, we used `Future` to build sequential applications with `.flatMap`.
-But the truth is that `Future` is a terrible `Monad`.
-
 The biggest problem with `Future` is that it eagerly schedules work during
 construction. Let's see why that's a problem. Rewriting the Chapter 1 example to
 use `Monad`:
