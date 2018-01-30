@@ -16,32 +16,30 @@
 
 # About This Book
 
-This book is for Scala developers with a Java background who wish to
-learn the **Functional Programming** (FP) paradigm. We do not accept
-that the merits of FP are obvious. Therefore, this book justifies
-every concept with practical examples, in Scala.
+This book is for the typical Scala developer, probably with a Java background,
+who is both sceptical and curious about the **Functional Programming** (FP)
+paradigm. This book justifies every concept with practical examples, including
+writing a web application.
 
-There are many ways to do Functional Programming in Scala. This book
-focuses on using [scalaz](https://github.com/scalaz/scalaz), but you can instead use [cats](http://typelevel.org/cats/) or roll your own
-framework.
+There are many ways to do Functional Programming in Scala. This book focuses on
+using [scalaz](https://github.com/scalaz/scalaz), the most popular and comprehensive framework, but you can instead
+use the Cats simplified rewrite of scalaz, or roll your own framework.
 
-This book is designed to be read from cover to cover, in the order
-presented, with a rest between chapters. To ensure that the book is
-concise, important concepts are not always repeated. Re-read sections
-that are confusing, they will be important later.
+This book is designed to be read from cover to cover, in the order presented,
+with a rest between chapters. Earlier chapters encourage coding styles that we
+will later discredit: similar to how we learn Newton's theory of gravity as
+children, and progress to Riemann / Einstein / Maxwell if we become students of
+physics.
 
-A computer is not necessary to follow along, although we hope that you
-will gain the confidence to independently study the scalaz source
-code. Some of the more complex code snippets are available with [the
-book's source code](https://github.com/fommil/fpmortals/tree/master/src/main/scala/) and those who want to play along with exercises are
-encouraged to (re-)implement scalaz (and the example application)
-using the partial descriptions presented in this book.
+A computer is not necessary to follow along, although we hope that you will gain
+the confidence to independently study the scalaz source code. Some of the more
+complex code snippets are available with [the book's source code](https://github.com/fommil/fpmortals/tree/master/src/main/scala/) and those who
+want practical exercises are encouraged to (re-)implement scalaz (and the
+example application) using the partial descriptions presented in this book.
 
-We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to
-write an FP library in Scala from first principles. Try to attend a
-Fantasyland Institute of Learning training course if you can, or at
-least read the associated material: [Advanced Functional Programming
-with Scala](https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc).
+We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to write an FP
+library in Scala from first principles. Try to attend a Fantasyland Institute of
+Learning training course if you can.
 
 
 # Copyleft Notice
@@ -84,11 +82,12 @@ Miles Sabin for fixing a critical bug in the scala compiler ([SI-2712](https://i
 
 The readers who gave feedback on early drafts of this text.
 
-Juan Manuel Serrano for [All Roads Lead to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On Free
-Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For: What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50), Erik Bakker
-for [Options in Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8), Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/),
-Luka Jacobowitz for [Optimizing Tagless Final](https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html), Yi Lin Wei and Zainab Ali for
-their tutorials at Hack The Tower meetups.
+Some conference talks were particularly helpful for my own understanding of the
+concepts that are in this book. Thanks to Juan Manuel Serrano for [All Roads Lead
+to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For:
+What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50), Erik Bakker for [Options in Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8),
+Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Luka Jacobowitz for [Optimizing Tagless
+Final](https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html), Yi Lin Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin
 Göttlinger, Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert
@@ -133,7 +132,6 @@ following imports:
 ~~~~~~~~
   import scalaz._, Scalaz._
   import simulacrum._
-  import stalactite._
 ~~~~~~~~
 
 
