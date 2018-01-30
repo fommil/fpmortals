@@ -1,7 +1,8 @@
 
-## TODO Extending from Monad
+## TODO Monad Hierarchy
 
-this is a bit ambiguous... state / reader / etc?
+Possibly include monad transformers as examples as we go... and then give the
+big reveal about composing them in the next section.
 
 incl ComonadStore
 
@@ -24,20 +25,63 @@ We can also provide a `MonadError`, allowing us to write programs that can fail
 ~~~~~~~~
 
 
-## TODO Initial vs Final encoding
+## TODO Monad Transformers
 
-Free / FreeAp / Cofree
+Include a diagram of the transformer, the underlying, and the associated typeclass.
 
-`Free` as the algebra for Terminal. Example of optimisation for Free.
+-   MonadTrans
+-   ComonadTrans
 
--   TODO `Free` has two type parameters. The `S[_]` can be an algebra and in fact
+-   Kleisli
+-   Cokleisli
 
-`Free` can be used to implement `Terminal` directly.
+-   IdT
+-   BijectionT
+-   EitherT
+-   FreeT
+-   IndexedContsT
+-   LazyEitherT
+-   LazyOptionT
+-   ListT
+-   MaybeT
+-   OptionT
+-   ReaderWriterStateT
+-   StateT / State
+-   StoreT
+-   StreamT
+-   TheseT
+-   TracedT
+-   UnwriterT
+-   WriterT
 
 
-### TODO optimisation
+## TODO Parallelism and `Task`
 
-Analogous to bytecode instrumentation.
+The issue of parallelisation of applicatives vs the sequential nature of Monad.
+
+Can use this to motivate the scalaz8 typeclass design.
+
+
+## TODO The `Free Monad`
+
+`Free` as the algebra for Terminal.
+
+`Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
+the name. However, from a practical point of view, there needs to be a
+`Monad[S]` in order to interpret it --- so it's more like an interest
+only mortgage where you still have to buy the house at the end.
+
+introduce `FreeAp` and `Cofree`
+
+Trampolining is expensive, what does it buy us? Move onto Drone / Machines and
+optimise for bulk read / write. Analogous to bytecode instrumentation.
+
+And for testing: [smock](https://github.com/djspiewak/smock)
+
+
+## TODO Initial vs Final Encoding
+
+Then (much more complicated) optimisation for final encoding of our drone app.
 
 Try this with the `act` in our example app. It's tricky because we have two algebras.
 
@@ -66,92 +110,6 @@ Try this with the `act` in our example app. It's tricky because we have two alge
     }
   }
 ~~~~~~~~
-
-
-## TODO Parallelism and `Task`
-
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
-
-
-## TODO Monad Transformers
-
--   MonadTrans
--   ComonadTrans
-
--   Kleisli
--   Cokleisli
-
--   IdT
--   BijectionT
--   EitherT
--   FreeT
--   IndexedContsT
--   LazyEitherT
--   LazyOptionT
--   ListT
--   MaybeT
--   OptionT
--   ReaderWriterStateT
--   StateT / State
--   StoreT
--   StreamT
--   TheseT
--   TracedT
--   UnwriterT
--   WriterT
-
-
-## TODO Other
-
--   [smock](https://github.com/djspiewak/smock)
-
--   FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
-
-What we've been doing in this chapter is using the *free monad*,
-`cats.free.Free`, to build up the definition of our program as a data
-type and then we interpret it. Freestyle calls it `FS`, which is just
-a type alias to `Free`, hiding an irrelevant type parameter.
-
-The reason why we use `Free` instead of just implementing `cats.Monad`
-directly (e.g. for `Id` or `Future`) is an unfortunate consequence of
-running on the JVM. Every nested call to `map` or `flatMap` adds to
-the stack, eventually resulting in a `StackOverflowError`.
-
-`Free` is a `sealed abstract class` that roughly looks like:
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Free[S[_], A] {
-    def pure(a: A): Free[S, A] = Pure(a)
-    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
-    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
-  }
-  
-  final case class Pure[S[_], A](a: A) extends Free[S, A]
-  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  final case class FlatMapped[S[_], B, C](
-                                    c: Free[S, C],
-                                    f: C => Free[S, B]) extends Free[S, B]
-~~~~~~~~
-
-Its definition of `pure` / `map` / `flatMap` do not do any work, they
-just build up data types that live on the heap. Work is delayed until
-Free is *interpreted*. This technique of using heap objects to
-eliminate stack growth is known as *trampolining*.
-
-When we use the `@free` annotation, a `sealed abstract class` data
-type is generated for each of our algebras, with a `final case class`
-per method, allowing trampolining. When we write a `Handler`,
-Freestyle is converting pattern matches over heap objects into method
-calls.
-
-
-### Free as in Monad
-
-`Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
-the name. However, from a practical point of view, there needs to be a
-`Monad[S]` in order to interpret it --- so it's more like an interest
-only mortgage where you still have to buy the house at the end.
 
 
 # TODO Utilities

@@ -177,8 +177,8 @@ We don't need `BindRec` for all programs, but it is essential for a general
 purpose `Monad` implementation.
 
 The way to achieve stack safety is to convert method calls into references to an
-ADT, the `Free` monad, named because it can be *generated for free* for some
-algebra `S[_]`:
+ADT, the `Free` monad. It is named *free* because it can be *generated for free*
+for any algebra `S[_]` (like the algebras of Chapter 3)
 
 {lang="text"}
 ~~~~~~~~
@@ -197,34 +197,34 @@ algebra `S[_]`:
 A> `SUSPEND`, `RETURN` and `GOSUB` are a tip of the hat to the `BASIC` commands of
 A> the same name: pausing, completing, and continuing a subroutine, respectively.
 
+For example, we could set `S` to be the `Drone` or `Machines` algebras and be
+able to generate a data structure representation of our program. We'll return to
+why this is useful at the end of this chapter.
+
 
 ### `Trampoline`
 
-`Free` is more general than we need for now. Setting the first type parameter to
-`() => ?`, a deferred calculation, we get `Trampoline` and can implement a stack
-safe `Monad`
+`Free` is more general than we need for now. Setting the first type parameter
+(the algebra) to `() => ?`, a deferred calculation or *thunk*, we get
+`Trampoline` and can implement a stack safe `Monad`
 
 {lang="text"}
 ~~~~~~~~
-  object Free {
-    type Trampoline[A] = Free[() => ?, A]
-    implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
-      new Monad[Trampoline] with BindRec[Trampoline] {
-        def point[A](a: =>A): Trampoline[A] = Return(a)
-        def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] =
-          Gosub(fa, f)
-        def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
-          bind(f(a)) {
-            case -\/(a) => tailrecM(f)(a)
-            case \/-(b) => point(b)
-          }
-      }
-    ...
-  }
+  type Trampoline[A] = Free[() => ?, A]
+  implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
+    new Monad[Trampoline] with BindRec[Trampoline] {
+      def point[A](a: =>A): Trampoline[A] = Return(a)
+      def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] = Gosub(fa, f)
+  
+      def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
+        bind(f(a)) {
+          case -\/(a) => tailrecM(f)(a)
+          case \/-(b) => point(b)
+        }
+    }
 ~~~~~~~~
 
-The implementation makes it clear that the `Free` ADT is a natural data type
-representation of the `Monad` interface:
+The `Free` ADT is a natural data type representation of the `Monad` interface:
 
 1.  `Return` represents `.point`
 2.  `Gosub` represents `.bind` / `.flatMap`

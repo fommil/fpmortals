@@ -8996,8 +8996,8 @@ We don't need =BindRec= for all programs, but it is essential for a general
 purpose =Monad= implementation.
 
 The way to achieve stack safety is to convert method calls into references to an
-ADT, the =Free= monad, named because it can be /generated for free/ for some
-algebra =S[_]=:
+ADT, the =Free= monad. It is named /free/ because it can be /generated for free/
+for any algebra =S[_]= (like the algebras of Chapter 3)
 
 #+BEGIN_SRC scala
 sealed abstract class Free[S[_], A]
@@ -9017,32 +9017,32 @@ object Free {
 the same name: pausing, completing, and continuing a subroutine, respectively.
 #+END_ASIDE
 
+For example, we could set =S= to be the =Drone= or =Machines= algebras and be
+able to generate a data structure representation of our program. We'll return to
+why this is useful at the end of this chapter.
+
 **** =Trampoline=
 
-=Free= is more general than we need for now. Setting the first type parameter to
-~() => ?~, a deferred calculation, we get =Trampoline= and can implement a stack
-safe =Monad=
+=Free= is more general than we need for now. Setting the first type parameter
+(the algebra) to ~() => ?~, a deferred calculation or /thunk/, we get
+=Trampoline= and can implement a stack safe =Monad=
 
 #+BEGIN_SRC scala
-object Free {
-  type Trampoline[A] = Free[() => ?, A]
-  implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
-    new Monad[Trampoline] with BindRec[Trampoline] {
-      def point[A](a: =>A): Trampoline[A] = Return(a)
-      def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] =
-        Gosub(fa, f)
-      def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
-        bind(f(a)) {
-          case -\/(a) => tailrecM(f)(a)
-          case \/-(b) => point(b)
-        }
-    }
-  ...
-}
+type Trampoline[A] = Free[() => ?, A]
+implicit val trampoline: Monad[Trampoline] with BindRec[Trampoline] =
+  new Monad[Trampoline] with BindRec[Trampoline] {
+    def point[A](a: =>A): Trampoline[A] = Return(a)
+    def bind[A, B](fa: Trampoline[A])(f: A => Trampoline[B]): Trampoline[B] = Gosub(fa, f)
+
+    def tailrecM[A, B](f: A => Trampoline[A \/ B])(a: A): Trampoline[B] =
+      bind(f(a)) {
+        case -\/(a) => tailrecM(f)(a)
+        case \/-(b) => point(b)
+      }
+  }
 #+END_SRC
 
-The implementation makes it clear that the =Free= ADT is a natural data type
-representation of the =Monad= interface:
+The =Free= ADT is a natural data type representation of the =Monad= interface:
 
 1. =Return= represents =.point=
 2. =Gosub= represents =.bind= / =.flatMap=
@@ -9199,9 +9199,10 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 
-*** TODO Extending from Monad
+*** TODO Monad Hierarchy
 
-this is a bit ambiguous... state / reader / etc?
+Possibly include monad transformers as examples as we go... and then give the
+big reveal about composing them in the next section.
 
 incl ComonadStore
 
@@ -9221,21 +9222,64 @@ object IO {
   }
 }
 #+END_SRC
-*** TODO Initial vs Final encoding
 
-Free / FreeAp / Cofree
+*** TODO Monad Transformers
+
+Include a diagram of the transformer, the underlying, and the associated typeclass.
+
+- MonadTrans
+- ComonadTrans
+
+- Kleisli
+- Cokleisli
+
+- IdT
+- BijectionT
+- EitherT
+- FreeT
+- IndexedContsT
+- LazyEitherT
+- LazyOptionT
+- ListT
+- MaybeT
+- OptionT
+- ReaderWriterStateT
+- StateT / State
+- StoreT
+- StreamT
+- TheseT
+- TracedT
+- UnwriterT
+- WriterT
+
+*** TODO Parallelism and =Task=
+
+The issue of parallelisation of applicatives vs the sequential nature of Monad.
+
+Can use this to motivate the scalaz8 typeclass design.
+
+*** TODO The =Free Monad=
+
+=Free= as the algebra for Terminal.
+
+=Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
+the name. However, from a practical point of view, there needs to be a
+=Monad[S]= in order to interpret it --- so it's more like an interest
+only mortgage where you still have to buy the house at the end.
+
+introduce =FreeAp= and =Cofree=
+
+Trampolining is expensive, what does it buy us? Move onto Drone / Machines and
+optimise for bulk read / write. Analogous to bytecode instrumentation.
+
+And for testing: [[https://github.com/djspiewak/smock][smock]]
+
+*** TODO Initial vs Final Encoding
 
 # "initial" vs "final" encodings
 # https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
 
-=Free= as the algebra for Terminal. Example of optimisation for Free.
-
-- TODO =Free= has two type parameters. The =S[_]= can be an algebra and in fact
-=Free= can be used to implement =Terminal= directly.
-
-**** TODO optimisation
-
- Analogous to bytecode instrumentation.
+Then (much more complicated) optimisation for final encoding of our drone app.
 
  # useful (yet broken) example:
  # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
@@ -9267,87 +9311,6 @@ Free / FreeAp / Cofree
    }
  }
  #+END_SRC
-
-*** TODO Parallelism and =Task=
-
-And also the issue of parallelisation of applicatives vs the sequential nature of Monad
-
-*** TODO Monad Transformers
-
-- MonadTrans
-- ComonadTrans
-
-- Kleisli
-- Cokleisli
-
-- IdT
-- BijectionT
-- EitherT
-- FreeT
-- IndexedContsT
-- LazyEitherT
-- LazyOptionT
-- ListT
-- MaybeT
-- OptionT
-- ReaderWriterStateT
-- StateT / State
-- StoreT
-- StreamT
-- TheseT
-- TracedT
-- UnwriterT
-- WriterT
-
-*** TODO Other
-
-- [[https://github.com/djspiewak/smock][smock]]
-
-- FIXME this is old text, need to rewrite Chapter 3 using explicit scalaz Free Monad boilerplate
-
-What we've been doing in this chapter is using the /free monad/,
-=cats.free.Free=, to build up the definition of our program as a data
-type and then we interpret it. Freestyle calls it =FS=, which is just
-a type alias to =Free=, hiding an irrelevant type parameter.
-
-The reason why we use =Free= instead of just implementing =cats.Monad=
-directly (e.g. for =Id= or =Future=) is an unfortunate consequence of
-running on the JVM. Every nested call to =map= or =flatMap= adds to
-the stack, eventually resulting in a =StackOverflowError=.
-
-=Free= is a =sealed abstract class= that roughly looks like:
-
-#+BEGIN_SRC scala
-  sealed abstract class Free[S[_], A] {
-    def pure(a: A): Free[S, A] = Pure(a)
-    def map[B](f: A => B): Free[S, B] = flatMap(a => Pure(f(a)))
-    def flatMap[B](f: A => Free[S, B]): Free[S, B] = FlatMapped(this, f)
-  }
-
-  final case class Pure[S[_], A](a: A) extends Free[S, A]
-  final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
-  final case class FlatMapped[S[_], B, C](
-                                    c: Free[S, C],
-                                    f: C => Free[S, B]) extends Free[S, B]
-#+END_SRC
-
-Its definition of =pure= / =map= / =flatMap= do not do any work, they
-just build up data types that live on the heap. Work is delayed until
-Free is /interpreted/. This technique of using heap objects to
-eliminate stack growth is known as /trampolining/.
-
-When we use the =@free= annotation, a =sealed abstract class= data
-type is generated for each of our algebras, with a =final case class=
-per method, allowing trampolining. When we write a =Handler=,
-Freestyle is converting pattern matches over heap objects into method
-calls.
-
-**** Free as in Monad
-
-=Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
-the name. However, from a practical point of view, there needs to be a
-=Monad[S]= in order to interpret it --- so it's more like an interest
-only mortgage where you still have to buy the house at the end.
 
 
 ** TODO Utilities
