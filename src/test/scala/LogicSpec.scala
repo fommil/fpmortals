@@ -36,7 +36,7 @@ object Data {
 import Data._
 
 final class StaticHandlers(state: WorldView) {
-  var started, stopped: Int = 0
+  var started, stopped: Int = 0 // scalafix:ok DisableSyntax.keywords.var
 
   implicit val drone: Drone[Id] = new Drone[Id] {
     def getBacklog: Int = state.backlog
