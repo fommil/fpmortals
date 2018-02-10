@@ -3890,8 +3890,7 @@ function at the layer we want.
 
 ## Apply and Bind
 
-Consider this the warm-up act to `Applicative` and `Monad`, with an
-Advanced TIE Fighter for entertainment.
+Consider this the warm-up act to `Applicative` and `Monad`
 
 {width=100%}
 ![](images/scalaz-apply.png)
@@ -3909,6 +3908,9 @@ with `ap`, the function is in a similar context to the values.
     @op("<*>") def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B]
     ...
 ~~~~~~~~
+
+A> `<*>` is the Advanced TIE Fighter, as flown by Darth Vader. Appropriate since it
+A> looks like an angry parent.
 
 It's worth taking a moment to consider what that means for a simple data
 structure like `Option[A]`, having the following implementation of `.ap`

@@ -372,6 +372,12 @@ A> application when using `Free` because of the reduced size of retained objects
 A> the stack.
 
 
+## `Monad` Hierarchy
+
+{width=100%}
+![](images/scalaz-monad-tree.png)
+
+
 # The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
