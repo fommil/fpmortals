@@ -9200,7 +9200,7 @@ transformer provides the simplest implementation.
 
 | Effect          | Underlying                  | Transformer           | Typeclass              |
 |-----------------+-----------------------------+-----------------------+------------------------|
-| none            | ~F[A]~                      | ~IdentityT[F[_], A]~  |                        |
+| none            | ~F[A]~                      | ~IdT[F[_], A]~        |                        |
 | read config     | ~R => F[A]~                 | ~ReaderT[F[_], S, A]~ | ~MonadReader[F[_], R]~ |
 | logging         | ~F[(W, A)]~                 | ~WriterT[F[_], W, A]~ | ~MonadTell[F[_], S]~   |
 | evolving state  | ~S => F[(S, A)]~            | ~StateT[F[_], S, A]~  | ~MonadState[F[_], S]~  |
@@ -9214,12 +9214,37 @@ transformer provides the simplest implementation.
 # https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc#common-transformers
 
 **** TODO =MonadTrans=
-**** TODO =IdentityT=
+**** TODO =IdT=
 **** TODO =ReaderT=
 **** TODO =WriterT=
+
+including =UnwriterT=
+
 **** TODO =StateT=
 **** TODO =EitherT=
+
+Showing that monad transformers are not the only way to encode an effect, we can
+also provide a =MonadError=, allowing us to write programs that can fail
+
+#+BEGIN_SRC scala
+object IO {
+  ...
+  def fail[A](t: Throwable): IO[A] = IO(throw t)
+
+  implicit val Monad = new MonadError[IO, Throwable] {
+    ...
+    def raiseError[A](e: Throwable): IO[A] = fail(e)
+    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+      try IO(fa.interpret())
+      catch { case t: Throwable => f(t) }
+  }
+}
+#+END_SRC
+
 **** TODO =MaybeT=
+
+including =OptionT=
+
 **** TODO =StreamT=
 **** TODO =ContT=
 
@@ -9231,6 +9256,21 @@ bracketed functions like withFile (ResourceT, Managed)
 # http://www.haskellforall.com/2012/12/the-continuation-monad.html
 # http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
 # http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
+
+**** TODO Others
+
+What about these?
+
+- Kleisli
+- Cokleisli
+- BijectionT
+- IndexedContsT
+- LazyEitherT
+- LazyOptionT
+- ReaderWriterStateT
+- StoreT
+- TheseT
+- TracedT
 
 ** The Infinite Sadness
 
@@ -9256,58 +9296,7 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 
-*** TODO Monad Hierarchy
-
-Possibly include monad transformers as examples as we go... and then give the
-
-
-incl ComonadStore
-
-We can also provide a =MonadError=, allowing us to write programs that can fail
-
-#+BEGIN_SRC scala
-object IO {
-  ...
-  def fail[A](t: Throwable): IO[A] = IO(throw t)
-
-  implicit val Monad = new MonadError[IO, Throwable] {
-    ...
-    def raiseError[A](e: Throwable): IO[A] = fail(e)
-    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      try IO(fa.interpret())
-      catch { case t: Throwable => f(t) }
-  }
-}
-#+END_SRC
-
-*** TODO Monad Transformers
-
-Include a diagram of the transformer, the underlying, and the associated typeclass.
-
-- MonadTrans
-- ComonadTrans
-
-- Kleisli
-- Cokleisli
-
-- IdT
-- BijectionT
-- EitherT
-- FreeT
-- IndexedContsT
-- LazyEitherT
-- LazyOptionT
-- ListT
-- MaybeT
-- OptionT
-- ReaderWriterStateT
-- StateT / State
-- StoreT
-- StreamT
-- TheseT
-- TracedT
-- UnwriterT
-- WriterT
+ComonadStore
 
 *** TODO Parallelism and =Task=
 

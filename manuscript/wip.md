@@ -383,7 +383,7 @@ transformer provides the simplest implementation.
 
 | Effect          | Underlying                  | Transformer           | Typeclass              |
 |--------------- |--------------------------- |--------------------- |---------------------- |
-| none            | `F[A]`                      | `IdentityT[F[_], A]`  |                        |
+| none            | `F[A]`                      | `IdT[F[_], A]`        |                        |
 | read config     | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
 | logging         | `F[(W, A)]`                 | `WriterT[F[_], W, A]` | `MonadTell[F[_], S]`   |
 | evolving state  | `S => F[(S, A)]`            | `StateT[F[_], S, A]`  | `MonadState[F[_], S]`  |
@@ -396,7 +396,7 @@ transformer provides the simplest implementation.
 ### TODO `MonadTrans`
 
 
-### TODO `IdentityT`
+### TODO `IdT`
 
 
 ### TODO `ReaderT`
@@ -404,14 +404,37 @@ transformer provides the simplest implementation.
 
 ### TODO `WriterT`
 
+including `UnwriterT`
+
 
 ### TODO `StateT`
 
 
 ### TODO `EitherT`
 
+Showing that monad transformers are not the only way to encode an effect, we can
+also provide a `MonadError`, allowing us to write programs that can fail
+
+{lang="text"}
+~~~~~~~~
+  object IO {
+    ...
+    def fail[A](t: Throwable): IO[A] = IO(throw t)
+  
+    implicit val Monad = new MonadError[IO, Throwable] {
+      ...
+      def raiseError[A](e: Throwable): IO[A] = fail(e)
+      def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+        try IO(fa.interpret())
+        catch { case t: Throwable => f(t) }
+    }
+  }
+~~~~~~~~
+
 
 ### TODO `MaybeT`
+
+including `OptionT`
 
 
 ### TODO `StreamT`
@@ -422,6 +445,22 @@ transformer provides the simplest implementation.
 Specialisations of ContT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
+
+
+### TODO Others
+
+What about these?
+
+-   Kleisli
+-   Cokleisli
+-   BijectionT
+-   IndexedContsT
+-   LazyEitherT
+-   LazyOptionT
+-   ReaderWriterStateT
+-   StoreT
+-   TheseT
+-   TracedT
 
 
 # The Infinite Sadness
