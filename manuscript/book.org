@@ -93,14 +93,15 @@ for their help explaining the principles of FP. Kenji Yoshida and
 Jason Zaugg for being the main authors of scalaz, and Paul Chuisano /
 Miles Sabin for fixing a critical bug in the scala compiler ([[https://issues.scala-lang.org/browse/SI-2712][SI-2712]]).
 
-The readers who gave feedback on early drafts of this text.
+Thank you to the readers who gave feedback on early drafts of this text.
 
 Some conference talks were particularly helpful for my own understanding of the
 concepts that are in this book. Thanks to Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead
 to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For:
 What is it Good For?]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]],
-Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless
-Final]], Yi Lin Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
+Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Sukant Hajra for [[https://www.youtube.com/watch?v=QtZJATIPB0k][Classy Monad Transformers]],
+Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Yi Lin Wei and Zainab Ali for
+their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin
 Göttlinger, Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert
@@ -153,19 +154,16 @@ additional cost.
 Please help raise awareness of this book by telling your friends,
 especially the most sceptical.
 
-If you would like to give feedback on this book, thank you! I ask of
+If you would like to give feedback on this book, thank you! Corrections to
+mistakes are greatly appreciated. When giving qualitative feedback, I ask of
 you:
 
-1. if you are an FP beginner and something confused you, please point
-   out the exact part of the text that confused you at
-   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fpmortals]]
-2. if you are an expert in FP, please help by answering my questions
-   at [[https://gitlab.com/fommil/drone-dynamic-agents/issues][fommil/drone-dynamic-agents]] and pointing out factual errors in
-   this text.
-3. if you understood a concept, but feel that it could be explained in
-   a different way, let's park that thought for now.
-4. grammatical errors and typos will (eventually) be corrected by an
-   editor, they do not need to be reported.
+1. if you understood a concept, but feel that it could be explained in a
+   different way, let's park that thought for now.
+2. please point out the /exact/ part of the text that confused you at
+   [[https://github.com/fommil/fp-scala-mortals/issues][fommil/fpmortals]] and we can iterate until it makes sense to you.
+3. grammatical errors and typos will (eventually) be corrected by an editor,
+   they do not need to be reported.
 
 * Mainmatter                                                          :final:
 :PROPERTIES:
@@ -9191,100 +9189,48 @@ application when using =Free= because of the reduced size of retained objects in
 the stack.
 #+END_ASIDE
 
-*** =Monad= Hierarchy
+*** Effects and =Monad= Transformers
 
-#+BEGIN_SRC dot :file images/scalaz-monad-tree.png :exports results
-digraph G {
-    graph [dpi=100, rankdir=BT];
-    node [fontname=Hack];
-    node [fontcolor=lightgray,color=lightgray];
-    edge [color=lightgray]
+In this section, we introduce the most important effects, what is their
+fundamental purpose --- or /effect/ --- and how they work. This subset of scalaz
+is often referred to as the /Monad Transformer Library/ (MTL).
 
-    Cobind [fontcolor=lightslategray,color=lightslategray];
-    Comonad [fontcolor=lightslategray,color=lightslategray];
-    Bind [fontcolor=lightslategray,color=lightslategray];
-    Apply [fontcolor=lightslategray,color=lightslategray];
-    Contravariant [fontcolor=lightslategray,color=lightslategray];
-    Functor [fontcolor=lightslategray,color=lightslategray];
-    InvariantFunctor [fontcolor=lightslategray,color=lightslategray];
-    Functor [fontcolor=lightslategray,color=lightslategray];
-    Divide [fontcolor=lightslategray,color=lightslategray];
-    Divisible [fontcolor=lightslategray,color=lightslategray];
-    Apply [fontcolor=lightslategray,color=lightslategray];
-    Align [fontcolor=lightslategray,color=lightslategray];
-    Applicative [fontcolor=lightslategray,color=lightslategray];
-    Foldable1 [fontcolor=lightslategray,color=lightslategray];
-    Foldable [fontcolor=lightslategray,color=lightslategray];
-    Traverse [fontcolor=lightslategray,color=lightslategray];
-    Traverse1 [fontcolor=lightslategray,color=lightslategray];
-    Monad [fontcolor=lightslategray,color=lightslategray];
-    Plus [fontcolor=lightslategray,color=lightslategray];
-    PlusEmpty [fontcolor=lightslategray,color=lightslategray];
-    IsEmpty [fontcolor=lightslategray,color=lightslategray];
-    ApplicativePlus [fontcolor=lightslategray,color=lightslategray];
-    MonadPlus [fontcolor=lightslategray,color=lightslategray];
+Scalaz typically has a typeclass with the ability to use an effect. A monad
+transformer provides the simplest implementation.
 
-    Nondeterminism [fontcolor=black,color=black];
-    LiftIO [fontcolor=black,color=black];
-    MonadIO [fontcolor=black,color=black];
-    LiftControlIO [fontcolor=black,color=black];
-    MonadControlIO [fontcolor=black,color=black];
-    MonadState [fontcolor=black,color=black];
-    MonadError [fontcolor=black,color=black];
-    MonadTell [fontcolor=black,color=black];
-    MonadReader [fontcolor=black,color=black];
-    ComonadStore [fontcolor=black,color=black];
+| Effect          | Underlying                  | Transformer           | Typeclass              |
+|-----------------+-----------------------------+-----------------------+------------------------|
+| none            | ~F[A]~                      | ~IdentityT[F[_], A]~  |                        |
+| read config     | ~R => F[A]~                 | ~ReaderT[F[_], S, A]~ | ~MonadReader[F[_], R]~ |
+| logging         | ~F[(W, A)]~                 | ~WriterT[F[_], W, A]~ | ~MonadTell[F[_], S]~   |
+| evolving state  | ~S => F[(S, A)]~            | ~StateT[F[_], S, A]~  | ~MonadState[F[_], S]~  |
+| errors          | ~F[Either[E,A]]~            | ~EitherT[F[_], E, A]~ | ~MonadError[F[_], E]~  |
+| optionality     | ~F[Maybe[A]]~               | ~MaybeT[F[_], A]~     | ~MonadPlus[F[_]]~      |
+| non-determinism | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT[F[_], A]~    |                        |
+| continuations   | ~(A => F[R]) => F[R]~       | ~ContT[F[_], R, A]~   |                        |
 
-    Bind -> Apply [color=lightslategray];
+# https://www.slideshare.net/sukanthajra/classy-monad-transformers-stop-effing-around
+# https://www.youtube.com/watch?v=QtZJATIPB0k
+# https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc#common-transformers
 
-    Contravariant -> InvariantFunctor [color=lightslategray];
-    Functor -> InvariantFunctor [color=lightslategray];
+**** TODO =MonadTrans=
+**** TODO =IdentityT=
+**** TODO =ReaderT=
+**** TODO =WriterT=
+**** TODO =StateT=
+**** TODO =EitherT=
+**** TODO =MaybeT=
+**** TODO =StreamT=
+**** TODO =ContT=
 
-    Divide -> Contravariant [color=lightslategray];
-    Divisible -> Divide [color=lightslategray];
-    Apply -> Functor [color=lightslategray];
-    Applicative -> Apply [color=lightslategray];
+Specialisations of ContT like Condensity also have their own nice use cases e.g.
+reassociating binds to make them linear rather than quadratic or abstract over
+bracketed functions like withFile (ResourceT, Managed)
 
-    Foldable1 -> Foldable [color=lightslategray];
-    Traverse -> Functor [color=lightslategray];
-    Traverse -> Foldable [color=lightslategray];
-    Traverse1 -> Traverse [color=lightslategray];
-    Traverse1 -> Foldable1 [color=lightslategray];
-
-    Monad -> Applicative [color=lightslategray];
-    Monad -> Bind [color=lightslategray];
-
-    Cobind -> Functor [color=lightslategray];
-    Comonad -> Cobind [color=lightslategray];
-
-    PlusEmpty -> Plus [color=lightslategray];
-    IsEmpty -> PlusEmpty [color=lightslategray];
-
-    ApplicativePlus -> Applicative [color=lightslategray];
-    ApplicativePlus -> PlusEmpty [color=lightslategray];
-    MonadPlus -> ApplicativePlus [color=lightslategray];
-    MonadPlus -> Monad [color=lightslategray];
-
-    Align -> Functor [color=lightslategray];
-
-    Nondeterminism -> Monad [color=black];
-    MonadIO -> LiftIO [color=black];
-    MonadIO -> Monad [color=black];
-    MonadControlIO -> LiftControlIO [color=black];
-    MonadControlIO -> Monad [color=black];
-    MonadState -> Monad [color=black];
-    MonadError -> Monad [color=black];
-    MonadTell -> Monad [color=black];
-    MonadReader -> Monad [color=black];
-    ComonadStore -> Comonad [color=black];
-
-}
-#+END_SRC
-
-#+CAPTION: 100
-#+RESULTS:
-[[file:images/scalaz-monad-tree.png]]
-
+# https://www.schoolofhaskell.com/user/jwiegley/understanding-continuations
+# http://www.haskellforall.com/2012/12/the-continuation-monad.html
+# http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
+# http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
 
 ** The Infinite Sadness
 

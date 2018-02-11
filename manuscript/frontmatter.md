@@ -80,14 +80,15 @@ for their help explaining the principles of FP. Kenji Yoshida and
 Jason Zaugg for being the main authors of scalaz, and Paul Chuisano /
 Miles Sabin for fixing a critical bug in the scala compiler ([SI-2712](https://issues.scala-lang.org/browse/SI-2712)).
 
-The readers who gave feedback on early drafts of this text.
+Thank you to the readers who gave feedback on early drafts of this text.
 
 Some conference talks were particularly helpful for my own understanding of the
 concepts that are in this book. Thanks to Juan Manuel Serrano for [All Roads Lead
 to Lambda](https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video), Pere Villega for [On Free Monads](http://perevillega.com/understanding-free-monads), Dick Wall and Josh Suereth for [For:
 What is it Good For?](https://www.youtube.com/watch?v=WDaw2yXAa50), Erik Bakker for [Options in Futures, how to unsuck them](https://www.youtube.com/watch?v=hGMndafDcc8),
-Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Luka Jacobowitz for [Optimizing Tagless
-Final](https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html), Yi Lin Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
+Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/), Sukant Hajra for [Classy Monad Transformers](https://www.youtube.com/watch?v=QtZJATIPB0k),
+Luka Jacobowitz for [Optimizing Tagless Final](https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html), Yi Lin Wei and Zainab Ali for
+their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin
 Göttlinger, Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert
@@ -144,18 +145,15 @@ additional cost.
 Please help raise awareness of this book by telling your friends,
 especially the most sceptical.
 
-If you would like to give feedback on this book, thank you! I ask of
+If you would like to give feedback on this book, thank you! Corrections to
+mistakes are greatly appreciated. When giving qualitative feedback, I ask of
 you:
 
-1.  if you are an FP beginner and something confused you, please point
-    out the exact part of the text that confused you at
-    [fommil/fpmortals](https://github.com/fommil/fp-scala-mortals/issues)
-2.  if you are an expert in FP, please help by answering my questions
-    at [fommil/drone-dynamic-agents](https://gitlab.com/fommil/drone-dynamic-agents/issues) and pointing out factual errors in
-    this text.
-3.  if you understood a concept, but feel that it could be explained in
-    a different way, let's park that thought for now.
-4.  grammatical errors and typos will (eventually) be corrected by an
-    editor, they do not need to be reported.
+1.  if you understood a concept, but feel that it could be explained in a
+    different way, let's park that thought for now.
+2.  please point out the *exact* part of the text that confused you at
+    [fommil/fpmortals](https://github.com/fommil/fp-scala-mortals/issues) and we can iterate until it makes sense to you.
+3.  grammatical errors and typos will (eventually) be corrected by an editor,
+    they do not need to be reported.
 
 

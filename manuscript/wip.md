@@ -372,10 +372,56 @@ A> application when using `Free` because of the reduced size of retained objects
 A> the stack.
 
 
-## `Monad` Hierarchy
+## Effects and `Monad` Transformers
 
-{width=100%}
-![](images/scalaz-monad-tree.png)
+In this section, we introduce the most important effects, what is their
+fundamental purpose --- or *effect* --- and how they work. This subset of scalaz
+is often referred to as the *Monad Transformer Library* (MTL).
+
+Scalaz typically has a typeclass with the ability to use an effect. A monad
+transformer provides the simplest implementation.
+
+| Effect          | Underlying                  | Transformer           | Typeclass              |
+|--------------- |--------------------------- |--------------------- |---------------------- |
+| none            | `F[A]`                      | `IdentityT[F[_], A]`  |                        |
+| read config     | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
+| logging         | `F[(W, A)]`                 | `WriterT[F[_], W, A]` | `MonadTell[F[_], S]`   |
+| evolving state  | `S => F[(S, A)]`            | `StateT[F[_], S, A]`  | `MonadState[F[_], S]`  |
+| errors          | `F[Either[E,A]]`            | `EitherT[F[_], E, A]` | `MonadError[F[_], E]`  |
+| optionality     | `F[Maybe[A]]`               | `MaybeT[F[_], A]`     | `MonadPlus[F[_]]`      |
+| non-determinism | `F[Step[A, StreamT[F, A]]]` | `StreamT[F[_], A]`    |                        |
+| continuations   | `(A => F[R]) => F[R]`       | `ContT[F[_], R, A]`   |                        |
+
+
+### TODO `MonadTrans`
+
+
+### TODO `IdentityT`
+
+
+### TODO `ReaderT`
+
+
+### TODO `WriterT`
+
+
+### TODO `StateT`
+
+
+### TODO `EitherT`
+
+
+### TODO `MaybeT`
+
+
+### TODO `StreamT`
+
+
+### TODO `ContT`
+
+Specialisations of ContT like Condensity also have their own nice use cases e.g.
+reassociating binds to make them linear rather than quadratic or abstract over
+bracketed functions like withFile (ResourceT, Managed)
 
 
 # The Infinite Sadness

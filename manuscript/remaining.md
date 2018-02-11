@@ -2,7 +2,6 @@
 ## TODO Monad Hierarchy
 
 Possibly include monad transformers as examples as we go... and then give the
-big reveal about composing them in the next section.
 
 incl ComonadStore
 
