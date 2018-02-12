@@ -1,5 +1,3 @@
-ComonadStore
-
 
 ## TODO Parallelism and `Task`
 
@@ -97,7 +95,6 @@ is not really worth mentioning, except for a few things.
 -   Inject (something about data types a la carte... seems important)
 -   Lens / PLens ... tricky, we really want to use monocle
 -   MonoidCoproduct lists of disjunction of monoidal things
--   NaturalTransformation (this maybe be useful)
 -   NotNothing (mini version of shapeless' equivalent)
 -   NullArgument (?=> ... drugged up elvis)
 -   NullResult

@@ -6536,6 +6536,64 @@ typeclass selection purposes, and we will dedicate a chapter on /type
 refinement/ which is how we can mark up types with arbitrary value-level
 constraints.
 
+*** Natural Transformations
+
+A function from one type to another is written as ~A => B~ in scala, which is
+syntax sugar for a ~Function1[A, B]~. Scalaz provides similar syntax sugar =F ~>
+G= for functions over type constructors =F[_]= to =G[_]=.
+
+These =F ~> G= are called /natural transformations/ and are /universally
+quantified/ because they don't care about the contents of =F[_]=.
+
+#+BEGIN_SRC scala
+type ~>[-F[_], +G[_]] = NaturalTransformation[F, G]
+trait NaturalTransformation[-F[_], +G[_]] {
+  def apply[A](fa: F[A]): G[A]
+
+  def compose[E[_]](f: E ~> F): E ~> G = ...
+  def andThen[H[_]](f: G ~> H): F ~> H = ...
+}
+#+END_SRC
+
+An example of a natural transformation is a function that converts an =IList=
+into a =List=
+
+#+BEGIN_SRC scala
+scala> val convert = new (IList ~> List) {
+         def apply[A](fa: IList[A]): List[A] = fa.toList
+       }
+
+scala> convert(IList(1, 2, 3))
+res: List[Int] = List(1, 2, 3)
+#+END_SRC
+
+Or, more concisely, making use of =kind-projector='s syntax sugar:
+
+#+BEGIN_SRC scala
+scala> val convert = λ[IList ~> List](_.toList)
+
+scala> val convert = Lambda[IList ~> List](_.toList)
+#+END_SRC
+
+However, in day-to-day development, it is far more likely that we will use a
+natural transformation to map between algebras. For example, in
+=drone-dynamic-agents= we may want to implement our Google Container Engine
+=Machines= algebra with an off-the-shelf algebra, =BigMachines=. Instead of
+changing all our business logic and tests to use this new =BigMachines=
+interface, we may be able to write a transformation from =Machines ~>
+BigMachines=. We will return to this idea in the chapter on Advanced Monads.
+
+There is also a natural transformation for type constructors with two type
+holes:
+
+#+BEGIN_SRC scala
+type ~~>[-F[_,_], +G[_,_]] = BiNaturalTransformation[F, G]
+trait BiNaturalTransformation[-F[_, _], +G[_, _]] {
+  def apply[A, B](f: F[A, B]): G[A, B]
+  def compose[E[_, _]](f: E ~~> F) = ...
+}
+#+END_SRC
+
 *** Containers
 
 **** Maybe
@@ -9213,7 +9271,6 @@ transformer provides the simplest implementation.
 # https://www.youtube.com/watch?v=QtZJATIPB0k
 # https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc#common-transformers
 
-**** TODO =MonadTrans=
 **** TODO =IdT=
 **** TODO =ReaderT=
 **** TODO =WriterT=
@@ -9221,10 +9278,16 @@ transformer provides the simplest implementation.
 including =UnwriterT=
 
 **** TODO =StateT=
+
+=ReaderWriterStateT=
+
 **** TODO =EitherT=
 
 Showing that monad transformers are not the only way to encode an effect, we can
 also provide a =MonadError=, allowing us to write programs that can fail
+
+- =LazyEitherT=
+- =TheseT= (run on error... e.g. =MonadCatchIO=, or is it partial success?)
 
 #+BEGIN_SRC scala
 object IO {
@@ -9243,7 +9306,7 @@ object IO {
 
 **** TODO =MaybeT=
 
-including =OptionT=
+including =OptionT= and =LazyOptionT=
 
 **** TODO =StreamT=
 **** TODO =ContT=
@@ -9252,6 +9315,8 @@ Specialisations of ContT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
 
+=IndexedContsT=
+
 # https://www.schoolofhaskell.com/user/jwiegley/understanding-continuations
 # http://www.haskellforall.com/2012/12/the-continuation-monad.html
 # http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
@@ -9259,18 +9324,16 @@ bracketed functions like withFile (ResourceT, Managed)
 
 **** TODO Others
 
-What about these?
+- =TracedT= (aggregation?)
+- =BijectionT= ??? (a bit weird)
+- =StoreT= (or leave to lenses)
 
-- Kleisli
-- Cokleisli
-- BijectionT
-- IndexedContsT
-- LazyEitherT
-- LazyOptionT
-- ReaderWriterStateT
-- StoreT
-- TheseT
-- TracedT
+Probably ignore...
+
+- =Kleisli=
+- =Cokleisli=
+- =MonadTrans=
+- =ComonadStore=
 
 ** The Infinite Sadness
 
@@ -9295,8 +9358,6 @@ while continuing to build out the example application.
   :PROPERTIES:
   :EXPORT_FILE_NAME: remaining.md
   :END:
-
-ComonadStore
 
 *** TODO Parallelism and =Task=
 
@@ -9358,7 +9419,6 @@ Then (much more complicated) optimisation for final encoding of our drone app.
  }
  #+END_SRC
 
-
 ** TODO Utilities
 
 I'm not sure about this chapter. It may be the case that everything listed here
@@ -9393,7 +9453,6 @@ is not really worth mentioning, except for a few things.
 - Inject (something about data types a la carte... seems important)
 - Lens / PLens ... tricky, we really want to use monocle
 - MonoidCoproduct lists of disjunction of monoidal things
-- NaturalTransformation (this maybe be useful)
 - NotNothing (mini version of shapeless' equivalent)
 - NullArgument (?=> ... drugged up elvis)
 - NullResult

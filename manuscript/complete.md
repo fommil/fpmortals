@@ -5582,6 +5582,69 @@ refinement* which is how we can mark up types with arbitrary value-level
 constraints.
 
 
+## Natural Transformations
+
+A function from one type to another is written as `A => B` in scala, which is
+syntax sugar for a `Function1[A, B]`. Scalaz provides similar syntax sugar `F ~>
+G` for functions over type constructors `F[_]` to `G[_]`.
+
+These `F ~> G` are called *natural transformations* and are *universally
+quantified* because they don't care about the contents of `F[_]`.
+
+{lang="text"}
+~~~~~~~~
+  type ~>[-F[_], +G[_]] = NaturalTransformation[F, G]
+  trait NaturalTransformation[-F[_], +G[_]] {
+    def apply[A](fa: F[A]): G[A]
+  
+    def compose[E[_]](f: E ~> F): E ~> G = ...
+    def andThen[H[_]](f: G ~> H): F ~> H = ...
+  }
+~~~~~~~~
+
+An example of a natural transformation is a function that converts an `IList`
+into a `List`
+
+{lang="text"}
+~~~~~~~~
+  scala> val convert = new (IList ~> List) {
+           def apply[A](fa: IList[A]): List[A] = fa.toList
+         }
+  
+  scala> convert(IList(1, 2, 3))
+  res: List[Int] = List(1, 2, 3)
+~~~~~~~~
+
+Or, more concisely, making use of `kind-projector`'s syntax sugar:
+
+{lang="text"}
+~~~~~~~~
+  scala> val convert = λ[IList ~> List](_.toList)
+  
+  scala> val convert = Lambda[IList ~> List](_.toList)
+~~~~~~~~
+
+However, in day-to-day development, it is far more likely that we will use a
+natural transformation to map between algebras. For example, in
+`drone-dynamic-agents` we may want to implement our Google Container Engine
+`Machines` algebra with an off-the-shelf algebra, `BigMachines`. Instead of
+changing all our business logic and tests to use this new `BigMachines`
+interface, we may be able to write a transformation from `Machines ~>
+BigMachines`. We will return to this idea in the chapter on Advanced Monads.
+
+There is also a natural transformation for type constructors with two type
+holes:
+
+{lang="text"}
+~~~~~~~~
+  type ~~>[-F[_,_], +G[_,_]] = BiNaturalTransformation[F, G]
+  trait BiNaturalTransformation[-F[_, _], +G[_, _]] {
+    def apply[A, B](f: F[A, B]): G[A, B]
+    def compose[E[_, _]](f: E ~~> F) = ...
+  }
+~~~~~~~~
+
+
 ## Containers
 
 

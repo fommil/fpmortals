@@ -393,9 +393,6 @@ transformer provides the simplest implementation.
 | continuations   | `(A => F[R]) => F[R]`       | `ContT[F[_], R, A]`   |                        |
 
 
-### TODO `MonadTrans`
-
-
 ### TODO `IdT`
 
 
@@ -409,11 +406,16 @@ including `UnwriterT`
 
 ### TODO `StateT`
 
+`ReaderWriterStateT`
+
 
 ### TODO `EitherT`
 
 Showing that monad transformers are not the only way to encode an effect, we can
 also provide a `MonadError`, allowing us to write programs that can fail
+
+-   `LazyEitherT`
+-   `TheseT` (run on error... e.g. `MonadCatchIO`, or is it partial success?)
 
 {lang="text"}
 ~~~~~~~~
@@ -434,7 +436,7 @@ also provide a `MonadError`, allowing us to write programs that can fail
 
 ### TODO `MaybeT`
 
-including `OptionT`
+including `OptionT` and `LazyOptionT`
 
 
 ### TODO `StreamT`
@@ -446,21 +448,21 @@ Specialisations of ContT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
 
+`IndexedContsT`
+
 
 ### TODO Others
 
-What about these?
+-   `TracedT` (aggregation?)
+-   `BijectionT` ??? (a bit weird)
+-   `StoreT` (or leave to lenses)
 
--   Kleisli
--   Cokleisli
--   BijectionT
--   IndexedContsT
--   LazyEitherT
--   LazyOptionT
--   ReaderWriterStateT
--   StoreT
--   TheseT
--   TracedT
+Probably ignore...
+
+-   `Kleisli`
+-   `Cokleisli`
+-   `MonadTrans`
+-   `ComonadStore`
 
 
 # The Infinite Sadness
