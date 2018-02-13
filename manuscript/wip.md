@@ -230,6 +230,9 @@ The `Free` ADT is a natural data type representation of the `Monad` interface:
 1.  `Return` represents `.point`
 2.  `Gosub` represents `.bind` / `.flatMap`
 
+When an ADT mirrors the arguments of related functions, it is called a *Church
+encoding*, or *Continuation Passing Style*.
+
 The `BindRec` implementation, `.tailrecM`, runs `.bind` until we get a `B`.
 Although this is not technically a `@tailrec` implementation, it uses constant
 stack space because each call returns a heap object, with delayed recursion.
@@ -451,7 +454,10 @@ Specialisations of ContT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
 
-`IndexedContsT`
+-   `IndexedContsT`
+-   `ResourceT`
+
+Also research MonadBracket
 
 
 ### TODO Others
