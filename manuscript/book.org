@@ -1835,11 +1835,10 @@ final case class AcceptedLong(value: Long) extends Accepted
 final case class AcceptedBoolean(value: Boolean) extends Accepted
 #+END_SRC
 
-Pattern matching on these forms of coproduct can be tedious, which is
-why [[https://contributors.scala-lang.org/t/733][Union Types]] are being explored in the Dotty next-generation scala
-compiler. Workarounds such as [[https://github.com/propensive/totalitarian][totalitarian]]'s =Disjunct= exist as
-another way of encoding anonymous coproducts and [[https://github.com/fommil/stalagmite/issues/37][stalagmite]] aims to
-reduce the boilerplate for the approaches presented here.
+Pattern matching on these forms of coproduct can be tedious, which is why [[https://contributors.scala-lang.org/t/733][Union
+Types]] are being explored in the Dotty next-generation scala compiler.
+Workarounds such as [[https://github.com/propensive/totalitarian][totalitarian]]'s =Disjunct= exist as another way of encoding
+anonymous coproducts.
 
 #+BEGIN_ASIDE
 We can also use a =sealed trait= in place of a =sealed abstract class=
@@ -1998,11 +1997,10 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, [[https://github.com/fommil/stalagmite][stalagmite]] aims to pack =Boolean= and =Option= fields
-into an =Array[Byte]=, cache instances, memoise =hashCode=, optimise
-=equals=, enforce validation, use =@switch= statements when pattern
-matching, and much more. [[https://www.47deg.com/blog/iota-v0-1-0-release/][iota]] has performance improvements for nested
-=Either= coproducts.
+For example, [[https://gitlab.com/fommil/stalagmite][stalagmite]] aims to pack =Boolean= and =Option= fields into an
+=Array[Byte]=, cache instances, memoise =hashCode=, optimise =equals=, enforce
+validation, use =@switch= statements when pattern matching, and much more. [[https://www.47deg.com/blog/iota-v0-1-0-release/][iota]]
+has performance improvements for nested =Either= coproducts.
 
 These optimisations are not applicable to OOP =class= hierarchies that
 may be managing state, throwing exceptions, or providing adhoc method
@@ -9256,16 +9254,17 @@ is often referred to as the /Monad Transformer Library/ (MTL).
 Scalaz typically has a typeclass with the ability to use an effect. A monad
 transformer provides the simplest implementation.
 
-| Effect          | Underlying                  | Transformer           | Typeclass              |
-|-----------------+-----------------------------+-----------------------+------------------------|
-| none            | ~F[A]~                      | ~IdT[F[_], A]~        |                        |
-| read config     | ~R => F[A]~                 | ~ReaderT[F[_], S, A]~ | ~MonadReader[F[_], R]~ |
-| logging         | ~F[(W, A)]~                 | ~WriterT[F[_], W, A]~ | ~MonadTell[F[_], S]~   |
-| evolving state  | ~S => F[(S, A)]~            | ~StateT[F[_], S, A]~  | ~MonadState[F[_], S]~  |
-| errors          | ~F[Either[E,A]]~            | ~EitherT[F[_], E, A]~ | ~MonadError[F[_], E]~  |
-| optionality     | ~F[Maybe[A]]~               | ~MaybeT[F[_], A]~     | ~MonadPlus[F[_]]~      |
-| non-determinism | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT[F[_], A]~    |                        |
-| continuations   | ~(A => F[R]) => F[R]~       | ~ContT[F[_], R, A]~   |                        |
+| Effect               | Underlying                  | Transformer           | Typeclass              |
+|----------------------+-----------------------------+-----------------------+------------------------|
+| none                 | ~F[A]~                      | ~IdT[F[_], A]~        |                        |
+| read config          | ~R => F[A]~                 | ~ReaderT[F[_], S, A]~ | ~MonadReader[F[_], R]~ |
+| logging              | ~F[(W, A)]~                 | ~WriterT[F[_], W, A]~ | ~MonadTell[F[_], S]~   |
+| evolving state       | ~S => F[(S, A)]~            | ~StateT[F[_], S, A]~  | ~MonadState[F[_], S]~  |
+| optionality          | ~F[Maybe[A]]~               | ~MaybeT[F[_], A]~     | ~MonadPlus[F[_]]~      |
+| errors               | ~F[E \/ A]~                 | ~EitherT[F[_], E, A]~ | ~MonadError[F[_], E]~  |
+| keep calm & carry on | ~F[E \&/ A]~                | ~TheseT[F[_], E, A]~  |                        |
+| non-determinism      | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT[F[_], A]~    |                        |
+| continuations        | ~(A => F[R]) => F[R]~       | ~ContT[F[_], R, A]~   |                        |
 
 # https://www.slideshare.net/sukanthajra/classy-monad-transformers-stop-effing-around
 # https://www.youtube.com/watch?v=QtZJATIPB0k
@@ -9281,13 +9280,16 @@ including =UnwriterT=
 
 =ReaderWriterStateT=
 
+**** TODO =MaybeT=
+
+including =OptionT= and =LazyOptionT=
+
 **** TODO =EitherT=
 
 Showing that monad transformers are not the only way to encode an effect, we can
 also provide a =MonadError=, allowing us to write programs that can fail
 
 - =LazyEitherT=
-- =TheseT= (run on error... e.g. =MonadCatchIO=, or is it partial success?)
 
 #+BEGIN_SRC scala
 object IO {
@@ -9304,11 +9306,12 @@ object IO {
 }
 #+END_SRC
 
-**** TODO =MaybeT=
+**** TODO =TheseT=
 
-including =OptionT= and =LazyOptionT=
+# https://hackage.haskell.org/package/these-0.7.4/docs/Control-Monad-Chronicle.html#t:ChronicleT
 
 **** TODO =StreamT=
+
 **** TODO =ContT=
 
 Specialisations of ContT like Condensity also have their own nice use cases e.g.
@@ -9324,7 +9327,6 @@ bracketed functions like withFile (ResourceT, Managed)
 
 **** TODO Others
 
-- =TracedT= (aggregation?)
 - =BijectionT= ??? (a bit weird)
 - =StoreT= (or leave to lenses)
 
@@ -9334,6 +9336,7 @@ Probably ignore...
 - =Cokleisli=
 - =MonadTrans=
 - =ComonadStore=
+- =TracedT= (comonad tranformer)
 
 ** The Infinite Sadness
 

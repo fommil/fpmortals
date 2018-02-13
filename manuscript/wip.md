@@ -381,16 +381,17 @@ is often referred to as the *Monad Transformer Library* (MTL).
 Scalaz typically has a typeclass with the ability to use an effect. A monad
 transformer provides the simplest implementation.
 
-| Effect          | Underlying                  | Transformer           | Typeclass              |
-|--------------- |--------------------------- |--------------------- |---------------------- |
-| none            | `F[A]`                      | `IdT[F[_], A]`        |                        |
-| read config     | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
-| logging         | `F[(W, A)]`                 | `WriterT[F[_], W, A]` | `MonadTell[F[_], S]`   |
-| evolving state  | `S => F[(S, A)]`            | `StateT[F[_], S, A]`  | `MonadState[F[_], S]`  |
-| errors          | `F[Either[E,A]]`            | `EitherT[F[_], E, A]` | `MonadError[F[_], E]`  |
-| optionality     | `F[Maybe[A]]`               | `MaybeT[F[_], A]`     | `MonadPlus[F[_]]`      |
-| non-determinism | `F[Step[A, StreamT[F, A]]]` | `StreamT[F[_], A]`    |                        |
-| continuations   | `(A => F[R]) => F[R]`       | `ContT[F[_], R, A]`   |                        |
+| Effect               | Underlying                  | Transformer           | Typeclass              |
+|-------------------- |--------------------------- |--------------------- |---------------------- |
+| none                 | `F[A]`                      | `IdT[F[_], A]`        |                        |
+| read config          | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
+| logging              | `F[(W, A)]`                 | `WriterT[F[_], W, A]` | `MonadTell[F[_], S]`   |
+| evolving state       | `S => F[(S, A)]`            | `StateT[F[_], S, A]`  | `MonadState[F[_], S]`  |
+| optionality          | `F[Maybe[A]]`               | `MaybeT[F[_], A]`     | `MonadPlus[F[_]]`      |
+| errors               | `F[E \/ A]`                 | `EitherT[F[_], E, A]` | `MonadError[F[_], E]`  |
+| keep calm & carry on | `F[E \&/ A]`                | `TheseT[F[_], E, A]`  |                        |
+| non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT[F[_], A]`    |                        |
+| continuations        | `(A => F[R]) => F[R]`       | `ContT[F[_], R, A]`   |                        |
 
 
 ### TODO `IdT`
@@ -409,13 +410,17 @@ including `UnwriterT`
 `ReaderWriterStateT`
 
 
+### TODO `MaybeT`
+
+including `OptionT` and `LazyOptionT`
+
+
 ### TODO `EitherT`
 
 Showing that monad transformers are not the only way to encode an effect, we can
 also provide a `MonadError`, allowing us to write programs that can fail
 
 -   `LazyEitherT`
--   `TheseT` (run on error... e.g. `MonadCatchIO`, or is it partial success?)
 
 {lang="text"}
 ~~~~~~~~
@@ -434,9 +439,7 @@ also provide a `MonadError`, allowing us to write programs that can fail
 ~~~~~~~~
 
 
-### TODO `MaybeT`
-
-including `OptionT` and `LazyOptionT`
+### TODO `TheseT`
 
 
 ### TODO `StreamT`
@@ -453,7 +456,6 @@ bracketed functions like withFile (ResourceT, Managed)
 
 ### TODO Others
 
--   `TracedT` (aggregation?)
 -   `BijectionT` ??? (a bit weird)
 -   `StoreT` (or leave to lenses)
 
@@ -463,6 +465,7 @@ Probably ignore...
 -   `Cokleisli`
 -   `MonadTrans`
 -   `ComonadStore`
+-   `TracedT` (comonad tranformer)
 
 
 # The Infinite Sadness
