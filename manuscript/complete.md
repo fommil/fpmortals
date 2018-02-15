@@ -726,17 +726,19 @@ We've used `NonEmptyList`, easily created by calling `.toNel` on the
 stdlib's `List` (returning an `Option[NonEmptyList]`), otherwise
 everything should be familiar.
 
-A> It is good practice in FP to encode constraints in parameters **and**
-A> return types --- it means we never need to handle situations that are
-A> impossible. However, this often conflicts with the *Effective Java*
-A> wisdom of unconstrained parameters and specific return types.
+A> It is good practice in FP to encode constraints in parameters **and** return types
+A> --- it means we never need to handle situations that are impossible. However,
+A> this often conflicts with *Postel's law* "be liberal in what you accept from
+A> others".
 A> 
-A> Although we agree that parameters should be as general as possible, we
-A> do not agree that a function should take `Seq` unless it can handle
-A> empty `Seq`, otherwise the only course of action would be to
-A> exception, breaking totality and causing a side effect. We prefer
-A> `NonEmptyList`, not because it is a `List`, but because of its
-A> non-empty property.
+A> Although we agree that parameters should be as general as possible, we do not
+A> agree that a function should take `Seq` unless it can handle empty `Seq`,
+A> otherwise the only course of action would be to exception, breaking totality and
+A> causing a side effect.
+A> 
+A> We prefer `NonEmptyList`, not because it is a `List`, but because of its
+A> non-empty property. When we learn about scalaz's typeclass hierarchy, we will
+A> see a better way to request non-emptyness.
 
 
 ## Business Logic

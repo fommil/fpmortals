@@ -1192,17 +1192,19 @@ stdlib's =List= (returning an =Option[NonEmptyList]=), otherwise
 everything should be familiar.
 
 #+BEGIN_ASIDE
-It is good practice in FP to encode constraints in parameters *and*
-return types --- it means we never need to handle situations that are
-impossible. However, this often conflicts with the /Effective Java/
-wisdom of unconstrained parameters and specific return types.
+It is good practice in FP to encode constraints in parameters *and* return types
+--- it means we never need to handle situations that are impossible. However,
+this often conflicts with /Postel's law/ "be liberal in what you accept from
+others".
 
-Although we agree that parameters should be as general as possible, we
-do not agree that a function should take =Seq= unless it can handle
-empty =Seq=, otherwise the only course of action would be to
-exception, breaking totality and causing a side effect. We prefer
-=NonEmptyList=, not because it is a =List=, but because of its
-non-empty property.
+Although we agree that parameters should be as general as possible, we do not
+agree that a function should take =Seq= unless it can handle empty =Seq=,
+otherwise the only course of action would be to exception, breaking totality and
+causing a side effect.
+
+We prefer =NonEmptyList=, not because it is a =List=, but because of its
+non-empty property. When we learn about scalaz's typeclass hierarchy, we will
+see a better way to request non-emptyness.
 #+END_ASIDE
 
 *** Business Logic
