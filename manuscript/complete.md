@@ -1529,8 +1529,8 @@ of the input.
 -   `Boolean=>Boolean` has complexity 4
 -   `Option[Boolean]=>Option[Boolean]` has complexity 27
 -   `Boolean=>Int` is a mere quintillion going on a sextillion.
--   `Int=>Boolean` is so big that if all implementations were assigned a
-    unique number, each number would be 4GB.
+-   `Int=>Boolean` is so big that if all implementations were assigned a unique
+    number, each would require 4 gigabytes to represent.
 
 In reality, `Int=>Boolean` will be something simple like `isOdd`,
 `isEven` or a sparse `BitSet`. This function, when used in an ADT,
