@@ -375,29 +375,71 @@ A> application when using `Free` because of the reduced size of retained objects
 A> the stack.
 
 
-## Effects and `Monad` Transformers
+## Monad Transformer Library
 
-In this section, we introduce the most important effects, what is their
-fundamental purpose --- or *effect* --- and how they work. This subset of scalaz
-is often referred to as the *Monad Transformer Library* (MTL).
+Monad transformers are data structures that wrap an underlying type signature,
+and provide a `Monad`. Each transformer encapsulates an *effect* that augments
+the control flow of the program.
 
-Scalaz typically has a typeclass with the ability to use an effect. A monad
-transformer provides the simplest implementation.
+For example, in Chapter 2 we used `OptionT` to let us use `Future[Option[A]]` in
+a `for` comprehension as if it was just a `Future[A]`. `OptionT` gave our
+program the effect of an *optional* value, which works for any underlying `F[_]`
+that has a `Monad`:
+
+{lang="text"}
+~~~~~~~~
+  final case class OptionT[F[_], A](run: F[Option[A]])
+  object OptionT {
+    def some[M[_]: Applicative, A](v: => A): OptionT[M, A] = ...
+    def none[M[_]: Applicative, A]: OptionT[M, A] = ...
+  
+    implicit def monad[F[_]: Monad]: Monad[OptionT[F, ?]] = ...
+    ...
+  }
+~~~~~~~~
+
+Scalaz has typeclasses that specialise `Monad`, corresponding to specific
+transformers. The typeclass corresponding to optionality is `MonadPlus`, we can
+call `MonadPlus[F].empty` to short circuit the control flow of an application,
+equivalent to `OptionT.none`.
+
+This subset of scalaz is often referred to as the *Monad Transformer Library*
+(MTL) and is summarised below. In this section, we will explain each of the
+transformers, why they are useful, and how they work.
 
 | Effect               | Underlying                  | Transformer           | Typeclass              |
 |-------------------- |--------------------------- |--------------------- |---------------------- |
-| none                 | `F[A]`                      | `IdT[F[_], A]`        |                        |
-| read config          | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
+| optionality          | `F[Maybe[A]]`               | `MaybeT[F[_], A]`     | `MonadPlus[F[_]]`      |
+| read configuration   | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
 | logging              | `F[(W, A)]`                 | `WriterT[F[_], W, A]` | `MonadTell[F[_], S]`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT[F[_], S, A]`  | `MonadState[F[_], S]`  |
-| optionality          | `F[Maybe[A]]`               | `MaybeT[F[_], A]`     | `MonadPlus[F[_]]`      |
 | errors               | `F[E \/ A]`                 | `EitherT[F[_], E, A]` | `MonadError[F[_], E]`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT[F[_], E, A]`  |                        |
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT[F[_], A]`    |                        |
 | continuations        | `(A => F[R]) => F[R]`       | `ContT[F[_], R, A]`   |                        |
+| none                 | `F[A]`                      | `IdT[F[_], A]`        |                        |
 
 
-### TODO `IdT`
+### `MaybeT`
+
+`OptionT`, `MaybeT` and `LazyOptionT` have similar implementations, providing
+optionality through `Option`, `Maybe` and `LazyOption`, respectively. We will
+focus on `MaybeT` to avoid repetition.
+
+{lang="text"}
+~~~~~~~~
+  final case class MaybeT[F[_], A](run: F[Maybe[A]])
+  object MaybeT {
+    def just[M[_]: Applicative, A](v: =>A): MaybeT[M, A] =
+      MaybeT(Maybe.just(v).point[M])
+    def empty[M[_]: Applicative, A]: MaybeT[M, A] =
+      MaybeT(Maybe.empty.point[M])
+    ...
+  }
+~~~~~~~~
+
+-   TODO Monad implementation in terms of MonadTrans
+-   TODO MonadPlus implementation
 
 
 ### TODO `ReaderT`
@@ -411,11 +453,6 @@ including `UnwriterT`
 ### TODO `StateT`
 
 `ReaderWriterStateT`
-
-
-### TODO `MaybeT`
-
-including `OptionT` and `LazyOptionT`
 
 
 ### TODO `EitherT`
@@ -458,6 +495,9 @@ bracketed functions like withFile (ResourceT, Managed)
 -   `ResourceT`
 
 Also research MonadBracket
+
+
+### TODO `IdT`
 
 
 ### TODO Others
