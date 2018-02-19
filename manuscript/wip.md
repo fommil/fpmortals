@@ -410,7 +410,7 @@ transformers, why they are useful, and how they work.
 | Effect               | Underlying                  | Transformer           | Typeclass              |
 |-------------------- |--------------------------- |--------------------- |---------------------- |
 | optionality          | `F[Maybe[A]]`               | `MaybeT[F[_], A]`     | `MonadPlus[F[_]]`      |
-| read configuration   | `R => F[A]`                 | `ReaderT[F[_], S, A]` | `MonadReader[F[_], R]` |
+| read configuration   | `A => F[B]`                 | `ReaderT[F[_], A, B]` | `MonadReader[F[_], A]` |
 | logging              | `F[(W, A)]`                 | `WriterT[F[_], W, A]` | `MonadTell[F[_], S]`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT[F[_], S, A]`  | `MonadState[F[_], S]`  |
 | errors               | `F[E \/ A]`                 | `EitherT[F[_], E, A]` | `MonadError[F[_], E]`  |
@@ -430,19 +430,133 @@ focus on `MaybeT` to avoid repetition.
 ~~~~~~~~
   final case class MaybeT[F[_], A](run: F[Maybe[A]])
   object MaybeT {
-    def just[M[_]: Applicative, A](v: =>A): MaybeT[M, A] =
-      MaybeT(Maybe.just(v).point[M])
-    def empty[M[_]: Applicative, A]: MaybeT[M, A] =
-      MaybeT(Maybe.empty.point[M])
+    def just[F[_]: Applicative, A](v: =>A): MaybeT[F, A] =
+      MaybeT(Maybe.just(v).point)
+    def empty[F[_]: Applicative, A]: MaybeT[F, A] =
+      MaybeT(Maybe.empty.point)
     ...
   }
 ~~~~~~~~
 
--   TODO Monad implementation in terms of MonadTrans
--   TODO MonadPlus implementation
+providing a `MonadPlus`. Although this code looks fiddly, it is just delegating
+everything to the `Monad[F]` and then re-wrapping with a `MaybeT`
+
+{lang="text"}
+~~~~~~~~
+  implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
+    def point[A](a: =>A): MaybeT[F, A] = MaybeT.just(a)
+    def bind[A, B](fa: MaybeT[F, A])(f: A => MaybeT[F, B]): MaybeT[F, B] =
+      MaybeT(fa.run.bind(_.cata(f(_).run, Maybe.empty.point[F])))
+  
+    def empty[A]: MaybeT[F, A] = MaybeT.empty
+  
+    def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = ...
+  }
+~~~~~~~~
+
+With this monad we can write logic that handles optionality in the `F[_]`
+context, rather than carrying around `Option` or `Maybe`.
+
+For example, say we are interfacing with a social media website to count the
+number of stars a user has, and we start with a `String` that may or may not
+correspond to a user. We have this algebra:
+
+{lang="text"}
+~~~~~~~~
+  trait Twitter[F[_]] {
+    def getUser(name: String): F[Maybe[User]]
+    def getStars(user: User): F[Int]
+    ...
+  }
+~~~~~~~~
+
+We need to call `getUser` followed by `getStars`. If we use `Monad` as our
+context, our function is difficult because we have to handle the `Empty` case:
+
+{lang="text"}
+~~~~~~~~
+  def stars[F[_]: Monad](user: String): F[Maybe[Int]] = for {
+    maybeUser  <- getUser(name)
+    maybeStars <- maybeUser.cata(getStars(_), Maybe.empty.point)
+  } yield maybeStars
+~~~~~~~~
+
+However, if we have a `MonadPlus` as our context, we can suck `Maybe` into the
+`F[_]` with `.liftOpt`, and forget about them:
+
+{lang="text"}
+~~~~~~~~
+  def stars[F[_]: MonadPlus](user: String): F[Int] = for {
+    user  <- getUser(name).liftOpt
+    stars <- getStars(user)
+  } yield stars
+~~~~~~~~
+
+A> `.liftOpt` is our convenient syntax around `Optional` and `MonadPlus`:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   implicit class Ops[O[_]: Optional](o: O) {
+A>     def liftOpt[A, F[_]: MonadPlus]: F[A] =
+A>       o.toMaybe.cata(MonadPlus[F].point, MonadPlus[F].empty)
+A>   }
+A> ~~~~~~~~
+
+However adding a `MonadPlus` requirement can cause problems downstream if the
+context does not have one. The solution is to either change the context of the
+program to `MaybeT[F, ?]` (lifting the `Monad[F]` into a `MonadPlus`), or to
+explicitly use `MaybeT` in the return type, at the cost of slightly more code:
+
+{lang="text"}
+~~~~~~~~
+  def stars[F[_]: Monad](user: String): MaybeT[F, Int] = for {
+    user  <- MaybeT(getUser(name))
+    stars <- MaybeT.just(getStars(user))
+  } yield stars
+~~~~~~~~
+
+The decision to require a more powerful `Monad` vs returning a transformer is
+something that each team can decide for themselves based on the interpreters
+that they plan on using for their program.
 
 
-### TODO `ReaderT`
+### `ReaderT` / `Kleisli`
+
+The reader monad wraps `A => F[B]` allowing a program `F[B]` to depend on a
+runtime value `A`. For those familiar with dependency injection, the reader
+monad is the FP equivalent of Spring or Guice's `@Inject`, without the XML and
+reflection.
+
+`ReaderT` is just an alias to another, more generally useful, data type called
+`Kleisli`, named after the mathematician *Heinrich Kleisli*. `Kleisli` captures
+the second parameter of a monadic `.bind`, the *action*.
+
+{lang="text"}
+~~~~~~~~
+  type ReaderT[F[_], A, B] = Kleisli[F, A, B]
+  
+  final case class Kleisli[F[_], A, B](run: A => F[B]) {
+    def dimap[C, D](f: C => A, g: B => D)(implicit F: Functor[F]): Kleisli[F, C, D] =
+      Kleisli(c => run(f(c)).map(g))
+  
+    def >=>[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = ...
+    def <=<[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
+    def andThen[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = this >=> k
+    def compose[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
+  
+    def =<<(a: F[A])(implicit F: Bind[F]): F[B] = a >>= run
+    ...
+  }
+  object Kleisli {
+    implicit def kleisliFn[F[_], A, B](k: Kleisli[F, A, B]): A => F[B] = k.run
+    ...
+  }
+~~~~~~~~
+
+A> Some people call `>=>` the *fish operator*, but we know that it is obviously a
+A> Y-Wing.
+
+TODO: finish the section on `ReaderT`
 
 
 ### TODO `WriterT`
@@ -523,12 +637,10 @@ You can expect to see chapters covering the following topics:
 
 -   Advanced Monads (more to come)
 -   Typeclass Derivation
--   Optics
 -   Type Refinement
--   Recursion Schemes
--   Dependent Types
+-   Property Testing
 -   Functional Streams
--   Category Theory
+-   Optics
 -   Bluffing Haskell
 
 while continuing to build out the example application.
