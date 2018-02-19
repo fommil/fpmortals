@@ -390,8 +390,8 @@ that has a `Monad`:
 ~~~~~~~~
   final case class OptionT[F[_], A](run: F[Option[A]])
   object OptionT {
-    def some[M[_]: Applicative, A](v: => A): OptionT[M, A] = ...
-    def none[M[_]: Applicative, A]: OptionT[M, A] = ...
+    def some[F[_]: Applicative, A](v: =>A): OptionT[F, A] = ...
+    def none[F[_]: Applicative, A]: OptionT[F, A] = ...
   
     implicit def monad[F[_]: Monad]: Monad[OptionT[F, ?]] = ...
     ...
@@ -511,9 +511,11 @@ explicitly use `MaybeT` in the return type, at the cost of slightly more code:
 ~~~~~~~~
   def stars[F[_]: Monad](user: String): MaybeT[F, Int] = for {
     user  <- MaybeT(getUser(name))
-    stars <- MaybeT.just(getStars(user))
+    stars <- getStars(user).liftM[MaybeT]
   } yield stars
 ~~~~~~~~
+
+FIXME: explain that `liftM` comes from `MonadTrans`
 
 The decision to require a more powerful `Monad` vs returning a transformer is
 something that each team can decide for themselves based on the interpreters

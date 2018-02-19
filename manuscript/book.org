@@ -9264,8 +9264,8 @@ that has a =Monad=:
 #+BEGIN_SRC scala
 final case class OptionT[F[_], A](run: F[Option[A]])
 object OptionT {
-  def some[M[_]: Applicative, A](v: => A): OptionT[M, A] = ...
-  def none[M[_]: Applicative, A]: OptionT[M, A] = ...
+  def some[F[_]: Applicative, A](v: =>A): OptionT[F, A] = ...
+  def none[F[_]: Applicative, A]: OptionT[F, A] = ...
 
   implicit def monad[F[_]: Monad]: Monad[OptionT[F, ?]] = ...
   ...
@@ -9385,9 +9385,11 @@ explicitly use =MaybeT= in the return type, at the cost of slightly more code:
 #+BEGIN_SRC scala
 def stars[F[_]: Monad](user: String): MaybeT[F, Int] = for {
   user  <- MaybeT(getUser(name))
-  stars <- MaybeT.just(getStars(user))
+  stars <- getStars(user).liftM[MaybeT]
 } yield stars
 #+END_SRC
+
+FIXME: explain that =liftM= comes from =MonadTrans=, perhaps worth an aside.
 
 The decision to require a more powerful =Monad= vs returning a transformer is
 something that each team can decide for themselves based on the interpreters
