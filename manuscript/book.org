@@ -1013,9 +1013,9 @@ Alternatively, =OptionT[Future, Int]= has =getOrElse= and =getOrElseF=
 methods, taking =Int= and =Future[Int]= respectively, returning a
 =Future[Int]=.
 
-The monad transformer also allows us to mix =Future[Option[_]]= calls
-with methods that just return plain =Future= via =.liftM[OptionT]=
-(provided by scalaz when an implicit =Monad= is available):
+The monad transformer also allows us to mix =Future[Option[_]]= calls with
+methods that just return plain =Future= via =.liftM[OptionT]= (provided by
+scalaz):
 
 #+BEGIN_SRC scala
 scala> def getC: Future[Int] = ...
@@ -9264,10 +9264,7 @@ that has a =Monad=:
 #+BEGIN_SRC scala
 final case class OptionT[F[_], A](run: F[Option[A]])
 object OptionT {
-  def some[F[_]: Applicative, A](v: =>A): OptionT[F, A] = ...
-  def none[F[_]: Applicative, A]: OptionT[F, A] = ...
-
-  implicit def monad[F[_]: Monad]: Monad[OptionT[F, ?]] = ...
+  implicit def monad[F[_]: Monad]: MonadPlus[OptionT[F, ?]] = ...
   ...
 }
 #+END_SRC
@@ -9296,6 +9293,40 @@ transformers, why they are useful, and how they work.
 # https://www.slideshare.net/sukanthajra/classy-monad-transformers-stop-effing-around
 # https://www.youtube.com/watch?v=QtZJATIPB0k
 # https://gist.github.com/jdegoes/97459c0045f373f4eaf126998d8f65dc#common-transformers
+
+**** =MonadTrans=
+
+Before we look at all the monad transformers, it is worth discussing how to
+instantiate one from a value. Each transformer has two type holes, having the
+general shape =M[F[_], A]=, and providing an instance both =Monad= and the
+=MonadTrans= typeclass:
+
+#+BEGIN_SRC scala
+@typeclass trait MonadTrans[T[_[_], _]] {
+  def liftM[F[_]: Monad, A](a: F[A]): T[F, A]
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+=T[_[_], _]= is another example of a higher kinded type. It says that =T= takes
+two type parameters: the first also takes a type parameter, written =_[_]=, and
+the second does not take any type parameters, written =_=.
+#+END_ASIDE
+
+=.liftM= provides us the way to create a monad transformer if we have an =F[A]=.
+For example, we can create an =OptionT[IO, String]= by calling =.liftM[OptionT]=
+on an =IO[String]=.
+
+Generally, there are three ways to create a monad transformer:
+
+- from the underlying, using the transformer's constructor
+- from a single value =A=, using =.point= from the =Monad= syntax
+- from an =F[A]=, using =.liftM= from the =MonadTrans= syntax
+
+But due to the way that type inference works in Scala, this often means that a
+complex type parameter must be explicitly written, often with kind projector
+syntax. As a result, many monad transformers provide convenient constructors on
+their companion that do not require as many type parameters.
 
 **** =MaybeT=
 
@@ -9389,13 +9420,34 @@ def stars[F[_]: Monad](user: String): MaybeT[F, Int] = for {
 } yield stars
 #+END_SRC
 
-FIXME: explain that =liftM= comes from =MonadTrans=, perhaps worth an aside.
-
 The decision to require a more powerful =Monad= vs returning a transformer is
 something that each team can decide for themselves based on the interpreters
 that they plan on using for their program.
 
-**** =ReaderT= / =Kleisli=
+**** TODO =EitherT=
+
+- also =LazyEitherT=
+- generalised version of =MaybeT=
+- =.liftM= etc need complicated type parameters, so use the syntax =.eitherT=,
+  =.leftT= and =.rightT= and object helpers.
+- =MonadError= and =IO= (restricted to =Throwable=)
+
+#+BEGIN_SRC scala
+object IO {
+  ...
+  def fail[A](t: Throwable): IO[A] = IO(throw t)
+
+  implicit val Monad = new MonadError[IO, Throwable] {
+    ...
+    def raiseError[A](e: Throwable): IO[A] = fail(e)
+    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+      try IO(fa.interpret())
+      catch { case t: Throwable => f(t) }
+  }
+}
+#+END_SRC
+
+**** TODO =ReaderT= / =Kleisli=
 
 The reader monad wraps ~A => F[B]~ allowing a program =F[B]= to depend on a
 runtime value =A=. For those familiar with dependency injection, the reader
@@ -9441,28 +9493,6 @@ including =UnwriterT=
 **** TODO =StateT=
 
 =ReaderWriterStateT=
-
-**** TODO =EitherT=
-
-Showing that monad transformers are not the only way to encode an effect, we can
-also provide a =MonadError=, allowing us to write programs that can fail
-
-- =LazyEitherT=
-
-#+BEGIN_SRC scala
-object IO {
-  ...
-  def fail[A](t: Throwable): IO[A] = IO(throw t)
-
-  implicit val Monad = new MonadError[IO, Throwable] {
-    ...
-    def raiseError[A](e: Throwable): IO[A] = fail(e)
-    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      try IO(fa.interpret())
-      catch { case t: Throwable => f(t) }
-  }
-}
-#+END_SRC
 
 **** TODO =TheseT=
 

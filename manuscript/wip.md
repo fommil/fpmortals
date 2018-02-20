@@ -390,10 +390,7 @@ that has a `Monad`:
 ~~~~~~~~
   final case class OptionT[F[_], A](run: F[Option[A]])
   object OptionT {
-    def some[F[_]: Applicative, A](v: =>A): OptionT[F, A] = ...
-    def none[F[_]: Applicative, A]: OptionT[F, A] = ...
-  
-    implicit def monad[F[_]: Monad]: Monad[OptionT[F, ?]] = ...
+    implicit def monad[F[_]: Monad]: MonadPlus[OptionT[F, ?]] = ...
     ...
   }
 ~~~~~~~~
@@ -418,6 +415,40 @@ transformers, why they are useful, and how they work.
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT[F[_], A]`    |                        |
 | continuations        | `(A => F[R]) => F[R]`       | `ContT[F[_], R, A]`   |                        |
 | none                 | `F[A]`                      | `IdT[F[_], A]`        |                        |
+
+
+### `MonadTrans`
+
+Before we look at all the monad transformers, it is worth discussing how to
+instantiate one from a value. Each transformer has two type holes, having the
+general shape `M[F[_], A]`, and providing an instance both `Monad` and the
+`MonadTrans` typeclass:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadTrans[T[_[_], _]] {
+    def liftM[F[_]: Monad, A](a: F[A]): T[F, A]
+  }
+~~~~~~~~
+
+A> `T[_[_], _]` is another example of a higher kinded type. It says that `T` takes
+A> two type parameters: the first also takes a type parameter, written `_[_]`, and
+A> the second does not take any type parameters, written `_`.
+
+`.liftM` provides us the way to create a monad transformer if we have an `F[A]`.
+For example, we can create an `OptionT[IO, String]` by calling `.liftM[OptionT]`
+on an `IO[String]`.
+
+Generally, there are three ways to create a monad transformer:
+
+-   from the underlying, using the transformer's constructor
+-   from a single value `A`, using `.point` from the `Monad` syntax
+-   from an `F[A]`, using `.liftM` from the `MonadTrans` syntax
+
+But due to the way that type inference works in Scala, this often means that a
+complex type parameter must be explicitly written, often with kind projector
+syntax. As a result, many monad transformers provide convenient constructors on
+their companion that do not require as many type parameters.
 
 
 ### `MaybeT`
@@ -515,14 +546,37 @@ explicitly use `MaybeT` in the return type, at the cost of slightly more code:
   } yield stars
 ~~~~~~~~
 
-FIXME: explain that `liftM` comes from `MonadTrans`
-
 The decision to require a more powerful `Monad` vs returning a transformer is
 something that each team can decide for themselves based on the interpreters
 that they plan on using for their program.
 
 
-### `ReaderT` / `Kleisli`
+### TODO `EitherT`
+
+-   also `LazyEitherT`
+-   generalised version of `MaybeT`
+-   `.liftM` etc need complicated type parameters, so use the syntax `.eitherT`,
+    `.leftT` and `.rightT` and object helpers.
+-   `MonadError` and `IO` (restricted to `Throwable`)
+
+{lang="text"}
+~~~~~~~~
+  object IO {
+    ...
+    def fail[A](t: Throwable): IO[A] = IO(throw t)
+  
+    implicit val Monad = new MonadError[IO, Throwable] {
+      ...
+      def raiseError[A](e: Throwable): IO[A] = fail(e)
+      def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+        try IO(fa.interpret())
+        catch { case t: Throwable => f(t) }
+    }
+  }
+~~~~~~~~
+
+
+### TODO `ReaderT` / `Kleisli`
 
 The reader monad wraps `A => F[B]` allowing a program `F[B]` to depend on a
 runtime value `A`. For those familiar with dependency injection, the reader
@@ -569,30 +623,6 @@ including `UnwriterT`
 ### TODO `StateT`
 
 `ReaderWriterStateT`
-
-
-### TODO `EitherT`
-
-Showing that monad transformers are not the only way to encode an effect, we can
-also provide a `MonadError`, allowing us to write programs that can fail
-
--   `LazyEitherT`
-
-{lang="text"}
-~~~~~~~~
-  object IO {
-    ...
-    def fail[A](t: Throwable): IO[A] = IO(throw t)
-  
-    implicit val Monad = new MonadError[IO, Throwable] {
-      ...
-      def raiseError[A](e: Throwable): IO[A] = fail(e)
-      def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-        try IO(fa.interpret())
-        catch { case t: Throwable => f(t) }
-    }
-  }
-~~~~~~~~
 
 
 ### TODO `TheseT`

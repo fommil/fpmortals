@@ -562,9 +562,9 @@ Alternatively, `OptionT[Future, Int]` has `getOrElse` and `getOrElseF`
 methods, taking `Int` and `Future[Int]` respectively, returning a
 `Future[Int]`.
 
-The monad transformer also allows us to mix `Future[Option[_]]` calls
-with methods that just return plain `Future` via `.liftM[OptionT]`
-(provided by scalaz when an implicit `Monad` is available):
+The monad transformer also allows us to mix `Future[Option[_]]` calls with
+methods that just return plain `Future` via `.liftM[OptionT]` (provided by
+scalaz):
 
 {lang="text"}
 ~~~~~~~~
