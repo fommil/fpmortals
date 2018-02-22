@@ -9464,8 +9464,8 @@ The =Monad= is a =MonadError=
 }
 #+END_SRC
 
-=raiseError= and =handleError= are self-descriptive: =raiseError= is the
-equivalent of =throw= on an exception and =handleError= is the equivalent of a
+=.raiseError= and =.handleError= are self-descriptive: =.raiseError= is the
+equivalent of =throw= on an exception and =.handleError= is the equivalent of a
 =catch= block.
 
 The =MonadError= for =EitherT= is:
@@ -9487,13 +9487,12 @@ implicit def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
 }
 #+END_SRC
 
-It should be of no surprise that we can rewrite the =MonadPlus= / =MaybeT=
-example with =MonadError= / =EitherT= using more detailed messages where the
-error occurs:
+It should be of no surprise that we can rewrite the =MonadPlus= example with
+=MonadError=, inserting informative error messages:
 
 #+BEGIN_SRC scala
 def stars[F[_]](name: String)(implicit F: MonadError[F, String]): F[Int] = for {
-  user  <- getUser(name) >>= _.orError("user not found")
+  user  <- getUser(name) >>= _.orError(s"user '$name' not found")
   stars <- getStars(user)
 } yield stars
 #+END_SRC
@@ -9519,8 +9518,8 @@ type, in this case =F=.
 The version using =EitherT= directly looks like
 
 #+BEGIN_SRC scala
-def stars[F[_]: Monad](user: String): EitherT[F, String, Int] = for {
-  user  <- EitherT(getUser(name) >>= _.toRight("user not found"))
+def stars[F[_]: Monad](name: String): EitherT[F, String, Int] = for {
+  user  <- EitherT(getUser(name) >>= _.toRight(s"user '$name' not found"))
   stars <- EitherT.rightT(getStars(user))
 } yield stars
 #+END_SRC
