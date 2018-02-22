@@ -506,7 +506,7 @@ context, our function is difficult because we have to handle the `Empty` case:
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: Monad](user: String): F[Maybe[Int]] = for {
+  def stars[F[_]: Monad](name: String): F[Maybe[Int]] = for {
     maybeUser  <- getUser(name)
     maybeStars <- maybeUser.cata(getStars(_), Maybe.empty.point)
   } yield maybeStars
@@ -517,21 +517,11 @@ However, if we have a `MonadPlus` as our context, we can suck `Maybe` into the
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: MonadPlus](user: String): F[Int] = for {
-    user  <- getUser(name).liftOpt
+  def stars[F[_]: MonadPlus](name: String): F[Int] = for {
+    user  <- getUser(name) >>= _.orEmpty
     stars <- getStars(user)
   } yield stars
 ~~~~~~~~
-
-A> `.liftOpt` is our convenient syntax around `Optional` and `MonadPlus`:
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   implicit class Ops[O[_]: Optional](o: O) {
-A>     def liftOpt[A, F[_]: MonadPlus]: F[A] =
-A>       o.toMaybe.cata(MonadPlus[F].point, MonadPlus[F].empty)
-A>   }
-A> ~~~~~~~~
 
 However adding a `MonadPlus` requirement can cause problems downstream if the
 context does not have one. The solution is to either change the context of the
@@ -540,7 +530,7 @@ explicitly use `MaybeT` in the return type, at the cost of slightly more code:
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: Monad](user: String): MaybeT[F, Int] = for {
+  def stars[F[_]: Monad](name: String): MaybeT[F, Int] = for {
     user  <- MaybeT(getUser(name))
     stars <- getStars(user).liftM[MaybeT]
   } yield stars
@@ -551,13 +541,125 @@ something that each team can decide for themselves based on the interpreters
 that they plan on using for their program.
 
 
-### TODO `EitherT`
+### `EitherT`
 
--   also `LazyEitherT`
--   generalised version of `MaybeT`
--   `.liftM` etc need complicated type parameters, so use the syntax `.eitherT`,
-    `.leftT` and `.rightT` and object helpers.
--   `MonadError` and `IO` (restricted to `Throwable`)
+An optional value is a special case of a value that may be an error, but we
+don't know anything about the error. `EitherT` (and the lazy variant
+`LazyEitherT`) allows us to use any type we want as the error value, providing
+contextual information about what went wrong.
+
+`EitherT` is the FP equivalent of a checked exception. `EitherT` is also
+significantly more performant than an exception.
+
+A> One of the slowest things on the JVM is to raise an exception, due to the
+A> resources required to construct the stacktrace. It is traditional to use
+A> exceptions for input validation and parsing, which means anything that deviates
+A> from the happy path can be thousands of times slower.
+A> 
+A> Some people claim that predictable exceptions are referentially transparent, and
+A> therefore pure, because they will occur every time. However, the stacktrace
+A> inside the exception depends on the call chain, thus breaking referential
+A> transparency.
+
+`EitherT` is a wrapper around an `F[A \/ B]`
+
+{lang="text"}
+~~~~~~~~
+  final case class EitherT[F[_], A, B](run: F[A \/ B])
+  object EitherT {
+    def either[F[_]: Applicative, A, B](d: A \/ B): EitherT[F, A, B] = ...
+    def leftT[F[_]: Functor, A, B](fa: F[A]): EitherT[F, A, B] = ...
+    def rightT[F[_]: Functor, A, B](fb: F[B]): EitherT[F, A, B] = ...
+    def pureLeft[F[_]: Applicative, A, B](a: A): EitherT[F, A, B] = ...
+    def pure[F[_]: Applicative, A, B](b: B): EitherT[F, A, B] = ...
+    ...
+  }
+~~~~~~~~
+
+Constructors are provided on the companion along with syntax on any type such
+that `.rightT` delegates to `EitherT.rightT`, much as `.right` delegates to
+`\/.right`.
+
+The `Monad` is a `MonadError`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadError[F[_], E] extends Monad[F] {
+    def raiseError[A](e: E): F[A]
+    def handleError[A](fa: F[A])(f: E => F[A]): F[A]
+  }
+~~~~~~~~
+
+`raiseError` and `handleError` are self-descriptive: `raiseError` is the
+equivalent of `throw` on an exception and `handleError` is the equivalent of a
+`catch` block.
+
+The `MonadError` for `EitherT` is:
+
+{lang="text"}
+~~~~~~~~
+  implicit def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
+    def bind[A, B](fa: EitherT[F, E, A])
+                  (f: A => EitherT[F, E, B]): EitherT[F, E, B] =
+      EitherT(run.bind(_.fold(_.left[C].pure[F]), b => f(b).run))
+    def point[A](a: =>A): EitherT[F, E, A] = EitherT.pure(a)
+  
+    def raiseError[A](e: E): EitherT[F, E, A] = EitherT.pureLeft(e)
+    def handleError[A](fa: EitherT[F, E, A])
+                      (f: E => EitherT[F, E, A]): EitherT[F, E, A] =
+      EitherT(fa.run.bind {
+        case -\/(e) => f(e).run
+        case right => right.pure[F]
+      })
+  }
+~~~~~~~~
+
+It should be of no surprise that we can rewrite the `MonadPlus` / `MaybeT`
+example with `MonadError` / `EitherT` using more detailed messages where the
+error occurs:
+
+{lang="text"}
+~~~~~~~~
+  def stars[F[_]](name: String)(implicit F: MonadError[F, String]): F[Int] = for {
+    user  <- getUser(name) >>= _.orError("user not found")
+    stars <- getStars(user)
+  } yield stars
+~~~~~~~~
+
+where we have provided custom syntax
+
+{lang="text"}
+~~~~~~~~
+  implicit class HelperOps[A](m: Maybe[A]) {
+    def orError[F[_], E](e: E)(implicit F: MonadError[F, E]): F[A] =
+      m.cata(F.point, F.raiseError(e))
+  }
+~~~~~~~~
+
+A> It is common to use `implicit` parameter blocks instead of context bounds when
+A> the signature of the typeclass has more than one parameter.
+A> 
+A> It is also common practice to name the implicit parameter after the primary
+A> type, in this case `F`.
+
+Of course, if the `getUser` method returned a detailed message we would not need
+to provide one.
+
+The version using `EitherT` directly looks like
+
+{lang="text"}
+~~~~~~~~
+  import scalaz.syntax.eithert._ // EitherT syntax is not available by default
+  
+  def stars[F[_]: Monad](user: String): EitherT[F, String, Int] = for {
+    user  <- (getUser(name) >>= _.toRight("user not found")).rightT
+    stars <- getStars(user).eitherT
+  } yield stars
+~~~~~~~~
+
+TODO: a decent exception replacement type, with Source info
+
+TODO: IO as a MonadError
 
 {lang="text"}
 ~~~~~~~~

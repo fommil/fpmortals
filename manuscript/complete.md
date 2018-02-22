@@ -5671,7 +5671,7 @@ missing.
   
     def fromOption[A](oa: Option[A]): Maybe[A] = ...
     def fromNullable[A](a: A): Maybe[A] = if (null == a) empty else just(a)
-    def fromTryCatchNonFatal[T](a: => T): Maybe[T] = ...
+    def fromTryCatchNonFatal[T](a: =>T): Maybe[T] = ...
     ...
   }
 ~~~~~~~~
@@ -5712,23 +5712,31 @@ not supported by a polymorphic typeclass.
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Maybe[A] {
-    def cata[B](f: A => B, b: => B): B = this match {
+    def cata[B](f: A => B, b: =>B): B = this match {
       case Just(a) => f(a)
       case Empty() => b
     }
   
-    def |(a: => A): A = cata(identity, a)
+    def |(a: =>A): A = cata(identity, a)
+    def toLeft[B](b: =>B): A \/ B = cata(\/.left, \/-(b))
+    def toRight[B](b: =>B): B \/ A = cata(\/.right, -\/(b))
+    def <\/[B](b: =>B): A \/ B = toLeft(b)
+    def \/>[B](b: =>B): B \/ A = toRight(b)
   
     def orZero(implicit A: Monoid[A]): A = getOrElse(A.zero)
     def unary_~(implicit A: Monoid[A]): A = orZero
   
     def orEmpty[F[_]: Applicative: PlusEmpty]: F[A] =
       cata(Applicative[F].point(_), PlusEmpty[F].empty)
+    ...
   }
 ~~~~~~~~
 
 `.cata` is a terser alternative to `.map(f).getOrElse(b)` and has the
 simpler form `|` if the map is `identity` (i.e. just `.getOrElse`).
+
+`.toLeft` and `.toRight`, and their symbolic aliases, create a disjunction
+(explained in the next section) by taking a fallback for the `Empty` case.
 
 `.orZero` (having `~foo` syntax) takes a `Monoid` to define the
 default value.
@@ -5774,7 +5782,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A>   sealed abstract class Maybe[A] {
-A>     def getOrElse(a: => A): A = ...
+A>     def getOrElse(a: =>A): A = ...
 A>     ...
 A>   }
 A> ~~~~~~~~
@@ -5803,8 +5811,7 @@ to speak about it as *either* or `Disjunction`
     def right[A, B]: B => A \/ B = \/-(_)
   
     def fromEither[A, B](e: Either[A, B]): A \/ B = ...
-    def fromTryCatchNonFatal[T](a: => T): Throwable \/ T = ...
-  
+    def fromTryCatchNonFatal[T](a: =>T): Throwable \/ T = ...
     ...
   }
 ~~~~~~~~
@@ -5867,10 +5874,10 @@ In addition, there are custom methods
     }
     def unary_~ : (B \/ A) = swap
   
-    def |[BB >: B](x: => BB): BB = getOrElse(x) // Optional[_]
-    def |||[C, BB >: B](x: => C \/ BB): C \/ BB = orElse(x) // Optional[_]
+    def |[BB >: B](x: =>BB): BB = getOrElse(x) // Optional[_]
+    def |||[C, BB >: B](x: =>C \/ BB): C \/ BB = orElse(x) // Optional[_]
   
-    def +++[AA >: A: Semigroup, BB >: B: Semigroup](x: => AA \/ BB): AA \/ BB = ...
+    def +++[AA >: A: Semigroup, BB >: B: Semigroup](x: =>AA \/ BB): AA \/ BB = ...
   
     def toEither: Either[A, B] = ...
   
@@ -5878,7 +5885,6 @@ In addition, there are custom methods
       def <<?:(left: =>X): X = ...
     }
     def :?>>[X](right: =>X) = new SwitchingDisjunction[X](right)
-  
     ...
   }
 ~~~~~~~~
@@ -5950,7 +5956,7 @@ appears to be a clone of `Disjunction`:
   
     def lift[E, A](a: A)(f: A => Boolean, fail: E): Validation[E, A] = ...
     def liftNel[E, A](a: A)(f: A => Boolean, fail: E): ValidationNel[E, A] = ...
-    def fromTryCatchNonFatal[T](a: => T): Validation[Throwable, T] = ...
+    def fromTryCatchNonFatal[T](a: =>T): Validation[Throwable, T] = ...
     def fromEither[E, A](e: Either[E, A]): Validation[E, A] = ...
   
     ...
@@ -7077,7 +7083,7 @@ logarithmic concatenation. `A` is the type of data and it may help to ignore
 ~~~~~~~~
   sealed abstract class FingerTree[V, A] {
     def +:(a: A): FingerTree[V, A] = ...
-    def :+(a: => A): FingerTree[V, A] = ...
+    def :+(a: =>A): FingerTree[V, A] = ...
     def <++>(right: =>FingerTree[V, A]): FingerTree[V, A] = ...
     ...
   }

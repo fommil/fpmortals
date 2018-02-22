@@ -6618,7 +6618,7 @@ object Maybe {
 
   def fromOption[A](oa: Option[A]): Maybe[A] = ...
   def fromNullable[A](a: A): Maybe[A] = if (null == a) empty else just(a)
-  def fromTryCatchNonFatal[T](a: => T): Maybe[T] = ...
+  def fromTryCatchNonFatal[T](a: =>T): Maybe[T] = ...
   ...
 }
 #+END_SRC
@@ -6657,23 +6657,31 @@ not supported by a polymorphic typeclass.
 
 #+BEGIN_SRC scala
 sealed abstract class Maybe[A] {
-  def cata[B](f: A => B, b: => B): B = this match {
+  def cata[B](f: A => B, b: =>B): B = this match {
     case Just(a) => f(a)
     case Empty() => b
   }
 
-  def |(a: => A): A = cata(identity, a)
+  def |(a: =>A): A = cata(identity, a)
+  def toLeft[B](b: =>B): A \/ B = cata(\/.left, \/-(b))
+  def toRight[B](b: =>B): B \/ A = cata(\/.right, -\/(b))
+  def <\/[B](b: =>B): A \/ B = toLeft(b)
+  def \/>[B](b: =>B): B \/ A = toRight(b)
 
   def orZero(implicit A: Monoid[A]): A = getOrElse(A.zero)
   def unary_~(implicit A: Monoid[A]): A = orZero
 
   def orEmpty[F[_]: Applicative: PlusEmpty]: F[A] =
     cata(Applicative[F].point(_), PlusEmpty[F].empty)
+  ...
 }
 #+END_SRC
 
 =.cata= is a terser alternative to =.map(f).getOrElse(b)= and has the
 simpler form =|= if the map is =identity= (i.e. just =.getOrElse=).
+
+=.toLeft= and =.toRight=, and their symbolic aliases, create a disjunction
+(explained in the next section) by taking a fallback for the =Empty= case.
 
 =.orZero= (having =~foo= syntax) takes a =Monoid= to define the
 default value.
@@ -6718,7 +6726,7 @@ instances, such as these methods which are otherwise provided by
 
 #+BEGIN_SRC scala
 sealed abstract class Maybe[A] {
-  def getOrElse(a: => A): A = ...
+  def getOrElse(a: =>A): A = ...
   ...
 }
 #+END_SRC
@@ -6746,8 +6754,7 @@ object \/ {
   def right[A, B]: B => A \/ B = \/-(_)
 
   def fromEither[A, B](e: Either[A, B]): A \/ B = ...
-  def fromTryCatchNonFatal[T](a: => T): Throwable \/ T = ...
-
+  def fromTryCatchNonFatal[T](a: =>T): Throwable \/ T = ...
   ...
 }
 #+END_SRC
@@ -6807,10 +6814,10 @@ sealed abstract class \/[+A, +B] { self =>
   }
   def unary_~ : (B \/ A) = swap
 
-  def |[BB >: B](x: => BB): BB = getOrElse(x) // Optional[_]
-  def |||[C, BB >: B](x: => C \/ BB): C \/ BB = orElse(x) // Optional[_]
+  def |[BB >: B](x: =>BB): BB = getOrElse(x) // Optional[_]
+  def |||[C, BB >: B](x: =>C \/ BB): C \/ BB = orElse(x) // Optional[_]
 
-  def +++[AA >: A: Semigroup, BB >: B: Semigroup](x: => AA \/ BB): AA \/ BB = ...
+  def +++[AA >: A: Semigroup, BB >: B: Semigroup](x: =>AA \/ BB): AA \/ BB = ...
 
   def toEither: Either[A, B] = ...
 
@@ -6818,7 +6825,6 @@ sealed abstract class \/[+A, +B] { self =>
     def <<?:(left: =>X): X = ...
   }
   def :?>>[X](right: =>X) = new SwitchingDisjunction[X](right)
-
   ...
 }
 #+END_SRC
@@ -6886,7 +6892,7 @@ object Validation {
 
   def lift[E, A](a: A)(f: A => Boolean, fail: E): Validation[E, A] = ...
   def liftNel[E, A](a: A)(f: A => Boolean, fail: E): ValidationNel[E, A] = ...
-  def fromTryCatchNonFatal[T](a: => T): Validation[Throwable, T] = ...
+  def fromTryCatchNonFatal[T](a: =>T): Validation[Throwable, T] = ...
   def fromEither[E, A](e: Either[E, A]): Validation[E, A] = ...
 
   ...
@@ -8438,7 +8444,7 @@ logarithmic concatenation. =A= is the type of data and it may help to ignore
 #+BEGIN_SRC scala
 sealed abstract class FingerTree[V, A] {
   def +:(a: A): FingerTree[V, A] = ...
-  def :+(a: => A): FingerTree[V, A] = ...
+  def :+(a: =>A): FingerTree[V, A] = ...
   def <++>(right: =>FingerTree[V, A]): FingerTree[V, A] = ...
   ...
 }
@@ -9379,7 +9385,7 @@ We need to call =getUser= followed by =getStars=. If we use =Monad= as our
 context, our function is difficult because we have to handle the =Empty= case:
 
 #+BEGIN_SRC scala
-def stars[F[_]: Monad](user: String): F[Maybe[Int]] = for {
+def stars[F[_]: Monad](name: String): F[Maybe[Int]] = for {
   maybeUser  <- getUser(name)
   maybeStars <- maybeUser.cata(getStars(_), Maybe.empty.point)
 } yield maybeStars
@@ -9389,24 +9395,11 @@ However, if we have a =MonadPlus= as our context, we can suck =Maybe= into the
 =F[_]= with =.liftOpt=, and forget about them:
 
 #+BEGIN_SRC scala
-def stars[F[_]: MonadPlus](user: String): F[Int] = for {
-  user  <- getUser(name).liftOpt
+def stars[F[_]: MonadPlus](name: String): F[Int] = for {
+  user  <- getUser(name) >>= _.orEmpty
   stars <- getStars(user)
 } yield stars
 #+END_SRC
-
-#+BEGIN_ASIDE
-=.liftOpt= is our convenient syntax around =Optional= and =MonadPlus=:
-
-# https://github.com/scalaz/scalaz/issues/1653
-
-#+BEGIN_SRC scala
-implicit class Ops[O[_]: Optional](o: O) {
-  def liftOpt[A, F[_]: MonadPlus]: F[A] =
-    o.toMaybe.cata(MonadPlus[F].point, MonadPlus[F].empty)
-}
-#+END_SRC
-#+END_ASIDE
 
 However adding a =MonadPlus= requirement can cause problems downstream if the
 context does not have one. The solution is to either change the context of the
@@ -9414,7 +9407,7 @@ program to =MaybeT[F, ?]= (lifting the =Monad[F]= into a =MonadPlus=), or to
 explicitly use =MaybeT= in the return type, at the cost of slightly more code:
 
 #+BEGIN_SRC scala
-def stars[F[_]: Monad](user: String): MaybeT[F, Int] = for {
+def stars[F[_]: Monad](name: String): MaybeT[F, Int] = for {
   user  <- MaybeT(getUser(name))
   stars <- getStars(user).liftM[MaybeT]
 } yield stars
@@ -9424,13 +9417,124 @@ The decision to require a more powerful =Monad= vs returning a transformer is
 something that each team can decide for themselves based on the interpreters
 that they plan on using for their program.
 
-**** TODO =EitherT=
+**** =EitherT=
 
-- also =LazyEitherT=
-- generalised version of =MaybeT=
-- =.liftM= etc need complicated type parameters, so use the syntax =.eitherT=,
-  =.leftT= and =.rightT= and object helpers.
-- =MonadError= and =IO= (restricted to =Throwable=)
+An optional value is a special case of a value that may be an error, but we
+don't know anything about the error. =EitherT= (and the lazy variant
+=LazyEitherT=) allows us to use any type we want as the error value, providing
+contextual information about what went wrong.
+
+=EitherT= is the FP equivalent of a checked exception. =EitherT= is also
+significantly more performant than an exception.
+
+#+BEGIN_ASIDE
+One of the slowest things on the JVM is to raise an exception, due to the
+resources required to construct the stacktrace. It is traditional to use
+exceptions for input validation and parsing, which means anything that deviates
+from the happy path can be thousands of times slower.
+
+Some people claim that predictable exceptions are referentially transparent, and
+therefore pure, because they will occur every time. However, the stacktrace
+inside the exception depends on the call chain, thus breaking referential
+transparency.
+#+END_ASIDE
+
+=EitherT= is a wrapper around an =F[A \/ B]=
+
+#+BEGIN_SRC scala
+final case class EitherT[F[_], A, B](run: F[A \/ B])
+object EitherT {
+  def either[F[_]: Applicative, A, B](d: A \/ B): EitherT[F, A, B] = ...
+  def leftT[F[_]: Functor, A, B](fa: F[A]): EitherT[F, A, B] = ...
+  def rightT[F[_]: Functor, A, B](fb: F[B]): EitherT[F, A, B] = ...
+  def pureLeft[F[_]: Applicative, A, B](a: A): EitherT[F, A, B] = ...
+  def pure[F[_]: Applicative, A, B](b: B): EitherT[F, A, B] = ...
+  ...
+}
+#+END_SRC
+
+Constructors are provided on the companion along with syntax on any type such
+that =.rightT= delegates to =EitherT.rightT=, much as =.right= delegates to
+=\/.right=.
+
+The =Monad= is a =MonadError=
+
+#+BEGIN_SRC scala
+@typeclass trait MonadError[F[_], E] extends Monad[F] {
+  def raiseError[A](e: E): F[A]
+  def handleError[A](fa: F[A])(f: E => F[A]): F[A]
+}
+#+END_SRC
+
+=raiseError= and =handleError= are self-descriptive: =raiseError= is the
+equivalent of =throw= on an exception and =handleError= is the equivalent of a
+=catch= block.
+
+The =MonadError= for =EitherT= is:
+
+#+BEGIN_SRC scala
+implicit def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
+  def bind[A, B](fa: EitherT[F, E, A])
+                (f: A => EitherT[F, E, B]): EitherT[F, E, B] =
+    EitherT(run.bind(_.fold(_.left[C].pure[F]), b => f(b).run))
+  def point[A](a: =>A): EitherT[F, E, A] = EitherT.pure(a)
+
+  def raiseError[A](e: E): EitherT[F, E, A] = EitherT.pureLeft(e)
+  def handleError[A](fa: EitherT[F, E, A])
+                    (f: E => EitherT[F, E, A]): EitherT[F, E, A] =
+    EitherT(fa.run.bind {
+      case -\/(e) => f(e).run
+      case right => right.pure[F]
+    })
+}
+#+END_SRC
+
+It should be of no surprise that we can rewrite the =MonadPlus= / =MaybeT=
+example with =MonadError= / =EitherT= using more detailed messages where the
+error occurs:
+
+#+BEGIN_SRC scala
+def stars[F[_]](name: String)(implicit F: MonadError[F, String]): F[Int] = for {
+  user  <- getUser(name) >>= _.orError("user not found")
+  stars <- getStars(user)
+} yield stars
+#+END_SRC
+
+where we have provided custom syntax
+# https://github.com/scalaz/scalaz/pull/1655
+
+#+BEGIN_SRC scala
+implicit class HelperOps[A](m: Maybe[A]) {
+  def orError[F[_], E](e: E)(implicit F: MonadError[F, E]): F[A] =
+    m.cata(F.point, F.raiseError(e))
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+It is common to use =implicit= parameter blocks instead of context bounds when
+the signature of the typeclass has more than one parameter.
+
+It is also common practice to name the implicit parameter after the primary
+type, in this case =F=.
+#+END_ASIDE
+
+Of course, if the =getUser= method returned a detailed message we would not need
+to provide one.
+
+The version using =EitherT= directly looks like
+
+#+BEGIN_SRC scala
+import scalaz.syntax.eithert._ // EitherT syntax is not available by default
+
+def stars[F[_]: Monad](user: String): EitherT[F, String, Int] = for {
+  user  <- (getUser(name) >>= _.toRight("user not found")).rightT
+  stars <- getStars(user).eitherT
+} yield stars
+#+END_SRC
+
+TODO: a decent exception replacement type, with Source info
+
+TODO: IO as a MonadError
 
 #+BEGIN_SRC scala
 object IO {
