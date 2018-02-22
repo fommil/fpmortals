@@ -462,9 +462,9 @@ focus on `MaybeT` to avoid repetition.
   final case class MaybeT[F[_], A](run: F[Maybe[A]])
   object MaybeT {
     def just[F[_]: Applicative, A](v: =>A): MaybeT[F, A] =
-      MaybeT(Maybe.just(v).point)
+      MaybeT(Maybe.just(v).pure[F])
     def empty[F[_]: Applicative, A]: MaybeT[F, A] =
-      MaybeT(Maybe.empty.point)
+      MaybeT(Maybe.empty.pure[F])
     ...
   }
 ~~~~~~~~
@@ -477,7 +477,7 @@ everything to the `Monad[F]` and then re-wrapping with a `MaybeT`
   implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
     def point[A](a: =>A): MaybeT[F, A] = MaybeT.just(a)
     def bind[A, B](fa: MaybeT[F, A])(f: A => MaybeT[F, B]): MaybeT[F, B] =
-      MaybeT(fa.run.bind(_.cata(f(_).run, Maybe.empty.point[F])))
+      MaybeT(fa.run.bind(_.cata(f(_).run, Maybe.empty.pure[F])))
   
     def empty[A]: MaybeT[F, A] = MaybeT.empty
   
@@ -508,7 +508,7 @@ context, our function is difficult because we have to handle the `Empty` case:
 ~~~~~~~~
   def stars[F[_]: Monad](name: String): F[Maybe[Int]] = for {
     maybeUser  <- getUser(name)
-    maybeStars <- maybeUser.cata(getStars(_), Maybe.empty.point)
+    maybeStars <- maybeUser.map(getStars)
   } yield maybeStars
 ~~~~~~~~
 
