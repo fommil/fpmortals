@@ -654,8 +654,8 @@ The version using `EitherT` directly looks like
   import scalaz.syntax.eithert._ // EitherT syntax is not available by default
   
   def stars[F[_]: Monad](user: String): EitherT[F, String, Int] = for {
-    user  <- (getUser(name) >>= _.toRight("user not found")).rightT
-    stars <- getStars(user).eitherT
+    user  <- EitherT(getUser(name) >>= _.toRight("user not found"))
+    stars <- getStars(user).rightT
   } yield stars
 ~~~~~~~~
 
