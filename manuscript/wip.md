@@ -640,15 +640,10 @@ A>
 A> It is also common practice to name the implicit parameter after the primary
 A> type, in this case `F`.
 
-Of course, if the `getUser` method returned a detailed message we would not need
-to provide one.
-
 The version using `EitherT` directly looks like
 
 {lang="text"}
 ~~~~~~~~
-  import scalaz.syntax.eithert._ // EitherT syntax is not available by default
-  
   def stars[F[_]: Monad](user: String): EitherT[F, String, Int] = for {
     user  <- EitherT(getUser(name) >>= _.toRight("user not found"))
     stars <- EitherT.rightT(getStars(user))
