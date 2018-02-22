@@ -9351,8 +9351,7 @@ object MaybeT {
 }
 #+END_SRC
 
-providing a =MonadPlus=. Although this code looks fiddly, it is just delegating
-everything to the =Monad[F]= and then re-wrapping with a =MaybeT=
+providing a =MonadPlus=
 
 #+BEGIN_SRC scala
 implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
@@ -9365,6 +9364,9 @@ implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
   def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = ...
 }
 #+END_SRC
+
+This monad looks fiddly, but it is just delegating everything to the =Monad[F]=
+and then re-wrapping with a =MaybeT=. It's plumbing.
 
 With this monad we can write logic that handles optionality in the =F[_]=
 context, rather than carrying around =Option= or =Maybe=.
@@ -9392,7 +9394,7 @@ def stars[F[_]: Monad](name: String): F[Maybe[Int]] = for {
 #+END_SRC
 
 However, if we have a =MonadPlus= as our context, we can suck =Maybe= into the
-=F[_]= with =.liftOpt=, and forget about them:
+=F[_]= with =.orEmpty=, and forget about it:
 
 #+BEGIN_SRC scala
 def stars[F[_]: MonadPlus](name: String): F[Int] = for {

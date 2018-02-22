@@ -469,8 +469,7 @@ focus on `MaybeT` to avoid repetition.
   }
 ~~~~~~~~
 
-providing a `MonadPlus`. Although this code looks fiddly, it is just delegating
-everything to the `Monad[F]` and then re-wrapping with a `MaybeT`
+providing a `MonadPlus`
 
 {lang="text"}
 ~~~~~~~~
@@ -484,6 +483,9 @@ everything to the `Monad[F]` and then re-wrapping with a `MaybeT`
     def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = ...
   }
 ~~~~~~~~
+
+This monad looks fiddly, but it is just delegating everything to the `Monad[F]`
+and then re-wrapping with a `MaybeT`. It's plumbing.
 
 With this monad we can write logic that handles optionality in the `F[_]`
 context, rather than carrying around `Option` or `Maybe`.
@@ -513,7 +515,7 @@ context, our function is difficult because we have to handle the `Empty` case:
 ~~~~~~~~
 
 However, if we have a `MonadPlus` as our context, we can suck `Maybe` into the
-`F[_]` with `.liftOpt`, and forget about them:
+`F[_]` with `.orEmpty`, and forget about it:
 
 {lang="text"}
 ~~~~~~~~
