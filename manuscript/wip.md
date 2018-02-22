@@ -407,10 +407,10 @@ transformers, why they are useful, and how they work.
 | Effect               | Underlying                  | Transformer | Typeclass     |
 |-------------------- |--------------------------- |----------- |------------- |
 | optionality          | `F[Maybe[A]]`               | `MaybeT`    | `MonadPlus`   |
+| errors               | `F[E \/ A]`                 | `EitherT`   | `MonadError`  |
 | read configuration   | `A => F[B]`                 | `ReaderT`   | `MonadReader` |
 | logging              | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
-| errors               | `F[E \/ A]`                 | `EitherT`   | `MonadError`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
 | continuations        | `(A => F[R]) => F[R]`       | `ContT`     |               |
@@ -578,10 +578,6 @@ A> transparency.
   }
 ~~~~~~~~
 
-Constructors are provided on the companion along with syntax on any type such
-that `.rightT` delegates to `EitherT.rightT`, much as `.right` delegates to
-`\/.right`.
-
 The `Monad` is a `MonadError`
 
 {lang="text"}
@@ -655,7 +651,7 @@ The version using `EitherT` directly looks like
   
   def stars[F[_]: Monad](user: String): EitherT[F, String, Int] = for {
     user  <- EitherT(getUser(name) >>= _.toRight("user not found"))
-    stars <- getStars(user).rightT
+    stars <- EitherT.rightT(getStars(user))
   } yield stars
 ~~~~~~~~
 
@@ -757,9 +753,7 @@ Also research MonadBracket
 
 Probably ignore...
 
--   `Kleisli`
 -   `Cokleisli`
--   `MonadTrans`
 -   `ComonadStore`
 -   `TracedT` (comonad tranformer)
 
