@@ -171,7 +171,7 @@ creates new collections for every predicate, so `withFilter` was
 introduced as the more performant alternative.
 
 We can accidentally trigger a `withFilter` by providing type
-information: it's actually interpreted as a pattern match.
+information: it is actually interpreted as a pattern match.
 
 {lang="text"}
 ~~~~~~~~
@@ -342,7 +342,7 @@ business logic.
 
 ## Gymnastics
 
-Although it's easy to rewrite simple sequential code as a `for`
+Although it is easy to rewrite simple sequential code as a `for`
 comprehension, sometimes we'll want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
@@ -351,7 +351,7 @@ examples and how to deal with them.
 ### Fallback Logic
 
 Let's say we are calling out to a method that returns an `Option` and
-if it's not successful we want to fallback to another method (and so
+if it is not successful we want to fallback to another method (and so
 on and so on), like when we're using a cache:
 
 {lang="text"}
@@ -592,7 +592,7 @@ them in `Future.successful` (`.pure[Future]`) followed by `OptionT`
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-It is messy again, but it's better than writing nested `flatMap` and
+It is messy again, but it is better than writing nested `flatMap` and
 `map` by hand. We can clean it up with a DSL that handles all the
 required conversions into `OptionT[Future, _]`
 
@@ -626,7 +626,7 @@ A> resemblance to the cute bird.
 This approach also works for `EitherT` (and others) as the inner
 context, but their lifting methods are more complex and require
 parameters. Scalaz provides monad transformers for a lot of its own
-types, so it's worth checking if one is available.
+types, so it is worth checking if one is available.
 
 Implementing a monad transformer is an advanced topic. Although
 `ListT` exists, it should be avoided because it can unintentionally
@@ -1494,7 +1494,7 @@ hold the information it conveys, and no more.
 
 Values have a built-in complexity:
 
--   `Unit` has one instance (why it's called "unit")
+-   `Unit` has one instance (why it is called "unit")
 -   `Boolean` has two instances
 -   `Int` has 4,294,967,295 instances
 -   `String` has effectively infinite instances
@@ -1573,7 +1573,7 @@ The complexity of a data type also has implications on testing. It is
 practically impossible to test every possible input to a function, but
 it is easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property. If
 a random sample of a data type has a low probability of being valid,
-it's a sign that the data is modelled incorrectly.
+it is a sign that the data is modelled incorrectly.
 
 
 ### Optimisations
@@ -1675,7 +1675,7 @@ familiar style:
   res: Double = 0.8414709848078965
 ~~~~~~~~
 
-Often it's best to just skip the `object` definition and go straight
+Often it is best to just skip the `object` definition and go straight
 for an `implicit class`, keeping boilerplate to a minimum:
 
 {lang="text"}
@@ -3282,7 +3282,7 @@ We now know this is silly and we should have written:
 ~~~~~~~~
 
 `.fold` doesn't work on stdlib `List` because it already has a method
-called `fold` that does it's own thing in its own special way.
+called `fold` that does it is own thing in its own special way.
 
 The strangely named `intercalate` inserts a specific `A` between each
 element before performing the `fold`
@@ -3347,7 +3347,7 @@ the predicate, and may exit early.
 A> We've seen the `NonEmptyList` in previous chapters. For the sake of
 A> brevity we use a type alias `Nel` in place of `NonEmptyList`.
 A> 
-A> We've also seen `IList` in previous chapters, recall that it's an
+A> We've also seen `IList` in previous chapters, recall that it is an
 A> alternative to stdlib `List` with impure methods, like `apply`,
 A> removed.
 
@@ -3584,7 +3584,7 @@ looking at `Align`, meet the `\&/` data type (spoken as *These*, or
   final case class Both[A, B](aa: A, bb: B) extends (A \&/ B)
 ~~~~~~~~
 
-i.e. it's a data encoding of inclusive logical `OR`.
+i.e. it is a data encoding of inclusive logical `OR`.
 
 {lang="text"}
 ~~~~~~~~
@@ -3808,7 +3808,7 @@ A> on our companions, and use scalaz syntax to have the exact same `map`,
 A> `contramap` and `xmap`.
 A> 
 A> However, since we don't need anything else that the invariants provide
-A> (and it's a lot of boilerplate for a textbook), we just implement the
+A> (and it is a lot of boilerplate for a textbook), we just implement the
 A> bare minimum on the typeclasses themselves. The invariant instance
 A> [could be generated automatically](https://github.com/mpilquist/simulacrum/issues/85).
 
@@ -3912,7 +3912,7 @@ with `ap`, the function is in a similar context to the values.
 A> `<*>` is the Advanced TIE Fighter, as flown by Darth Vader. Appropriate since it
 A> looks like an angry parent.
 
-It's worth taking a moment to consider what that means for a simple data
+It is worth taking a moment to consider what that means for a simple data
 structure like `Option[A]`, having the following implementation of `.ap`
 
 {lang="text"}
@@ -4341,7 +4341,7 @@ It is a good moment to look again at `Apply`
   }
 ~~~~~~~~
 
-It's now easier to spot that `applyX` is how we can derive typeclasses
+It is now easier to spot that `applyX` is how we can derive typeclasses
 for covariant typeclasses.
 
 Mirroring `Apply`, `Divide` also has terse syntax for tuples. A softer
@@ -7111,7 +7111,7 @@ logarithmic concatenation. `A` is the type of data and it may help to ignore
 ~~~~~~~~
 
 A> `<++>` is the TIE Bomber. Admittedly, sending in the proton torpedoes is a bit
-A> of an overreaction: it's the same thing as the regular `Monoid` TIE Fighter
+A> of an overreaction: it is the same thing as the regular `Monoid` TIE Fighter
 A> `|+|`.
 
 Visualising `FingerTree` as dots, `Finger` as boxes and `Node` as boxes within

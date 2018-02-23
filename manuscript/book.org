@@ -248,7 +248,7 @@ runtime implementation?
 We could write a synchronous version and wrap it with =Future= but now
 we have to worry about which thread pool we should be using for the
 work, or we could =Await.result= on the =Future= and introduce thread
-blocking. In either case, it's a lot of boilerplate and we are
+blocking. In either case, it is a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
@@ -454,7 +454,7 @@ maintaining a =var= in a class), communicating with external resources
 
 But in Scala, we perform side effects all the time. A call to
 =log.info= will perform I/O and a call to =asString= on a =Http=
-instance will speak to a web server. It's fair to say that typical
+instance will speak to a web server. It is fair to say that typical
 Scala is *not* FP.
 
 However, something beautiful happened when we wrote our implementation
@@ -644,7 +644,7 @@ creates new collections for every predicate, so =withFilter= was
 introduced as the more performant alternative.
 
 We can accidentally trigger a =withFilter= by providing type
-information: it's actually interpreted as a pattern match.
+information: it is actually interpreted as a pattern match.
 
 #+BEGIN_SRC scala
 reify> for { i: Int <- a } yield i
@@ -807,7 +807,7 @@ business logic.
 
 *** Gymnastics
 
-Although it's easy to rewrite simple sequential code as a =for=
+Although it is easy to rewrite simple sequential code as a =for=
 comprehension, sometimes we'll want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
@@ -815,7 +815,7 @@ examples and how to deal with them.
 **** Fallback Logic
 
 Let's say we are calling out to a method that returns an =Option= and
-if it's not successful we want to fallback to another method (and so
+if it is not successful we want to fallback to another method (and so
 on and so on), like when we're using a cache:
 
 #+BEGIN_SRC scala
@@ -1041,7 +1041,7 @@ scala> val result = for {
 result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 #+END_SRC
 
-It is messy again, but it's better than writing nested =flatMap= and
+It is messy again, but it is better than writing nested =flatMap= and
 =map= by hand. We can clean it up with a DSL that handles all the
 required conversions into =OptionT[Future, _]=
 
@@ -1075,7 +1075,7 @@ resemblance to the cute bird.
 This approach also works for =EitherT= (and others) as the inner
 context, but their lifting methods are more complex and require
 parameters. Scalaz provides monad transformers for a lot of its own
-types, so it's worth checking if one is available.
+types, so it is worth checking if one is available.
 
 Implementing a monad transformer is an advanced topic. Although
 =ListT= exists, it should be avoided because it can unintentionally
@@ -1914,7 +1914,7 @@ hold the information it conveys, and no more.
 
 Values have a built-in complexity:
 
-- =Unit= has one instance (why it's called "unit")
+- =Unit= has one instance (why it is called "unit")
 - =Boolean= has two instances
 - =Int= has 4,294,967,295 instances
 - =String= has effectively infinite instances
@@ -1991,7 +1991,7 @@ The complexity of a data type also has implications on testing. It is
 practically impossible to test every possible input to a function, but
 it is easy to test a sample of values with the [[https://www.scalacheck.org/][scalacheck]] property. If
 a random sample of a data type has a low probability of being valid,
-it's a sign that the data is modelled incorrectly.
+it is a sign that the data is modelled incorrectly.
 
 **** Optimisations
 
@@ -2089,7 +2089,7 @@ scala> 1.0.sin
 res: Double = 0.8414709848078965
 #+END_SRC
 
-Often it's best to just skip the =object= definition and go straight
+Often it is best to just skip the =object= definition and go straight
 for an =implicit class=, keeping boilerplate to a minimum:
 
 #+BEGIN_SRC scala
@@ -3836,7 +3836,7 @@ res: TradeTemplate = TradeTemplate(
 #+END_SRC
 
 =.fold= doesn't work on stdlib =List= because it already has a method
-called =fold= that does it's own thing in its own special way.
+called =fold= that does it is own thing in its own special way.
 
 The strangely named =intercalate= inserts a specific =A= between each
 element before performing the =fold=
@@ -3897,7 +3897,7 @@ the predicate, and may exit early.
 We've seen the =NonEmptyList= in previous chapters. For the sake of
 brevity we use a type alias =Nel= in place of =NonEmptyList=.
 
-We've also seen =IList= in previous chapters, recall that it's an
+We've also seen =IList= in previous chapters, recall that it is an
 alternative to stdlib =List= with impure methods, like =apply=,
 removed.
 #+END_ASIDE
@@ -4124,7 +4124,7 @@ final case class That[B](bb: B) extends (Nothing \&/ B)
 final case class Both[A, B](aa: A, bb: B) extends (A \&/ B)
 #+END_SRC
 
-i.e. it's a data encoding of inclusive logical =OR=.
+i.e. it is a data encoding of inclusive logical =OR=.
 
 #+BEGIN_SRC scala
 @typeclass trait Align[F[_]] extends Functor[F] {
@@ -4405,7 +4405,7 @@ on our companions, and use scalaz syntax to have the exact same =map=,
 =contramap= and =xmap=.
 
 However, since we don't need anything else that the invariants provide
-(and it's a lot of boilerplate for a textbook), we just implement the
+(and it is a lot of boilerplate for a textbook), we just implement the
 bare minimum on the typeclasses themselves. The invariant instance
 [[https://github.com/mpilquist/simulacrum/issues/85][could be generated automatically]].
 #+END_ASIDE
@@ -4574,7 +4574,7 @@ with =ap=, the function is in a similar context to the values.
 looks like an angry parent.
 #+END_ASIDE
 
-It's worth taking a moment to consider what that means for a simple data
+It is worth taking a moment to consider what that means for a simple data
 structure like =Option[A]=, having the following implementation of =.ap=
 
 #+BEGIN_SRC scala
@@ -5112,7 +5112,7 @@ It is a good moment to look again at =Apply=
 }
 #+END_SRC
 
-It's now easier to spot that =applyX= is how we can derive typeclasses
+It is now easier to spot that =applyX= is how we can derive typeclasses
 for covariant typeclasses.
 
 Mirroring =Apply=, =Divide= also has terse syntax for tuples. A softer
@@ -8473,7 +8473,7 @@ object FingerTree {
 
 #+BEGIN_ASIDE
 ~<++>~ is the TIE Bomber. Admittedly, sending in the proton torpedoes is a bit
-of an overreaction: it's the same thing as the regular =Monoid= TIE Fighter
+of an overreaction: it is the same thing as the regular =Monoid= TIE Fighter
 =|+|=.
 #+END_ASIDE
 
@@ -9174,7 +9174,7 @@ Take a moment to read through the implementation of =resume= to understand how
 this evaluates a single layer of the =Free=, and that =go= is running it to
 completion. The case that is most likely to cause confusion is when we have
 nested =Gosub=: apply the inner function =g= then pass it to the outer one =f=,
-it's just function composition.
+it is just function composition.
 
 **** Example: Stack Safe =DList=
 
@@ -9258,14 +9258,13 @@ the stack.
 
 *** Monad Transformer Library
 
-Monad transformers are data structures that wrap an underlying type signature,
-and provide a =Monad=. Each transformer encapsulates an /effect/ that augments
-the control flow of the program.
+Monad transformers are data structures that wrap an underlying monadic value,
+providing a new =Monad= that encapsulates an /effect/, augmenting the control
+flow of the program.
 
-For example, in Chapter 2 we used =OptionT= to let us use =Future[Option[A]]= in
-a =for= comprehension as if it was just a =Future[A]=. =OptionT= gave our
-program the effect of an /optional/ value, which works for any underlying =F[_]=
-that has a =Monad=:
+For example, in Chapter 2 we used =OptionT= to let us use =F[Option[A]]= in a
+=for= comprehension as if it was just a =F[A]=. This gave our program the effect
+of an /optional/ value:
 
 #+BEGIN_SRC scala
 final case class OptionT[F[_], A](run: F[Option[A]])
@@ -9275,13 +9274,13 @@ object OptionT {
 }
 #+END_SRC
 
-Scalaz has typeclasses that specialise =Monad=, corresponding to specific
-transformers. The typeclass corresponding to optionality is =MonadPlus=, we can
-call =MonadPlus[F].empty= to short circuit the control flow of an application,
-equivalent to =OptionT.none=.
+Scalaz has specialisations of =Monad= that generalise some of the transformer
+effects. For example, the typeclass corresponding to optionality is =MonadPlus=,
+we can call =MonadPlus[F].empty= to short circuit the control flow of an
+application, equivalent to =OptionT(None.pure[F])=.
 
 This subset of scalaz is often referred to as the /Monad Transformer Library/
-(MTL) and is summarised below. In this section, we will explain each of the
+(MTL), summarised below. In this section, we will explain each of the
 transformers, why they are useful, and how they work.
 
 | Effect               | Underlying                  | Transformer | Typeclass     |
@@ -9302,10 +9301,8 @@ transformers, why they are useful, and how they work.
 
 **** =MonadTrans=
 
-Before we look at all the monad transformers, it is worth discussing how to
-instantiate one from a value. Each transformer has two type holes, having the
-general shape =M[F[_], A]=, and providing an instance both =Monad= and the
-=MonadTrans= typeclass:
+Each transformer has the general shape =T[F[_], A]=, providing at least an
+instance of =Monad= and the =MonadTrans= typeclass:
 
 #+BEGIN_SRC scala
 @typeclass trait MonadTrans[T[_[_], _]] {
@@ -9319,20 +9316,19 @@ two type parameters: the first also takes a type parameter, written =_[_]=, and
 the second does not take any type parameters, written =_=.
 #+END_ASIDE
 
-=.liftM= provides us the way to create a monad transformer if we have an =F[A]=.
-For example, we can create an =OptionT[IO, String]= by calling =.liftM[OptionT]=
-on an =IO[String]=.
+=.liftM= lets us create a monad transformer if we have an =F[A]=. For example,
+we can create an =OptionT[IO, String]= by calling =.liftM[OptionT]= on an
+=IO[String]=.
 
 Generally, there are three ways to create a monad transformer:
 
 - from the underlying, using the transformer's constructor
-- from a single value =A=, using =.point= from the =Monad= syntax
+- from a single value =A=, using =.pure= from the =Monad= syntax
 - from an =F[A]=, using =.liftM= from the =MonadTrans= syntax
 
-But due to the way that type inference works in Scala, this often means that a
-complex type parameter must be explicitly written, often with kind projector
-syntax. As a result, many monad transformers provide convenient constructors on
-their companion that do not require as many type parameters.
+Due to the way that type inference works in Scala, this often means that a
+complex type parameter must be explicitly written. As a workaround, transformers
+provide convenient constructors on their companion that are easier to use.
 
 **** =MaybeT=
 
@@ -9357,7 +9353,7 @@ providing a =MonadPlus=
 implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
   def point[A](a: =>A): MaybeT[F, A] = MaybeT.just(a)
   def bind[A, B](fa: MaybeT[F, A])(f: A => MaybeT[F, B]): MaybeT[F, B] =
-    MaybeT(fa.run.bind(_.cata(f(_).run, Maybe.empty.pure[F])))
+    MaybeT(fa.run >>= (_.cata(f(_).run, Maybe.empty.pure[F])))
 
   def empty[A]: MaybeT[F, A] = MaybeT.empty
 
@@ -9366,7 +9362,7 @@ implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
 #+END_SRC
 
 This monad looks fiddly, but it is just delegating everything to the =Monad[F]=
-and then re-wrapping with a =MaybeT=. It's plumbing.
+and then re-wrapping with a =MaybeT=. It is plumbing.
 
 With this monad we can write logic that handles optionality in the =F[_]=
 context, rather than carrying around =Option= or =Maybe=.
@@ -9379,28 +9375,28 @@ correspond to a user. We have this algebra:
 trait Twitter[F[_]] {
   def getUser(name: String): F[Maybe[User]]
   def getStars(user: User): F[Int]
-  ...
 }
+def T[F[_]](implicit t: Twitter[F]): Twitter[F] = t
 #+END_SRC
 
 We need to call =getUser= followed by =getStars=. If we use =Monad= as our
 context, our function is difficult because we have to handle the =Empty= case:
 
 #+BEGIN_SRC scala
-def stars[F[_]: Monad](name: String): F[Maybe[Int]] = for {
-  maybeUser  <- getUser(name)
-  maybeStars <- maybeUser.map(getStars)
-} yield maybeStars
+  def stars[F[_]: Monad: Twitter](name: String): F[Maybe[Int]] = for {
+    maybeUser  <- T.getUser(name)
+    maybeStars <- maybeUser.traverse(T.getStars)
+  } yield maybeStars
 #+END_SRC
 
 However, if we have a =MonadPlus= as our context, we can suck =Maybe= into the
 =F[_]= with =.orEmpty=, and forget about it:
 
 #+BEGIN_SRC scala
-def stars[F[_]: MonadPlus](name: String): F[Int] = for {
-  user  <- getUser(name) >>= _.orEmpty
-  stars <- getStars(user)
-} yield stars
+  def stars[F[_]: MonadPlus: Twitter](name: String): F[Int] = for {
+    user  <- T.getUser(name) >>= (_.orEmpty[F])
+    stars <- T.getStars(user)
+  } yield stars
 #+END_SRC
 
 However adding a =MonadPlus= requirement can cause problems downstream if the
@@ -9409,10 +9405,10 @@ program to =MaybeT[F, ?]= (lifting the =Monad[F]= into a =MonadPlus=), or to
 explicitly use =MaybeT= in the return type, at the cost of slightly more code:
 
 #+BEGIN_SRC scala
-def stars[F[_]: Monad](name: String): MaybeT[F, Int] = for {
-  user  <- MaybeT(getUser(name))
-  stars <- getStars(user).liftM[MaybeT]
-} yield stars
+  def stars[F[_]: Monad: Twitter](name: String): MaybeT[F, Int] = for {
+    user  <- MaybeT(T.getUser(name))
+    stars <- T.getStars(user).liftM[MaybeT]
+  } yield stars
 #+END_SRC
 
 The decision to require a more powerful =Monad= vs returning a transformer is
@@ -9426,19 +9422,19 @@ don't know anything about the error. =EitherT= (and the lazy variant
 =LazyEitherT=) allows us to use any type we want as the error value, providing
 contextual information about what went wrong.
 
-=EitherT= is the FP equivalent of a checked exception. =EitherT= is also
-significantly more performant than an exception.
+=EitherT= is the more performant FP equivalent of a checked exception.
 
 #+BEGIN_ASIDE
-One of the slowest things on the JVM is to raise an exception, due to the
+One of the slowest things on the JVM is to create an exception, due to the
 resources required to construct the stacktrace. It is traditional to use
 exceptions for input validation and parsing, which means anything that deviates
 from the happy path can be thousands of times slower.
 
-Some people claim that predictable exceptions are referentially transparent, and
-therefore pure, because they will occur every time. However, the stacktrace
-inside the exception depends on the call chain, thus breaking referential
-transparency.
+Some people claim that predictable exceptions are referentially transparent
+because they will occur every time. However, the stacktrace inside the exception
+depends on the call chain, giving a different value depending on who calls it,
+thus breaking referential transparency. Regardless, throwing an exception is not
+pure because it means the function is not /Total/.
 #+END_ASIDE
 
 =EitherT= is a wrapper around an =F[A \/ B]=
@@ -9464,23 +9460,23 @@ The =Monad= is a =MonadError=
 }
 #+END_SRC
 
-=.raiseError= and =.handleError= are self-descriptive: =.raiseError= is the
-equivalent of =throw= on an exception and =.handleError= is the equivalent of a
-=catch= block.
+=.raiseError= and =.handleError= are self-descriptive: the equivalent of =throw=
+and =catch= an exception, respectively.
 
 The =MonadError= for =EitherT= is:
 
 #+BEGIN_SRC scala
 implicit def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
+  def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
   def bind[A, B](fa: EitherT[F, E, A])
                 (f: A => EitherT[F, E, B]): EitherT[F, E, B] =
-    EitherT(run.bind(_.fold(_.left[C].pure[F]), b => f(b).run))
+    EitherT(fa.run >>= (_.fold(_.left[B].pure[F], b => f(b).run)))
   def point[A](a: =>A): EitherT[F, E, A] = EitherT.pure(a)
 
   def raiseError[A](e: E): EitherT[F, E, A] = EitherT.pureLeft(e)
   def handleError[A](fa: EitherT[F, E, A])
                     (f: E => EitherT[F, E, A]): EitherT[F, E, A] =
-    EitherT(fa.run.bind {
+    EitherT(fa.run >>= {
       case -\/(e) => f(e).run
       case right => right.pure[F]
     })
@@ -9491,10 +9487,11 @@ It should be of no surprise that we can rewrite the =MonadPlus= example with
 =MonadError=, inserting informative error messages:
 
 #+BEGIN_SRC scala
-def stars[F[_]](name: String)(implicit F: MonadError[F, String]): F[Int] = for {
-  user  <- getUser(name) >>= _.orError(s"user '$name' not found")
-  stars <- getStars(user)
-} yield stars
+  def stars[F[_]: Twitter](name: String)
+                          (implicit F: MonadError[F, String]): F[Int] = for {
+    user  <- T.getUser(name) >>= (_.orError[F, String](s"user '$name' not found"))
+    stars <- T.getStars(user)
+  } yield stars
 #+END_SRC
 
 where we have provided custom syntax
@@ -9503,7 +9500,7 @@ where we have provided custom syntax
 #+BEGIN_SRC scala
 implicit class HelperOps[A](m: Maybe[A]) {
   def orError[F[_], E](e: E)(implicit F: MonadError[F, E]): F[A] =
-    m.cata(F.point, F.raiseError(e))
+    m.cata(F.point(_), F.raiseError(e))
 }
 #+END_SRC
 
@@ -9518,13 +9515,70 @@ type, in this case =F=.
 The version using =EitherT= directly looks like
 
 #+BEGIN_SRC scala
-def stars[F[_]: Monad](name: String): EitherT[F, String, Int] = for {
-  user  <- EitherT(getUser(name) >>= _.toRight(s"user '$name' not found"))
-  stars <- EitherT.rightT(getStars(user))
-} yield stars
+  def stars[F[_]: Monad: Twitter](name: String): EitherT[F, String, Int] = for {
+    user <- EitherT(T.getUser(name).map(_ \/> s"user '$name' not found"))
+    stars <- EitherT.rightT(T.getStars(user))
+  } yield stars
 #+END_SRC
 
-TODO: a decent exception replacement type, with Source info
+***** Choosing an error type
+
+The community is undecided on the best strategy for the error type =E= in
+=MonadError=.
+
+One school of thought says that you should pick something general, like a
+=String=. An unprincipled gang prefers using =Throwable= for maximum JVM
+compatibility. The other school says that an application should have an ADT of
+errors, allowing different errors to be reported or handled differently.
+
+There are two problems with an ADT of errors on the application level:
+
+- it is very awkward to create a new error. One file becomes a monolithic
+  repository of errors, aggregating the ADTs of individual subsystems.
+- no matter how granular the errors are, the resolution is often the same: log
+  it and try it again, or give up. We don't need an ADT for this.
+
+Using a simple error type like =String= has the problem that it is difficult to
+find where the problem originated: there is no stacktrace.
+
+However, using [[https://github.com/lihaoyi/sourcecode/][=sourcecode= by Li Haoyi]], we can access contextual information
+from the source code and include it as metadata in our errors:
+
+#+BEGIN_SRC scala
+  final case class Meta(fqn: String, file: String, line: Int)
+  object Meta {
+    implicit def gen(implicit fqn: sourcecode.FullName,
+                              file: sourcecode.File,
+                              line: sourcecode.Line): Meta =
+      new Meta(fqn.value, file.value, line.value)
+  }
+
+  final case class Err(msg: String)(implicit val meta: Meta)
+#+END_SRC
+
+With =Err= as our error type we get referentially transparent metadata:
+
+#+BEGIN_SRC scala
+scala> val err = Err("hello world")
+scala> println(err)
+hello world
+scala> println(err.meta)
+Meta(com.acme.main,<console>,10)
+#+END_SRC
+
+Although we no longer have a stack trace, it is rare that a full stack trace
+would have been relevant anyway. In pure code, all the context that is needed to
+fully explain an error message is contained in the inputs: there is no reliance
+on hidden state.
+
+A nice compromise between an error ADT and a =String= is an =Err= with a
+JSON-like intermediary ADT to hold the details of the error, with helper methods
+to convert the local state of the program into the intermediary ADT. It can be
+combined with a logging algebra that makes use of the same data, reducing the
+cognitive load on developers who must construct the error messages where they
+arise.
+
+***** Other =MonadError= implementations
 
 TODO: IO as a MonadError
 
@@ -9666,7 +9720,7 @@ Can use this to motivate the scalaz8 typeclass design.
 
 =Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
 the name. However, from a practical point of view, there needs to be a
-=Monad[S]= in order to interpret it --- so it's more like an interest
+=Monad[S]= in order to interpret it --- so it is more like an interest
 only mortgage where you still have to buy the house at the end.
 
 introduce =FreeAp= and =Cofree=
@@ -9687,7 +9741,7 @@ Then (much more complicated) optimisation for final encoding of our drone app.
  # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
  # https://github.com/facebook/Haxl
 
- Try this with the =act= in our example app. It's tricky because we have two algebras.
+ Try this with the =act= in our example app. It is tricky because we have two algebras.
 
  #+BEGIN_SRC scala
  trait Program[Alg[_[_]], A] {
@@ -9814,7 +9868,7 @@ part of the book?
 *** TODO Spotting patterns, refactoring
 
 Note that some of our algebras are actually common things and can be
-rewritten: reader / writer / state / error / indexed monad. It's ok
+rewritten: reader / writer / state / error / indexed monad. It is ok
 that this is a step you can do later.
 
 **** RESEARCH perf numbers

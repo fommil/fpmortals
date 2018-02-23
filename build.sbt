@@ -9,13 +9,14 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"     % "0.11.0",
+  "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
   "com.chuusai"          %% "shapeless"      % "2.3.3",
   "com.fommil"           %% "deriving-macro" % "0.9.0",
-  "org.scalaz"           %% "scalaz-core"    % "7.2.18"
+  "org.scalaz"           %% "scalaz-core"    % "7.2.19",
+  "com.lihaoyi"          %% "sourcecode"     % "0.1.4",
 )
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.5")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )
@@ -29,4 +30,3 @@ initialCommands in (Compile, console) := Seq(
 
 //scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := Some(file("project/scalafmt.conf"))
-

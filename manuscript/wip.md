@@ -290,7 +290,7 @@ Take a moment to read through the implementation of `resume` to understand how
 this evaluates a single layer of the `Free`, and that `go` is running it to
 completion. The case that is most likely to cause confusion is when we have
 nested `Gosub`: apply the inner function `g` then pass it to the outer one `f`,
-it's just function composition.
+it is just function composition.
 
 
 ### Example: Stack Safe `DList`
@@ -377,14 +377,13 @@ A> the stack.
 
 ## Monad Transformer Library
 
-Monad transformers are data structures that wrap an underlying type signature,
-and provide a `Monad`. Each transformer encapsulates an *effect* that augments
-the control flow of the program.
+Monad transformers are data structures that wrap an underlying monadic value,
+providing a new `Monad` that encapsulates an *effect*, augmenting the control
+flow of the program.
 
-For example, in Chapter 2 we used `OptionT` to let us use `Future[Option[A]]` in
-a `for` comprehension as if it was just a `Future[A]`. `OptionT` gave our
-program the effect of an *optional* value, which works for any underlying `F[_]`
-that has a `Monad`:
+For example, in Chapter 2 we used `OptionT` to let us use `F[Option[A]]` in a
+`for` comprehension as if it was just a `F[A]`. This gave our program the effect
+of an *optional* value:
 
 {lang="text"}
 ~~~~~~~~
@@ -395,13 +394,13 @@ that has a `Monad`:
   }
 ~~~~~~~~
 
-Scalaz has typeclasses that specialise `Monad`, corresponding to specific
-transformers. The typeclass corresponding to optionality is `MonadPlus`, we can
-call `MonadPlus[F].empty` to short circuit the control flow of an application,
-equivalent to `OptionT.none`.
+Scalaz has specialisations of `Monad` that generalise some of the transformer
+effects. For example, the typeclass corresponding to optionality is `MonadPlus`,
+we can call `MonadPlus[F].empty` to short circuit the control flow of an
+application, equivalent to `OptionT(None.pure[F])`.
 
 This subset of scalaz is often referred to as the *Monad Transformer Library*
-(MTL) and is summarised below. In this section, we will explain each of the
+(MTL), summarised below. In this section, we will explain each of the
 transformers, why they are useful, and how they work.
 
 | Effect               | Underlying                  | Transformer | Typeclass     |
@@ -419,10 +418,8 @@ transformers, why they are useful, and how they work.
 
 ### `MonadTrans`
 
-Before we look at all the monad transformers, it is worth discussing how to
-instantiate one from a value. Each transformer has two type holes, having the
-general shape `M[F[_], A]`, and providing an instance both `Monad` and the
-`MonadTrans` typeclass:
+Each transformer has the general shape `T[F[_], A]`, providing at least an
+instance of `Monad` and the `MonadTrans` typeclass:
 
 {lang="text"}
 ~~~~~~~~
@@ -435,20 +432,19 @@ A> `T[_[_], _]` is another example of a higher kinded type. It says that `T` tak
 A> two type parameters: the first also takes a type parameter, written `_[_]`, and
 A> the second does not take any type parameters, written `_`.
 
-`.liftM` provides us the way to create a monad transformer if we have an `F[A]`.
-For example, we can create an `OptionT[IO, String]` by calling `.liftM[OptionT]`
-on an `IO[String]`.
+`.liftM` lets us create a monad transformer if we have an `F[A]`. For example,
+we can create an `OptionT[IO, String]` by calling `.liftM[OptionT]` on an
+`IO[String]`.
 
 Generally, there are three ways to create a monad transformer:
 
 -   from the underlying, using the transformer's constructor
--   from a single value `A`, using `.point` from the `Monad` syntax
+-   from a single value `A`, using `.pure` from the `Monad` syntax
 -   from an `F[A]`, using `.liftM` from the `MonadTrans` syntax
 
-But due to the way that type inference works in Scala, this often means that a
-complex type parameter must be explicitly written, often with kind projector
-syntax. As a result, many monad transformers provide convenient constructors on
-their companion that do not require as many type parameters.
+Due to the way that type inference works in Scala, this often means that a
+complex type parameter must be explicitly written. As a workaround, transformers
+provide convenient constructors on their companion that are easier to use.
 
 
 ### `MaybeT`
@@ -476,7 +472,7 @@ providing a `MonadPlus`
   implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
     def point[A](a: =>A): MaybeT[F, A] = MaybeT.just(a)
     def bind[A, B](fa: MaybeT[F, A])(f: A => MaybeT[F, B]): MaybeT[F, B] =
-      MaybeT(fa.run.bind(_.cata(f(_).run, Maybe.empty.pure[F])))
+      MaybeT(fa.run >>= (_.cata(f(_).run, Maybe.empty.pure[F])))
   
     def empty[A]: MaybeT[F, A] = MaybeT.empty
   
@@ -485,7 +481,7 @@ providing a `MonadPlus`
 ~~~~~~~~
 
 This monad looks fiddly, but it is just delegating everything to the `Monad[F]`
-and then re-wrapping with a `MaybeT`. It's plumbing.
+and then re-wrapping with a `MaybeT`. It is plumbing.
 
 With this monad we can write logic that handles optionality in the `F[_]`
 context, rather than carrying around `Option` or `Maybe`.
@@ -499,8 +495,8 @@ correspond to a user. We have this algebra:
   trait Twitter[F[_]] {
     def getUser(name: String): F[Maybe[User]]
     def getStars(user: User): F[Int]
-    ...
   }
+  def T[F[_]](implicit t: Twitter[F]): Twitter[F] = t
 ~~~~~~~~
 
 We need to call `getUser` followed by `getStars`. If we use `Monad` as our
@@ -508,9 +504,9 @@ context, our function is difficult because we have to handle the `Empty` case:
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: Monad](name: String): F[Maybe[Int]] = for {
-    maybeUser  <- getUser(name)
-    maybeStars <- maybeUser.map(getStars)
+  def stars[F[_]: Monad: Twitter](name: String): F[Maybe[Int]] = for {
+    maybeUser  <- T.getUser(name)
+    maybeStars <- maybeUser.traverse(T.getStars)
   } yield maybeStars
 ~~~~~~~~
 
@@ -519,9 +515,9 @@ However, if we have a `MonadPlus` as our context, we can suck `Maybe` into the
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: MonadPlus](name: String): F[Int] = for {
-    user  <- getUser(name) >>= _.orEmpty
-    stars <- getStars(user)
+  def stars[F[_]: MonadPlus: Twitter](name: String): F[Int] = for {
+    user  <- T.getUser(name) >>= (_.orEmpty[F])
+    stars <- T.getStars(user)
   } yield stars
 ~~~~~~~~
 
@@ -532,9 +528,9 @@ explicitly use `MaybeT` in the return type, at the cost of slightly more code:
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: Monad](name: String): MaybeT[F, Int] = for {
-    user  <- MaybeT(getUser(name))
-    stars <- getStars(user).liftM[MaybeT]
+  def stars[F[_]: Monad: Twitter](name: String): MaybeT[F, Int] = for {
+    user  <- MaybeT(T.getUser(name))
+    stars <- T.getStars(user).liftM[MaybeT]
   } yield stars
 ~~~~~~~~
 
@@ -550,18 +546,18 @@ don't know anything about the error. `EitherT` (and the lazy variant
 `LazyEitherT`) allows us to use any type we want as the error value, providing
 contextual information about what went wrong.
 
-`EitherT` is the FP equivalent of a checked exception. `EitherT` is also
-significantly more performant than an exception.
+`EitherT` is the more performant FP equivalent of a checked exception.
 
-A> One of the slowest things on the JVM is to raise an exception, due to the
+A> One of the slowest things on the JVM is to create an exception, due to the
 A> resources required to construct the stacktrace. It is traditional to use
 A> exceptions for input validation and parsing, which means anything that deviates
 A> from the happy path can be thousands of times slower.
 A> 
-A> Some people claim that predictable exceptions are referentially transparent, and
-A> therefore pure, because they will occur every time. However, the stacktrace
-A> inside the exception depends on the call chain, thus breaking referential
-A> transparency.
+A> Some people claim that predictable exceptions are referentially transparent
+A> because they will occur every time. However, the stacktrace inside the exception
+A> depends on the call chain, giving a different value depending on who calls it,
+A> thus breaking referential transparency. Regardless, throwing an exception is not
+A> pure because it means the function is not *Total*.
 
 `EitherT` is a wrapper around an `F[A \/ B]`
 
@@ -588,24 +584,24 @@ The `Monad` is a `MonadError`
   }
 ~~~~~~~~
 
-`.raiseError` and `.handleError` are self-descriptive: `.raiseError` is the
-equivalent of `throw` on an exception and `.handleError` is the equivalent of a
-`catch` block.
+`.raiseError` and `.handleError` are self-descriptive: the equivalent of `throw`
+and `catch` an exception, respectively.
 
 The `MonadError` for `EitherT` is:
 
 {lang="text"}
 ~~~~~~~~
   implicit def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
+    def monad[F[_]: Monad, E] = new MonadError[EitherT[F, E, ?], E] {
     def bind[A, B](fa: EitherT[F, E, A])
                   (f: A => EitherT[F, E, B]): EitherT[F, E, B] =
-      EitherT(run.bind(_.fold(_.left[C].pure[F]), b => f(b).run))
+      EitherT(fa.run >>= (_.fold(_.left[B].pure[F], b => f(b).run)))
     def point[A](a: =>A): EitherT[F, E, A] = EitherT.pure(a)
   
     def raiseError[A](e: E): EitherT[F, E, A] = EitherT.pureLeft(e)
     def handleError[A](fa: EitherT[F, E, A])
                       (f: E => EitherT[F, E, A]): EitherT[F, E, A] =
-      EitherT(fa.run.bind {
+      EitherT(fa.run >>= {
         case -\/(e) => f(e).run
         case right => right.pure[F]
       })
@@ -617,9 +613,10 @@ It should be of no surprise that we can rewrite the `MonadPlus` example with
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]](name: String)(implicit F: MonadError[F, String]): F[Int] = for {
-    user  <- getUser(name) >>= _.orError(s"user '$name' not found")
-    stars <- getStars(user)
+  def stars[F[_]: Twitter](name: String)
+                          (implicit F: MonadError[F, String]): F[Int] = for {
+    user  <- T.getUser(name) >>= (_.orError[F, String](s"user '$name' not found"))
+    stars <- T.getStars(user)
   } yield stars
 ~~~~~~~~
 
@@ -629,7 +626,7 @@ where we have provided custom syntax
 ~~~~~~~~
   implicit class HelperOps[A](m: Maybe[A]) {
     def orError[F[_], E](e: E)(implicit F: MonadError[F, E]): F[A] =
-      m.cata(F.point, F.raiseError(e))
+      m.cata(F.point(_), F.raiseError(e))
   }
 ~~~~~~~~
 
@@ -643,13 +640,74 @@ The version using `EitherT` directly looks like
 
 {lang="text"}
 ~~~~~~~~
-  def stars[F[_]: Monad](name: String): EitherT[F, String, Int] = for {
-    user  <- EitherT(getUser(name) >>= _.toRight(s"user '$name' not found"))
-    stars <- EitherT.rightT(getStars(user))
+  def stars[F[_]: Monad: Twitter](name: String): EitherT[F, String, Int] = for {
+    user <- EitherT(T.getUser(name).map(_ \/> s"user '$name' not found"))
+    stars <- EitherT.rightT(T.getStars(user))
   } yield stars
 ~~~~~~~~
 
-TODO: a decent exception replacement type, with Source info
+
+#### Choosing an error type
+
+The community is undecided on the best strategy for the error type `E` in
+`MonadError`.
+
+One school of thought says that you should pick something general, like a
+`String`. An unprincipled gang prefers using `Throwable` for maximum JVM
+compatibility. The other school says that an application should have an ADT of
+errors, allowing different errors to be reported or handled differently.
+
+There are two problems with an ADT of errors on the application level:
+
+-   it is very awkward to create a new error. One file becomes a monolithic
+    repository of errors, aggregating the ADTs of individual subsystems.
+-   no matter how granular the errors are, the resolution is often the same: log
+    it and try it again, or give up. We don't need an ADT for this.
+
+Using a simple error type like `String` has the problem that it is difficult to
+find where the problem originated: there is no stacktrace.
+
+However, using [`sourcecode` by Li Haoyi](https://github.com/lihaoyi/sourcecode/), we can access contextual information
+from the source code and include it as metadata in our errors:
+
+{lang="text"}
+~~~~~~~~
+  final case class Meta(fqn: String, file: String, line: Int)
+  object Meta {
+    implicit def gen(implicit fqn: sourcecode.FullName,
+                              file: sourcecode.File,
+                              line: sourcecode.Line): Meta =
+      new Meta(fqn.value, file.value, line.value)
+  }
+  
+  final case class Err(msg: String)(implicit val meta: Meta)
+~~~~~~~~
+
+With `Err` as our error type we get referentially transparent metadata:
+
+{lang="text"}
+~~~~~~~~
+  scala> val err = Err("hello world")
+  scala> println(err)
+  hello world
+  scala> println(err.meta)
+  Meta(com.acme.main,<console>,10)
+~~~~~~~~
+
+Although we no longer have a stack trace, it is rare that a full stack trace
+would have been relevant anyway. In pure code, all the context that is needed to
+fully explain an error message is contained in the inputs: there is no reliance
+on hidden state.
+
+A nice compromise between an error ADT and a `String` is an `Err` with a
+JSON-like intermediary ADT to hold the details of the error, with helper methods
+to convert the local state of the program into the intermediary ADT. It can be
+combined with a logging algebra that makes use of the same data, reducing the
+cognitive load on developers who must construct the error messages where they
+arise.
+
+
+#### Other `MonadError` implementations
 
 TODO: IO as a MonadError
 

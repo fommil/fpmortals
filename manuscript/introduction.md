@@ -75,7 +75,7 @@ runtime implementation?
 We could write a synchronous version and wrap it with `Future` but now
 we have to worry about which thread pool we should be using for the
 work, or we could `Await.result` on the `Future` and introduce thread
-blocking. In either case, it's a lot of boilerplate and we are
+blocking. In either case, it is a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
 Let's try to solve the problem like Java 1.2 by introducing a common
@@ -290,7 +290,7 @@ maintaining a `var` in a class), communicating with external resources
 
 But in Scala, we perform side effects all the time. A call to
 `log.info` will perform I/O and a call to `asString` on a `Http`
-instance will speak to a web server. It's fair to say that typical
+instance will speak to a web server. It is fair to say that typical
 Scala is **not** FP.
 
 However, something beautiful happened when we wrote our implementation

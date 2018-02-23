@@ -12,7 +12,7 @@ Can use this to motivate the scalaz8 typeclass design.
 
 `Free[S[_], A]` can be *generated freely* for any choice of `S`, hence
 the name. However, from a practical point of view, there needs to be a
-`Monad[S]` in order to interpret it --- so it's more like an interest
+`Monad[S]` in order to interpret it --- so it is more like an interest
 only mortgage where you still have to buy the house at the end.
 
 introduce `FreeAp` and `Cofree`
@@ -27,7 +27,7 @@ And for testing: [smock](https://github.com/djspiewak/smock)
 
 Then (much more complicated) optimisation for final encoding of our drone app.
 
-Try this with the `act` in our example app. It's tricky because we have two algebras.
+Try this with the `act` in our example app. It is tricky because we have two algebras.
 
 {lang="text"}
 ~~~~~~~~
@@ -173,7 +173,7 @@ part of the book?
 ## TODO Spotting patterns, refactoring
 
 Note that some of our algebras are actually common things and can be
-rewritten: reader / writer / state / error / indexed monad. It's ok
+rewritten: reader / writer / state / error / indexed monad. It is ok
 that this is a step you can do later.
 
 
