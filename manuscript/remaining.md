@@ -1,4 +1,86 @@
 
+### TODO `ReaderT` / `Kleisli`
+
+The reader monad wraps `A => F[B]` allowing a program `F[B]` to depend on a
+runtime value `A`. For those familiar with dependency injection, the reader
+monad is the FP equivalent of Spring or Guice's `@Inject`, without the XML and
+reflection.
+
+`ReaderT` is just an alias to another, more generally useful, data type called
+`Kleisli`, named after the mathematician *Heinrich Kleisli*. `Kleisli` captures
+the second parameter of a monadic `.bind`, the *action*.
+
+{lang="text"}
+~~~~~~~~
+  type ReaderT[F[_], A, B] = Kleisli[F, A, B]
+  
+  final case class Kleisli[F[_], A, B](run: A => F[B]) {
+    def dimap[C, D](f: C => A, g: B => D)(implicit F: Functor[F]): Kleisli[F, C, D] =
+      Kleisli(c => run(f(c)).map(g))
+  
+    def >=>[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = ...
+    def <=<[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
+    def andThen[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = this >=> k
+    def compose[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
+  
+    def =<<(a: F[A])(implicit F: Bind[F]): F[B] = a >>= run
+    ...
+  }
+  object Kleisli {
+    implicit def kleisliFn[F[_], A, B](k: Kleisli[F, A, B]): A => F[B] = k.run
+    ...
+  }
+~~~~~~~~
+
+A> Some people call `>=>` the *fish operator*, but we know that it is obviously a
+A> Y-Wing.
+
+TODO: finish the section on `ReaderT`
+
+
+### TODO `WriterT`
+
+including `UnwriterT`
+
+
+### TODO `StateT`
+
+`ReaderWriterStateT`
+
+
+### TODO `TheseT`
+
+
+### TODO `StreamT`
+
+
+### TODO `ContT`
+
+Specialisations of ContT like Condensity also have their own nice use cases e.g.
+reassociating binds to make them linear rather than quadratic or abstract over
+bracketed functions like withFile (ResourceT, Managed)
+
+-   `IndexedContsT`
+-   `ResourceT`
+
+Also research MonadBracket
+
+
+### TODO `IdT`
+
+
+### TODO Others
+
+-   `BijectionT` ??? (a bit weird)
+-   `StoreT` (or leave to lenses)
+
+Probably ignore...
+
+-   `Cokleisli`
+-   `ComonadStore`
+-   `TracedT` (comonad tranformer)
+
+
 ## TODO Parallelism and `Task`
 
 The issue of parallelisation of applicatives vs the sequential nature of Monad.

@@ -9578,24 +9578,59 @@ combined with a logging algebra that makes use of the same data, reducing the
 cognitive load on developers who must construct the error messages where they
 arise.
 
-***** Other =MonadError= implementations
+***** =IO= and =Throwable=
 
-TODO: IO as a MonadError
+=IO= does not have a =MonadError= but instead implements something similar to
+=throw=, =catch= and =finally= directly for =Throwable= errors:
 
 #+BEGIN_SRC scala
-object IO {
+final class IO[A](val tramp: Trampoline[A]) {
   ...
-  def fail[A](t: Throwable): IO[A] = IO(throw t)
+  // catch
+  def except(f: Throwable => IO[A]): IO[A] = ...
+  // finally
+  def ensuring[B](f: IO[B]): IO[A] = ...
 
-  implicit val Monad = new MonadError[IO, Throwable] {
-    ...
-    def raiseError[A](e: Throwable): IO[A] = fail(e)
-    def handleError[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      try IO(fa.interpret())
-      catch { case t: Throwable => f(t) }
-  }
+  def onException[B](f: IO[B]): IO[A] = ...
+}
+object IO {
+  // throw
+  def throwIO[A](e: Throwable): IO[A] = IO(throw e)
+  ...
 }
 #+END_SRC
+
+where =.onException= only runs when an error occurs, discarding the results.
+
+=IO= works well at the "edge of the world" to capture unexpected exceptions from
+legacy applications and developer bugs: the equivalent of an /unchecked
+exception/.
+
+** The Infinite Sadness
+
+You've reached the end of this Early Access book. Please check the
+website regularly for updates.
+
+You can expect to see chapters covering the following topics:
+
+- Advanced Monads (more to come)
+- Typeclass Derivation
+- Type Refinement
+- Property Testing
+- Optics
+- Functional Streams
+- Bluffing Haskell
+
+# - Recursion Schemes
+# - Category Theory
+# - Dependent Types
+
+while continuing to build out the example application.
+
+* TODO Remaining
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: remaining.md
+  :END:
 
 **** TODO =ReaderT= / =Kleisli=
 
@@ -9682,31 +9717,6 @@ Probably ignore...
 - =ComonadStore=
 - =TracedT= (comonad tranformer)
 
-** The Infinite Sadness
-
-You've reached the end of this Early Access book. Please check the
-website regularly for updates.
-
-You can expect to see chapters covering the following topics:
-
-- Advanced Monads (more to come)
-- Typeclass Derivation
-- Type Refinement
-- Property Testing
-- Functional Streams
-- Optics
-- Bluffing Haskell
-
-# - Recursion Schemes
-# - Category Theory
-# - Dependent Types
-
-while continuing to build out the example application.
-
-* TODO Remaining
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: remaining.md
-  :END:
 
 *** TODO Parallelism and =Task=
 
