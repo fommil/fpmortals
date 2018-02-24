@@ -2226,76 +2226,49 @@ We need to marshal the data classes we defined in the previous section
 into JSON, URLs and POST-encoded forms. Since this requires
 polymorphism, we will need typeclasses.
 
-[circe](https://github.com/circe/circe) gives us an ADT for JSON and typeclasses to convert to/from that
-ADT (paraphrased for brevity):
+[spray-json](https://github.com/spray/spray-json) gives us an ADT for JSON and typeclasses to convert to/from that ADT
+(paraphrased for brevity):
 
 {lang="text"}
 ~~~~~~~~
-  package io.circe
+  package spray.json
   
   import simulacrum._
   
-  sealed abstract class Json
-  case object JNull extends Json
-  final case class JBoolean(value: Boolean) extends Json
-  final case class JNumber(value: JsonNumber) extends Json
-  final case class JString(value: String) extends Json
-  final case class JArray(value: Vector[Json]) extends Json
-  final case class JObject(value: JsonObject) extends Json
+  sealed abstract class JsValue
+  case object JsNull extends JsValue
+  final case class JsBoolean(value: Boolean) extends JsValue
+  final case class JsNumber(value: BigDecimal) extends JsValue
+  final case class JsString(value: String) extends JsValue
+  final case class JsArray(value: Vector[JsValue]) extends JsValue
+  final case class JsObject(fields: Map[String, JsValue]) extends JsValue
   
-  @typeclass trait Encoder[T] {
-    def encodeJson(t: T): Json
+  @typeclass trait JsWriter[T] {
+    def toJson(t: T): JsValue
   }
-  @typeclass trait Decoder[T] {
-    @op("as") def decodeJson(j: Json): Either[DecodingFailure, T]
+  @typeclass trait JsReader[T] {
+    def fromJson(j: JsValue): T
   }
 ~~~~~~~~
 
-where `JsonNumber` and `JsonObject` are optimised specialisations of
-roughly `java.math.BigDecimal` and `Map[String, Json]`. To depend on
-circe in your project we must add the following to `build.sbt`:
+To depend on `spray-json` in our project we must add the following to
+`build.sbt`:
 
 {lang="text"}
 ~~~~~~~~
-  val circeVersion = "0.8.0"
-  libraryDependencies ++= Seq(
-    "io.circe"             %% "circe-core"    % circeVersion,
-    "io.circe"             %% "circe-generic" % circeVersion,
-    "io.circe"             %% "circe-parser"  % circeVersion
-  )
+  libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.1.1"
 ~~~~~~~~
 
-W> `java.math.BigDecimal` and especially `java.math.BigInteger` are not
-W> safe objects to include in wire protocol formats. It is possible to
-W> construct valid numerical values that will exception when parsed or
-W> hang the `Thread` forever.
-W> 
-W> Travis Brown, author of Circe, has [gone to great lengths](https://github.com/circe/circe/blob/master/modules/core/shared/src/main/scala/io/circe/JsonNumber.scala) to protect
-W> us. If you want to have similarly safe numbers in your wire protocols,
-W> either use `JsonNumber` or settle for lossy `Double`.
-W> 
-W> {lang="text"}
-W> ~~~~~~~~
-W>   scala> new java.math.BigDecimal("1e2147483648")
-W>   java.lang.NumberFormatException
-W>     at java.math.BigDecimal.<init>(BigDecimal.java:491)
-W>     ... elided
-W>   
-W>   scala> new java.math.BigDecimal("1e2147483647").toBigInteger
-W>     ... hangs forever ...
-W> ~~~~~~~~
-
-Because circe provides *generic* instances, we can conjure up a
-`Decoder[AccessResponse]` and `Decoder[RefreshResponse]`. This is an
-example of parsing text into `AccessResponse`:
+Because `spray-json-derivation` provides *derived* typeclass instances, we can
+conjure up a `JsonReader[AccessResponse]` and `JsonReader[RefreshResponse]`.
+This is an example of parsing text into `AccessResponse`:
 
 {lang="text"}
 ~~~~~~~~
-  scala> import io.circe._
-         import io.circe.generic.auto._
+  scala> import xyz.driver.json.DerivedFormats._
   
          for {
-           json     <- io.circe.parser.parse("""
+           json     <- spray.json.JsonParser("""
                        {
                          "access_token": "BEARER_TOKEN",
                          "token_type": "Bearer",
@@ -2306,7 +2279,7 @@ example of parsing text into `AccessResponse`:
            response <- json.as[AccessResponse]
          } yield response
   
-  res = Right(AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN))
+  res = AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
 ~~~~~~~~
 
 We need to write our own typeclasses for URL and POST encoding. The
@@ -2443,8 +2416,8 @@ implement OAuth2. Recall from the previous chapter that we define
 mockable components that need to interact with the world as algebras,
 and we define pure business logic in a module.
 
-We define our dependency algebras, and use context bounds to show that
-our responses must have a `Decoder` and our `POST` payload must have a
+We define our dependency algebras, and use context bounds to show that our
+responses must have a `JsonReader` and our `POST` payload must have a
 `UrlEncoded`:
 
 {lang="text"}
@@ -2455,12 +2428,12 @@ our responses must have a `Decoder` and our `POST` payload must have a
     final case class Response[T](header: HttpResponseHeader, body: T)
   
     trait JsonHttpClient[F[_]] {
-      def get[B: Decoder](
+      def get[B: JsonReader](
         uri: Uri,
         headers: List[HttpHeader] = Nil
       ): F[Response[B]]
   
-      def postUrlencoded[A: UrlEncoded, B: Decoder](
+      def postUrlencoded[A: UrlEncoded, B: JsonReader](
         uri: Uri,
         payload: A,
         headers: List[HttpHeader] = Nil
@@ -2510,8 +2483,8 @@ and then write an OAuth2 client:
 ~~~~~~~~
   package logic {
     import java.time.temporal.ChronoUnit
-    import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
+    import xyz.driver.json.DerivedFormats._
   
     class OAuth2Client[F[_]: Monad](
       config: ServerConfig
@@ -3727,47 +3700,43 @@ possible to map the contents of a structure `F[A]` into `F[B]`. Using
 
 This sounds so hopelessly abstract that it needs a practical example
 immediately, before we can take it seriously. In Chapter 4 we used
-circe to derive a JSON encoder for our data types and we gave a brief
-description of the `Encoder` typeclass. This is an expanded version:
+`spray-json-derivation` to derive a JSON encoder for our data types and we gave
+a brief description of the `JsonWriter` typeclass. This is an expanded version:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait Encoder[A] { self =>
-    def encodeJson(a: A): Json
+  @typeclass trait JsonWriter[A] { self =>
+    def toJson(a: A): JsValue
   
-    def contramap[B](f: B => A): Encoder[B] = new Encoder[B] {
-      def encodeJson(b: B): Json = self(f(b))
+    def contramap[B](f: B => A): JsonWriter[B] = new JsonWriter[B] {
+      def toJson(b: B): JsValue = self(f(b))
     }
   }
 ~~~~~~~~
 
-Now consider the case where we want to write an instance of an
-`Encoder[B]` in terms of another `Encoder[A]`, for example if we have
-a data type `Alpha` that simply wraps a `Double`. This is exactly what
-`contramap` is for:
+Now consider the case where we want to write an instance of an `JsonWriter[B]`
+in terms of another `JsonWriter[A]`, for example if we have a data type `Alpha`
+that simply wraps a `Double`. This is exactly what `contramap` is for:
 
 {lang="text"}
 ~~~~~~~~
   final case class Alpha(value: Double)
   
   object Alpha {
-    implicit val encoder: Encoder[Alpha] = Encoder[Double].contramap(_.value)
+    implicit val encoder: JsWriter[Alpha] = JsWriter[Double].contramap(_.value)
   }
 ~~~~~~~~
 
-On the other hand, a `Decoder` typically has a `Functor`:
+On the other hand, a `JsonReader` typically has a `Functor`:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait Decoder[A] { self =>
-    def decodeJson(j: Json): Decoder.Result[A]
+  @typeclass trait JsonReader[A] { self =>
+    def fromJson(j: JsValue): JsonReader.Result[A]
   
-    def map[B](f: A => B): Decoder[B] = new Decoder[B] {
-      def decodeJson(j: Json): Decoder.Result[B] = self.decodeJson(j).map(f)
+    def map[B](f: A => B): JsonReader[B] = new JsonReader[B] {
+      def fromJson(j: JsValue): B = f(self.fromJson(j))
     }
-  }
-  object Decoder {
-    type Result[A] = Either[String, A]
   }
 ~~~~~~~~
 
@@ -3776,30 +3745,29 @@ Methods on a typeclass can have their type parameters in
 position* (return type). If a typeclass has a combination of covariant
 and contravariant positions, it might have an *invariant functor*.
 
-Consider what happens if we combine `Encoder` and `Decoder` into one
-typeclass. We can no longer construct a `Format` by using `map` or
-`contramap` alone, we need `xmap`:
+Consider what happens if we combine `JsonWriter` and `JsonReader` into one
+typeclass. We can no longer construct a `Format` by using `map` or `contramap`
+alone, we need `xmap`:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait Format[A] extends Encoder[A] with Decoder[A] { self =>
-    def xmap[B](f: A => B, g: B => A): Format[B] = new Format[B] {
-      def encodeJson(b: B): Json = self(g(b))
-      def decodeJson(j: Json): Decoder.Result[B] = self.decodeJson(j).map(f)
+  @typeclass trait JsonFormat[A] extends JsonWriter[A] with JsonReader[A] { self =>
+    def xmap[B](f: A => B, g: B => A): JsonFormat[B] = new JsonFormat[B] {
+      def toJson(b: B): JsValue = self(g(b))
+      def fromJson(j: JsValue): B = f(self.fromJson(j))
     }
   }
 ~~~~~~~~
 
-A> Although `Encoder` implements `contramap`, `Decoder` implements `map`,
-A> and `Format` implements `xmap` we are not saying that these
-A> typeclasses extend `InvariantFunctor`, rather they *have an*
-A> `InvariantFunctor`.
+A> Although `JsonWriter` implements `contramap`, `JsonReader` implements `map`, and
+A> `Format` implements `xmap` we are not saying that these typeclasses extend
+A> `InvariantFunctor`, rather they *have an* `InvariantFunctor`.
 A> 
 A> We could implement instances of
 A> 
-A> -   `Functor[Decoder]`
-A> -   `Contravariant[Encoder]`
-A> -   `InvariantFunctor[Format]`
+A> -   `Functor[JsonReader]`
+A> -   `Contravariant[JsonWriter]`
+A> -   `InvariantFunctor[JsonFormat]`
 A> 
 A> on our companions, and use scalaz syntax to have the exact same `map`,
 A> `contramap` and `xmap`.
@@ -3832,12 +3800,12 @@ pattern:
 
 {lang="text"}
 ~~~~~~~~
-  implicit val double: Format[Double] = ...
+  implicit val double: JsonFormat[Double] = ...
   
-  implicit val alpha: Format[Alpha] = double.xmap(Alpha(_), _.value)
-  implicit val beta : Format[Beta]  = double.xmap(Beta(_) , _.value)
-  implicit val rho  : Format[Rho]   = double.xmap(Rho(_)  , _.value)
-  implicit val nu   : Format[Nu]    = double.xmap(Nu(_)   , _.value)
+  implicit val alpha: JsonFormat[Alpha] = double.xmap(Alpha(_), _.value)
+  implicit val beta : JsonFormat[Beta]  = double.xmap(Beta(_) , _.value)
+  implicit val rho  : JsonFormat[Rho]   = double.xmap(Rho(_)  , _.value)
+  implicit val nu   : JsonFormat[Nu]    = double.xmap(Nu(_)   , _.value)
 ~~~~~~~~
 
 Macros can automate the construction of these instances, so we don't
