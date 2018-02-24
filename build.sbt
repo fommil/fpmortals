@@ -21,7 +21,7 @@ libraryDependencies ++= Seq(
   "com.chuusai"          %% "shapeless"             % "2.3.3",
   "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
   "com.propensive"       %% "contextual"            % "1.1.0",
-  "com.propensive"       %% "kaleidoscope"          % "0.1.0",
+  "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
   "org.scalaz"           %% "scalaz-core"           % "7.2.19",
   "com.fommil"           %% "deriving-macro"        % "0.9.0",
   "com.fommil"           %% "scalaz-deriving"       % "0.9.0",

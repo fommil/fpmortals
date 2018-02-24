@@ -183,4 +183,18 @@ class UrlSpec extends FlatSpec {
       """url"blurg""""
     )
   }
+
+  it should "possibly be replaced by refined" in {
+    import java.lang.String
+    import eu.timepit.refined.api.Refined
+    import eu.timepit.refined.auto._
+    import eu.timepit.refined.string._
+
+    val uri1: String Refined Uri = "http://fommil.com"
+    uri1.value.shouldBe("http://fommil.com")
+
+    // I'd like this to fail... so need to create custom refinement
+    val _: String Refined Uri = "fommil.com"
+  }
+
 }
