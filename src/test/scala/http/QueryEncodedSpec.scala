@@ -12,12 +12,13 @@ import QueryEncoded.ops._
 
 class QueryEncodedSpec extends FlatSpec {
   "QueryEncoded" should "encode case classes" in {
-    Foo("http://foo", 10, "%").queryEncoded.params should contain theSameElementsInOrderAs (
-      Seq(
-        "apple"   -> "http://foo",
-        "bananas" -> "10",
-        "pears"   -> "%"
+    (Foo("http://foo", 10, "%").queryEncoded.params should contain)
+      .theSameElementsInOrderAs(
+        Seq(
+          "apple"   -> "http://foo",
+          "bananas" -> "10",
+          "pears"   -> "%"
+        )
       )
-    )
   }
 }

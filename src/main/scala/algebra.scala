@@ -8,7 +8,6 @@ import java.time.ZonedDateTime
 
 import scala.{ Int, Unit }
 import scala.collection.immutable.Map
-import scala.language.higherKinds
 
 import scalaz.NonEmptyList
 

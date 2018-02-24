@@ -111,19 +111,18 @@ import java.lang.String
 import java.time.LocalDateTime
 
 import scala.{ Any, Long, Unit }
-import scala.language.higherKinds
 
 import scalaz._
 import Scalaz._
-import spinoco.protocol.http.Uri
 
 import http.encoding._
+import http.client.Url
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: Uri,
-  access: Uri,
-  refresh: Uri,
+  auth: Url,
+  access: Url,
+  refresh: Url,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -134,7 +133,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: Uri
+  redirect_uri: Url
 )
 
 /**
@@ -153,11 +152,11 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 package algebra {
   trait UserInteraction[F[_]] {
 
-    /** returns the Uri of the local server */
-    def start: F[Uri]
+    /** returns the Url of the local server */
+    def start: F[Url]
 
-    /** prompts the user to open this Uri */
-    def open(uri: Uri): F[Unit]
+    /** prompts the user to open this Url */
+    def open(uri: Url): F[Unit]
 
     /** recover the code from the callback */
     def stop: F[CodeToken]
@@ -235,7 +234,7 @@ package logic {
 package api {
   @deriving(QueryEncoded)
   final case class AuthRequest(
-    redirect_uri: Uri,
+    redirect_uri: Url,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -248,7 +247,7 @@ package api {
   @deriving(UrlEncoded)
   final case class AccessRequest(
     code: String,
-    redirect_uri: Uri,
+    redirect_uri: Url,
     client_id: String,
     client_secret: String,
     scope: String = "",
@@ -289,8 +288,8 @@ package api {
         private def stringify[T: UrlEncoded](t: T) =
           URLDecoder.decode(t.urlEncoded, "UTF-8")
 
-        def queryEncoded(a: AuthRequest): Uri.Query =
-          Uri.Query.empty :+
+        def queryEncoded(a: AuthRequest): Url.Query =
+          Url.Query.empty :+
             ("redirect_uri"  -> stringify(a.redirect_uri)) :+
             ("scope"         -> stringify(a.scope)) :+
             ("client_id"     -> stringify(a.client_id)) :+

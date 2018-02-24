@@ -11,7 +11,7 @@ import scala.language.implicitConversions
 import shapeless.{ :: => :*:, _ }
 import shapeless.labelled._
 import java.net.URLDecoder
-import spinoco.protocol.http.Uri.Query
+import http.client.Url.Query
 
 import simulacrum._
 

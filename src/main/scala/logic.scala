@@ -9,7 +9,6 @@ import java.time.temporal.ChronoUnit
 import scala.{ Int, None, Option }
 import scala.collection.immutable.{ Map, Set }
 import scala.concurrent.duration._
-import scala.language.higherKinds
 import scala.Predef.ArrowAssoc
 
 import scalaz._
@@ -58,7 +57,7 @@ final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
     }
 
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
-    (a union b) -- (a intersect b)
+    (a.union(b)) -- (a.intersect(b))
 
   def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>

@@ -5,14 +5,14 @@ package http.encoding
 
 import java.lang.String
 
-import scala.Long
-import scala.collection.immutable.Seq
+import scala.{ Long, StringContext }
+import scala.collection.immutable.List
 import scala.Predef.ArrowAssoc
 
 import org.scalatest._
 import org.scalatest.Matchers._
-import spinoco.protocol.http.Uri
-import scalaz.deriving
+import http.client._
+import scalaz._, Scalaz._
 
 import UrlEncoded.ops._
 
@@ -30,7 +30,7 @@ class UrlEncodedSpec extends FlatSpec {
   }
 
   it should "encode stringy maps" in {
-    val stringy = Seq(
+    val stringy = List(
       "apple"   -> "http://foo",
       "bananas" -> "10",
       "pears"   -> "%"
@@ -38,10 +38,9 @@ class UrlEncodedSpec extends FlatSpec {
     stringy.urlEncoded should be("apple=http%3A%2F%2Ffoo&bananas=10&pears=%25")
   }
 
-  it should "encode Uris" in {
-    val uri =
-      Uri.parse("http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar").toOption.get
-    uri.urlEncoded should be(
+  it should "encode Urls" in {
+    val url = url"http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
+    url.urlEncoded should be(
       // the %3A must be double escaped to %253A
       "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar"
     )

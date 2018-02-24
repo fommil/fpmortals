@@ -6,14 +6,14 @@ package http.encoding
 import java.lang.String
 
 import scala.{ Long, StringContext, Symbol }
-import scala.collection.immutable.Seq
 import scala.language.implicitConversions
 
 import shapeless.{ :: => :*:, _ }
 import shapeless.labelled._
 import java.net.URLEncoder
-import spinoco.protocol.http.Uri
+import http.client.Url
 
+import scalaz.{ Contravariant, Traverse }
 import simulacrum._
 
 @typeclass
@@ -24,6 +24,14 @@ trait UrlEncoded[A] {
 object UrlEncoded {
   import ops._
 
+  implicit val contravariant: Contravariant[UrlEncoded] =
+    new Contravariant[UrlEncoded] {
+      def contramap[A, B](fa: UrlEncoded[A])(f: B => A): UrlEncoded[B] = {
+        b: B =>
+          fa.urlEncoded(f(b))
+      }
+    }
+
   implicit val string: UrlEncoded[String] = { s =>
     URLEncoder.encode(s, "UTF-8")
   }
@@ -31,21 +39,16 @@ object UrlEncoded {
     n.toString
   }
 
-  implicit val stringySeq: UrlEncoded[Seq[(String, String)]] = { m =>
+  implicit def kvs[F[_]: Traverse]: UrlEncoded[F[(String, String)]] = { m =>
+    import scalaz.Scalaz._
     m.map {
       case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}"
-    }.mkString("&")
+    }.intercalate("&")
   }
-  implicit val uri: UrlEncoded[Uri] = { u =>
-    // this is not the same as creating a URL... this is about including a URL
-    // as URL encoded parameter value. So we should expect lots of escaping.
-    val scheme = u.scheme.toString
-    val host   = u.host.host
-    val port   = u.host.port.fold("")(p => s":$p")
-    val path   = u.path.stringify
-    val query  = u.query.params.toSeq.urlEncoded
-    s"$scheme://$host$port$path?$query".urlEncoded
-  }
+
+  // this is not the same as creating a URL... this is about including a URL
+  // as URL encoded parameter value. So we should expect lots of escaping.
+  implicit val uri: UrlEncoded[Url] = (_.encoded.urlEncoded)
 
 }
 

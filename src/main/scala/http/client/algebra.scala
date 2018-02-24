@@ -4,32 +4,30 @@
 package http.client
 
 /**
- * An algebra for issuing basic GET / POST requests to a web server
- * that returns JSON. Uses the spinoco HTTP protocol definition
- * classes out of convenience.
+ * An algebra for issuing basic GET / POST requests to a web server that returns
+ * JSON.
  */
 package algebra
 
-import scala.collection.immutable.{ List, Nil }
-import scala.language.higherKinds
+import java.lang.String
+
+import scala.collection.immutable.{ Map }
 
 import spray.json.JsonReader
-import spinoco.protocol.http._
-import spinoco.protocol.http.header._
 import http.encoding._
 
-final case class Response[T](header: HttpResponseHeader, body: T)
+final case class Response[T](headers: Map[String, String], body: T)
 
 trait JsonHttpClient[F[_]] {
   def get[B: JsonReader](
-    uri: Uri,
-    headers: List[HttpHeader] = Nil
+    uri: Url,
+    headers: Map[String, String] = Map.empty
   ): F[Response[B]]
 
   // using application/x-www-form-urlencoded
   def postUrlencoded[A: UrlEncoded, B: JsonReader](
-    uri: Uri,
+    uri: Url,
     payload: A,
-    headers: List[HttpHeader] = Nil
+    headers: Map[String, String] = Map.empty
   ): F[Response[B]]
 }

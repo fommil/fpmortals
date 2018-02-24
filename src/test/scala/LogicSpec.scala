@@ -80,7 +80,7 @@ final class LogicSpec extends FlatSpec {
     val handlers = new StaticHandlers(needsAgents)
     import handlers._
 
-    program.initial shouldBe needsAgents
+    program.initial.shouldBe(needsAgents)
   }
 
   it should "request agents when needed" in {
@@ -91,10 +91,10 @@ final class LogicSpec extends FlatSpec {
       pending = Map(node1 -> time1)
     )
 
-    program.act(needsAgents) shouldBe expected
+    program.act(needsAgents).shouldBe(expected)
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 1
+    handlers.stopped.shouldBe(0)
+    handlers.started.shouldBe(1)
   }
 
   it should "not request agents when pending" in {
@@ -105,10 +105,10 @@ final class LogicSpec extends FlatSpec {
       pending = Map(node1 -> time1)
     )
 
-    program.act(pending) shouldBe pending
+    program.act(pending).shouldBe(pending)
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(0)
+    handlers.started.shouldBe(0)
   }
 
   it should "don't shut down agents if nodes are too young" in {
@@ -117,10 +117,10 @@ final class LogicSpec extends FlatSpec {
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
 
-    program.act(world) shouldBe world
+    program.act(world).shouldBe(world)
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(0)
+    handlers.started.shouldBe(0)
   }
 
   it should "shut down agents when there is no backlog and nodes will shortly incur new costs" in {
@@ -130,10 +130,10 @@ final class LogicSpec extends FlatSpec {
     val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
     val expected = world.copy(pending = Map(node1 -> time3))
 
-    program.act(world) shouldBe expected
+    program.act(world).shouldBe(expected)
 
-    handlers.stopped shouldBe 1
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(1)
+    handlers.started.shouldBe(0)
   }
 
   it should "not shut down agents if there are pending actions" in {
@@ -143,10 +143,10 @@ final class LogicSpec extends FlatSpec {
     val world =
       WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
 
-    program.act(world) shouldBe world
+    program.act(world).shouldBe(world)
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(0)
+    handlers.started.shouldBe(0)
   }
 
   it should "shut down agents when there is no backlog if they are too old" in {
@@ -156,10 +156,10 @@ final class LogicSpec extends FlatSpec {
     val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
-    program.act(world) shouldBe expected
+    program.act(world).shouldBe(expected)
 
-    handlers.stopped shouldBe 1
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(1)
+    handlers.started.shouldBe(0)
   }
 
   it should "shut down agents, even if they are potentially doing work, if they are too old" in {
@@ -169,10 +169,10 @@ final class LogicSpec extends FlatSpec {
     val world    = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
     val expected = world.copy(pending = Map(node1 -> time4))
 
-    program.act(world) shouldBe expected
+    program.act(world).shouldBe(expected)
 
-    handlers.stopped shouldBe 1
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(1)
+    handlers.started.shouldBe(0)
   }
 
   it should "remove changed nodes from pending" in {
@@ -182,10 +182,10 @@ final class LogicSpec extends FlatSpec {
 
     val initial =
       world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
-    program.update(initial) shouldBe world // i.e. pending is gone
+    program.update(initial).shouldBe(world) // i.e. pending is gone
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(0)
+    handlers.started.shouldBe(0)
   }
 
   it should "ignore unresponsive pending actions during update" in {
@@ -196,10 +196,10 @@ final class LogicSpec extends FlatSpec {
     val initial  = world.copy(time = time1)
     val expected = world.copy(pending = Map.empty)
 
-    program.update(initial) shouldBe expected
+    program.update(initial).shouldBe(expected)
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 0
+    handlers.stopped.shouldBe(0)
+    handlers.started.shouldBe(0)
   }
 
   it should "call the expected methods" in {
@@ -208,7 +208,7 @@ final class LogicSpec extends FlatSpec {
     val alive = Map(node1 -> time1, node2 -> time1)
     val world = WorldView(1, 1, managed, alive, Map.empty, time4)
 
-    program.act(world).getConst shouldBe "stopstop"
+    program.act(world).getConst.shouldBe("stopstop")
   }
 
   it should "monitor stopped nodes" in {
@@ -219,7 +219,7 @@ final class LogicSpec extends FlatSpec {
     val expected = world.copy(pending = Map(node1 -> time4, node2 -> time4))
 
     val monitored = new Monitored(underlying)
-    monitored.act(world) shouldBe (expected -> Set(node1, node2))
+    monitored.act(world).shouldBe(expected -> Set(node1, node2))
   }
 
 }
