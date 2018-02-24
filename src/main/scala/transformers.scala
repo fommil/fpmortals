@@ -109,8 +109,30 @@ object BetterErrors {
   }
 
   final case class Err(msg: String)(implicit val meta: Meta)
-  def main(args: Array[String]) = {
+  def main(args: Array[String]) =
     println(Err("hello world").meta)
+
+}
+
+object MockErrors {
+  final class MockTwitter extends Twitter[String \/ ?] {
+    def getUser(name: String): String \/ Maybe[User] =
+      if (name.contains(" ")) Maybe.empty.right
+      else if (name === "wobble") "connection error".left
+      else User(name).just.right
+
+    def getStars(user: User): String \/ Int =
+      if (user.name.startsWith("w")) 10.right
+      else "stars have been replaced by hearts".left
+  }
+
+  implicit val twitter: Twitter[String \/ ?] = new MockTwitter
+
+  def main(args: Array[String]) = {
+    println(WithMonadError.stars("wibble"))
+    println(WithMonadError.stars("wobble"))
+    println(WithMonadError.stars("i'm a fish"))
+    println(WithMonadError.stars("fommil"))
   }
 
 }

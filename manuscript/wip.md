@@ -546,18 +546,9 @@ don't know anything about the error. `EitherT` (and the lazy variant
 `LazyEitherT`) allows us to use any type we want as the error value, providing
 contextual information about what went wrong.
 
-`EitherT` is the more performant FP equivalent of a checked exception.
-
-A> One of the slowest things on the JVM is to create an exception, due to the
-A> resources required to construct the stacktrace. It is traditional to use
-A> exceptions for input validation and parsing, which means anything that deviates
-A> from the happy path can be thousands of times slower.
-A> 
-A> Some people claim that predictable exceptions are referentially transparent
-A> because they will occur every time. However, the stacktrace inside the exception
-A> depends on the call chain, giving a different value depending on who calls it,
-A> thus breaking referential transparency. Regardless, throwing an exception is not
-A> pure because it means the function is not *Total*.
+Where `\/` and `Validation` is the FP equivalent of a checked exception,
+`EitherT` makes it convenient to both create and ignore errors until something
+can be done about it.
 
 `EitherT` is a wrapper around an `F[A \/ B]`
 
@@ -646,16 +637,53 @@ The version using `EitherT` directly looks like
   } yield stars
 ~~~~~~~~
 
+The simplest instance of `MonadError` is for `\/`, perfect for testing business
+logic that requires a `MonadError`. For example,
+
+{lang="text"}
+~~~~~~~~
+  final class MockTwitter extends Twitter[String \/ ?] {
+    def getUser(name: String): String \/ Maybe[User] =
+      if (name.contains(" ")) Maybe.empty.right
+      else if (name === "wobble") "connection error".left
+      else User(name).just.right
+  
+    def getStars(user: User): String \/ Int =
+      if (user.name.startsWith("w")) 10.right
+      else "stars have been replaced by hearts".left
+  }
+~~~~~~~~
+
+Our unit tests for `.stars` might cover these cases:
+
+{lang="text"}
+~~~~~~~~
+  scala> stars("wibble")
+  \/-(10)
+  
+  scala> stars("wobble")
+  -\/(connection error)
+  
+  scala> stars("i'm a fish")
+  -\/(user 'i'm a fish' not found)
+  
+  scala> stars("fommil")
+  -\/(stars have been replaced by hearts)
+~~~~~~~~
+
+As we've now seen several times, we can focus on testing the pure business logic
+without distraction.
+
 
 #### Choosing an error type
 
 The community is undecided on the best strategy for the error type `E` in
 `MonadError`.
 
-One school of thought says that you should pick something general, like a
-`String`. An unprincipled gang prefers using `Throwable` for maximum JVM
-compatibility. The other school says that an application should have an ADT of
-errors, allowing different errors to be reported or handled differently.
+One school of thought says that we should pick something general, like a
+`String`. The other school says that an application should have an ADT of
+errors, allowing different errors to be reported or handled differently. An
+unprincipled gang prefers using `Throwable` for maximum JVM compatibility.
 
 There are two problems with an ADT of errors on the application level:
 
@@ -665,10 +693,9 @@ There are two problems with an ADT of errors on the application level:
     it and try it again, or give up. We don't need an ADT for this.
 
 Using a simple error type like `String` has the problem that it is difficult to
-find where the problem originated: there is no stacktrace.
-
-However, using [`sourcecode` by Li Haoyi](https://github.com/lihaoyi/sourcecode/), we can access contextual information
-from the source code and include it as metadata in our errors:
+find where the problem originated: there is no stacktrace. However, using
+[`sourcecode` by Li Haoyi](https://github.com/lihaoyi/sourcecode/), we can include contextual information as metadata in
+our errors:
 
 {lang="text"}
 ~~~~~~~~
@@ -694,23 +721,20 @@ With `Err` as our error type we get referentially transparent metadata:
   Meta(com.acme.main,<console>,10)
 ~~~~~~~~
 
-Although we no longer have a stack trace, it is rare that a full stack trace
-would have been relevant anyway. In pure code, all the context that is needed to
-fully explain an error message is contained in the inputs: there is no reliance
-on hidden state.
+Although we no longer have a stacktrace, it is rare that a full stacktrace would
+have been relevant anyway. In pure code, all the context that is needed to fully
+explain an error message is contained in the inputs: there is no reliance on
+hidden state.
 
-A nice compromise between an error ADT and a `String` is an `Err` with a
-JSON-like intermediary ADT to hold the details of the error, with helper methods
-to convert the local state of the program into the intermediary ADT. It can be
-combined with a logging algebra that makes use of the same data, reducing the
-cognitive load on developers who must construct the error messages where they
-arise.
+A nice compromise between an error ADT and a `String` is an intermediary format.
+JSON is a good choice as it can be understood by most logging and monitoring
+frameworks.
 
 
 #### `IO` and `Throwable`
 
 `IO` does not have a `MonadError` but instead implements something similar to
-`throw`, `catch` and `finally` directly for `Throwable` errors:
+`throw`, `catch` and `finally` for `Throwable` errors:
 
 {lang="text"}
 ~~~~~~~~
@@ -720,7 +744,6 @@ arise.
     def except(f: Throwable => IO[A]): IO[A] = ...
     // finally
     def ensuring[B](f: IO[B]): IO[A] = ...
-  
     def onException[B](f: IO[B]): IO[A] = ...
   }
   object IO {
@@ -730,11 +753,10 @@ arise.
   }
 ~~~~~~~~
 
-where `.onException` only runs when an error occurs, discarding the results.
-
-`IO` works well at the "edge of the world" to capture unexpected exceptions from
-legacy applications and developer bugs: the equivalent of an *unchecked
-exception*.
+Much as `IO` is used to make the type system aware of interactions with the
+operating system, it captures exceptions from legacy, non-total, code. The
+developer has access to the full stacktrace for debugging, or may handle the
+exception according to the ancient rules of the legacy system's API.
 
 
 # The Infinite Sadness

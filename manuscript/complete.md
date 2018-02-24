@@ -416,10 +416,10 @@ nightmare. Thankfully these tricky situations are the corner cases.
 
 ### Early Exit
 
-Let's say we have some condition that should exit early.
+Let's say we have some condition that should exit early with a successful value.
 
-If we want to exit early as an error we can use the context's
-shortcut, e.g. synchronous code that throws an exception
+If we want to exit early with an error, it is standard practice in OOP to throw
+an exception
 
 {lang="text"}
 ~~~~~~~~
@@ -430,7 +430,7 @@ shortcut, e.g. synchronous code that throws an exception
   a * 10
 ~~~~~~~~
 
-can be rewritten as async
+which can be rewritten async
 
 {lang="text"}
 ~~~~~~~~
@@ -445,12 +445,11 @@ can be rewritten as async
   } yield b * 10
 ~~~~~~~~
 
-But if we want to exit early with a successful return value, we have
-to use a nested `for` comprehension, e.g.
+But if we want to exit early with a successful return value, the simple
+synchronous code:
 
 {lang="text"}
 ~~~~~~~~
-  def getA: Int = ...
   def getB: Int = ...
   
   val a = getA
@@ -458,11 +457,11 @@ to use a nested `for` comprehension, e.g.
   else a * getB
 ~~~~~~~~
 
-is rewritten asynchronously as
+translates into a nested `for` comprehension when our dependencies are
+asynchronous:
 
 {lang="text"}
 ~~~~~~~~
-  def getA: Future[Int] = ...
   def getB: Future[Int] = ...
   
   for {
@@ -472,14 +471,12 @@ is rewritten asynchronously as
   } yield c
 ~~~~~~~~
 
-A> If there is an implicit `Monad[T]` for `T[_]` (i.e. `T` is monadic)
-A> then scalaz lets us create a `T[A]` from a value `a:A` by calling
-A> `a.pure[T]`.
+A> If there is an implicit `Monad[T]` for `T[_]` (i.e. `T` is monadic) then scalaz
+A> lets us create a `T[A]` from a value `a: A` by calling `a.pure[T]`.
 A> 
-A> Scalaz provides `Monad[Future]` and `.pure[Future]` simply calls
-A> `Future.successful`. Besides `pure` being slightly shorter to type, it
-A> is a general concept that works beyond `Future`, and is therefore
-A> recommended.
+A> Scalaz provides `Monad[Future]`, and `.pure[Future]` calls `Future.successful`.
+A> Besides `pure` being slightly shorter to type, it is a general concept that
+A> works beyond `Future`, and is therefore recommended.
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -5671,7 +5668,6 @@ missing.
   
     def fromOption[A](oa: Option[A]): Maybe[A] = ...
     def fromNullable[A](a: A): Maybe[A] = if (null == a) empty else just(a)
-    def fromTryCatchNonFatal[T](a: =>T): Maybe[T] = ...
     ...
   }
 ~~~~~~~~
@@ -5811,7 +5807,6 @@ to speak about it as *either* or `Disjunction`
     def right[A, B]: B => A \/ B = \/-(_)
   
     def fromEither[A, B](e: Either[A, B]): A \/ B = ...
-    def fromTryCatchNonFatal[T](a: =>T): Throwable \/ T = ...
     ...
   }
 ~~~~~~~~
@@ -5931,7 +5926,8 @@ Scalaz also comes with `Either3`, for storing one of three values
   final case class Right3[+A, +B, +C](c: C)  extends Either3[A, B, C]
 ~~~~~~~~
 
-However it only has typeclass instances for `Show` and `Equal`.
+However, it is common to use nested disjunctions `A \/ (B \/ C)`, making
+`Either3` redundant.
 
 
 ### Validation
@@ -5956,9 +5952,7 @@ appears to be a clone of `Disjunction`:
   
     def lift[E, A](a: A)(f: A => Boolean, fail: E): Validation[E, A] = ...
     def liftNel[E, A](a: A)(f: A => Boolean, fail: E): ValidationNel[E, A] = ...
-    def fromTryCatchNonFatal[T](a: =>T): Validation[Throwable, T] = ...
     def fromEither[E, A](e: Either[E, A]): Validation[E, A] = ...
-  
     ...
   }
 ~~~~~~~~
@@ -6081,6 +6075,22 @@ A> `+|+` the surprised c3p0 operator.
 Disjunction has the mirror `.validation` and `.validationNel` to
 convert into `Validation`, allowing for easy conversion between
 sequential and parallel failure accumulation.
+
+`\/` and `Validation` are the more performant FP equivalent of a checked
+exception for input validation, avoiding both a stacktrace and requiring the
+caller to deal with the failure resulting in more robust systems.
+
+A> One of the slowest things on the JVM is to create an exception, due to the
+A> resources required to construct the stacktrace. It is traditional to use
+A> exceptions for input validation and parsing, which can be thousands of times
+A> slower than the equivalent functions written with `\/` or `Validation`.
+A> 
+A> Some people claim that predictable exceptions for input validation are
+A> referentially transparent because they will occur every time. However, the
+A> stacktrace inside the exception depends on the call chain, giving a different
+A> value depending on who calls it, thus breaking referential transparency.
+A> Regardless, throwing an exception is not pure because it means the function is
+A> not *Total*.
 
 
 ### These
