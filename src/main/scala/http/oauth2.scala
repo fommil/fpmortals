@@ -116,7 +116,6 @@ import scala.language.higherKinds
 import scalaz._
 import Scalaz._
 import spinoco.protocol.http.Uri
-import stalactite.deriving
 
 import http.encoding._
 

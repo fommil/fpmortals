@@ -18,15 +18,17 @@ addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
 val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
-  "com.fommil"           %% "stalactite"    % "0.0.5",
-  "com.github.mpilquist" %% "simulacrum"    % "0.11.0",
-  "com.chuusai"          %% "shapeless"     % "2.3.3",
-  "io.circe"             %% "circe-core"    % circeVersion,
-  "io.circe"             %% "circe-generic" % circeVersion,
-  "io.circe"             %% "circe-parser"  % circeVersion,
-  "io.circe"             %% "circe-fs2"     % circeVersion,
-  "org.scalaz"           %% "scalaz-core"   % "7.2.18",
-  "com.spinoco"          %% "fs2-http"      % "0.1.8"
+  "com.github.mpilquist" %% "simulacrum"      % "0.12.0",
+  "com.chuusai"          %% "shapeless"       % "2.3.3",
+  "io.circe"             %% "circe-core"      % circeVersion,
+  "io.circe"             %% "circe-generic"   % circeVersion,
+  "io.circe"             %% "circe-parser"    % circeVersion,
+  "io.circe"             %% "circe-fs2"       % circeVersion,
+  "org.scalaz"           %% "scalaz-core"     % "7.2.19",
+  "com.fommil"           %% "deriving-macro"  % "0.9.0",
+  "com.fommil"           %% "scalaz-deriving" % "0.9.0",
+  "com.spinoco"          %% "fs2-http"        % "0.1.8",
+  "org.scalatest"        %% "scalatest"       % "3.0.5" % "test"
 )
 
 scalacOptions ++= Seq(
@@ -47,7 +49,7 @@ scalacOptions ++= Seq(
 scalacOptions -= "-Ywarn-unused:implicits,imports,-locals,-params,-patvars,-privates"
 scalacOptions += "-Ywarn-unused:explicits,patvars,linted"
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.5")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )
@@ -55,17 +57,9 @@ addCompilerPlugin(
 scalacOptions ++= {
   val dir = (baseDirectory in ThisBuild).value / "project"
   Seq(
-    s"-Xmacro-settings:stalactite.targets=$dir/stalactite-targets.conf",
-    s"-Xmacro-settings:stalactite.defaults=$dir/stalactite-defaults.conf"
+    s"-Xmacro-settings:deriving.targets=$dir/deriving-targets.conf"
   )
 }
-
-wartremoverWarnings in (Compile, compile) := Warts.unsafe ++ Seq(
-  Wart.FinalCaseClass,
-  Wart.ExplicitImplicitTypes
-)
-wartremoverWarnings in (Compile, compile) -= Wart.DefaultArguments // not sure I agree with this one...
-wartremoverWarnings in (Compile, compile) -= Wart.Any              // too many false positives
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(

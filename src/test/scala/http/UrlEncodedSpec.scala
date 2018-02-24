@@ -12,7 +12,7 @@ import scala.Predef.ArrowAssoc
 import org.scalatest._
 import org.scalatest.Matchers._
 import spinoco.protocol.http.Uri
-import stalactite._
+import scalaz.deriving
 
 import UrlEncoded.ops._
 
