@@ -16,19 +16,15 @@ addCommandAlias(
 )
 addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
-val circeVersion = "0.8.0"
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"      % "0.12.0",
-  "com.chuusai"          %% "shapeless"       % "2.3.3",
-  "io.circe"             %% "circe-core"      % circeVersion,
-  "io.circe"             %% "circe-generic"   % circeVersion,
-  "io.circe"             %% "circe-parser"    % circeVersion,
-  "io.circe"             %% "circe-fs2"       % circeVersion,
-  "org.scalaz"           %% "scalaz-core"     % "7.2.19",
-  "com.fommil"           %% "deriving-macro"  % "0.9.0",
-  "com.fommil"           %% "scalaz-deriving" % "0.9.0",
-  "com.spinoco"          %% "fs2-http"        % "0.1.8",
-  "org.scalatest"        %% "scalatest"       % "3.0.5" % "test"
+  "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
+  "com.chuusai"          %% "shapeless"             % "2.3.3",
+  "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
+  "org.scalaz"           %% "scalaz-core"           % "7.2.19",
+  "com.fommil"           %% "deriving-macro"        % "0.9.0",
+  "com.fommil"           %% "scalaz-deriving"       % "0.9.0",
+  "com.spinoco"          %% "fs2-http"              % "0.1.8",
+  "org.scalatest"        %% "scalatest"             % "3.0.5" % "test"
 )
 
 scalacOptions ++= Seq(
@@ -70,7 +66,6 @@ initialCommands in (Compile, console) := Seq(
   "scala.util.{Try,Success,Failure}",
   "scala.Predef.{???,ArrowAssoc,identity,implicitly,<:<,=:=,augmentString,genericArrayOps}",
   "shapeless.{ :: => :*:, _ }",
-  "_root_.io.circe",
   "scalaz._",
   "Scalaz._"
 ).mkString("import ", ",", "")

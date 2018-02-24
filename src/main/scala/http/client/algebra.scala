@@ -13,7 +13,7 @@ package algebra
 import scala.collection.immutable.{ List, Nil }
 import scala.language.higherKinds
 
-import io.circe.Decoder
+import spray.json.JsonReader
 import spinoco.protocol.http._
 import spinoco.protocol.http.header._
 import http.encoding._
@@ -21,13 +21,13 @@ import http.encoding._
 final case class Response[T](header: HttpResponseHeader, body: T)
 
 trait JsonHttpClient[F[_]] {
-  def get[B: Decoder](
+  def get[B: JsonReader](
     uri: Uri,
     headers: List[HttpHeader] = Nil
   ): F[Response[B]]
 
   // using application/x-www-form-urlencoded
-  def postUrlencoded[A: UrlEncoded, B: Decoder](
+  def postUrlencoded[A: UrlEncoded, B: JsonReader](
     uri: Uri,
     payload: A,
     headers: List[HttpHeader] = Nil

@@ -110,7 +110,7 @@ package client
 import java.lang.String
 import java.time.LocalDateTime
 
-import scala.{ Long, Unit }
+import scala.{ Any, Long, Unit }
 import scala.language.higherKinds
 
 import scalaz._
@@ -183,8 +183,8 @@ package logic {
     clock: LocalClock[F]
   ) {
     import api._
-    import io.circe.generic.auto._
     import http.encoding.QueryEncoded.ops._
+    import xyz.driver.json.DerivedFormats._
 
     // for use in one-shot apps requiring user interaction
     def authenticate: F[CodeToken] =
@@ -233,7 +233,6 @@ package logic {
 
 /** The API as defined by the OAuth 2.0 server */
 package api {
-
   @deriving(QueryEncoded)
   final case class AuthRequest(
     redirect_uri: Uri,
