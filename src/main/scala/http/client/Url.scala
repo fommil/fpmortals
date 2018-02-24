@@ -32,7 +32,7 @@ final class Url private (uri: URI) {
   def auth: Maybe[String]     = Maybe.fromNullable(uri.getUserInfo)
   def host: String            = uri.getHost
   def port: Maybe[Int]        = uri.getPort.just.filterNot(_ == -1)
-  def path: Maybe[String]     = uri.getPath.just.filterNot(_.isEmpty)
+  def path: Maybe[String]     = Maybe.fromNullable(uri.getPath).filterNot(_.isEmpty)
   def query: Maybe[String]    = Maybe.fromNullable(uri.getQuery)
   def fragment: Maybe[String] = Maybe.fromNullable(uri.getFragment)
 
