@@ -120,9 +120,9 @@ import http.encoding._
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: EncodedUrl.Url,
-  access: EncodedUrl.Url,
-  refresh: EncodedUrl.Url,
+  auth: AsciiUrl.Url,
+  access: AsciiUrl.Url,
+  refresh: AsciiUrl.Url,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -133,7 +133,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: EncodedUrl.Url
+  redirect_uri: AsciiUrl.Url
 )
 
 /**
@@ -152,11 +152,11 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 package algebra {
   trait UserInteraction[F[_]] {
 
-    /** returns the EncodedUrl.Url of the local server */
-    def start: F[EncodedUrl.Url]
+    /** returns the AsciiUrl.Url of the local server */
+    def start: F[AsciiUrl.Url]
 
-    /** prompts the user to open this EncodedUrl.Url */
-    def open(uri: EncodedUrl.Url): F[Unit]
+    /** prompts the user to open this AsciiUrl.Url */
+    def open(uri: AsciiUrl.Url): F[Unit]
 
     /** recover the code from the callback */
     def stop: F[CodeToken]
@@ -235,7 +235,7 @@ package logic {
 package api {
   @deriving(UrlQueryWriter)
   final case class AuthRequest(
-    redirect_uri: EncodedUrl.Url,
+    redirect_uri: AsciiUrl.Url,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -248,7 +248,7 @@ package api {
   @deriving(UrlEncodedWriter)
   final case class AccessRequest(
     code: String,
-    redirect_uri: EncodedUrl.Url,
+    redirect_uri: AsciiUrl.Url,
     client_id: String,
     client_secret: String,
     scope: String = "",

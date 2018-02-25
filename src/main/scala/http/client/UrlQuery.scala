@@ -20,9 +20,9 @@ import http.encoding.UrlEncodedWriter
 final case class UrlQuery(params: List[(String, String)]) extends AnyVal
 object UrlQuery {
   object ops {
-    implicit class EncodedUrlOps(private val encoded: EncodedUrl.Url) {
-      def withQuery(query: UrlQuery): EncodedUrl.Url = {
-        val uri = EncodedUrl.toURI(encoded)
+    implicit class AsciiUrlOps(private val encoded: AsciiUrl.Url) {
+      def withQuery(query: UrlQuery): AsciiUrl.Url = {
+        val uri = AsciiUrl.toURI(encoded)
         val update = new URI(
           uri.getScheme,
           uri.getUserInfo,
@@ -33,7 +33,7 @@ object UrlQuery {
           query.params.map { case (k, v) => s"$k=$v" }.intercalate("&"),
           uri.getFragment
         )
-        EncodedUrl(update.toASCIIString).getOrElse(
+        AsciiUrl(update.toASCIIString).getOrElse(
           scala.sys.error("bug in refinement")
         )
       }

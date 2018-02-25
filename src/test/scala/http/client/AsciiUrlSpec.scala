@@ -6,15 +6,15 @@ package http.client
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
-class EncodedUrlSpec extends FlatSpec {
-  "EncodedUrl" should "require ascii encoding" in {
+class AsciiUrlSpec extends FlatSpec {
+  "AsciiUrl" should "require ascii encoding" in {
     // from https://en.wikipedia.org/wiki/URL
-    assert(EncodedUrl("http://example.com/引き割り.html").isLeft)
+    assert(AsciiUrl("http://example.com/引き割り.html").isLeft)
 
-    EncodedUrl
+    AsciiUrl
       .encode("http://example.com/引き割り.html")
       .shouldBe(
-        EncodedUrl(
+        AsciiUrl(
           "http://example.com/%E5%BC%95%E3%81%8D%E5%89%B2%E3%82%8A.html"
         )
       )

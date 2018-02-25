@@ -16,18 +16,18 @@ import eu.timepit.refined.refineV
 import eu.timepit.refined.api.{ Refined, Validate }
 
 /**
- * A predicate that `String Refined EncodedUrl` contains a `String` which will
+ * A predicate that `String Refined AsciiUrl` contains a `String` which will
  * successfully parse as a URI, representing a URL. The `String` is encoded,
  * meaning that no further encoding is necessary.
  *
  * URI is used in preference to URL as it is more standards compliant.
  */
-sealed abstract class EncodedUrl
-object EncodedUrl {
-  type Url = String Refined EncodedUrl
+sealed abstract class AsciiUrl
+object AsciiUrl {
+  type Url = String Refined AsciiUrl
 
   def apply(raw: String): String \/ Url =
-    refineV[EncodedUrl](raw).disjunction
+    refineV[AsciiUrl](raw).disjunction
 
   /** Tries to encode and validate the given string */
   def encode(raw: String): String \/ Url =
@@ -55,10 +55,10 @@ object EncodedUrl {
     else
       uri.right
 
-  implicit def validate: Validate.Plain[String, EncodedUrl] =
+  implicit def validate: Validate.Plain[String, AsciiUrl] =
     Validate.fromPredicate(
       s => (parse(s) >>= (validated(s, _))).isRight,
       identity,
-      new EncodedUrl {}
+      new AsciiUrl {}
     )
 }

@@ -20,13 +20,13 @@ final case class Response[T](headers: Map[String, String], body: T)
 
 trait JsonHttpClient[F[_]] {
   def get[B: JsonReader](
-    uri: EncodedUrl.Url,
+    uri: AsciiUrl.Url,
     headers: Map[String, String] = Map.empty
   ): F[Response[B]]
 
   // using application/x-www-form-urlencoded
   def postUrlEncoded[A: UrlEncodedWriter, B: JsonReader](
-    uri: EncodedUrl.Url,
+    uri: AsciiUrl.Url,
     payload: A,
     headers: Map[String, String] = Map.empty
   ): F[Response[B]]
