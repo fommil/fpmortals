@@ -1421,7 +1421,7 @@ A> class`. A `sealed trait` is only needed if you need to create a
 A> complicated ADT with multiple inheritance.
 
 
-### Convey Information
+### Convey Refined Information
 
 Besides being a container for necessary business information, data
 types can be used to encode constraints. For example,
@@ -1445,8 +1445,8 @@ an exception
   }
 ~~~~~~~~
 
-we can use the `Either` data type to provide `Right[Person]` instances
-and protect invalid instances from propagating:
+We can use the `Either` data type to provide `Right[Person]` instances and
+protect invalid instances from propagating:
 
 {lang="text"}
 ~~~~~~~~
@@ -1468,6 +1468,125 @@ and protect invalid instances from propagating:
 
 We will see a better way of reporting validation errors when we
 introduce `scalaz.Validation` in the next chapter.
+
+A better way to restrict the valid values held by a type is with the *refined*
+library, providing a collection of existing restrictions. Add the following to
+our `build.sbt`
+
+{lang="text"}
+~~~~~~~~
+  libraryDependencies += "eu.timepit" %% "refined-scalaz" % "0.8.7"
+~~~~~~~~
+
+and add the following import to our source
+
+{lang="text"}
+~~~~~~~~
+  import eu.timepit.refined
+  import refined.api.Refined
+~~~~~~~~
+
+allowing us to define `Person` using adhoc refined types that capture their
+requirements exactly
+
+{lang="text"}
+~~~~~~~~
+  import refined.numeric.Positive
+  import refined.collection.NonEmpty
+  
+  final case class Person(
+    name: Refined[String, NonEmpty],
+    age: Refined[Int, Positive]
+  )
+~~~~~~~~
+
+Although it is more common to write the type as infix:
+
+{lang="text"}
+~~~~~~~~
+  final case class Person(
+    name: String Refined NonEmpty,
+    age: Int Refined Positive
+  )
+~~~~~~~~
+
+`A Refined B` can be read as "an `A` that meets the `B` requirements". The
+underlying value can be recovered with `.value`. We can construct a value at
+runtime using `refinedV`
+
+{lang="text"}
+~~~~~~~~
+  scala> refined.refineV[NonEmpty]("")
+  Left(Predicate isEmpty() did not fail.)
+  
+  scala> refined.refineV[NonEmpty]("Sam")
+  Right(Sam)
+~~~~~~~~
+
+And if we add the following import
+
+{lang="text"}
+~~~~~~~~
+  import refined.auto._
+~~~~~~~~
+
+we can construct *valid* values at compiletime and get a compile error if the
+provided value does not meet the requirements
+
+{lang="text"}
+~~~~~~~~
+  scala> val sam: String Refined NonEmpty = "Sam"
+  Sam
+  
+  scala> val empty: String Refined NonEmpty = ""
+  <console>:21: error: Predicate isEmpty() did not fail.
+~~~~~~~~
+
+More complex requirements can be captured, for example we can use the built-in
+rule `MaxSize` with the following imports
+
+{lang="text"}
+~~~~~~~~
+  import refined.W
+  import refined.boolean.Any
+  import refined.collection.MaxSize
+~~~~~~~~
+
+and capture the requirement that the `String` must be non-empty and have a
+maximum size of 10 characters:
+
+{lang="text"}
+~~~~~~~~
+  type Name = NonEmpty And MaxSize[W.`10`.T]
+  
+  final case class Person(
+    name: String Refined Name,
+    age: Int Refined Positive
+  )
+~~~~~~~~
+
+A> The `W` notation is short for "witness". This syntax will be much simpler in
+A> scala 2.13, which has support for *literal types*:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   type Name = NonEmpty And MaxSize[10]
+A> ~~~~~~~~
+
+It is easy to define custom requirements that are not covered by the refined
+library. For example, the requirement that a `String` contains a valid
+`java.net.URL` is as simple as
+
+{lang="text"}
+~~~~~~~~
+  final case class Url()
+  object Url {
+    implicit def urlValidate: refined.Validate.Plain[String, Url] =
+      Validate.fromPartial(new java.net.URL(_), "Url", Url())
+  }
+~~~~~~~~
+
+which can be used as `String Refined Url`.
 
 
 ### Simple to Share
@@ -1524,25 +1643,20 @@ The complexity of a total function itself is the number of possible
 functions that can satisfy the type signature: the output to the power
 of the input.
 
--   `Unit=>Boolean` has complexity 2
--   `Boolean=>Boolean` has complexity 4
--   `Option[Boolean]=>Option[Boolean]` has complexity 27
--   `Boolean=>Int` is a mere quintillion going on a sextillion.
--   `Int=>Boolean` is so big that if all implementations were assigned a unique
+-   `Unit => Boolean` has complexity 2
+-   `Boolean => Boolean` has complexity 4
+-   `Option[Boolean] => Option[Boolean]` has complexity 27
+-   `Boolean => Int` is a mere quintillion going on a sextillion.
+-   `Int => Boolean` is so big that if all implementations were assigned a unique
     number, each would require 4 gigabytes to represent.
 
-In reality, `Int=>Boolean` will be something simple like `isOdd`,
-`isEven` or a sparse `BitSet`. This function, when used in an ADT,
-could be better replaced with a coproduct labelling the limited set of
-functions that are relevant.
+In reality, `Int => Boolean` will be something simple like `isOdd`, `isEven` or
+a sparse `BitSet`. This function, when used in an ADT, could be better replaced
+with a coproduct labelling the limited set of functions that are relevant.
 
-When your complexity is always "infinity in, infinity out" you should
-consider introducing more restrictive data types and performing
-validation closer to the point of input. A powerful technique to
-reduce complexity is *type refinement* which merits a dedicated
-chapter later in the book. It allows the compiler to keep track of
-more information than is in the bytecode, e.g. if a number is within a
-specific bound.
+When our complexity is "infinity in, infinity out" we should introduce
+restrictive data types and validation closer to the point of input with
+`Refined` from the previous section.
 
 
 ### Prefer Coproduct over Product
@@ -2158,20 +2272,20 @@ the headless server.
 
 ### Data
 
-The first step is to model the data needed for OAuth2. We create an
-ADT with fields having exactly the same name as required by the OAuth2
-server. We will use `String` and `Long` for now, even though there is
-a limited set of valid entries. We will remedy this when we learn
-about *refined types*.
+The first step is to model the data needed for OAuth2. We create an ADT with
+fields having exactly the same name as required by the OAuth2 server. We will
+use `String` and `Long` for brevity, but we could use refined types if they leak
+into our business models.
 
 {lang="text"}
 ~~~~~~~~
   package http.oauth2.client.api
   
-  import spinoco.protocol.http.Uri
+  import refined.api.Refined
+  import refined.string.Url
   
   final case class AuthRequest(
-    redirect_uri: Uri,
+    redirect_uri: String Refined Url,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -2180,7 +2294,7 @@ about *refined types*.
   )
   final case class AccessRequest(
     code: String,
-    redirect_uri: Uri,
+    redirect_uri: String Refined Url,
     client_id: String,
     client_secret: String,
     scope: String = "",
@@ -2205,8 +2319,6 @@ about *refined types*.
   )
 ~~~~~~~~
 
-`Uri` is a typed ADT for URL requests from [fs2-http](https://github.com/Spinoco/fs2-http):
-
 W> Avoid using `java.net.URL` at all costs: it uses DNS to resolve the
 W> hostname part when performing `toString`, `equals` or `hashCode`.
 W> 
@@ -2214,10 +2326,9 @@ W> Apart from being insane, and **very very** slow, these methods can throw
 W> I/O exceptions (are not *pure*), and can change depending on your
 W> network configuration (are not *deterministic*).
 W> 
-W> If you must use `java.net.URL` to satisfy a legacy system, at least
-W> avoid putting it in a collection that will use `hashCode` or `equals`.
-W> If you need to perform equality checks, create your own equality
-W> function out of the raw `String` parts.
+W> The refined type `String Refined Url` allows us to perform equality checks based
+W> on the `String` and we can safely construct a `URL` only if it is needed by a
+W> legacy API.
 
 
 ### Functionality
@@ -2291,12 +2402,16 @@ following is a reasonable design:
   
   import simulacrum._
   
-  @typeclass trait QueryEncoded[T] {
-    def queryEncoded(t: T): Uri.Query
+  final case class UrlQuery(params: List[(String, String)]) {
+    def forUrl(url: String Refined Url): String Refined Url = ...
   }
   
-  @typeclass trait UrlEncoded[T] {
-    def urlEncoded(t: T): String
+  @typeclass trait UrlQueryWriter[A] {
+    def toUrlQuery(a: A): UrlQuery
+  }
+  
+  @typeclass trait UrlEncodedWriter[A] {
+    def toUrlEncoded(a: A): String
   }
 ~~~~~~~~
 
@@ -2305,23 +2420,17 @@ We need to provide typeclass instances for basic types:
 {lang="text"}
 ~~~~~~~~
   import java.net.URLEncoder
-  import spinoco.protocol.http.Uri
   
-  object UrlEncoded {
+  object UrlEncodedWriter {
     import ops._
   
-    implicit val string: UrlEncoded[String] = { s => URLEncoder.encode(s, "UTF-8") }
-    implicit val long: UrlEncoded[Long] = _.toString
-    implicit val stringySeq: UrlEncoded[Seq[(String, String)]] =
-      _.map { case (k, v) => s"${k.urlEncoded}=${v.urlEncoded}" }.mkString("&")
-    implicit val uri: UrlEncoded[Uri] = { u =>
-      val scheme = u.scheme.toString
-      val host   = u.host.host
-      val port   = u.host.port.fold("")(p => s":$p")
-      val path   = u.path.stringify
-      val query  = u.query.params.toSeq.urlEncoded
-      s"$scheme://$host$port$path?$query".urlEncoded
-    }
+    implicit val string: UrlEncodedWriter[String] =
+      { s => URLEncoder.encode(s, "UTF-8") }
+    implicit val long: UrlEncodedWriter[Long] = _.toString
+    implicit val stringySeq: UrlEncodedWriter[Seq[(String, String)]] =
+      _.map { case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}" }.mkString("&")
+    implicit val url: UrlEncodedWriter[String Refined Url] =
+      { s => URLEncoder.encode(s.value, "UTF-8") }
   }
 ~~~~~~~~
 
@@ -2330,9 +2439,10 @@ A> Scala language feature. The full form of the above is
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   implicit val string: UrlEncoded[String] = new UrlEncoded[String] {
-A>     override def urlEncoded(s: String): String = ...
-A>   }
+A>   implicit val string: UrlEncodedWriter[String] =
+A>     new UrlEncodedWriter[String] {
+A>       override def toUrlEncoded(s: String): String = ...
+A>     }
 A> ~~~~~~~~
 A> 
 A> When the Scala compiler expects a class (which has a single abstract
@@ -2344,16 +2454,17 @@ A> `instance` on the typeclass companion
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   def instance[T](f: T => String): UrlEncoded[T] = new UrlEncoded[T] {
-A>     override def urlEncoded(t: T): String = f(t)
-A>   }
+A>   def instance[T](f: T => String): UrlEncodedWriter[T] =
+A>     new UrlEncodedWriter[T] {
+A>       override def toUrlEncoded(t: T): String = f(t)
+A>     }
 A> ~~~~~~~~
 A> 
 A> allowing for
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   implicit val string: UrlEncoded[String] = instance { s => ... }
+A>   implicit val string: UrlEncodedWriter[String] = instance { s => ... }
 A> ~~~~~~~~
 A> 
 A> This pattern is still used in code that must support older versions of
@@ -2361,49 +2472,49 @@ A> Scala, or for typeclasses instances that need to provide more than one
 A> method.
 
 In a dedicated chapter on *Typeclass Derivation* we will calculate
-instances of `QueryEncoded` and `UrlEncoded` automatically, but for
+instances of `UrlQueryWriter` and `UrlEncoded` automatically, but for
 now we will write the boilerplate for the types we wish to convert:
 
 {lang="text"}
 ~~~~~~~~
   import java.net.URLDecoder
   import http.encoding._
-  import UrlEncoded.ops._
+  import UrlEncodedWriter.ops._
   
   object AuthRequest {
-    private def stringify[T: UrlEncoded](t: T) =
-      URLDecoder.decode(t.urlEncoded, "UTF-8")
+    private def stringify[T: UrlEncodedWriter](t: T) =
+      URLDecoder.decode(t.toUrlEncoded, "UTF-8")
   
-    implicit val QueryEncoded: QueryEncoded[AuthRequest] = { a =>
-      Uri.Query.empty :+
-        ("redirect_uri"  -> stringify(a.redirect_uri)) :+
-        ("scope"         -> stringify(a.scope)) :+
-        ("client_id"     -> stringify(a.client_id)) :+
-        ("prompt"        -> stringify(a.prompt)) :+
-        ("response_type" -> stringify(a.response_type)) :+
-        ("access_type"   -> stringify(a.access_type))
+    implicit val query: UrlQueryWriter[AuthRequest] = { a =>
+      UriQuery(List(
+        ("redirect_uri"  -> stringify(a.redirect_uri)),
+        ("scope"         -> stringify(a.scope)),
+        ("client_id"     -> stringify(a.client_id)),
+        ("prompt"        -> stringify(a.prompt)),
+        ("response_type" -> stringify(a.response_type)),
+        ("access_type"   -> stringify(a.access_type)))
     }
   }
   object AccessRequest {
-    implicit val UrlEncoded: UrlEncoded[AccessRequest] = { a =>
+    implicit val encoded: UrlEncodedWriter[AccessRequest] = { a =>
       Seq(
-        "code"          -> a.code.urlEncoded,
-        "redirect_uri"  -> a.redirect_uri.urlEncoded,
-        "client_id"     -> a.client_id.urlEncoded,
-        "client_secret" -> a.client_secret.urlEncoded,
-        "scope"         -> a.scope.urlEncoded,
-        "grant_type"    -> a.grant_type.urlEncoded
-      ).urlEncoded
+        "code"          -> a.code.toUrlEncoded,
+        "redirect_uri"  -> a.redirect_uri.toUrlEncoded,
+        "client_id"     -> a.client_id.toUrlEncoded,
+        "client_secret" -> a.client_secret.toUrlEncoded,
+        "scope"         -> a.scope.toUrlEncoded,
+        "grant_type"    -> a.grant_type.toUrlEncoded
+      ).toUrlEncoded
     }
   }
   object RefreshRequest {
-    implicit val UrlEncoded: UrlEncoded[RefreshRequest] = { r =>
+    implicit val encoded: UrlEncodedWriter[RefreshRequest] = { r =>
       Seq(
-        "client_secret" -> r.client_secret.urlEncoded,
-        "refresh_token" -> r.refresh_token.urlEncoded,
-        "client_id"     -> r.client_id.urlEncoded,
-        "grant_type"    -> r.grant_type.urlEncoded
-      ).urlEncoded
+        "client_secret" -> r.client_secret.toUrlEncoded,
+        "refresh_token" -> r.refresh_token.toUrlEncoded,
+        "client_id"     -> r.client_id.toUrlEncoded,
+        "grant_type"    -> r.grant_type.toUrlEncoded
+      ).toUrlEncoded
     }
   }
 ~~~~~~~~
@@ -2429,12 +2540,12 @@ responses must have a `JsonReader` and our `POST` payload must have a
   
     trait JsonHttpClient[F[_]] {
       def get[B: JsonReader](
-        uri: Uri,
+        uri: String Refined Url,
         headers: List[HttpHeader] = Nil
       ): F[Response[B]]
   
       def postUrlencoded[A: UrlEncoded, B: JsonReader](
-        uri: Uri,
+        uri: String Refined Url,
         payload: A,
         headers: List[HttpHeader] = Nil
       ): F[Response[B]]
@@ -2442,14 +2553,14 @@ responses must have a `JsonReader` and our `POST` payload must have a
   }
   
   package http.oauth2.client.algebra {
-    final case class CodeToken(token: String, redirect_uri: Uri)
+    final case class CodeToken(token: String, redirect_uri: String Refined Url)
   
     trait UserInteraction[F[_]] {
-      /** returns the Uri of the local server */
-      def start: F[Uri]
+      /** returns the URL of the local server */
+      def start: F[String Refined Url]
   
-      /** prompts the user to open this Uri */
-      def open(uri: Uri): F[Unit]
+      /** prompts the user to open this URL */
+      def open(uri: String Refined Url): F[Unit]
   
       /** recover the code from the callback */
       def stop: F[CodeToken]
@@ -2466,9 +2577,9 @@ some convenient data classes
 {lang="text"}
 ~~~~~~~~
   final case class ServerConfig(
-    auth: Uri,
-    access: Uri,
-    refresh: Uri,
+    auth: String Refined Url,
+    access: String Refined Url,
+    refresh: String Refined Url,
     scope: String,
     clientId: String,
     clientSecret: String
@@ -2483,7 +2594,7 @@ and then write an OAuth2 client:
 ~~~~~~~~
   package logic {
     import java.time.temporal.ChronoUnit
-    import http.encoding.QueryEncoded.ops._
+    import http.encoding.UrlQueryWriter.ops._
     import xyz.driver.json.DerivedFormats._
   
     class OAuth2Client[F[_]: Monad](
@@ -2498,7 +2609,7 @@ and then write an OAuth2 client:
         for {
           callback <- user.start
           params   = AuthRequest(callback, config.scope, config.clientId)
-          _        <- user.open(config.auth.withQuery(params.queryEncoded))
+          _        <- user.open(params.toUrlQuery.forUrl(config.auth))
           code     <- user.stop
         } yield code
   
@@ -2546,6 +2657,7 @@ and then write an OAuth2 client:
     *coproducts* (`sealed abstract class` or nested `Either`).
 -   specific functions are defined on `object` or `implicit class`,
     according to personal taste.
+-   `Refined` types can encode constraints on their values
 -   polymorphic functions are defined as *typeclasses*. Functionality is
     provided via "has a" *context bounds*, rather than "is a" class
     hierarchies.
@@ -4552,7 +4664,7 @@ A> `<*|*>` is the creepy Jawa operator.
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Unzip[F[_]]  {
-    def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+    @op("unfzip") def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
   
     def firsts[A, B](a: F[(A, B)]): F[A] = ...
     def seconds[A, B](a: F[(A, B)]): F[B] = ...

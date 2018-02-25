@@ -301,10 +301,9 @@ also get to dramatically improve the repeatability - and performance -
 of our tests. We are free to implement `Terminal` without any
 interactions with a real console.
 
-Of course we cannot write an application devoid of interaction with
-the world. In FP we push the code that deals with side effects to the
-edges, using battle-tested libraries like NIO, Akka and Play, isolated
-away from the core business logic.
+Of course we cannot write an application devoid of interaction with the world.
+In FP we push the code that deals with side effects to the edges, using
+battle-tested libraries like NIO, isolated away from the core business logic.
 
 This book expands on the FP style introduced in this chapter. We're
 going to use the traits and classes defined in the *scalaz* and *fs2*

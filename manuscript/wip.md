@@ -759,6 +759,45 @@ developer has access to the full stacktrace for debugging, or may handle the
 exception according to the ancient rules of the legacy system's API.
 
 
+### `ReaderT` / `Kleisli`
+
+The reader monad wraps `A => F[B]` allowing a program `F[B]` to depend on a
+runtime value `A`. For those familiar with dependency injection, the reader
+monad is the FP equivalent of Spring or Guice's `@Inject`, without the XML and
+reflection.
+
+`ReaderT` is just an alias to another, more generally useful, data type called
+`Kleisli`, named after the mathematician *Heinrich Kleisli*. `Kleisli` captures
+the second parameter of a monadic `.bind`, the *action*.
+
+{lang="text"}
+~~~~~~~~
+  type ReaderT[F[_], A, B] = Kleisli[F, A, B]
+  
+  final case class Kleisli[F[_], A, B](run: A => F[B]) {
+    def dimap[C, D](f: C => A, g: B => D)(implicit F: Functor[F]): Kleisli[F, C, D] =
+      Kleisli(c => run(f(c)).map(g))
+  
+    def >=>[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = ...
+    def <=<[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
+    def andThen[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = this >=> k
+    def compose[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
+  
+    def =<<(a: F[A])(implicit F: Bind[F]): F[B] = a >>= run
+    ...
+  }
+  object Kleisli {
+    implicit def kleisliFn[F[_], A, B](k: Kleisli[F, A, B]): A => F[B] = k.run
+    ...
+  }
+~~~~~~~~
+
+A> Some people call `>=>` the *fish operator*, but we know that it is obviously a
+A> Y-Wing.
+
+TODO: finish the section on `ReaderT`
+
+
 # The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
@@ -768,7 +807,6 @@ You can expect to see chapters covering the following topics:
 
 -   Advanced Monads (more to come)
 -   Typeclass Derivation
--   Type Refinement
 -   Property Testing
 -   Optics
 -   Functional Streams

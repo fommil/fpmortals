@@ -90,11 +90,10 @@ Noel Markham for [ADTs for the Win!](https://www.47deg.com/presentations/2017/06
 Luka Jacobowitz for [Optimizing Tagless Final](https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html), Yi Lin Wei and Zainab Ali for
 their tutorials at Hack The Tower meetups.
 
-The helpul souls who patiently explained some concepts to me: Merlin
-Göttlinger, Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert
-Chang, Kai(luo) Wang, Michael Pilquist, Adam Chlupacek, Pavel
-Chlupacek, Paul Snively, Daniel Spiewak, Stephen Compall, Brian
-McKenna, Ryan Delucchi, Pedro Rodriguez, Emily Pillmore.
+The helpul souls who patiently explained some concepts to me: Merlin Göttlinger,
+Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
+Michael Pilquist, Paul Snively, Daniel Spiewak, Stephen Compall, Brian McKenna,
+Ryan Delucchi, Pedro Rodriguez, Emily Pillmore.
 
 
 # Practicalities
@@ -113,13 +112,12 @@ FP-specific features enabled (e.g. in `build.sbt`):
   )
   
   libraryDependencies ++= Seq(
-    "com.github.mpilquist" %% "simulacrum"     % "0.11.0",
+    "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
     "com.chuusai"          %% "shapeless"      % "2.3.3" ,
-    "com.fommil"           %% "deriving-macro" % "0.9.0" ,
-    "org.scalaz"           %% "scalaz-core"    % "7.2.18"
+    "org.scalaz"           %% "scalaz-core"    % "7.2.19"
   )
   
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.5")
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
   addCompilerPlugin(
     "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
   )
