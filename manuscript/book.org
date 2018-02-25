@@ -1733,14 +1733,6 @@ to legacy Java classes such as =Throwable=, which can carry references
 to arbitrary objects. This is one of the reasons why we restrict what
 can live on an ADT.
 
-A similar caveat applies to /by name/ parameters
-
-#+BEGIN_SRC scala
-final case class UserConfiguration(vip: =>Boolean)
-#+END_SRC
-
-which are equivalent to functions that take no parameter.
-
 We will explore alternatives to the legacy methods when we discuss the
 scalaz library in the next chapter, at the cost of losing
 interoperability with some legacy Java and Scala code.
@@ -1784,7 +1776,9 @@ scala.MatchError: Baz (of class Baz$)
   at .thing(<console>:15)
 #+END_SRC
 
-To remain safe, [[https://github.com/wartremover/wartremover/issues/382][don't use guards on =sealed= types]].
+To remain safe, don't use guards on =sealed= types.
+
+# https://github.com/scalacenter/scalafix/issues/636
 
 The [[https://github.com/scala/scala/pull/5617][=-Xstrict-patmat-analysis=]] flag has been proposed as a language
 improvement to perform additional pattern matcher checks.
@@ -1832,9 +1826,9 @@ final case class AcceptedBoolean(value: Boolean) extends Accepted
 #+END_SRC
 
 Pattern matching on these forms of coproduct can be tedious, which is why [[https://contributors.scala-lang.org/t/733][Union
-Types]] are being explored in the Dotty next-generation scala compiler.
-Workarounds such as [[https://github.com/propensive/totalitarian][totalitarian]]'s =Disjunct= exist as another way of encoding
-anonymous coproducts.
+Types]] are being explored in the Dotty next-generation scala compiler. Macros
+such as [[https://github.com/propensive/totalitarian][totalitarian]] and [[https://github.com/frees-io/iota][iotaz]] exist as alternative ways of encoding anonymous
+coproducts.
 
 #+BEGIN_ASIDE
 We can also use a =sealed trait= in place of a =sealed abstract class=
@@ -1843,7 +1837,7 @@ class=. A =sealed trait= is only needed if you need to create a
 complicated ADT with multiple inheritance.
 #+END_ASIDE
 
-**** Convey Refined Information
+**** Convey Information
 
 Besides being a container for necessary business information, data
 types can be used to encode constraints. For example,
@@ -1852,21 +1846,21 @@ types can be used to encode constraints. For example,
 final case class NonEmptyList[A](head: A, tail: IList[A])
 #+END_SRC
 
-can never be empty. This makes =scalaz.NonEmptyList= a useful data
-type despite containing the same information as =List=.
+can never be empty. This makes =scalaz.NonEmptyList= a useful data type despite
+containing the same information as =List=.
 
-In addition, wrapping an ADT can convey information such as if it
-contains valid instances. Instead of breaking /totality/ by throwing
-an exception
+Product types often contain types that are far more general than is allowed. In
+traditional OOP this would be handled with input validation through assertions:
 
 #+BEGIN_SRC scala
 final case class Person(name: String, age: Int) {
-  require(name.nonEmpty && age > 0) // breaks totality, don't do this
+  require(name.nonEmpty && age > 0) // breaks Totality, don't do this!
 }
 #+END_SRC
 
-We can use the =Either= data type to provide =Right[Person]= instances and
-protect invalid instances from propagating:
+Instead, we can use the =Either= data type to provide =Right[Person]= for valid
+instances and protect invalid instances from propagating. Note that the
+constructor is =private=:
 
 #+BEGIN_SRC scala
 final case class Person private(name: String, age: Int)
@@ -1885,55 +1879,47 @@ for {
 } yield welcome(person)
 #+END_SRC
 
-We will see a better way of reporting validation errors when we
-introduce =scalaz.Validation= in the next chapter.
+***** Refined Data Types
 
-A better way to restrict the valid values held by a type is with the /refined/
-library, providing a collection of existing restrictions. Add the following to
-our =build.sbt=
+A clean way to restrict the values of a general type is with the =refined=
+library, providing a suite of restrictions to the contents of data. To install
+refined, add the following to =build.sbt=
 
 #+BEGIN_SRC scala
 libraryDependencies += "eu.timepit" %% "refined-scalaz" % "0.8.7"
 #+END_SRC
 
-and add the following import to our source
+and the following imports
 
 #+BEGIN_SRC scala
 import eu.timepit.refined
 import refined.api.Refined
 #+END_SRC
 
-allowing us to define =Person= using adhoc refined types that capture their
-requirements exactly
+=Refined= allows us to define =Person= using adhoc refined types to capture
+requirements exactly (typically written =A Refined B= rather than =Refined[A,
+B]=)
 
 #+BEGIN_SRC scala
 import refined.numeric.Positive
 import refined.collection.NonEmpty
 
 final case class Person(
-  name: Refined[String, NonEmpty],
-  age: Refined[Int, Positive]
-)
-#+END_SRC
-
-Although it is more common to write the type as infix:
-
-#+BEGIN_SRC scala
-final case class Person(
   name: String Refined NonEmpty,
   age: Int Refined Positive
 )
 #+END_SRC
 
-=A Refined B= can be read as "an =A= that meets the =B= requirements". The
-underlying value can be recovered with =.value=. We can construct a value at
-runtime using =refinedV=
+=A Refined B= can be read as "an =A= that meets the requirements defined in
+=B=". The underlying value can be obtained with =.value=. We can construct a
+value at runtime using =.refineV=
 
 #+BEGIN_SRC scala
-scala> refined.refineV[NonEmpty]("")
+scala> import refined.refineV
+scala> refineV[NonEmpty]("")
 Left(Predicate isEmpty() did not fail.)
 
-scala> refined.refineV[NonEmpty]("Sam")
+scala> refineV[NonEmpty]("Sam")
 Right(Sam)
 #+END_SRC
 
@@ -1959,11 +1945,11 @@ rule =MaxSize= with the following imports
 
 #+BEGIN_SRC scala
 import refined.W
-import refined.boolean.Any
+import refined.boolean.And
 import refined.collection.MaxSize
 #+END_SRC
 
-and capture the requirement that the =String= must be non-empty and have a
+capturing the requirement that the =String= must be both non-empty and have a
 maximum size of 10 characters:
 
 #+BEGIN_SRC scala
@@ -2087,10 +2073,10 @@ parameters as a coproduct rather than allowing 5 invalid states to
 exist.
 
 The complexity of a data type also has implications on testing. It is
-practically impossible to test every possible input to a function, but
-it is easy to test a sample of values with the [[https://www.scalacheck.org/][scalacheck]] property. If
-a random sample of a data type has a low probability of being valid,
-it is a sign that the data is modelled incorrectly.
+practically impossible to test every possible input to a function, but it is
+easy to test a sample of values with the [[https://www.scalacheck.org/][scalacheck]] property testing framework.
+If a random sample of a data type has a low probability of being valid, it is a
+sign that the data is modelled incorrectly.
 
 **** Optimisations
 
@@ -2100,8 +2086,7 @@ representation.
 
 For example, [[https://gitlab.com/fommil/stalagmite][stalagmite]] aims to pack =Boolean= and =Option= fields into an
 =Array[Byte]=, cache instances, memoise =hashCode=, optimise =equals=, enforce
-validation, use =@switch= statements when pattern matching, and much more. [[https://www.47deg.com/blog/iota-v0-1-0-release/][iota]]
-has performance improvements for nested =Either= coproducts.
+validation, use =@switch= statements when pattern matching, and much more.
 
 These optimisations are not applicable to OOP =class= hierarchies that
 may be managing state, throwing exceptions, or providing adhoc method
@@ -2215,7 +2200,7 @@ There is a slightly more verbose form of =implicit class= that avoids
 the allocation and is therefore preferred:
 
 #+BEGIN_SRC scala
-implicit final class DoubleOps(val x: Double) extends AnyVal {
+implicit final class DoubleOps(private val x: Double) extends AnyVal {
   def sin: Double = java.lang.Math.sin(x)
 }
 #+END_SRC
@@ -2542,8 +2527,7 @@ Implicit resolution is particularly hit-or-miss [[https://github.com/scala/bug/i
 the /shape/ of the implicit parameters are changed. For example an implicit
 parameter using an alias such as ~type Values[A] = List[Option[A]]~ will
 probably fail to find implicits defined as raw =List[Option[A]]= because the
-shape is changed from a thing of things of =A= (~_[_[A]]~) to a thing of =A=
-(~_[A]~).
+shape is changed from a /thing of things/ of =A= to a /thing/ of =A=.
 
 # might also be fixed in scato
 # https://github.com/aloiscochard/scato/issues/15
@@ -2721,8 +2705,6 @@ polymorphism, we will need typeclasses.
 #+BEGIN_SRC scala
 package spray.json
 
-import simulacrum._
-
 sealed abstract class JsValue
 case object JsNull extends JsValue
 final case class JsBoolean(value: Boolean) extends JsValue
@@ -2731,10 +2713,10 @@ final case class JsString(value: String) extends JsValue
 final case class JsArray(value: Vector[JsValue]) extends JsValue
 final case class JsObject(fields: Map[String, JsValue]) extends JsValue
 
-@typeclass trait JsWriter[T] {
+@typeclass trait JsonWriter[T] {
   def toJson(t: T): JsValue
 }
-@typeclass trait JsReader[T] {
+@typeclass trait JsonReader[T] {
   def fromJson(j: JsValue): T
 }
 #+END_SRC
@@ -2762,7 +2744,7 @@ scala> import xyz.driver.json.DerivedFormats._
                        "refresh_token": "REFRESH_TOKEN"
                      }
                      """)
-         response <- json.as[AccessResponse]
+         response <- JsonReader[AccessResponse].fromJson(json)
        } yield response
 
 res = AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
@@ -2773,8 +2755,6 @@ following is a reasonable design:
 
 #+BEGIN_SRC scala
 package http.encoding
-
-import simulacrum._
 
 final case class UrlQuery(params: List[(String, String)]) {
   def forUrl(url: String Refined Url): String Refined Url = ...
@@ -2792,23 +2772,20 @@ final case class UrlQuery(params: List[(String, String)]) {
 We need to provide typeclass instances for basic types:
 
 #+BEGIN_SRC scala
-import java.net.URLEncoder
-
 object UrlEncodedWriter {
   import ops._
-
   implicit val string: UrlEncodedWriter[String] =
-    { s => URLEncoder.encode(s, "UTF-8") }
+    { s => java.net.URLEncoder.encode(s, "UTF-8") }
   implicit val long: UrlEncodedWriter[Long] = _.toString
   implicit val stringySeq: UrlEncodedWriter[Seq[(String, String)]] =
     _.map { case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}" }.mkString("&")
   implicit val url: UrlEncodedWriter[String Refined Url] =
-    { s => URLEncoder.encode(s.value, "UTF-8") }
+    { s => java.net.URLEncoder.encode(s.value, "UTF-8") }
 }
 #+END_SRC
 
 #+BEGIN_ASIDE
-=UrlEncoded= is making use of the /Single Abstract Method/ (SAM types)
+=UrlEncodedWriter= is making use of the /Single Abstract Method/ (SAM types)
 Scala language feature. The full form of the above is
 
 #+BEGIN_SRC scala
@@ -2843,18 +2820,15 @@ Scala, or for typeclasses instances that need to provide more than one
 method.
 #+END_ASIDE
 
-In a dedicated chapter on /Typeclass Derivation/ we will calculate
-instances of =UrlQueryWriter= and =UrlEncoded= automatically, but for
-now we will write the boilerplate for the types we wish to convert:
+In a dedicated chapter on /Typeclass Derivation/ we will calculate instances of
+=UrlQueryWriter= and =UrlEncodedWriter= automatically, but for now we will write
+the boilerplate for the types we wish to convert:
 
 #+BEGIN_SRC scala
-  import java.net.URLDecoder
-  import http.encoding._
   import UrlEncodedWriter.ops._
-
   object AuthRequest {
     private def stringify[T: UrlEncodedWriter](t: T) =
-      URLDecoder.decode(t.toUrlEncoded, "UTF-8")
+      java.net.URLDecoder.decode(t.toUrlEncoded, "UTF-8")
 
     implicit val query: UrlQueryWriter[AuthRequest] = { a =>
       UriQuery(List(
@@ -2899,45 +2873,45 @@ and we define pure business logic in a module.
 
 We define our dependency algebras, and use context bounds to show that our
 responses must have a =JsonReader= and our =POST= payload must have a
-=UrlEncoded=:
+=UrlEncodedWriter=:
 
 #+BEGIN_SRC scala
-import java.time.LocalDateTime
+package http.client.algebra
 
-package http.client.algebra {
-  final case class Response[T](header: HttpResponseHeader, body: T)
+final case class Response[T](header: HttpResponseHeader, body: T)
 
-  trait JsonHttpClient[F[_]] {
-    def get[B: JsonReader](
-      uri: String Refined Url,
-      headers: List[HttpHeader] = Nil
-    ): F[Response[B]]
+trait JsonHttpClient[F[_]] {
+  def get[B: JsonReader](
+    uri: String Refined Url,
+    headers: List[HttpHeader] = Nil
+  ): F[Response[B]]
 
-    def postUrlencoded[A: UrlEncoded, B: JsonReader](
-      uri: String Refined Url,
-      payload: A,
-      headers: List[HttpHeader] = Nil
-    ): F[Response[B]]
-  }
+  def postUrlencoded[A: UrlEncoded, B: JsonReader](
+    uri: String Refined Url,
+    payload: A,
+    headers: List[HttpHeader] = Nil
+  ): F[Response[B]]
+}
+#+END_SRC
+
+#+BEGIN_SRC scala
+package http.oauth2.client.algebra
+
+final case class CodeToken(token: String, redirect_uri: String Refined Url)
+
+trait UserInteraction[F[_]] {
+  /** returns the URL of the local server */
+  def start: F[String Refined Url]
+
+  /** prompts the user to open this URL */
+  def open(uri: String Refined Url): F[Unit]
+
+  /** recover the code from the callback */
+  def stop: F[CodeToken]
 }
 
-package http.oauth2.client.algebra {
-  final case class CodeToken(token: String, redirect_uri: String Refined Url)
-
-  trait UserInteraction[F[_]] {
-    /** returns the URL of the local server */
-    def start: F[String Refined Url]
-
-    /** prompts the user to open this URL */
-    def open(uri: String Refined Url): F[Unit]
-
-    /** recover the code from the callback */
-    def stop: F[CodeToken]
-  }
-
-  trait LocalClock[F[_]] {
-    def now: F[LocalDateTime]
-  }
+trait LocalClock[F[_]] {
+  def now: F[java.time.LocalDateTime]
 }
 #+END_SRC
 
@@ -2959,71 +2933,63 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 and then write an OAuth2 client:
 
 #+BEGIN_SRC scala
-package logic {
-  import java.time.temporal.ChronoUnit
-  import http.encoding.UrlQueryWriter.ops._
-  import xyz.driver.json.DerivedFormats._
+import java.time.temporal.ChronoUnit
+import http.encoding.UrlQueryWriter.ops._
+import xyz.driver.json.DerivedFormats._
 
-  class OAuth2Client[F[_]: Monad](
-    config: ServerConfig
-  )(
-    implicit
-    user: UserInteraction[F],
-    server: JsonHttpClient[F],
-    clock: LocalClock[F]
-  ) {
-    def authenticate: F[CodeToken] =
-      for {
-        callback <- user.start
-        params   = AuthRequest(callback, config.scope, config.clientId)
-        _        <- user.open(params.toUrlQuery.forUrl(config.auth))
-        code     <- user.stop
-      } yield code
+class OAuth2Client[F[_]: Monad](
+  config: ServerConfig
+)(
+  implicit
+  user: UserInteraction[F],
+  client: JsonHttpClient[F],
+  clock: LocalClock[F]
+) {
+  def authenticate: F[CodeToken] =
+    for {
+      callback <- user.start
+      params   = AuthRequest(callback, config.scope, config.clientId)
+      _        <- user.open(params.toUrlQuery.forUrl(config.auth))
+      code     <- user.stop
+    } yield code
 
-    def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
-      for {
-        request <- AccessRequest(code.token,
-                                 code.redirect_uri,
-                                 config.clientId,
-                                 config.clientSecret).pure[F]
-        response <- server
-                     .postUrlencoded[AccessRequest, AccessResponse](
-                       config.access,
-                       request
-                     )
-        time    <- clock.now
-        msg     = response.body
-        expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
-        refresh = RefreshToken(msg.refresh_token)
-        bearer  = BearerToken(msg.access_token, expires)
-      } yield (refresh, bearer)
+  def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
+    for {
+      request <- AccessRequest(code.token,
+                               code.redirect_uri,
+                               config.clientId,
+                               config.clientSecret).pure[F]
+      response <- client.postUrlencoded[AccessRequest, AccessResponse](
+                   config.access, request)
+      time    <- clock.now
+      msg     = response.body
+      expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+      refresh = RefreshToken(msg.refresh_token)
+      bearer  = BearerToken(msg.access_token, expires)
+    } yield (refresh, bearer)
 
-    def bearer(refresh: RefreshToken): F[BearerToken] =
-      for {
-        request <- RefreshRequest(config.clientSecret,
-                                  refresh.token,
-                                  config.clientId).pure[F]
-        response <- server
-                     .postUrlencoded[RefreshRequest, RefreshResponse](
-                       config.refresh,
-                       request
-                     )
-        time    <- clock.now
-        msg     = response.body
-        expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
-        bearer  = BearerToken(msg.access_token, expires)
-      } yield bearer
-  }
+  def bearer(refresh: RefreshToken): F[BearerToken] =
+    for {
+      request <- RefreshRequest(config.clientSecret,
+                                refresh.token,
+                                config.clientId).pure[F]
+      response <- client.postUrlencoded[RefreshRequest, RefreshResponse](
+                   config.refresh, request)
+      time    <- clock.now
+      msg     = response.body
+      expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+      bearer  = BearerToken(msg.access_token, expires)
+    } yield bearer
 }
 #+END_SRC
 
 *** Summary
 
 - data types are defined as /products/ (=final case class=) and
-  /coproducts/ (=sealed abstract class= or nested =Either=).
+  /coproducts/ (=sealed abstract class=).
+- =Refined= types can enforce constraints on values
 - specific functions are defined on =object= or =implicit class=,
   according to personal taste.
-- =Refined= types can encode constraints on their values
 - polymorphic functions are defined as /typeclasses/. Functionality is
   provided via "has a" /context bounds/, rather than "is a" class
   hierarchies.
@@ -4420,7 +4386,7 @@ that simply wraps a =Double=. This is exactly what =contramap= is for:
 final case class Alpha(value: Double)
 
 object Alpha {
-  implicit val encoder: JsWriter[Alpha] = JsWriter[Double].contramap(_.value)
+  implicit val encoder: JsonWriter[Alpha] = JsonWriter[Double].contramap(_.value)
 }
 #+END_SRC
 
@@ -9787,6 +9753,11 @@ including =UnwriterT=
 Specialisations of ContT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
+
+from iravid, it's a generalisation of Akka Directives
+
+https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/index.html#structure, https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/custom-directives.html are decent
+there's a bit of conflation in the API with abstracting over the arity of tuples for a nicer API, be aware
 
 - =IndexedContsT=
 - =ResourceT=
