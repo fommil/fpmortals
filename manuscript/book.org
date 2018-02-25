@@ -5393,7 +5393,7 @@ producing an ~F[(A, B)]~ similar to ~Functor.fproduct~.
 
 #+BEGIN_SRC scala
 @typeclass trait Unzip[F[_]]  {
-  def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+  @op("unfzip") def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
 
   def firsts[A, B](a: F[(A, B)]): F[A] = ...
   def seconds[A, B](a: F[(A, B)]): F[B] = ...
@@ -9603,37 +9603,11 @@ operating system, it captures exceptions from legacy, non-total, code. The
 developer has access to the full stacktrace for debugging, or may handle the
 exception according to the ancient rules of the legacy system's API.
 
-** The Infinite Sadness
+**** =ReaderT= / =Kleisli=
 
-You've reached the end of this Early Access book. Please check the
-website regularly for updates.
-
-You can expect to see chapters covering the following topics:
-
-- Advanced Monads (more to come)
-- Typeclass Derivation
-- Type Refinement
-- Property Testing
-- Optics
-- Functional Streams
-- Bluffing Haskell
-
-# - Recursion Schemes
-# - Category Theory
-# - Dependent Types
-
-while continuing to build out the example application.
-
-* TODO Remaining
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: remaining.md
-  :END:
-
-**** TODO =ReaderT= / =Kleisli=
-
-The reader monad wraps ~A => F[B]~ allowing a program =F[B]= to depend on a
-runtime value =A=. For those familiar with dependency injection, the reader
-monad is the FP equivalent of Spring or Guice's =@Inject=, without the XML and
+The reader monad wraps ~A => F[B]~ allowing a program ~F[B]~ to depend on a
+runtime value ~A~. For those familiar with dependency injection, the reader
+monad is the FP equivalent of Spring or Guice's ~@Inject~, without the XML and
 reflection.
 
 =ReaderT= is just an alias to another, more generally useful, data type called
@@ -9667,6 +9641,33 @@ Y-Wing.
 #+END_ASIDE
 
 TODO: finish the section on =ReaderT=
+
+
+** The Infinite Sadness
+
+You've reached the end of this Early Access book. Please check the
+website regularly for updates.
+
+You can expect to see chapters covering the following topics:
+
+- Advanced Monads (more to come)
+- Typeclass Derivation
+- Type Refinement
+- Property Testing
+- Optics
+- Functional Streams
+- Bluffing Haskell
+
+# - Recursion Schemes
+# - Category Theory
+# - Dependent Types
+
+while continuing to build out the example application.
+
+* TODO Remaining
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: remaining.md
+  :END:
 
 **** TODO =WriterT=
 
@@ -9828,6 +9829,14 @@ is not really worth mentioning, except for a few things.
 - shapeless
 - macros
 - export-hook
+
+** TODO Refinement
+
+- contextual vs refined
+- Consider using refined's `String Refined Url` as an alternative to my contextual =Url=
+
+https://github.com/fthomas/refined/blob/master/modules/core/jvm/src/test/scala/eu/timepit/refined/StringValidateSpecJvm.scala
+ https://github.com/fthomas/refined/blob/master/modules/jsonpath/jvm/src/main/scala/eu/timepit/refined/jsonpath/string.scala
 
 ** TODO Testing / Laws
 
