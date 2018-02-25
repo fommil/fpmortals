@@ -24,17 +24,19 @@ import eu.timepit.refined.api.{ Refined, Validate }
  */
 sealed abstract class EncodedUrl
 object EncodedUrl {
-  def apply(raw: String): String \/ (String Refined EncodedUrl) =
+  type Url = String Refined EncodedUrl
+
+  def apply(raw: String): String \/ Url =
     refineV[EncodedUrl](raw).disjunction
 
   /** Tries to encode and validate the given string */
-  def encode(raw: String): String \/ (String Refined EncodedUrl) =
+  def encode(raw: String): String \/ Url =
     for {
       uri  <- parse(raw)
       pass <- apply(uri.toASCIIString)
     } yield pass
 
-  def toURI(encoded: String Refined EncodedUrl): URI =
+  def toURI(encoded: Url): URI =
     new URI(encoded.value) // safe
 
   def parse(raw: String): String \/ URI =
@@ -49,7 +51,7 @@ object EncodedUrl {
     if (!uri.isAbsolute || Maybe.fromNullable(uri.getHost).isEmpty)
       s"'$raw' is not an absolute URL".left
     else if (raw != uri.toASCIIString)
-      s"'$raw' encodes to '${uri.toASCIIString}'".left
+      s"'$raw' is not ASCII encoded".left
     else
       uri.right
 

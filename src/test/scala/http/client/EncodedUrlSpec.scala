@@ -6,7 +6,6 @@ package http.client
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
-
 class EncodedUrlSpec extends FlatSpec {
   "EncodedUrl" should "require ascii encoding" in {
     // from https://en.wikipedia.org/wiki/URL

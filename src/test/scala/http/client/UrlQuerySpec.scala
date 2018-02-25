@@ -3,20 +3,18 @@
 
 package http.client
 
-import java.lang.String
 import scala.collection.immutable.List
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
-import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
 
 class UrlQuerySpec extends FlatSpec {
-  import UrlQuery._
+  import UrlQuery.ops._
 
   "UrlQuery" should "allow changing the query" in {
-    val url: String Refined EncodedUrl = "http://fommil.com?wibble=wobble"
+    val url: EncodedUrl.Url = "http://fommil.com?wibble=wobble"
 
     url
       .withQuery(

@@ -13,32 +13,31 @@ import scalaz._, Scalaz._
 
 import http.encoding.UrlEncodedWriter
 
-import eu.timepit.refined.api.Refined
-
 /**
  * A container for URL query key=value pairs, in unencoded form.
  */
 @deriving(UrlEncodedWriter)
 final case class UrlQuery(params: List[(String, String)]) extends AnyVal
 object UrlQuery {
-  implicit class EncodedUrlOps(encoded: String Refined EncodedUrl) {
-    def withQuery(query: UrlQuery): String Refined EncodedUrl = {
-      val uri = EncodedUrl.toURI(encoded)
-      val update = new URI(
-        uri.getScheme,
-        uri.getUserInfo,
-        uri.getHost,
-        uri.getPort,
-        uri.getPath,
-        // not a mistake: URI takes the decoded versions
-        query.params.map { case (k, v) => s"$k=$v" }.intercalate("&"),
-        uri.getFragment
-      )
-      EncodedUrl(update.toASCIIString).getOrElse(
-        scala.sys.error("bug in refinement")
-      )
+  object ops {
+    implicit class EncodedUrlOps(private val encoded: EncodedUrl.Url) {
+      def withQuery(query: UrlQuery): EncodedUrl.Url = {
+        val uri = EncodedUrl.toURI(encoded)
+        val update = new URI(
+          uri.getScheme,
+          uri.getUserInfo,
+          uri.getHost,
+          uri.getPort,
+          uri.getPath,
+          // not a mistake: URI takes the decoded versions
+          query.params.map { case (k, v) => s"$k=$v" }.intercalate("&"),
+          uri.getFragment
+        )
+        EncodedUrl(update.toASCIIString).getOrElse(
+          scala.sys.error("bug in refinement")
+        )
+      }
     }
-
   }
 
 }

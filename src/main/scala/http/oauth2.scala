@@ -115,16 +115,14 @@ import scala.{ Any, Long, Unit }
 import scalaz._
 import Scalaz._
 
-import eu.timepit.refined.api.Refined
-
 import http.client._
 import http.encoding._
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: String Refined EncodedUrl,
-  access: String Refined EncodedUrl,
-  refresh: String Refined EncodedUrl,
+  auth: EncodedUrl.Url,
+  access: EncodedUrl.Url,
+  refresh: EncodedUrl.Url,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -135,7 +133,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: String Refined EncodedUrl
+  redirect_uri: EncodedUrl.Url
 )
 
 /**
@@ -154,11 +152,11 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 package algebra {
   trait UserInteraction[F[_]] {
 
-    /** returns the String Refined EncodedUrl of the local server */
-    def start: F[String Refined EncodedUrl]
+    /** returns the EncodedUrl.Url of the local server */
+    def start: F[EncodedUrl.Url]
 
-    /** prompts the user to open this String Refined EncodedUrl */
-    def open(uri: String Refined EncodedUrl): F[Unit]
+    /** prompts the user to open this EncodedUrl.Url */
+    def open(uri: EncodedUrl.Url): F[Unit]
 
     /** recover the code from the callback */
     def stop: F[CodeToken]
@@ -174,7 +172,6 @@ package logic {
   import java.time.temporal.ChronoUnit
   import http.client.algebra.JsonHttpClient
   import algebra._
-  import UrlQuery._
 
   class OAuth2Client[F[_]: Monad](
     config: ServerConfig
@@ -186,6 +183,7 @@ package logic {
   ) {
     import api._
     import http.encoding.UrlQueryWriter.ops._
+    import UrlQuery.ops._
     import xyz.driver.json.DerivedFormats._
 
     // for use in one-shot apps requiring user interaction
@@ -237,7 +235,7 @@ package logic {
 package api {
   @deriving(UrlQueryWriter)
   final case class AuthRequest(
-    redirect_uri: String Refined EncodedUrl,
+    redirect_uri: EncodedUrl.Url,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -250,7 +248,7 @@ package api {
   @deriving(UrlEncodedWriter)
   final case class AccessRequest(
     code: String,
-    redirect_uri: String Refined EncodedUrl,
+    redirect_uri: EncodedUrl.Url,
     client_id: String,
     client_secret: String,
     scope: String = "",
