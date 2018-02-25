@@ -16,18 +16,21 @@ import scala.collection.immutable.{ Map }
 import spray.json.JsonReader
 import http.encoding._
 
+import eu.timepit.refined.api.Refined
+
 final case class Response[T](headers: Map[String, String], body: T)
 
 trait JsonHttpClient[F[_]] {
   def get[B: JsonReader](
-    uri: Url,
+    uri: String Refined EncodedUrl,
     headers: Map[String, String] = Map.empty
   ): F[Response[B]]
 
   // using application/x-www-form-urlencoded
-  def postUrlencoded[A: UrlEncoded, B: JsonReader](
-    uri: Url,
+  def postUrlEncoded[A: UrlEncodedWriter, B: JsonReader](
+    uri: String Refined EncodedUrl,
     payload: A,
     headers: Map[String, String] = Map.empty
   ): F[Response[B]]
+
 }

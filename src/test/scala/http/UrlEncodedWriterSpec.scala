@@ -13,20 +13,22 @@ import org.scalatest._
 import org.scalatest.Matchers._
 import http.client._
 import scalaz._, Scalaz._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto._
 
-import UrlEncoded.ops._
+import UrlEncodedWriter.ops._
 
-@deriving(UrlEncoded, QueryEncoded)
+@deriving(UrlEncodedWriter, UrlQueryWriter)
 final case class Foo(apple: String, bananas: Long, pears: String)
 
-class UrlEncodedSpec extends FlatSpec {
-  "UrlEncoded" should "encode Strings" in {
-    "foo".urlEncoded should be("foo")
-    "http://foo".urlEncoded should be("http%3A%2F%2Ffoo")
+class UrlEncodedWriterSpec extends FlatSpec {
+  "UrlEncodedWriter" should "encode Strings" in {
+    "foo".toUrlEncoded should be("foo")
+    "http://foo".toUrlEncoded should be("http%3A%2F%2Ffoo")
   }
 
   it should "encode Long numbers" in {
-    10L.urlEncoded should be("10")
+    10L.toUrlEncoded should be("10")
   }
 
   it should "encode stringy maps" in {
@@ -35,21 +37,24 @@ class UrlEncodedSpec extends FlatSpec {
       "bananas" -> "10",
       "pears"   -> "%"
     )
-    stringy.urlEncoded should be("apple=http%3A%2F%2Ffoo&bananas=10&pears=%25")
+    stringy.toUrlEncoded should be(
+      "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25"
+    )
   }
 
   it should "encode Urls" in {
     import eu.timepit.refined.auto._
 
-    val url = Url("http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar")
-    url.urlEncoded should be(
+    val url: String Refined EncodedUrl =
+      "http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
+    url.toUrlEncoded should be(
       // the %3A must be double escaped to %253A
       "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar"
     )
   }
 
   it should "encode final case classes" in {
-    Foo("http://foo", 10L, "%").urlEncoded should be(
+    Foo("http://foo", 10L, "%").toUrlEncoded should be(
       "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25"
     )
   }

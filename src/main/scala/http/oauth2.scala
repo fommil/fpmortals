@@ -115,14 +115,16 @@ import scala.{ Any, Long, Unit }
 import scalaz._
 import Scalaz._
 
+import eu.timepit.refined.api.Refined
+
+import http.client._
 import http.encoding._
-import http.client.Url
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: Url,
-  access: Url,
-  refresh: Url,
+  auth: String Refined EncodedUrl,
+  access: String Refined EncodedUrl,
+  refresh: String Refined EncodedUrl,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -133,7 +135,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: Url
+  redirect_uri: String Refined EncodedUrl
 )
 
 /**
@@ -152,11 +154,11 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 package algebra {
   trait UserInteraction[F[_]] {
 
-    /** returns the Url of the local server */
-    def start: F[Url]
+    /** returns the String Refined EncodedUrl of the local server */
+    def start: F[String Refined EncodedUrl]
 
-    /** prompts the user to open this Url */
-    def open(uri: Url): F[Unit]
+    /** prompts the user to open this String Refined EncodedUrl */
+    def open(uri: String Refined EncodedUrl): F[Unit]
 
     /** recover the code from the callback */
     def stop: F[CodeToken]
@@ -172,6 +174,7 @@ package logic {
   import java.time.temporal.ChronoUnit
   import http.client.algebra.JsonHttpClient
   import algebra._
+  import UrlQuery._
 
   class OAuth2Client[F[_]: Monad](
     config: ServerConfig
@@ -182,7 +185,7 @@ package logic {
     clock: LocalClock[F]
   ) {
     import api._
-    import http.encoding.QueryEncoded.ops._
+    import http.encoding.UrlQueryWriter.ops._
     import xyz.driver.json.DerivedFormats._
 
     // for use in one-shot apps requiring user interaction
@@ -190,7 +193,7 @@ package logic {
       for {
         callback <- user.start
         params   = AuthRequest(callback, config.scope, config.clientId)
-        _        <- user.open(config.auth.withQuery(params.queryEncoded))
+        _        <- user.open(config.auth.withQuery(params.toUrlQuery))
         code     <- user.stop
       } yield code
 
@@ -201,7 +204,7 @@ package logic {
                                  config.clientId,
                                  config.clientSecret).pure[F]
         response <- server
-                     .postUrlencoded[AccessRequest, AccessResponse](
+                     .postUrlEncoded[AccessRequest, AccessResponse](
                        config.access,
                        request
                      )
@@ -218,7 +221,7 @@ package logic {
                                   refresh.token,
                                   config.clientId).pure[F]
         response <- server
-                     .postUrlencoded[RefreshRequest, RefreshResponse](
+                     .postUrlEncoded[RefreshRequest, RefreshResponse](
                        config.refresh,
                        request
                      )
@@ -232,9 +235,9 @@ package logic {
 
 /** The API as defined by the OAuth 2.0 server */
 package api {
-  @deriving(QueryEncoded)
+  @deriving(UrlQueryWriter)
   final case class AuthRequest(
-    redirect_uri: Url,
+    redirect_uri: String Refined EncodedUrl,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -244,10 +247,10 @@ package api {
   // AuthResponse is to send the user's browser to redirect_uri with a
   // `code` param (yup, seriously).
 
-  @deriving(UrlEncoded)
+  @deriving(UrlEncodedWriter)
   final case class AccessRequest(
     code: String,
-    redirect_uri: Url,
+    redirect_uri: String Refined EncodedUrl,
     client_id: String,
     client_secret: String,
     scope: String = "",
@@ -260,71 +263,17 @@ package api {
     refresh_token: String
   )
 
-  @deriving(UrlEncoded)
+  @deriving(UrlEncodedWriter)
   final case class RefreshRequest(
     client_secret: String,
     refresh_token: String,
     client_id: String,
     grant_type: String = "refresh_token"
   )
-  @deriving(UrlEncoded)
+  @deriving(UrlEncodedWriter)
   final case class RefreshResponse(
     access_token: String,
     token_type: String,
     expires_in: Long
   )
-
-  /*
-  // to avoid having to implement a generic encoder in Chapter 4
-  // (I don't want cyclic dependencies in my book, damnit!)
-  import scala.collection.immutable.Seq
-  import scala.Predef.ArrowAssoc
-  import java.net.URLDecoder
-  import http.encoding._
-  import UrlEncoded.ops._
-  object AuthRequest {
-    implicit val QueryEncoder: QueryEncoded[AuthRequest] =
-      new QueryEncoded[AuthRequest] {
-        private def stringify[T: UrlEncoded](t: T) =
-          URLDecoder.decode(t.urlEncoded, "UTF-8")
-
-        def queryEncoded(a: AuthRequest): Url.Query =
-          Url.Query.empty :+
-            ("redirect_uri"  -> stringify(a.redirect_uri)) :+
-            ("scope"         -> stringify(a.scope)) :+
-            ("client_id"     -> stringify(a.client_id)) :+
-            ("prompt"        -> stringify(a.prompt)) :+
-            ("response_type" -> stringify(a.response_type)) :+
-            ("access_type"   -> stringify(a.access_type))
-      }
-  }
-
-  object AccessRequest {
-    implicit val UrlEncoder: UrlEncoded[AccessRequest] =
-      new UrlEncoded[AccessRequest] {
-        def urlEncoded(a: AccessRequest): String =
-          Seq(
-            "code"          -> a.code.urlEncoded,
-            "redirect_uri"  -> a.redirect_uri.urlEncoded,
-            "client_id"     -> a.client_id.urlEncoded,
-            "client_secret" -> a.client_secret.urlEncoded,
-            "scope"         -> a.scope.urlEncoded,
-            "grant_type"    -> a.grant_type
-          ).urlEncoded
-      }
-  }
-  object RefreshRequest {
-    implicit val UrlEncoder: UrlEncoded[RefreshRequest] =
-      new UrlEncoded[RefreshRequest] {
-        def urlEncoded(r: RefreshRequest): String =
-          Seq(
-            "client_secret" -> r.client_secret.urlEncoded,
-            "refresh_token" -> r.refresh_token.urlEncoded,
-            "client_id"     -> r.client_id.urlEncoded,
-            "grant_type"    -> r.grant_type.urlEncoded
-          ).urlEncoded
-      }
-  }
- */
-
 }

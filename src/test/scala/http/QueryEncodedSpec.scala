@@ -8,11 +8,11 @@ import scala.Predef.ArrowAssoc
 
 import org.scalatest._
 import org.scalatest.Matchers._
-import QueryEncoded.ops._
+import UrlQueryWriter.ops._
 
-class QueryEncodedSpec extends FlatSpec {
-  "QueryEncoded" should "encode case classes" in {
-    (Foo("http://foo", 10, "%").queryEncoded.params should contain)
+class UrlQueryWriterSpec extends FlatSpec {
+  "UrlQueryWriter" should "encode case classes" in {
+    (Foo("http://foo", 10, "%").toUrlQuery.params should contain)
       .theSameElementsInOrderAs(
         Seq(
           "apple"   -> "http://foo",

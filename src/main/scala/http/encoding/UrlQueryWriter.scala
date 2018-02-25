@@ -11,42 +11,41 @@ import scala.language.implicitConversions
 import shapeless.{ :: => :*:, _ }
 import shapeless.labelled._
 import java.net.URLDecoder
-import http.client.Url.Query
+import http.client.UrlQuery
 
 import simulacrum._
 
 @typeclass
-trait QueryEncoded[A] {
-  def queryEncoded(a: A): Query
+trait UrlQueryWriter[A] {
+  def toUrlQuery(a: A): UrlQuery
 }
-
-trait DerivedQueryEncoded[T] extends QueryEncoded[T]
-object DerivedQueryEncoded {
+trait DerivedUrlQueryWriter[T] extends UrlQueryWriter[T]
+object DerivedUrlQueryWriter {
   def gen[T, Repr](
     implicit
     G: LabelledGeneric.Aux[T, Repr],
-    CR: Cached[Strict[DerivedQueryEncoded[Repr]]]
-  ): DerivedQueryEncoded[T] = { t =>
-    CR.value.value.queryEncoded(G.to(t))
+    CR: Cached[Strict[DerivedUrlQueryWriter[Repr]]]
+  ): DerivedUrlQueryWriter[T] = { t =>
+    CR.value.value.toUrlQuery(G.to(t))
   }
 
-  implicit val hnil: DerivedQueryEncoded[HNil] = { _ =>
-    Query(Nil)
+  implicit val hnil: DerivedUrlQueryWriter[HNil] = { _ =>
+    UrlQuery(Nil)
   }
   implicit def hcons[Key <: Symbol, Value, Remaining <: HList](
     implicit Key: Witness.Aux[Key],
-    LV: Lazy[UrlEncoded[Value]],
-    DR: DerivedQueryEncoded[Remaining]
-  ): DerivedQueryEncoded[FieldType[Key, Value] :*: Remaining] = {
+    LV: Lazy[UrlEncodedWriter[Value]],
+    DR: DerivedUrlQueryWriter[Remaining]
+  ): DerivedUrlQueryWriter[FieldType[Key, Value] :*: Remaining] = {
     case head :*: tail =>
       val first = {
         val decodedKey = Key.value.name
         val decodedValue =
-          URLDecoder.decode(LV.value.urlEncoded(head), "UTF-8")
+          URLDecoder.decode(LV.value.toUrlEncoded(head), "UTF-8")
         decodedKey -> decodedValue
       }
 
-      val rest = DR.queryEncoded(tail)
-      Query(first :: rest.params)
+      val rest = DR.toUrlQuery(tail)
+      UrlQuery(first :: rest.params)
   }
 }
