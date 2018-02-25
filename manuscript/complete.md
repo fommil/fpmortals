@@ -1222,9 +1222,6 @@ structure in terms of "has a" rather than "is a" relationships.
 
 ## Data
 
-In FP we make data types explicit, rather than hidden as
-implementation detail.
-
 The fundamental building blocks of data types are
 
 -   `final case class` also known as *products*
