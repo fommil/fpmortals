@@ -7,12 +7,14 @@ import java.lang.String
 import java.net.{ URI, URISyntaxException }
 
 import scala.{ AnyVal, Int, Some, StringContext }
-import scala.collection.immutable.{ List, Nil }
+import scala.Predef.identity
+import scala.collection.immutable.List
 
 import scalaz._, Scalaz._
 
-import contextual._
 import http.encoding.UrlEncoded
+
+import eu.timepit.refined.api.{ Refined, Validate }
 
 /**
  * Sanitised java.net.URI for use as a URL.
@@ -21,8 +23,14 @@ import http.encoding.UrlEncoded
  * scheme://[auth@]host[:port][/path][?query][#fragment]
  * }}}
  *
- * Fields are not encoded, use `.encoded` to get a version of the URL that is
- * safe for use in an HTTP client.
+ * To create an instance at compiletime
+ *
+ * {{{
+ * import eu.timepit.refined.auto._
+ * Url("http://fommil.com")
+ * }}}
+ *
+ * To create an instance at runtime, use `Url.parse`
  */
 final class Url private (uri: URI) {
   def encoded: String           = uri.toASCIIString
@@ -50,8 +58,12 @@ final class Url private (uri: URI) {
         uri.getFragment
       )
     )
+
 }
 object Url {
+  // redoes work by refineV, so not ideal from a perf point of view
+  def apply(raw: String Refined Valid): Url = new Url(new URI(raw.value))
+
   def unapply(url: Url): Some[
     (String,
      Maybe[String],
@@ -65,6 +77,12 @@ object Url {
     Some((scheme, auth, host, port, path, query, fragment))
   }
 
+  // predicate for refined
+  final case class Valid()
+  object Valid {
+    implicit def validate: Validate.Plain[String, Valid] =
+      Validate.fromPredicate(parse(_).isRight, identity, Valid())
+  }
   def parse(raw: String): String \/ Url =
     try {
       val uri = new URI(raw)
@@ -82,23 +100,4 @@ object Url {
   /** Commonly used (but not ubiguitous) `key=value` pairs */
   @deriving(UrlEncoded)
   final case class Query(params: List[(String, String)]) extends AnyVal
-}
-
-object UrlInterpolator extends Interpolator {
-  type Output = Url
-
-  def contextualize(interpolation: StaticInterpolation) = {
-    val lit @ Literal(_, urlString) = interpolation.parts.head
-    Url.parse(urlString) match {
-      case -\/(msg) => interpolation.abort(lit, 0, msg)
-      case \/-(_)   => Nil
-    }
-  }
-
-  def evaluate(interpolation: RuntimeInterpolation): Url =
-    Url
-      .parse(interpolation.literals.head)
-      .getOrElse(
-        scala.sys.error("contextual is broken")
-      )
 }

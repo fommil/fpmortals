@@ -3,7 +3,6 @@
 
 package http.client
 
-import scala.StringContext
 import scala.collection.immutable.List
 
 import org.scalatest._
@@ -11,9 +10,11 @@ import org.scalatest.Matchers._
 
 import scalaz._, Maybe.{ Empty, Just }
 
+import eu.timepit.refined.auto._
+
 class UrlSpec extends FlatSpec {
   "Url" should "parse hosts" in {
-    url"http://fommil.com" should matchPattern {
+    Url("http://fommil.com") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -25,7 +26,7 @@ class UrlSpec extends FlatSpec {
   }
 
   it should "parse usernames and passwords" in {
-    url"https://fommil@fommil.com" should matchPattern {
+    Url("https://fommil@fommil.com") should matchPattern {
       case Url("https",
                Just("fommil"),
                "fommil.com",
@@ -35,7 +36,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://fommil:wobble@fommil.com" should matchPattern {
+    Url("http://fommil:wobble@fommil.com") should matchPattern {
       case Url("http",
                Just("fommil:wobble"),
                "fommil.com",
@@ -45,7 +46,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://:wobble@fommil.com" should matchPattern {
+    Url("http://:wobble@fommil.com") should matchPattern {
       case Url("http",
                Just(":wobble"),
                "fommil.com",
@@ -55,7 +56,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://:@fommil.com" should matchPattern {
+    Url("http://:@fommil.com") should matchPattern {
       case Url("http",
                Just(":"),
                "fommil.com",
@@ -65,7 +66,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://::@fommil.com" should matchPattern {
+    Url("http://::@fommil.com") should matchPattern {
       case Url("http",
                Just("::"),
                "fommil.com",
@@ -77,7 +78,7 @@ class UrlSpec extends FlatSpec {
   }
 
   it should "parse ports" in {
-    url"http://fommil.com:80" should matchPattern {
+    Url("http://fommil.com:80") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -89,8 +90,7 @@ class UrlSpec extends FlatSpec {
   }
 
   it should "parse paths" in {
-
-    url"http://fommil.com/" should matchPattern {
+    Url("http://fommil.com/") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -100,7 +100,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://fommil.com//" should matchPattern {
+    Url("http://fommil.com//") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -110,7 +110,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://fommil.com/wibble/" should matchPattern {
+    Url("http://fommil.com/wibble/") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -120,7 +120,7 @@ class UrlSpec extends FlatSpec {
                Empty()) =>
     }
 
-    url"http://example.com/引き割り.html" should matchPattern {
+    Url("http://example.com/引き割り.html") should matchPattern {
       case Url("http",
                Empty(),
                "example.com",
@@ -132,7 +132,7 @@ class UrlSpec extends FlatSpec {
   }
 
   it should "parse query" in {
-    url"http://fommil.com?foo=bar&baz=gaz" should matchPattern {
+    Url("http://fommil.com?foo=bar&baz=gaz") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -144,7 +144,7 @@ class UrlSpec extends FlatSpec {
   }
 
   it should "parse anchor" in {
-    url"http://fommil.com#wibble" should matchPattern {
+    Url("http://fommil.com#wibble") should matchPattern {
       case Url("http",
                Empty(),
                "fommil.com",
@@ -160,12 +160,12 @@ class UrlSpec extends FlatSpec {
     // seems the JDK doesn't work correctly here
     // url"http://例子.卷筒纸".encoded shouldBe "http://xn--fsqu00a.xn--3lr804guic/"
 
-    url"http://example.com/引き割り.html".encoded
+    Url("http://example.com/引き割り.html").encoded
       .shouldBe("http://example.com/%E5%BC%95%E3%81%8D%E5%89%B2%E3%82%8A.html")
   }
 
   it should "allow changing the query" in {
-    url"http://fommil.com?wibble=wobble"
+    Url("http://fommil.com?wibble=wobble")
       .withQuery(
         Url.Query(
           List(
@@ -176,25 +176,6 @@ class UrlSpec extends FlatSpec {
       )
       .encoded
       .shouldBe("http://fommil.com?blah=bloo&%20meh%20=%23")
-  }
-
-  it should "not allow invalid URLs to compile" in {
-    assertDoesNotCompile(
-      """url"blurg""""
-    )
-  }
-
-  it should "possibly be replaced by refined" in {
-    import java.lang.String
-    import eu.timepit.refined.api.Refined
-    import eu.timepit.refined.auto._
-    import eu.timepit.refined.string._
-
-    val uri1: String Refined Uri = "http://fommil.com"
-    uri1.value.shouldBe("http://fommil.com")
-
-    // I'd like this to fail... so need to create custom refinement
-    val _: String Refined Uri = "fommil.com"
   }
 
 }

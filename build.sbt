@@ -20,7 +20,6 @@ libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
   "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
-  "com.propensive"       %% "contextual"            % "1.1.0",
   "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
   "org.scalaz"           %% "scalaz-core"           % "7.2.19",
   "com.fommil"           %% "deriving-macro"        % "0.9.0",

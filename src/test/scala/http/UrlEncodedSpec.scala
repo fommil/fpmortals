@@ -5,7 +5,7 @@ package http.encoding
 
 import java.lang.String
 
-import scala.{ Long, StringContext }
+import scala.Long
 import scala.collection.immutable.List
 import scala.Predef.ArrowAssoc
 
@@ -39,7 +39,9 @@ class UrlEncodedSpec extends FlatSpec {
   }
 
   it should "encode Urls" in {
-    val url = url"http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
+    import eu.timepit.refined.auto._
+
+    val url = Url("http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar")
     url.urlEncoded should be(
       // the %3A must be double escaped to %253A
       "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar"
