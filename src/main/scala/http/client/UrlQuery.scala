@@ -3,13 +3,11 @@
 
 package http.client
 
-import java.lang.String
+import std._, scalaz._, Scalaz._
+
 import java.net.URI
 
-import scala.{ AnyVal, StringContext }
 import scala.collection.immutable.List
-
-import scalaz._, Scalaz._
 
 import http.encoding.UrlEncodedWriter
 

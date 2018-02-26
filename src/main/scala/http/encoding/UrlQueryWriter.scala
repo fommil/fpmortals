@@ -3,20 +3,17 @@
 
 package http.encoding
 
-import scala.Symbol
+import std._
 import scala.collection.immutable.Nil
-import scala.Predef.ArrowAssoc
-import scala.language.implicitConversions
 
-import shapeless.{ :: => :*:, _ }
+import shapeless._
 import shapeless.labelled._
 import java.net.URLDecoder
 import http.client.UrlQuery
 
 import simulacrum._
 
-@typeclass
-trait UrlQueryWriter[A] {
+@typeclass trait UrlQueryWriter[A] {
   def toUrlQuery(a: A): UrlQuery
 }
 trait DerivedUrlQueryWriter[T] extends UrlQueryWriter[T]
@@ -36,8 +33,8 @@ object DerivedUrlQueryWriter {
     implicit Key: Witness.Aux[Key],
     LV: Lazy[UrlEncodedWriter[Value]],
     DR: DerivedUrlQueryWriter[Remaining]
-  ): DerivedUrlQueryWriter[FieldType[Key, Value] :*: Remaining] = {
-    case head :*: tail =>
+  ): DerivedUrlQueryWriter[FieldType[Key, Value] :: Remaining] = {
+    case head :: tail =>
       val first = {
         val decodedKey = Key.value.name
         val decodedValue =

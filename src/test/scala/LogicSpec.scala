@@ -3,16 +3,12 @@
 
 package tests
 
-import java.lang.String
+import std._, scalaz._, Scalaz._
+
 import java.time.ZonedDateTime
 
-import scala.{ Int, Unit }
 import scala.collection.immutable.{ Map, Set }
 
-import scala.Predef.ArrowAssoc
-
-import scalaz._
-import Scalaz._
 import org.scalatest._
 import org.scalatest.Matchers._
 

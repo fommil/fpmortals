@@ -3,16 +3,14 @@
 
 package http.encoding
 
-import java.lang.String
+import std._, scalaz._, Scalaz._
 
-import scala.Long
 import scala.collection.immutable.List
-import scala.Predef.ArrowAssoc
 
 import org.scalatest._
 import org.scalatest.Matchers._
 import http.client._
-import scalaz._, Scalaz._
+
 import eu.timepit.refined.auto._
 
 import UrlEncodedWriter.ops._

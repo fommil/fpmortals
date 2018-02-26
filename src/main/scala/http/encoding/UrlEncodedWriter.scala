@@ -3,24 +3,18 @@
 
 package http.encoding
 
-import java.lang.String
+import std._, scalaz._, Scalaz._
 
-import scala.{ Long, StringContext, Symbol }
-import scala.language.implicitConversions
-
-import shapeless.{ :: => :*:, _ }
-import shapeless.labelled._
 import java.net.URLEncoder
 
-import scalaz.{ Contravariant, Scalaz, Traverse }, Scalaz._
+import shapeless._
+import shapeless.labelled._
 import simulacrum._
-import eu.timepit.refined.api.Refined
 
 /**
  * Converts entities into `application/x-www-form-urlencoded`
  */
-@typeclass
-trait UrlEncodedWriter[A] {
+@typeclass trait UrlEncodedWriter[A] {
   def toUrlEncoded(a: A): String
 }
 object UrlEncodedWriter {
@@ -71,12 +65,12 @@ object DerivedUrlEncodedWriter {
   implicit val hnil: DerivedUrlEncodedWriter[HNil] = { _ =>
     ""
   }
-  implicit def hcons[Key <: Symbol, Value, Remaining <: HList](
+  implicit def hcons[Key <: Symbol, A, Remaining <: HList](
     implicit Key: Witness.Aux[Key],
-    LV: Lazy[UrlEncodedWriter[Value]],
+    LV: Lazy[UrlEncodedWriter[A]],
     DR: DerivedUrlEncodedWriter[Remaining]
-  ): DerivedUrlEncodedWriter[FieldType[Key, Value] :*: Remaining] = {
-    case head :*: tail =>
+  ): DerivedUrlEncodedWriter[FieldType[Key, A] :: Remaining] = {
+    case head :: tail =>
       val rest = {
         val rest = DR.toUrlEncoded(tail)
         if (rest.isEmpty) "" else s"&$rest"

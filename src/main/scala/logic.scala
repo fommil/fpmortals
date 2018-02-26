@@ -3,16 +3,14 @@
 
 package logic
 
+import std._, scalaz._, Scalaz._
+
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
-import scala.{ Int, None, Option }
+import scala.{ None, Option }
 import scala.collection.immutable.{ Map, Set }
 import scala.concurrent.duration._
-import scala.Predef.ArrowAssoc
-
-import scalaz._
-import Scalaz._
 
 import algebra._
 

@@ -3,13 +3,11 @@
 
 package algebra
 
-import java.lang.String
+import std._, scalaz._
+
 import java.time.ZonedDateTime
 
-import scala.{ Int, Unit }
 import scala.collection.immutable.Map
-
-import scalaz.NonEmptyList
 
 trait Drone[F[_]] {
   def getBacklog: F[Int]

@@ -3,8 +3,9 @@
 
 package http.encoding
 
+import std._
+
 import scala.collection.immutable.Seq
-import scala.Predef.ArrowAssoc
 
 import org.scalatest._
 import org.scalatest.Matchers._

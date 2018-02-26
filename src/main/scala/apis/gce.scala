@@ -3,9 +3,8 @@
 
 package apis.gce
 
-import java.lang.String
+import std._
 
-import scala.{ Boolean, Int }
 import scala.collection.immutable.{ Map, Seq }
 
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig

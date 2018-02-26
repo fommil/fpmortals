@@ -107,13 +107,9 @@ package http.oauth2
  */
 package client
 
-import java.lang.String
+import std._, scalaz._, Scalaz._
+
 import java.time.LocalDateTime
-
-import scala.{ Any, Long, Unit }
-
-import scalaz._
-import Scalaz._
 
 import http.client._
 import http.encoding._

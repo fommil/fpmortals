@@ -9,7 +9,7 @@ package http.client
  */
 package algebra
 
-import java.lang.String
+import std._
 
 import scala.collection.immutable.{ Map }
 

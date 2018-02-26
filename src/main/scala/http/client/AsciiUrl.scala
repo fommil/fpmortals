@@ -3,17 +3,12 @@
 
 package http.client
 
-import java.lang.String
+import std._, scalaz._, Scalaz._
+
 import java.net.URI
 
-import scala.StringContext
-import scala.Predef.identity
-import scala.util.Try
-
-import scalaz._, Scalaz._
-
 import eu.timepit.refined.refineV
-import eu.timepit.refined.api.{ Refined, Validate }
+import eu.timepit.refined.api.Validate
 
 /**
  * A predicate that `String Refined AsciiUrl` contains a `String` which will
