@@ -3,6 +3,7 @@ inThisBuild(
     startYear := Some(2017),
     scalaVersion := "2.12.4",
     sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
+    sonatypeDevelopers := List("Sam Halliday"),
     licenses := Seq(GPL3),
     scalafmtConfig := Some(file("project/scalafmt.conf")),
     scalafixConfig := Some(file("project/scalafix.conf"))

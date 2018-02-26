@@ -1,4 +1,4 @@
-// Copyright: 2017 - 2018 https://gitlab.com/fommil/drone-dynamic-agents/graphs/master
+// Copyright: 2017 - 2018 Sam Halliday
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package http.oauth2.client
