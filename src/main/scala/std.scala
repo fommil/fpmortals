@@ -34,9 +34,6 @@ package object std {
 
   // java stdlib data types
   type Instant = java.time.Instant
-  object Instant {
-    @inline def parse(iso: String): Instant = java.time.Instant.parse(iso)
-  }
 
   // scala stdlib data types
   //
