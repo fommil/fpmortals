@@ -3,7 +3,7 @@
 
 package http.encoding
 
-import std._, scalaz._, Scalaz._
+import std._, Z._, S._
 
 import java.net.URLEncoder
 

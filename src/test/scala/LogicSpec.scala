@@ -3,9 +3,7 @@
 
 package tests
 
-import std._, scalaz._, Scalaz._
-
-import java.time.ZonedDateTime
+import std._, Z._, S._
 
 import org.scalatest._
 import org.scalatest.Matchers._
@@ -18,7 +16,9 @@ object Data {
   val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, node2)
 
-  import ZonedDateTime.parse
+  // TODO: contextual compiletime parser for `zdt` and `instant`
+  def parse(s: String): Instant = java.time.ZonedDateTime.parse(s).toInstant
+
   val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
   val time2 = parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
   val time3 = parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
@@ -38,11 +38,11 @@ final class StaticHandlers(state: WorldView) {
   }
 
   implicit val machines: Machines[Id] = new Machines[Id] {
-    def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
-    def getManaged: NonEmptyList[MachineNode]     = state.managed
-    def getTime: ZonedDateTime                    = state.time
-    def start(node: MachineNode): Unit            = started += 1
-    def stop(node: MachineNode): Unit             = stopped += 1
+    def getAlive: Map[MachineNode, Instant]   = state.alive
+    def getManaged: NonEmptyList[MachineNode] = state.managed
+    def getTime: Instant                      = state.time
+    def start(node: MachineNode): Unit        = started += 1
+    def stop(node: MachineNode): Unit         = stopped += 1
   }
 
   val program = new DynAgents[Id]
@@ -57,11 +57,11 @@ object ConstHandlers {
   }
 
   implicit val machines: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const("alive")
-    def getManaged: F[NonEmptyList[MachineNode]]     = Const("managed")
-    def getTime: F[ZonedDateTime]                    = Const("time")
-    def start(node: MachineNode): F[Unit]            = Const("start")
-    def stop(node: MachineNode): F[Unit]             = Const("stop")
+    def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
+    def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
+    def getTime: F[Instant]                      = Const("time")
+    def start(node: MachineNode): F[Unit]        = Const("start")
+    def stop(node: MachineNode): F[Unit]         = Const("stop")
   }
 
   val program = new DynAgents[F]

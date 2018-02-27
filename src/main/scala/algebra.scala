@@ -3,9 +3,7 @@
 
 package algebra
 
-import std._, scalaz._
-
-import java.time.ZonedDateTime
+import std._
 
 trait Drone[F[_]] {
   def getBacklog: F[Int]
@@ -15,9 +13,9 @@ trait Drone[F[_]] {
 final case class MachineNode(id: String)
 
 trait Machines[F[_]] {
-  def getTime: F[ZonedDateTime]
+  def getTime: F[Instant]
   def getManaged: F[NonEmptyList[MachineNode]]
-  def getAlive: F[Map[MachineNode, ZonedDateTime]]
+  def getAlive: F[Map[MachineNode, Instant]]
   def start(node: MachineNode): F[Unit]
   def stop(node: MachineNode): F[Unit]
 }

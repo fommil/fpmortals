@@ -107,18 +107,16 @@ package http.oauth2
  */
 package client
 
-import std._, scalaz._, Scalaz._
-
-import java.time.LocalDateTime
+import std._, Z._
 
 import http.client._
 import http.encoding._
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: AsciiUrl.Url,
-  access: AsciiUrl.Url,
-  refresh: AsciiUrl.Url,
+  auth: String Refined AsciiUrl,
+  access: String Refined AsciiUrl,
+  refresh: String Refined AsciiUrl,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -129,7 +127,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: AsciiUrl.Url
+  redirect_uri: String Refined AsciiUrl
 )
 
 /**
@@ -143,23 +141,23 @@ final case class RefreshToken(token: String)
  * be expired on a whim by the server. For example, Google only allow
  * 50 tokens, per user.
  */
-final case class BearerToken(token: String, expires: LocalDateTime)
+final case class BearerToken(token: String, expires: Instant)
 
 package algebra {
   trait UserInteraction[F[_]] {
 
-    /** returns the AsciiUrl.Url of the local server */
-    def start: F[AsciiUrl.Url]
+    /** returns the URL of the local server */
+    def start: F[String Refined AsciiUrl]
 
-    /** prompts the user to open this AsciiUrl.Url */
-    def open(uri: AsciiUrl.Url): F[Unit]
+    /** prompts the user to open this URL */
+    def open(uri: String Refined AsciiUrl): F[Unit]
 
     /** recover the code from the callback */
     def stop: F[CodeToken]
   }
 
   trait LocalClock[F[_]] {
-    def now: F[LocalDateTime]
+    def now: F[Instant]
   }
 }
 
@@ -229,9 +227,9 @@ package logic {
 
 /** The API as defined by the OAuth 2.0 server */
 package api {
-  @deriving(UrlQueryWriter)
+  @scalaz.deriving(UrlQueryWriter)
   final case class AuthRequest(
-    redirect_uri: AsciiUrl.Url,
+    redirect_uri: String Refined AsciiUrl,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -241,10 +239,10 @@ package api {
   // AuthResponse is to send the user's browser to redirect_uri with a
   // `code` param (yup, seriously).
 
-  @deriving(UrlEncodedWriter)
+  @scalaz.deriving(UrlEncodedWriter)
   final case class AccessRequest(
     code: String,
-    redirect_uri: AsciiUrl.Url,
+    redirect_uri: String Refined AsciiUrl,
     client_id: String,
     client_secret: String,
     scope: String = "",
@@ -257,14 +255,14 @@ package api {
     refresh_token: String
   )
 
-  @deriving(UrlEncodedWriter)
+  @scalaz.deriving(UrlEncodedWriter)
   final case class RefreshRequest(
     client_secret: String,
     refresh_token: String,
     client_id: String,
     grant_type: String = "refresh_token"
   )
-  @deriving(UrlEncodedWriter)
+  @scalaz.deriving(UrlEncodedWriter)
   final case class RefreshResponse(
     access_token: String,
     token_type: String,

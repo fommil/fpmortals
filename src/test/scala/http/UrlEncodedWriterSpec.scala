@@ -3,7 +3,7 @@
 
 package http.encoding
 
-import std._, scalaz._, Scalaz._
+import std._, S._
 
 import eu.timepit.refined.auto._
 import org.scalatest._
@@ -13,7 +13,7 @@ import http.client._
 
 import UrlEncodedWriter.ops._
 
-@deriving(UrlEncodedWriter, UrlQueryWriter)
+@scalaz.deriving(UrlEncodedWriter, UrlQueryWriter)
 final case class Foo(apple: String, bananas: Long, pears: String)
 
 class UrlEncodedWriterSpec extends FlatSpec {
@@ -40,7 +40,7 @@ class UrlEncodedWriterSpec extends FlatSpec {
   it should "encode Urls" in {
     import eu.timepit.refined.auto._
 
-    val url: AsciiUrl.Url =
+    val url: String Refined AsciiUrl =
       "http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
     url.toUrlEncoded should be(
       // the %3A must be double escaped to %253A

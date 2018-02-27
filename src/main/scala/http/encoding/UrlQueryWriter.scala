@@ -29,11 +29,11 @@ object DerivedUrlQueryWriter {
   implicit val hnil: DerivedUrlQueryWriter[HNil] = { _ =>
     UrlQuery(Nil)
   }
-  implicit def hcons[Key <: Symbol, Value, Remaining <: HList](
+  implicit def hcons[Key <: Symbol, A, Remaining <: HList](
     implicit Key: Witness.Aux[Key],
-    LV: Lazy[UrlEncodedWriter[Value]],
+    LV: Lazy[UrlEncodedWriter[A]],
     DR: DerivedUrlQueryWriter[Remaining]
-  ): DerivedUrlQueryWriter[FieldType[Key, Value] :: Remaining] = {
+  ): DerivedUrlQueryWriter[FieldType[Key, A] :: Remaining] = {
     case head :: tail =>
       val first = {
         val decodedKey = Key.value.name

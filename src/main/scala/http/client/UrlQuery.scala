@@ -3,7 +3,7 @@
 
 package http.client
 
-import std._, scalaz._, Scalaz._
+import std._, Z._, S._
 
 import java.net.URI
 
@@ -12,12 +12,12 @@ import http.encoding.UrlEncodedWriter
 /**
  * A container for URL query key=value pairs, in unencoded form.
  */
-@deriving(UrlEncodedWriter)
+@scalaz.deriving(UrlEncodedWriter)
 final case class UrlQuery(params: List[(String, String)]) extends AnyVal
 object UrlQuery {
   object ops {
-    implicit class AsciiUrlOps(private val encoded: AsciiUrl.Url) {
-      def withQuery(query: UrlQuery): AsciiUrl.Url = {
+    implicit class AsciiUrlOps(private val encoded: String Refined AsciiUrl) {
+      def withQuery(query: UrlQuery): String Refined AsciiUrl = {
         val uri = AsciiUrl.toURI(encoded)
         val update = new URI(
           uri.getScheme,

@@ -14,7 +14,7 @@ class UrlQuerySpec extends FlatSpec {
   import UrlQuery.ops._
 
   "UrlQuery" should "allow changing the query" in {
-    val url: AsciiUrl.Url = "http://fommil.com?wibble=wobble"
+    val url: String Refined AsciiUrl = "http://fommil.com?wibble=wobble"
 
     url
       .withQuery(

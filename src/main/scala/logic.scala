@@ -3,9 +3,8 @@
 
 package logic
 
-import std._, scalaz._, Scalaz._
+import std._, Z._, S._
 
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 import scala.concurrent.duration._
@@ -31,9 +30,9 @@ final case class WorldView(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, ZonedDateTime],
-  pending: Map[MachineNode, ZonedDateTime],
-  time: ZonedDateTime
+  alive: Map[MachineNode, Instant],
+  pending: Map[MachineNode, Instant],
+  time: Instant
 )
 
 final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
@@ -70,7 +69,7 @@ final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
     case _ => world.pure[F]
   }
 
-  private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+  private def timediff(from: Instant, to: Instant): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 
   // with a backlog, but no agents or pending nodes, start a node

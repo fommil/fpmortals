@@ -22,9 +22,11 @@ libraryDependencies ++= Seq(
   "com.chuusai"          %% "shapeless"             % "2.3.3",
   "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
   "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
-  "org.scalaz"           %% "scalaz-core"           % "7.2.19",
+  "org.scalaz"           %% "scalaz-effect"         % "7.2.20",
   "com.fommil"           %% "deriving-macro"        % "0.9.0",
   "com.fommil"           %% "scalaz-deriving"       % "0.9.0",
+  "com.propensive"       %% "magnolia"              % "0.7.1",
+  "com.propensive"       %% "contextual"            % "1.1.0",
   "org.scalatest"        %% "scalatest"             % "3.0.5" % "test"
 )
 
@@ -40,11 +42,9 @@ scalacOptions ++= Seq(
   "-Xlog-reflective-calls",
   "-Yrangepos",
   "-Yno-imports",
-  "-Yno-predef"
+  "-Yno-predef",
+  "-Ywarn-unused:explicits,patvars,linted"
 )
-
-scalacOptions -= "-Ywarn-unused:implicits,imports,-locals,-params,-patvars,-privates"
-scalacOptions += "-Ywarn-unused:explicits,patvars,linted"
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
 addCompilerPlugin(
@@ -59,14 +59,9 @@ scalacOptions ++= {
 }
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
+scalacOptions in (Compile, console) -= "-Yno-imports"
+scalacOptions in (Compile, console) -= "-Yno-predef"
 initialCommands in (Compile, console) := Seq(
-  "java.lang.String",
-  "scala.{Any,AnyRef,AnyVal,Boolean,Byte,Double,Float,Short,Int,Long,Char,Symbol,Unit,Null,Nothing,Option,Some,None,Either,Left,Right,StringContext}",
-  "scala.annotation.tailrec",
-  "scala.collection.immutable.{Map,Seq,List,::,Nil,Set,Vector}",
-  "scala.util.{Try,Success,Failure}",
-  "scala.Predef.{???,ArrowAssoc,identity,implicitly,<:<,=:=,augmentString,genericArrayOps}",
-  "shapeless.{ :: => :*:, _ }",
-  "scalaz._",
-  "Scalaz._"
+  "scalaz._, Scalaz._",
+  "shapeless._"
 ).mkString("import ", ",", "")

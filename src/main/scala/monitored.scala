@@ -3,9 +3,7 @@
 
 package logic
 
-import std._, scalaz._, Scalaz._
-
-import java.time.ZonedDateTime
+import std._, Z._, S._
 
 import algebra._
 
@@ -18,11 +16,11 @@ final class Monitored[U[_]: Functor](program: DynAgents[U]) {
   }
 
   implicit val machines: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const(Set.empty)
-    def getManaged: F[NonEmptyList[MachineNode]]     = Const(Set.empty)
-    def getTime: F[ZonedDateTime]                    = Const(Set.empty)
-    def start(node: MachineNode): F[Unit]            = Const(Set.empty)
-    def stop(node: MachineNode): F[Unit]             = Const(Set(node))
+    def getAlive: F[Map[MachineNode, Instant]]   = Const(Set.empty)
+    def getManaged: F[NonEmptyList[MachineNode]] = Const(Set.empty)
+    def getTime: F[Instant]                      = Const(Set.empty)
+    def start(node: MachineNode): F[Unit]        = Const(Set.empty)
+    def stop(node: MachineNode): F[Unit]         = Const(Set(node))
   }
 
   val monitor = new DynAgents[F]

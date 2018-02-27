@@ -3,7 +3,7 @@
 
 package http.client
 
-import std._, scalaz._, Scalaz._
+import std._, Z._, S._
 
 import java.net.URI
 
@@ -19,19 +19,17 @@ import eu.timepit.refined.api.Validate
  */
 sealed abstract class AsciiUrl
 object AsciiUrl {
-  type Url = String Refined AsciiUrl
-
-  def apply(raw: String): String \/ Url =
+  def apply(raw: String): String \/ (String Refined AsciiUrl) =
     refineV[AsciiUrl](raw).disjunction
 
   /** Tries to encode and validate the given string */
-  def encode(raw: String): String \/ Url =
+  def encode(raw: String): String \/ (String Refined AsciiUrl) =
     for {
       uri  <- parse(raw)
       pass <- apply(uri.toASCIIString)
     } yield pass
 
-  def toURI(encoded: Url): URI =
+  def toURI(encoded: (String Refined AsciiUrl)): URI =
     new URI(encoded.value) // safe
 
   def parse(raw: String): String \/ URI =
