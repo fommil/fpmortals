@@ -5,8 +5,6 @@ package http.encoding
 
 import std._
 
-import scala.collection.immutable.Seq
-
 import org.scalatest._
 import org.scalatest.Matchers._
 import UrlQueryWriter.ops._

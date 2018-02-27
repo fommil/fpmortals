@@ -5,8 +5,6 @@ package apis.gce
 
 import std._
 
-import scala.collection.immutable.{ Map, Seq }
-
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
 final case class NodeConfig(
   machineType: String,

@@ -7,8 +7,6 @@ import std._, scalaz._, Scalaz._
 
 import java.time.ZonedDateTime
 
-import scala.collection.immutable.{ Map, Set }
-
 import org.scalatest._
 import org.scalatest.Matchers._
 

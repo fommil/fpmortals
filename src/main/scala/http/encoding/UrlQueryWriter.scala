@@ -4,14 +4,14 @@
 package http.encoding
 
 import std._
-import scala.collection.immutable.Nil
+
+import java.net.URLDecoder
 
 import shapeless._
 import shapeless.labelled._
-import java.net.URLDecoder
-import http.client.UrlQuery
-
 import simulacrum._
+
+import http.client.UrlQuery
 
 @typeclass trait UrlQueryWriter[A] {
   def toUrlQuery(a: A): UrlQuery

@@ -8,8 +8,6 @@ import std._, scalaz._, Scalaz._
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
-import scala.{ None, Option }
-import scala.collection.immutable.{ Map, Set }
 import scala.concurrent.duration._
 
 import algebra._

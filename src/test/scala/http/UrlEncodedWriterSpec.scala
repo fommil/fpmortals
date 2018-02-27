@@ -5,13 +5,11 @@ package http.encoding
 
 import std._, scalaz._, Scalaz._
 
-import scala.collection.immutable.List
-
+import eu.timepit.refined.auto._
 import org.scalatest._
 import org.scalatest.Matchers._
-import http.client._
 
-import eu.timepit.refined.auto._
+import http.client._
 
 import UrlEncodedWriter.ops._
 

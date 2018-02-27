@@ -3,7 +3,7 @@
 
 package http.client
 
-import scala.collection.immutable.List
+import std._
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._

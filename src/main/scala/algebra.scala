@@ -7,8 +7,6 @@ import std._, scalaz._
 
 import java.time.ZonedDateTime
 
-import scala.collection.immutable.Map
-
 trait Drone[F[_]] {
   def getBacklog: F[Int]
   def getAgents: F[Int]

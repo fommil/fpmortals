@@ -7,8 +7,6 @@ import std._, scalaz._, Scalaz._
 
 import java.net.URI
 
-import scala.collection.immutable.List
-
 import http.encoding.UrlEncodedWriter
 
 /**

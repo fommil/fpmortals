@@ -11,9 +11,8 @@ package algebra
 
 import std._
 
-import scala.collection.immutable.{ Map }
-
 import spray.json.JsonReader
+
 import http.encoding._
 
 final case class Response[T](headers: Map[String, String], body: T)
