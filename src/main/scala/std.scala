@@ -52,12 +52,10 @@ package object std {
   type Map[K, V] = immutable.Map[K, V]
   type List[A]   = immutable.List[A]
   type Set[A]    = immutable.Set[A]
-  type Seq[A]    = immutable.Seq[A]
   val Map  = immutable.Map
   val List = immutable.List
   val Nil  = immutable.Nil
   val Set  = immutable.Set
-  val Seq  = immutable.Seq
 
   type Try[A] = scala.util.Try[A]
   val Try = scala.util.Try

@@ -9,7 +9,7 @@ import std._
 final case class NodeConfig(
   machineType: String,
   diskSizeGb: Int,
-  oauthScopes: Seq[String],
+  oauthScopes: List[String],
   serviceAccount: String,
   metadata: Map[String, String],
   imageType: String,
@@ -56,7 +56,7 @@ final case class NodePool(
   initialNodeCount: Int,
   selfLink: String,
   version: String,
-  instanceGroupUrls: Seq[String],
+  instanceGroupUrls: List[String],
   status: Status,
   statusMessage: String,
   autoscaling: NodePoolAutoscaling,
@@ -85,8 +85,8 @@ final case class Cluster(
   clusterIpv4Cidr: String,
   addonsConfig: AddonsConfig,
   subnetwork: String,
-  nodePools: Seq[NodePool],
-  locations: Seq[String],
+  nodePools: List[NodePool],
+  locations: List[String],
   enableKubernetesAlpha: Boolean,
   selfLink: String,
   zone: String,
@@ -99,7 +99,7 @@ final case class Cluster(
   statusMessage: String,
   nodeIpv4CidrSize: Int,
   servicesIpv4Cidr: String,
-  instanceGroupUrls: Seq[String],
+  instanceGroupUrls: List[String],
   currentNodeCount: Int,
   expireTime: String
 )

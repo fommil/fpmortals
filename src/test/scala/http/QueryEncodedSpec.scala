@@ -13,7 +13,7 @@ class UrlQueryWriterSpec extends FlatSpec {
   "UrlQueryWriter" should "encode case classes" in {
     (Foo("http://foo", 10, "%").toUrlQuery.params should contain)
       .theSameElementsInOrderAs(
-        Seq(
+        List(
           "apple"   -> "http://foo",
           "bananas" -> "10",
           "pears"   -> "%"
