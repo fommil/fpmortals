@@ -114,7 +114,7 @@ FP-specific features enabled (e.g. in `build.sbt`):
   libraryDependencies ++= Seq(
     "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
     "com.chuusai"          %% "shapeless"      % "2.3.3" ,
-    "org.scalaz"           %% "scalaz-core"    % "7.2.19"
+    "org.scalaz"           %% "scalaz-core"    % "7.2.20"
   )
   
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")

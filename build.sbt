@@ -12,7 +12,7 @@ libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
   "com.chuusai"          %% "shapeless"      % "2.3.3",
   "com.fommil"           %% "deriving-macro" % "0.9.0",
-  "org.scalaz"           %% "scalaz-core"    % "7.2.19",
+  "org.scalaz"           %% "scalaz-core"    % "7.2.20",
   "eu.timepit"           %% "refined-scalaz" % "0.8.7",
   "com.lihaoyi"          %% "sourcecode"     % "0.1.4",
 )
@@ -24,9 +24,8 @@ addCompilerPlugin(
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(
-  "shapeless.{ :: => :*:, _ }",
-  "scalaz._",
-  "Scalaz._"
+  "shapeless._",
+  "scalaz._, Scalaz._"
 ).mkString("import ", ",", "")
 
 //scalafmtOnCompile in ThisBuild := true

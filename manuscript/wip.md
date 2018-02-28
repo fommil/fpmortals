@@ -611,13 +611,14 @@ It should be of no surprise that we can rewrite the `MonadPlus` example with
   } yield stars
 ~~~~~~~~
 
-where we have provided custom syntax
+where `.orError` is a convenience method on `Maybe`
 
 {lang="text"}
 ~~~~~~~~
-  implicit class HelperOps[A](m: Maybe[A]) {
+  sealed abstract class Maybe[A] {
+    ...
     def orError[F[_], E](e: E)(implicit F: MonadError[F, E]): F[A] =
-      m.cata(F.point(_), F.raiseError(e))
+      cata(F.point(_), F.raiseError(e))
   }
 ~~~~~~~~
 
@@ -710,16 +711,24 @@ our errors:
   final case class Err(msg: String)(implicit val meta: Meta)
 ~~~~~~~~
 
-With `Err` as our error type we get referentially transparent metadata:
+Although `Err` is referentially transparent, the implicit construction of a
+`Meta` is **not** referentially transparent: two calls to `Meta.gen` (invoked
+implicitly when creating an `Err`) will produce different values because the
+location in the source code impacts the returned value.
 
 {lang="text"}
 ~~~~~~~~
-  scala> val err = Err("hello world")
-  scala> println(err)
-  hello world
-  scala> println(err.meta)
+  scala> println(Err("hello world").meta)
   Meta(com.acme.main,<console>,10)
+  
+  scala> println(Err("hello world").meta)
+  Meta(com.acme.main,<console>,11)
 ~~~~~~~~
+
+However, this small trade in purity goes a long way to help with debugging
+production issue. The point is that the method that creates the `Meta` can
+itself be referentially transparent to the outside world, unlike a stacktrace
+breaking all downstream callers.
 
 Although we no longer have a stacktrace, it is rare that a full stacktrace would
 have been relevant anyway. In pure code, all the context that is needed to fully
@@ -753,10 +762,11 @@ frameworks.
   }
 ~~~~~~~~
 
-Much as `IO` is used to make the type system aware of interactions with the
-operating system, it captures exceptions from legacy, non-total, code. The
-developer has access to the full stacktrace for debugging, or may handle the
-exception according to the ancient rules of the legacy system's API.
+It is good to avoid using keywords where possible, as it means we have to
+remember less caveats of the language. If we need to interact with a legacy API
+with a **predictable** exception, like a string parser, we can use
+`scala.util.Try` and use `.toDisjunction.leftMap` to convert the non
+referentially transparent `Throwable` into a descriptive `String`.
 
 
 ### `ReaderT` / `Kleisli`
