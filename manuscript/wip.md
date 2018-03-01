@@ -693,10 +693,13 @@ There are two problems with an ADT of errors on the application level:
 -   no matter how granular the errors are, the resolution is often the same: log
     it and try it again, or give up. We don't need an ADT for this.
 
-Using a simple error type like `String` has the problem that it is difficult to
-find where the problem originated: there is no stacktrace. However, using
-[`sourcecode` by Li Haoyi](https://github.com/lihaoyi/sourcecode/), we can include contextual information as metadata in
-our errors:
+A compromise between an error ADT and a `String` is an intermediary format. JSON
+is a good choice as it can be understood by most logging and monitoring
+frameworks.
+
+A problem with not having a stacktrace is that it can be hard to localise which
+piece of code was the source of an error. With [`sourcecode` by Li Haoyi](https://github.com/lihaoyi/sourcecode/), we can
+include contextual information as metadata in our errors:
 
 {lang="text"}
 ~~~~~~~~
@@ -712,32 +715,36 @@ our errors:
 ~~~~~~~~
 
 Although `Err` is referentially transparent, the implicit construction of a
-`Meta` is **not** referentially transparent: two calls to `Meta.gen` (invoked
-implicitly when creating an `Err`) will produce different values because the
-location in the source code impacts the returned value.
+`Meta` does **not** appear to be referentially transparent from a natural reading:
+two calls to `Meta.gen` (invoked implicitly when creating an `Err`) will produce
+different values because the location in the source code impacts the returned
+value:
 
 {lang="text"}
 ~~~~~~~~
   scala> println(Err("hello world").meta)
-  Meta(com.acme.main,<console>,10)
+  Meta(com.acme,<console>,10)
   
   scala> println(Err("hello world").meta)
-  Meta(com.acme.main,<console>,11)
+  Meta(com.acme,<console>,11)
 ~~~~~~~~
 
-However, this small trade in purity goes a long way to help with debugging
-production issue. The point is that the method that creates the `Meta` can
-itself be referentially transparent to the outside world, unlike a stacktrace
-breaking all downstream callers.
+To understand this, we have to appreciate that `sourcecode.*` methods are macros
+that are generating source code for us. If we were to write the above explicitly
+it is very clear what is happening:
 
-Although we no longer have a stacktrace, it is rare that a full stacktrace would
-have been relevant anyway. In pure code, all the context that is needed to fully
-explain an error message is contained in the inputs: there is no reliance on
-hidden state.
+{lang="text"}
+~~~~~~~~
+  scala> println(Err("hello world")(Meta("com.acme", "<console>", 10)).meta)
+  Meta(com.acme,<console>,10)
+  
+  scala> println(Err("hello world")(Meta("com.acme", "<console>", 11)).meta)
+  Meta(com.acme,<console>,11)
+~~~~~~~~
 
-A nice compromise between an error ADT and a `String` is an intermediary format.
-JSON is a good choice as it can be understood by most logging and monitoring
-frameworks.
+If you don't like making a deal with the macro devil to get source code
+metadata, you can restrict the information to contain less magic, perhaps just
+the name of the source file.
 
 
 #### `IO` and `Throwable`
@@ -769,7 +776,7 @@ with a **predictable** exception, like a string parser, we can use
 referentially transparent `Throwable` into a descriptive `String`.
 
 
-### `ReaderT` / `Kleisli`
+### `ReaderT`
 
 The reader monad wraps `A => F[B]` allowing a program `F[B]` to depend on a
 runtime value `A`. For those familiar with dependency injection, the reader
@@ -789,11 +796,7 @@ the second parameter of a monadic `.bind`, the *action*.
       Kleisli(c => run(f(c)).map(g))
   
     def >=>[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = ...
-    def <=<[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
-    def andThen[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = this >=> k
-    def compose[C](k: Kleisli[F, C, A])(implicit F: Bind[F]): Kleisli[F, C, B] = k >=> this
-  
-    def =<<(a: F[A])(implicit F: Bind[F]): F[B] = a >>= run
+    def >==>[C](k: B => M[C])(implicit M: Bind[M]): Kleisli[M, A, C] = this >=> Kleisli(k)
     ...
   }
   object Kleisli {
@@ -802,10 +805,59 @@ the second parameter of a monadic `.bind`, the *action*.
   }
 ~~~~~~~~
 
-A> Some people call `>=>` the *fish operator*, but we know that it is obviously a
-A> Y-Wing.
+A> Some people call `>=>` the *fish operator*. There's always a bigger fish, hence
+A> `>==>`. They are also called *Kleisli arrows*.
 
-TODO: finish the section on `ReaderT`
+An `implicit` conversion on the companion allows us to use a `Kleisli` in place
+of a function, so we can provide it as the parameter to a monad's `.bind`, or
+`>>=`.
+
+The most common use for `ReaderT` is to provide environment information to a
+program. In `drone-dynamic-agents` we need access to the user's Oauth 2.0
+Refresh Token to be able to contact Google. The obvious thing is to load the
+`RefreshTokens` from disk on startup, and make every method take an `implicit
+tokens: RefreshToken`. In fact, this is such a common requirement that Martin
+Odersky has proposed [implicit functions](https://www.scala-lang.org/blog/2016/12/07/implicit-function-types.html).
+
+A better solution is for our program to have an algebra that provides the
+configuration when needed, e.g.
+
+{lang="text"}
+~~~~~~~~
+  trait ConfigReader[F[_]] {
+    def token: F[RefreshToken]
+  }
+~~~~~~~~
+
+We have reinvented `MonadReader`, the typeclass associated to `ReaderT`, where
+`.ask` is the same as our `.token`, and `S` is `RefreshToken`:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadReader[F[_], S] extends Monad[F] {
+    def ask: F[S]
+  
+    def local[A](f: S => S)(fa: F[A]): F[A]
+  }
+~~~~~~~~
+
+A law of `MonadReader` is that the `S` cannot change between invocations, i.e.
+`ask >> ask === ask`. For our usecase, this is like saying the configuration is
+read once. If we decide later that our configuration could change throughout the
+lifetime of the project, we can reintroduce `ConfigReader`.
+
+TODO: pad out the configuration example
+
+The other interesting side of `MonadReader` is the `local` method, which allows
+*us* to change the configuration object and run a program `fa` within that local
+context. We can use `.local` to create a breadcrumb trail of information through
+a program for logging purposes, giving us a way to construct a meaningful
+stacktrace that is also referentially transparent!
+
+TODO: pad out the RT stacktrace example.
+
+In a nutshell, dotty can keep its implicit functions... we already have
+`ReaderT`.
 
 
 # The Infinite Sadness
