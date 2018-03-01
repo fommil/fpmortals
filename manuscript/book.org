@@ -9746,22 +9746,87 @@ We have reinvented =MonadReader=, the typeclass associated to =ReaderT=, where
 #+END_SRC
 
 A law of =MonadReader= is that the =S= cannot change between invocations, i.e.
-~ask >> ask === ask~. For our usecase, this is like saying the configuration is
-read once. If we decide later that our configuration could change throughout the
-lifetime of the project, we can reintroduce =ConfigReader=.
+~ask >> ask === ask~. For our usecase, this is to say that the configuration is
+read once. If we decide later that we want to reload configuration every time we
+need it, e.g. allowing us to change the token without restarting the
+application, we can reintroduce =ConfigReader= which has no such law.
 
-TODO: pad out the configuration example
+In our OAuth 2.0 implementation we could first move the =Monad= evidence onto the
+methods:
 
-The other interesting side of =MonadReader= is the =local= method, which allows
-/us/ to change the configuration object and run a program =fa= within that local
-context. We can use =.local= to create a breadcrumb trail of information through
-a program for logging purposes, giving us a way to construct a meaningful
-stacktrace that is also referentially transparent!
+#+BEGIN_SRC scala
+  def bearer(refresh: RefreshToken)(implicit F: Monad[F]): F[BearerToken] =
+    for { ...
+#+END_SRC
 
-TODO: pad out the RT stacktrace example.
+and then refactor the =refresh= parameter to be part of the =Monad=
+
+#+BEGIN_SRC scala
+    def bearer(implicit F: MonadReader[F, RefreshToken]): F[BearerToken] =
+      for {
+        refresh <- F.ask
+#+END_SRC
+
+Fundamentally, any single parameter can be moved into the =MonadReader=. This is
+of most value to your immediate caller when they simply want to thread through
+this information from above. This means that we can reserve =implicit= parameter
+blocks entirely for the use of typeclasses, which again simplifies our use of
+the Scala language: reducing the axis of choice and letting us focus on getting
+our job done.
+
+The other method in =MonadReader= is =.local=
+
+#+BEGIN_SRC scala
+  def local[A](f: S => S)(fa: F[A]): F[A]
+#+END_SRC
+
+We can change =S= and run a program =fa= within that local context, returning to
+the original =S=. A use case for =.local= is to generate a stacktrace that makes
+sense to our domain giving us nested logging! Leaning on the =Meta= data
+structure from the previous section we could follow this pattern when defining
+functions:
+
+#+BEGIN_SRC scala
+type M = MonadReader[F, IList[Meta]]
+def traced[A](fa: F[A])(implicit M: M): F[A] = M.local(Meta.gen :: _)(fa)
+
+def foo(implicit M: M): F[Foo] = traced(getBar) >>= barToFoo
+#+END_SRC
+
+If we were to access the =.ask= we can see the breadcrumb trail of exactly how
+we were called, without the distraction of bytecode implementation details. A
+referentially transparent stacktrace!
+
+A defensive programmer may wish to truncate the =IList[Meta]= at a certain
+length to avoid the equivalent of a stack overflow. Indeed, a more appropriate
+data structure, like a =Dequeue= may be better.
+
+=.local= can also be used to keep track of contextual information that is
+directly relevant to the task at hand, like the number of spaces that must
+indent a line when pretty printing a human readable file format, bumping it by
+two spaces when we enter a nested structure.
+
+#+BEGIN_ASIDE
+Not four spaces. Not eight spaces. Not a TAB.
+
+Two spaces. Exactly two spaces. This is a magic number we can hardcode, because
+every other number is *wrong*.
+#+END_ASIDE
+
+Finally, if we cannot request a =MonadReader= because our application does not
+provide one, we can always return a =ReaderT=
+
+#+BEGIN_SRC scala
+  def access(implicit F: Monad[F]): ReaderT[F, CodeToken, (RefreshToken, BearerToken)] =
+    ReaderT( code => for {
+    ...
+#+END_SRC
+
+Admittedly, since we're not passing =CodeToken= through many layers that don't
+need it, we should just revert to a regular function parameter.
 
 In a nutshell, dotty can keep its implicit functions... we already have
-=ReaderT=.
+=ReaderT= and =MonadReader=.
 
 ** The Infinite Sadness
 
