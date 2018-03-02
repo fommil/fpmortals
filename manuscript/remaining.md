@@ -49,6 +49,8 @@ Probably ignore...
 
 ## TODO Parallelism and `Task`
 
+`LiftIO`
+
 The issue of parallelisation of applicatives vs the sequential nature of Monad.
 
 Can use this to motivate the scalaz8 typeclass design.

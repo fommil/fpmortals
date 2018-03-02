@@ -9700,7 +9700,7 @@ final case class Kleisli[F[_], A, B](run: A => F[B]) {
     Kleisli(c => run(f(c)).map(g))
 
   def >=>[C](k: Kleisli[F, B, C])(implicit F: Bind[F]): Kleisli[F, A, C] = ...
-  def >==>[C](k: B => M[C])(implicit M: Bind[M]): Kleisli[M, A, C] = this >=> Kleisli(k)
+  def >==>[C](k: B => F[C])(implicit F: Bind[F]): Kleisli[F, A, C] = this >=> Kleisli(k)
   ...
 }
 object Kleisli {
@@ -9745,6 +9745,20 @@ We have reinvented =MonadReader=, the typeclass associated to =ReaderT=, where
 }
 #+END_SRC
 
+with the implementation
+
+#+BEGIN_SRC scala
+implicit def monad[F[_]: Monad, R] = new MonadReader[Kleisli[F, R, ?], R] {
+  def point[A](a: =>A): Kleisli[F, R, A] = Kleisli(_ => F.point(a))
+  def bind[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]) =
+    Kleisli(a => Monad[F].bind(fa.run(a))(f))
+
+  def ask: Kleisli[F, R, R] = Kleisli(_.pure[F])
+  def local[A](f: R => R)(fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+    Kleisli(f andThen fa.run)
+}
+#+END_SRC
+
 A law of =MonadReader= is that the =S= cannot change between invocations, i.e.
 ~ask >> ask === ask~. For our usecase, this is to say that the configuration is
 read once. If we decide later that we want to reload configuration every time we
@@ -9762,9 +9776,9 @@ methods:
 and then refactor the =refresh= parameter to be part of the =Monad=
 
 #+BEGIN_SRC scala
-    def bearer(implicit F: MonadReader[F, RefreshToken]): F[BearerToken] =
-      for {
-        refresh <- F.ask
+  def bearer(implicit F: MonadReader[F, RefreshToken]): F[BearerToken] =
+    for {
+      refresh <- F.ask
 #+END_SRC
 
 Fundamentally, any single parameter can be moved into the =MonadReader=. This is
@@ -9781,20 +9795,26 @@ The other method in =MonadReader= is =.local=
 #+END_SRC
 
 We can change =S= and run a program =fa= within that local context, returning to
-the original =S=. A use case for =.local= is to generate a stacktrace that makes
-sense to our domain giving us nested logging! Leaning on the =Meta= data
-structure from the previous section we could follow this pattern when defining
-functions:
+the original =S=. A use case for =.local= is to generate a "stack trace" that
+makes sense to our domain. giving us nested logging! Leaning on the =Meta= data
+structure from the previous section, we define a function to checkpoint:
 
 #+BEGIN_SRC scala
-type M = MonadReader[F, IList[Meta]]
-def traced[A](fa: F[A])(implicit M: M): F[A] = M.local(Meta.gen :: _)(fa)
-
-def foo(implicit M: M): F[Foo] = traced(getBar) >>= barToFoo
+def traced[A](fa: F[A])(implicit F: MonadReader[F, IList[Meta]]): F[A] =
+  F.local(Meta.gen :: _)(fa)
 #+END_SRC
 
-If we were to access the =.ask= we can see the breadcrumb trail of exactly how
-we were called, without the distraction of bytecode implementation details. A
+and we can use it to wrap functions that operate in this context.
+
+#+BEGIN_SRC scala
+def foo: F[Foo] = traced(getBar) >>= barToFoo
+#+END_SRC
+
+automatically passing through anything that is not explicitly traced. A compiler
+plugin or macro could do the opposite, opting everything in by default.
+
+If we access =.ask= we can see the breadcrumb trail of exactly how we were
+called, without the distraction of bytecode implementation details. A
 referentially transparent stacktrace!
 
 A defensive programmer may wish to truncate the =IList[Meta]= at a certain
@@ -9822,8 +9842,24 @@ provide one, we can always return a =ReaderT=
     ...
 #+END_SRC
 
-Admittedly, since we're not passing =CodeToken= through many layers that don't
-need it, we should just revert to a regular function parameter.
+or use
+
+#+BEGIN_SRC scala
+code <- ReaderT.ask[F, CodeToken]
+#+END_SRC
+
+to make the =for= comprehension over a =ReaderT= instead of =F=.
+
+If a caller receives a =ReaderT=, and they have the =code= parameter to hand,
+they can call =access.run(code)= and get back an =F[(RefreshToken,
+BearerToken)]=.
+
+Admittedly, since we don't have many callers, we should just revert to a regular
+function parameter. =MonadReader= is of most use when:
+
+1. we may wish to refactor the code later to reload config
+2. the value is not needed by intermediate callers
+3. or, we want to locally scope some variable
 
 In a nutshell, dotty can keep its implicit functions... we already have
 =ReaderT= and =MonadReader=.
@@ -9906,6 +9942,8 @@ Probably ignore...
 
 
 *** TODO Parallelism and =Task=
+
+=LiftIO=
 
 The issue of parallelisation of applicatives vs the sequential nature of Monad.
 
