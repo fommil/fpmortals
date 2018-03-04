@@ -104,9 +104,9 @@ Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tag
 their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin Göttlinger,
-Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
-Michael Pilquist, Paul Snively, Daniel Spiewak, Stephen Compall, Brian McKenna,
-Ryan Delucchi, Pedro Rodriguez, Emily Pillmore.
+Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Michael Pilquist,
+Paul Snively, Daniel Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi,
+Pedro Rodriguez, Emily Pillmore, Aaron Vargo.
 
 ** Practicalities
 
@@ -6621,6 +6621,41 @@ trait BiNaturalTransformation[-F[_, _], +G[_, _]] {
 }
 #+END_SRC
 
+*** =Isomorphism=
+
+Sometimes we have two things that are representing the same thing, and we don't
+want to re-implement all the typeclasses. This typically happens when we use
+third party code and we realise it is exactly the same as something we already
+have, but we can't simply standardise on one of them, because reasons.
+
+This is when =Isomorphism= can help us out. An isomorphism defines a formal "are
+equivalent to" relationship between two types. They are not for transforming
+things, like encoders and decoders.
+
+#+BEGIN_SRC scala
+object Isomorphism {
+  trait Iso[Arr[_, _], A, B] {
+    def to: Arr[A, B]
+    def from: Arr[B, A]
+  }
+
+  trait Iso2[Arr[_[_], _[_]], F[_], G[_]] {
+    def to: Arr[F, G]
+    def from: Arr[G, F]
+  }
+
+  trait Iso3[Arr[_[_, _], _[_, _]], F[_, _], G[_, _]] {
+    def to: Arr[F, G]
+    def from: Arr[G, F]
+  }
+
+  ...
+}
+#+END_SRC
+
+
+TODO
+
 *** Containers
 
 **** Maybe
@@ -9863,6 +9898,10 @@ function parameter. =MonadReader= is of most use when:
 
 In a nutshell, dotty can keep its implicit functions... we already have
 =ReaderT= and =MonadReader=.
+
+TODO: =ReaderT= for decoder typeclasses. This might come at the end of the
+chapter in a wrap up combining typeclasses. Implies adding =Iso= to the data
+types chapter.
 
 ** The Infinite Sadness
 
