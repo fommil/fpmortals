@@ -965,14 +965,13 @@ provide one, we can always return a `ReaderT`
 
 {lang="text"}
 ~~~~~~~~
-  def access(implicit F: Monad[F]): ReaderT[F, CodeToken, (RefreshToken, BearerToken)] =
-    ReaderT( code => for {
+  def bearer(implicit F: Monad[F]): ReaderT[F, RefreshToken, BearerToken] =
+    ReaderT( token => for {
     ...
 ~~~~~~~~
 
-If a caller receives a `ReaderT`, and they have the `code` parameter to hand,
-they can call `access.run(code)` and get back an `F[(RefreshToken,
-BearerToken)]`.
+If a caller receives a `ReaderT`, and they have the `token` parameter to hand,
+they can call `access.run(token)` and get back an `F[BearerToken]`.
 
 Admittedly, since we don't have many callers, we should just revert to a regular
 function parameter. `MonadReader` is of most use when:
