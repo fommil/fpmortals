@@ -581,9 +581,10 @@ The `Monad` is a `MonadError`
 `.raiseError` and `.handleError` are self-descriptive: the equivalent of `throw`
 and `catch` an exception, respectively.
 
-`.map` is for functions that could fail and is very useful for writing decoders
-in terms of existing ones, much as we used `.contramap` to define new encoders
-in terms of existing ones. For example, say we have an XML decoder like
+`.emap`, *either* map, is for functions that could fail and is very useful for
+writing decoders in terms of existing ones, much as we used `.contramap` to
+define new encoders in terms of existing ones. For example, say we have an XML
+decoder like
 
 {lang="text"}
 ~~~~~~~~
@@ -602,7 +603,7 @@ we can define a decoder for `Char` in terms of a `String` decoder
 ~~~~~~~~
   implicit val char: XDecoder[Char] = XDecoder[String].emap { s =>
     if (s.length == 1) s(0).right
-    else s"text too long: $s".left
+    else s"not a char: $s".left
   }
 ~~~~~~~~
 
@@ -759,7 +760,7 @@ value:
 
 To understand this, we have to appreciate that `sourcecode.*` methods are macros
 that are generating source code for us. If we were to write the above explicitly
-it is very clear what is happening:
+it is clear what is happening:
 
 {lang="text"}
 ~~~~~~~~
@@ -770,9 +771,8 @@ it is very clear what is happening:
   Meta(com.acme,<console>,11)
 ~~~~~~~~
 
-If you don't like making a deal with the macro devil to get source code
-metadata, you can restrict the information to contain less magic, perhaps just
-the name of the source file.
+Yes, we've made a deal with the macro devil, but we could also write the `Meta`
+manually and have it go out of date quicker than our documentation.
 
 
 #### `IO` and `Throwable`
@@ -811,9 +811,8 @@ runtime value `A`. For those familiar with dependency injection, the reader
 monad is the FP equivalent of Spring or Guice's `@Inject`, without the XML and
 reflection.
 
-`ReaderT` is just an alias to another, more generally useful, data type called
-`Kleisli`, named after the mathematician *Heinrich Kleisli*. `Kleisli` captures
-the second parameter of a monadic `.bind`, the *action*.
+`ReaderT` is just an alias to another more generally useful data type named
+after the mathematician *Heinrich Kleisli*.
 
 {lang="text"}
 ~~~~~~~~
@@ -949,7 +948,7 @@ referentially transparent stacktrace!
 
 A defensive programmer may wish to truncate the `IList[Meta]` at a certain
 length to avoid the equivalent of a stack overflow. Indeed, a more appropriate
-data structure, like a `Dequeue` may be better.
+data structure is `Dequeue`.
 
 `.local` can also be used to keep track of contextual information that is
 directly relevant to the task at hand, like the number of spaces that must
@@ -971,15 +970,6 @@ provide one, we can always return a `ReaderT`
     ...
 ~~~~~~~~
 
-or use
-
-{lang="text"}
-~~~~~~~~
-  code <- ReaderT.ask[F, CodeToken]
-~~~~~~~~
-
-to make the `for` comprehension over a `ReaderT` instead of `F`.
-
 If a caller receives a `ReaderT`, and they have the `code` parameter to hand,
 they can call `access.run(code)` and get back an `F[(RefreshToken,
 BearerToken)]`.
@@ -994,8 +984,10 @@ function parameter. `MonadReader` is of most use when:
 In a nutshell, dotty can keep its implicit functions... we already have
 `ReaderT` and `MonadReader`.
 
-One last example. The type signature `A => F[B]` tends to be the same as a
-decoder. Our XML decoder from the previous section is
+One last example. Monad transformers typically provide specialised `Monad`
+instances if their underlying type has one. So, for example, `ReaderT` has a
+`MonadError`, `MonadPlus`, etc if the underlying has one. Decoder typeclasses
+tend to have a signature that looks like `A => F[B]`, recall
 
 {lang="text"}
 ~~~~~~~~
@@ -1004,15 +996,15 @@ decoder. Our XML decoder from the previous section is
   }
 ~~~~~~~~
 
-which has a single method of signature `XNode => String \/ A` and therefore
-isomorphic to `ReaderT[String \/ ?, Xml, A]`. We can formalise this relationship
-with an `Isomorphism`. It's easier to read by introducing type aliases
+which has a single method of signature `XNode => String \/ A`, isomorphic to
+`ReaderT[String \/ ?, Xml, A]`. We can formalise this relationship with an
+`Isomorphism`. It's easier to read by introducing type aliases
 
 {lang="text"}
 ~~~~~~~~
   type Out[a] = String \/ a
   type RT[a] = ReaderT[Out, Xml, a]
-  implicit val isoReaderT: XDecoder <~> RT =
+  val isoReaderT: XDecoder <~> RT =
     new IsoFunctorTemplate[XDecoder, RT] {
       def from[A](fa: RT[A]): XDecoder[A] = fa.run(_)
       def to[A](fa: XDecoder[A]): RT[A] = ReaderT[Out, Xml, A](fa.fromXml)
@@ -1020,7 +1012,7 @@ with an `Isomorphism`. It's easier to read by introducing type aliases
 ~~~~~~~~
 
 Now our `XDecoder` has access to all the typeclasses that `ReaderT` has. The
-most useful typeclass to have is a `MonadError[Decoder, String]`
+typeclass we need is `MonadError[Decoder, String]`
 
 {lang="text"}
 ~~~~~~~~
@@ -1028,10 +1020,6 @@ most useful typeclass to have is a `MonadError[Decoder, String]`
 ~~~~~~~~
 
 which we know to be useful for defining new decoders in terms of existing ones.
-
-Monad transformers typically provide specialised `Monad` instances if their
-underlying type has one. So, for example, `ReaderT` has a `MonadError`,
-`MonadPlus`, etc if the underlying has one.
 
 
 # The Infinite Sadness
