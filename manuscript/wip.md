@@ -573,7 +573,7 @@ The `Monad` is a `MonadError`
     def raiseError[A](e: E): F[A]
     def handleError[A](fa: F[A])(f: E => F[A]): F[A]
   
-    def emap[A](fa: F[A])(f: A => S \/ A): F[A] =
+    def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] =
       bind(fa)(a => f(a).fold(raiseError(_), pure(_)))
   }
 ~~~~~~~~
