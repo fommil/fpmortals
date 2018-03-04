@@ -572,11 +572,39 @@ The `Monad` is a `MonadError`
   @typeclass trait MonadError[F[_], E] extends Monad[F] {
     def raiseError[A](e: E): F[A]
     def handleError[A](fa: F[A])(f: E => F[A]): F[A]
+  
+    def emap[A](fa: F[A])(f: A => S \/ A): F[A] =
+      bind(fa)(a => f(a).fold(raiseError(_), pure(_)))
   }
 ~~~~~~~~
 
 `.raiseError` and `.handleError` are self-descriptive: the equivalent of `throw`
 and `catch` an exception, respectively.
+
+`.map` is for functions that could fail and is very useful for writing decoders
+in terms of existing ones, much as we used `.contramap` to define new encoders
+in terms of existing ones. For example, say we have an XML decoder like
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait XDecoder[A] {
+    def fromXml(x: Xml): String \/ A
+  }
+  object XDecoder {
+    implicit val monad: MonadError[String \/ ?, String] = ...
+    implicit val string: XDecoder[String] = ...
+  }
+~~~~~~~~
+
+we can define a decoder for `Char` in terms of a `String` decoder
+
+{lang="text"}
+~~~~~~~~
+  implicit val char: XDecoder[Char] = XDecoder[String].emap { s =>
+    if (s.length == 1) s(0).right
+    else s"text too long: $s".left
+  }
+~~~~~~~~
 
 The `MonadError` for `EitherT` is:
 
@@ -965,6 +993,45 @@ function parameter. `MonadReader` is of most use when:
 
 In a nutshell, dotty can keep its implicit functions... we already have
 `ReaderT` and `MonadReader`.
+
+One last example. The type signature `A => F[B]` tends to be the same as a
+decoder. Our XML decoder from the previous section is
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait XDecoder[A] {
+    def fromXml(x: Xml): String \/ A
+  }
+~~~~~~~~
+
+which has a single method of signature `XNode => String \/ A` and therefore
+isomorphic to `ReaderT[String \/ ?, Xml, A]`. We can formalise this relationship
+with an `Isomorphism`. It's easier to read by introducing type aliases
+
+{lang="text"}
+~~~~~~~~
+  type Out[a] = String \/ a
+  type RT[a] = ReaderT[Out, Xml, a]
+  implicit val isoReaderT: XDecoder <~> RT =
+    new IsoFunctorTemplate[XDecoder, RT] {
+      def from[A](fa: RT[A]): XDecoder[A] = fa.run(_)
+      def to[A](fa: XDecoder[A]): RT[A] = ReaderT[Out, Xml, A](fa.fromXml)
+    }
+~~~~~~~~
+
+Now our `XDecoder` has access to all the typeclasses that `ReaderT` has. The
+most useful typeclass to have is a `MonadError[Decoder, String]`
+
+{lang="text"}
+~~~~~~~~
+  implicit val monad: MonadError[XDecoder, String] = MonadError.fromIso(isoReaderT)
+~~~~~~~~
+
+which we know to be useful for defining new decoders in terms of existing ones.
+
+Monad transformers typically provide specialised `Monad` instances if their
+underlying type has one. So, for example, `ReaderT` has a `MonadError`,
+`MonadPlus`, etc if the underlying has one.
 
 
 # The Infinite Sadness

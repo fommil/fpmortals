@@ -6623,14 +6623,14 @@ trait BiNaturalTransformation[-F[_, _], +G[_, _]] {
 
 *** =Isomorphism=
 
-Sometimes we have two things that are representing the same thing, and we don't
-want to re-implement all the typeclasses. This typically happens when we use
-third party code and we realise it is exactly the same as something we already
-have, but we can't simply standardise on one of them, because reasons.
+Sometimes we have two types that are really the same thing, causing
+compatibility problems because the compiler doesn't know what we know. This
+typically happens when we use third party code that is the same as something we
+already have.
 
-This is when =Isomorphism= can help us out. An isomorphism defines a formal "are
-equivalent to" relationship between two types. They are not for transforming
-things, like encoders and decoders.
+This is when =Isomorphism= can help us out. An isomorphism defines a formal "is
+equivalent to" relationship between two types. There are three variants, to
+account for types of different shapes:
 
 #+BEGIN_SRC scala
 object Isomorphism {
@@ -6638,23 +6638,65 @@ object Isomorphism {
     def to: Arr[A, B]
     def from: Arr[B, A]
   }
+  type IsoSet[A, B] = Iso[Function1, A, B]
+  type <=>[A, B] = IsoSet[A, B]
+  object IsoSet {
+    def apply[A, B](to: A => B, from: B => A): A <=> B = ...
+  }
 
   trait Iso2[Arr[_[_], _[_]], F[_], G[_]] {
     def to: Arr[F, G]
     def from: Arr[G, F]
+  }
+  type IsoFunctor[F[_], G[_]] = Iso2[NaturalTransformation, F, G]
+  type <~>[F[_], G[_]] = IsoFunctor[F, G]
+  object IsoFunctor {
+    def apply[F[_], G[_]](to: F ~> G, from: G ~> F): F <~> G = ...
   }
 
   trait Iso3[Arr[_[_, _], _[_, _]], F[_, _], G[_, _]] {
     def to: Arr[F, G]
     def from: Arr[G, F]
   }
+  type IsoBifunctor[F[_, _], G[_, _]] = Iso3[~~>, F, G]
+  type <~~>[F[_, _], G[_, _]] = IsoBifunctor[F, G]
 
   ...
 }
 #+END_SRC
 
+The type aliases =IsoSet=, =IsoFunctor= and =IsoBifunctor= cover the common
+cases: a regular function, natural transformation and binatural. Convenience
+functions allow us to generate instances from existing functions or natural
+transformations. However, it is often easier to use one of the abstract
+=Template= classes to define an isomorphism. For example:
 
-TODO
+#+BEGIN_SRC scala
+  val listIListIso: List <~> IList =
+    new IsoFunctorTemplate[List, IList] {
+      def to[A](fa: List[A]) = fromList(fa)
+      def from[A](fa: IList[A]) = fa.toList
+    }
+#+END_SRC
+
+If we introduce an isomorphism, we can generate many of the standard
+typeclasses. For example
+
+#+BEGIN_SRC scala
+trait IsomorphismSemigroup[F, G] extends Semigroup[F] {
+  implicit def G: Semigroup[G]
+  def iso: F <=> G
+  def append(f1: F, f2: => F): F = iso.from(G.append(iso.to(f1), iso.to(f2)))
+}
+#+END_SRC
+
+allows us to derive a =Semigroup[F]= for a type =F= if we have an ~F <=> G~ and
+a =Semigroup[G]=. Almost all the typeclasses in the hierarchy provide an
+isomorphic variant. If we find ourselves copying and pasting a typeclass
+implementation, it is worth considering if =Isomorphism= is the better solution.
+
+# these should be easier to use!
+# https://github.com/scalaz/scalaz/issues/1662
 
 *** Containers
 
@@ -9523,11 +9565,37 @@ The =Monad= is a =MonadError=
 @typeclass trait MonadError[F[_], E] extends Monad[F] {
   def raiseError[A](e: E): F[A]
   def handleError[A](fa: F[A])(f: E => F[A]): F[A]
+
+  def emap[A](fa: F[A])(f: A => S \/ A): F[A] =
+    bind(fa)(a => f(a).fold(raiseError(_), pure(_)))
 }
 #+END_SRC
 
 =.raiseError= and =.handleError= are self-descriptive: the equivalent of =throw=
 and =catch= an exception, respectively.
+
+=.map= is for functions that could fail and is very useful for writing decoders
+in terms of existing ones, much as we used =.contramap= to define new encoders
+in terms of existing ones. For example, say we have an XML decoder like
+
+#+BEGIN_SRC scala
+@typeclass trait XDecoder[A] {
+  def fromXml(x: Xml): String \/ A
+}
+object XDecoder {
+  implicit val monad: MonadError[String \/ ?, String] = ...
+  implicit val string: XDecoder[String] = ...
+}
+#+END_SRC
+
+we can define a decoder for =Char= in terms of a =String= decoder
+
+#+BEGIN_SRC scala
+implicit val char: XDecoder[Char] = XDecoder[String].emap { s =>
+  if (s.length == 1) s(0).right
+  else s"text too long: $s".left
+}
+#+END_SRC
 
 The =MonadError= for =EitherT= is:
 
@@ -9899,9 +9967,41 @@ function parameter. =MonadReader= is of most use when:
 In a nutshell, dotty can keep its implicit functions... we already have
 =ReaderT= and =MonadReader=.
 
-TODO: =ReaderT= for decoder typeclasses. This might come at the end of the
-chapter in a wrap up combining typeclasses. Implies adding =Iso= to the data
-types chapter.
+One last example. The type signature ~A => F[B]~ tends to be the same as a
+decoder. Our XML decoder from the previous section is
+
+#+BEGIN_SRC scala
+@typeclass trait XDecoder[A] {
+  def fromXml(x: Xml): String \/ A
+}
+#+END_SRC
+
+which has a single method of signature ~XNode => String \/ A~ and therefore
+isomorphic to =ReaderT[String \/ ?, Xml, A]=. We can formalise this relationship
+with an =Isomorphism=. It's easier to read by introducing type aliases
+
+#+BEGIN_SRC scala
+type Out[a] = String \/ a
+type RT[a] = ReaderT[Out, Xml, a]
+implicit val isoReaderT: XDecoder <~> RT =
+  new IsoFunctorTemplate[XDecoder, RT] {
+    def from[A](fa: RT[A]): XDecoder[A] = fa.run(_)
+    def to[A](fa: XDecoder[A]): RT[A] = ReaderT[Out, Xml, A](fa.fromXml)
+  }
+#+END_SRC
+
+Now our =XDecoder= has access to all the typeclasses that =ReaderT= has. The
+most useful typeclass to have is a =MonadError[Decoder, String]=
+
+#+BEGIN_SRC scala
+implicit val monad: MonadError[XDecoder, String] = MonadError.fromIso(isoReaderT)
+#+END_SRC
+
+which we know to be useful for defining new decoders in terms of existing ones.
+
+Monad transformers typically provide specialised =Monad= instances if their
+underlying type has one. So, for example, =ReaderT= has a =MonadError=,
+=MonadPlus=, etc if the underlying has one.
 
 ** The Infinite Sadness
 

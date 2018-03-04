@@ -91,9 +91,9 @@ Luka Jacobowitz for [Optimizing Tagless Final](https://typelevel.org/blog/2017/1
 their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin Göttlinger,
-Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Kai(luo) Wang,
-Michael Pilquist, Paul Snively, Daniel Spiewak, Stephen Compall, Brian McKenna,
-Ryan Delucchi, Pedro Rodriguez, Emily Pillmore.
+Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Michael Pilquist,
+Paul Snively, Daniel Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi,
+Pedro Rodriguez, Emily Pillmore, Aaron Vargo.
 
 
 # Practicalities

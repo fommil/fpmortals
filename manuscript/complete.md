@@ -5683,6 +5683,84 @@ holes:
 ~~~~~~~~
 
 
+## `Isomorphism`
+
+Sometimes we have two types that are really the same thing, causing
+compatibility problems because the compiler doesn't know what we know. This
+typically happens when we use third party code that is the same as something we
+already have.
+
+This is when `Isomorphism` can help us out. An isomorphism defines a formal "is
+equivalent to" relationship between two types. There are three variants, to
+account for types of different shapes:
+
+{lang="text"}
+~~~~~~~~
+  object Isomorphism {
+    trait Iso[Arr[_, _], A, B] {
+      def to: Arr[A, B]
+      def from: Arr[B, A]
+    }
+    type IsoSet[A, B] = Iso[Function1, A, B]
+    type <=>[A, B] = IsoSet[A, B]
+    object IsoSet {
+      def apply[A, B](to: A => B, from: B => A): A <=> B = ...
+    }
+  
+    trait Iso2[Arr[_[_], _[_]], F[_], G[_]] {
+      def to: Arr[F, G]
+      def from: Arr[G, F]
+    }
+    type IsoFunctor[F[_], G[_]] = Iso2[NaturalTransformation, F, G]
+    type <~>[F[_], G[_]] = IsoFunctor[F, G]
+    object IsoFunctor {
+      def apply[F[_], G[_]](to: F ~> G, from: G ~> F): F <~> G = ...
+    }
+  
+    trait Iso3[Arr[_[_, _], _[_, _]], F[_, _], G[_, _]] {
+      def to: Arr[F, G]
+      def from: Arr[G, F]
+    }
+    type IsoBifunctor[F[_, _], G[_, _]] = Iso3[~~>, F, G]
+    type <~~>[F[_, _], G[_, _]] = IsoBifunctor[F, G]
+  
+    ...
+  }
+~~~~~~~~
+
+The type aliases `IsoSet`, `IsoFunctor` and `IsoBifunctor` cover the common
+cases: a regular function, natural transformation and binatural. Convenience
+functions allow us to generate instances from existing functions or natural
+transformations. However, it is often easier to use one of the abstract
+`Template` classes to define an isomorphism. For example:
+
+{lang="text"}
+~~~~~~~~
+  val listIListIso: List <~> IList =
+    new IsoFunctorTemplate[List, IList] {
+      def to[A](fa: List[A]) = fromList(fa)
+      def from[A](fa: IList[A]) = fa.toList
+    }
+~~~~~~~~
+
+If we introduce an isomorphism, we can generate many of the standard
+typeclasses. For example
+
+{lang="text"}
+~~~~~~~~
+  trait IsomorphismSemigroup[F, G] extends Semigroup[F] {
+    implicit def G: Semigroup[G]
+    def iso: F <=> G
+    def append(f1: F, f2: => F): F = iso.from(G.append(iso.to(f1), iso.to(f2)))
+  }
+~~~~~~~~
+
+allows us to derive a `Semigroup[F]` for a type `F` if we have an `F <=> G` and
+a `Semigroup[G]`. Almost all the typeclasses in the hierarchy provide an
+isomorphic variant. If we find ourselves copying and pasting a typeclass
+implementation, it is worth considering if `Isomorphism` is the better solution.
+
+
 ## Containers
 
 
