@@ -4,9 +4,9 @@
 /** The prelude for the project */
 package object std {
   // primitive types
-  type Any      = scala.Any
-  type AnyRef   = scala.AnyRef
-  type AnyVal   = scala.AnyVal
+  type Any      = scala.Any // scalafix:ok Disable.Any
+  type AnyRef   = scala.AnyRef // scalafix:ok Disable.AnyRef
+  type AnyVal   = scala.AnyVal // scalafix:ok Disable.AnyVal
   type Boolean  = scala.Boolean
   type Byte     = scala.Byte
   type Double   = scala.Double
