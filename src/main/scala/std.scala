@@ -40,25 +40,25 @@ package object std {
   // Note that we try to avoid exposing subtypes, preferring to only see the ADT
   // and its constructors.
   type Option[A] = scala.Option[A]
-  val Option: scala.Option.type = scala.Option
-  val Some: scala.Some.type     = scala.Some
-  val None: scala.None.type     = scala.None
+  @inline def Option: scala.Option.type = scala.Option
+  @inline def Some: scala.Some.type     = scala.Some
+  @inline def None: scala.None.type     = scala.None
 
   type Either[A, B] = scala.Either[A, B]
-  val Left: scala.util.Left.type   = scala.Left
-  val Right: scala.util.Right.type = scala.Right
+  @inline def Left: scala.util.Left.type   = scala.Left
+  @inline def Right: scala.util.Right.type = scala.Right
 
   import scala.collection.immutable
   type Map[K, V] = immutable.Map[K, V]
   type List[A]   = immutable.List[A]
   type Set[A]    = immutable.Set[A]
-  val Map: scala.collection.immutable.Map.type   = immutable.Map
-  val List: scala.collection.immutable.List.type = immutable.List
-  val Nil: scala.collection.immutable.Nil.type   = immutable.Nil
-  val Set: scala.collection.immutable.Set.type   = immutable.Set
+  @inline def Map: scala.collection.immutable.Map.type   = immutable.Map
+  @inline def List: scala.collection.immutable.List.type = immutable.List
+  @inline def Nil: scala.collection.immutable.Nil.type   = immutable.Nil
+  @inline def Set: scala.collection.immutable.Set.type   = immutable.Set
 
   type Try[A] = scala.util.Try[A]
-  val Try: scala.util.Try.type = scala.util.Try
+  @inline def Try: scala.util.Try.type = scala.util.Try
 
   // Predef things
   import scala.Predef
@@ -118,45 +118,47 @@ package object std {
   type Traverse1[F[_]]        = scalaz.Traverse1[F]
   type Unzip[F[_]]            = scalaz.Unzip[F]
   type Zip[F[_]]              = scalaz.Zip[F]
-  val Align: scalaz.Align.type                       = scalaz.Align
-  val Applicative: scalaz.Applicative.type           = scalaz.Applicative
-  val ApplicativePlus: scalaz.ApplicativePlus.type   = scalaz.ApplicativePlus
-  val Alternative: scalaz.ApplicativePlus.type       = scalaz.ApplicativePlus
-  val Apply: scalaz.Apply.type                       = scalaz.Apply
-  val Band: scalaz.Band.type                         = scalaz.Band
-  val Bifoldable: scalaz.Bifoldable.type             = scalaz.Bifoldable
-  val Bifunctor: scalaz.Bifunctor.type               = scalaz.Bifunctor
-  val Bind: scalaz.Bind.type                         = scalaz.Bind
-  val Bitraverse: scalaz.Bitraverse.type             = scalaz.Bitraverse
-  val Contravariant: scalaz.Contravariant.type       = scalaz.Contravariant
-  val Cozip: scalaz.Cozip.type                       = scalaz.Cozip
-  val Divide: scalaz.Divide.type                     = scalaz.Divide
-  val Divisible: scalaz.Divisible.type               = scalaz.Divisible
-  val Enum: scalaz.Enum.type                         = scalaz.Enum
-  val Equal: scalaz.Equal.type                       = scalaz.Equal
-  val Foldable: scalaz.Foldable.type                 = scalaz.Foldable
-  val Foldable1: scalaz.Foldable1.type               = scalaz.Foldable1
-  val Functor: scalaz.Functor.type                   = scalaz.Functor
-  val InvariantFunctor: scalaz.InvariantFunctor.type = scalaz.InvariantFunctor
-  val Monad: scalaz.Monad.type                       = scalaz.Monad
-  val MonadError: scalaz.MonadError.type             = scalaz.MonadError
-  val MonadListen: scalaz.MonadListen.type           = scalaz.MonadListen
-  val MonadPlus: scalaz.MonadPlus.type               = scalaz.MonadPlus
-  val MonadReader: scalaz.MonadReader.type           = scalaz.MonadReader
-  val MonadState: scalaz.MonadState.type             = scalaz.MonadState
-  val MonadTell: scalaz.MonadTell.type               = scalaz.MonadTell
-  val MonadTrans: scalaz.MonadTrans.type             = scalaz.MonadTrans
-  val Monoid: scalaz.Monoid.type                     = scalaz.Monoid
-  val Nondeterminism: scalaz.Nondeterminism.type     = scalaz.Nondeterminism
-  val Optional: scalaz.Optional.type                 = scalaz.Optional
-  val Order: scalaz.Order.type                       = scalaz.Order
-  val Plus: scalaz.Plus.type                         = scalaz.Plus
-  val Semigroup: scalaz.Semigroup.type               = scalaz.Semigroup
-  val Show: scalaz.Show.type                         = scalaz.Show
-  val Traverse: scalaz.Traverse.type                 = scalaz.Traverse
-  val Traverse1: scalaz.Traverse1.type               = scalaz.Traverse1
-  val Unzip: scalaz.Unzip.type                       = scalaz.Unzip
-  val Zip: scalaz.Zip.type                           = scalaz.Zip
+  @inline def Align: scalaz.Align.type             = scalaz.Align
+  @inline def Applicative: scalaz.Applicative.type = scalaz.Applicative
+  @inline def ApplicativePlus: scalaz.ApplicativePlus.type =
+    scalaz.ApplicativePlus
+  @inline def Alternative: scalaz.ApplicativePlus.type = scalaz.ApplicativePlus
+  @inline def Apply: scalaz.Apply.type                 = scalaz.Apply
+  @inline def Band: scalaz.Band.type                   = scalaz.Band
+  @inline def Bifoldable: scalaz.Bifoldable.type       = scalaz.Bifoldable
+  @inline def Bifunctor: scalaz.Bifunctor.type         = scalaz.Bifunctor
+  @inline def Bind: scalaz.Bind.type                   = scalaz.Bind
+  @inline def Bitraverse: scalaz.Bitraverse.type       = scalaz.Bitraverse
+  @inline def Contravariant: scalaz.Contravariant.type = scalaz.Contravariant
+  @inline def Cozip: scalaz.Cozip.type                 = scalaz.Cozip
+  @inline def Divide: scalaz.Divide.type               = scalaz.Divide
+  @inline def Divisible: scalaz.Divisible.type         = scalaz.Divisible
+  @inline def Enum: scalaz.Enum.type                   = scalaz.Enum
+  @inline def Equal: scalaz.Equal.type                 = scalaz.Equal
+  @inline def Foldable: scalaz.Foldable.type           = scalaz.Foldable
+  @inline def Foldable1: scalaz.Foldable1.type         = scalaz.Foldable1
+  @inline def Functor: scalaz.Functor.type             = scalaz.Functor
+  @inline def InvariantFunctor: scalaz.InvariantFunctor.type =
+    scalaz.InvariantFunctor
+  @inline def Monad: scalaz.Monad.type                   = scalaz.Monad
+  @inline def MonadError: scalaz.MonadError.type         = scalaz.MonadError
+  @inline def MonadListen: scalaz.MonadListen.type       = scalaz.MonadListen
+  @inline def MonadPlus: scalaz.MonadPlus.type           = scalaz.MonadPlus
+  @inline def MonadReader: scalaz.MonadReader.type       = scalaz.MonadReader
+  @inline def MonadState: scalaz.MonadState.type         = scalaz.MonadState
+  @inline def MonadTell: scalaz.MonadTell.type           = scalaz.MonadTell
+  @inline def MonadTrans: scalaz.MonadTrans.type         = scalaz.MonadTrans
+  @inline def Monoid: scalaz.Monoid.type                 = scalaz.Monoid
+  @inline def Nondeterminism: scalaz.Nondeterminism.type = scalaz.Nondeterminism
+  @inline def Optional: scalaz.Optional.type             = scalaz.Optional
+  @inline def Order: scalaz.Order.type                   = scalaz.Order
+  @inline def Plus: scalaz.Plus.type                     = scalaz.Plus
+  @inline def Semigroup: scalaz.Semigroup.type           = scalaz.Semigroup
+  @inline def Show: scalaz.Show.type                     = scalaz.Show
+  @inline def Traverse: scalaz.Traverse.type             = scalaz.Traverse
+  @inline def Traverse1: scalaz.Traverse1.type           = scalaz.Traverse1
+  @inline def Unzip: scalaz.Unzip.type                   = scalaz.Unzip
+  @inline def Zip: scalaz.Zip.type                       = scalaz.Zip
 
   // scalaz utilities
   type <~<[A, B]      = scalaz.Liskov.<~<[A, B]
@@ -167,12 +169,12 @@ package object std {
   type Need[A]        = scalaz.Need[A]
   type Value[A]       = scalaz.Value[A]
   type Memo[K, V]     = scalaz.Memo[K, V]
-  val Liskov: scalaz.Liskov.type   = scalaz.Liskov
-  val Leibniz: scalaz.Leibniz.type = scalaz.Leibniz
-  val Name: scalaz.Name.type       = scalaz.Name
-  val Need: scalaz.Need.type       = scalaz.Need
-  val Value: scalaz.Value.type     = scalaz.Value
-  val Memo: scalaz.Memo.type       = scalaz.Memo
+  @inline def Liskov: scalaz.Liskov.type   = scalaz.Liskov
+  @inline def Leibniz: scalaz.Leibniz.type = scalaz.Leibniz
+  @inline def Name: scalaz.Name.type       = scalaz.Name
+  @inline def Need: scalaz.Need.type       = scalaz.Need
+  @inline def Value: scalaz.Value.type     = scalaz.Value
+  @inline def Memo: scalaz.Memo.type       = scalaz.Memo
 
   // scalaz data types
   type Maybe[A]            = scalaz.Maybe[A]
@@ -204,30 +206,31 @@ package object std {
   type IO[A]               = scalaz.effect.IO[A]
   type Free[S[_], A]       = scalaz.Free[S, A]
   type Trampoline[A]       = scalaz.Free.Trampoline[A]
-  val Maybe: scalaz.Maybe.type                     = scalaz.Maybe
-  val Disjunction: scalaz.\/.type                  = scalaz.\/
-  val Validation: scalaz.Validation.type           = scalaz.Validation
-  val These: scalaz.\&/.type                       = scalaz.\&/
-  val Const: scalaz.Const.type                     = scalaz.Const
-  val IList: scalaz.IList.type                     = scalaz.IList
-  val NonEmptyList: scalaz.NonEmptyList.type       = scalaz.NonEmptyList
-  val EStream: scalaz.EphemeralStream.type         = scalaz.EphemeralStream
-  val CorecursiveList: scalaz.CorecursiveList.type = scalaz.CorecursiveList
-  val ImmutableArray: scalaz.ImmutableArray.type   = scalaz.ImmutableArray
-  val Dequeue: scalaz.Dequeue.type                 = scalaz.Dequeue
-  val DList: scalaz.DList.type                     = scalaz.DList
-  val ISet: scalaz.ISet.type                       = scalaz.ISet
-  val IMap: scalaz.==>>.type                       = scalaz.==>>
-  val StrictTree: scalaz.StrictTree.type           = scalaz.StrictTree
-  val Tree: scalaz.Tree.type                       = scalaz.Tree
-  val FingerTree: scalaz.FingerTree.type           = scalaz.FingerTree
-  val Cord: scalaz.Cord.type                       = scalaz.Cord
-  val Heap: scalaz.Heap.type                       = scalaz.Heap
-  val Diev: scalaz.Diev.type                       = scalaz.Diev
-  val OneAnd: scalaz.OneAnd.type                   = scalaz.OneAnd
-  val IO: scalaz.effect.IO.type                    = scalaz.effect.IO
-  val Free: scalaz.Free.type                       = scalaz.Free
-  val Trampoline: scalaz.Trampoline.type           = scalaz.Trampoline
+  @inline def Maybe: scalaz.Maybe.type               = scalaz.Maybe
+  @inline def Disjunction: scalaz.\/.type            = scalaz.\/
+  @inline def Validation: scalaz.Validation.type     = scalaz.Validation
+  @inline def These: scalaz.\&/.type                 = scalaz.\&/
+  @inline def Const: scalaz.Const.type               = scalaz.Const
+  @inline def IList: scalaz.IList.type               = scalaz.IList
+  @inline def NonEmptyList: scalaz.NonEmptyList.type = scalaz.NonEmptyList
+  @inline def EStream: scalaz.EphemeralStream.type   = scalaz.EphemeralStream
+  @inline def CorecursiveList: scalaz.CorecursiveList.type =
+    scalaz.CorecursiveList
+  @inline def ImmutableArray: scalaz.ImmutableArray.type = scalaz.ImmutableArray
+  @inline def Dequeue: scalaz.Dequeue.type               = scalaz.Dequeue
+  @inline def DList: scalaz.DList.type                   = scalaz.DList
+  @inline def ISet: scalaz.ISet.type                     = scalaz.ISet
+  @inline def IMap: scalaz.==>>.type                     = scalaz.==>>
+  @inline def StrictTree: scalaz.StrictTree.type         = scalaz.StrictTree
+  @inline def Tree: scalaz.Tree.type                     = scalaz.Tree
+  @inline def FingerTree: scalaz.FingerTree.type         = scalaz.FingerTree
+  @inline def Cord: scalaz.Cord.type                     = scalaz.Cord
+  @inline def Heap: scalaz.Heap.type                     = scalaz.Heap
+  @inline def Diev: scalaz.Diev.type                     = scalaz.Diev
+  @inline def OneAnd: scalaz.OneAnd.type                 = scalaz.OneAnd
+  @inline def IO: scalaz.effect.IO.type                  = scalaz.effect.IO
+  @inline def Free: scalaz.Free.type                     = scalaz.Free
+  @inline def Trampoline: scalaz.Trampoline.type         = scalaz.Trampoline
 
   // scalaz MTL
   type MaybeT[F[_], A]                = scalaz.MaybeT[F, A]
@@ -241,25 +244,25 @@ package object std {
   type StreamT[M[_], A]               = scalaz.StreamT[M, A]
   type ContT[M[_], R, A]              = scalaz.ContsT[scalaz.Id.Id, M, R, A]
   type IdT[F[_], A]                   = scalaz.IdT[F, A]
-  val MaybeT: scalaz.MaybeT.type               = scalaz.MaybeT
-  val EitherT: scalaz.EitherT.type             = scalaz.EitherT
-  val Kleisli: scalaz.Kleisli.type             = scalaz.Kleisli
-  val ReaderT: scalaz.Kleisli.type             = scalaz.ReaderT
-  val WriterT: scalaz.WriterT.type             = scalaz.WriterT
-  val IndexedStateT: scalaz.IndexedStateT.type = scalaz.IndexedStateT
-  val StateT: scalaz.`package`.StateT.type     = scalaz.StateT
-  val TheseT: scalaz.TheseT.type               = scalaz.TheseT
-  val StreamT: scalaz.StreamT.type             = scalaz.StreamT
-  val ContT: scalaz.`package`.ContT.type       = scalaz.ContT
-  val IdT: scalaz.IdT.type                     = scalaz.IdT
+  @inline def MaybeT: scalaz.MaybeT.type               = scalaz.MaybeT
+  @inline def EitherT: scalaz.EitherT.type             = scalaz.EitherT
+  @inline def Kleisli: scalaz.Kleisli.type             = scalaz.Kleisli
+  @inline def ReaderT: scalaz.Kleisli.type             = scalaz.ReaderT
+  @inline def WriterT: scalaz.WriterT.type             = scalaz.WriterT
+  @inline def IndexedStateT: scalaz.IndexedStateT.type = scalaz.IndexedStateT
+  @inline def StateT: scalaz.`package`.StateT.type     = scalaz.StateT
+  @inline def TheseT: scalaz.TheseT.type               = scalaz.TheseT
+  @inline def StreamT: scalaz.StreamT.type             = scalaz.StreamT
+  @inline def ContT: scalaz.`package`.ContT.type       = scalaz.ContT
+  @inline def IdT: scalaz.IdT.type                     = scalaz.IdT
 
   // ADT constructors / deconstructors (types not exposed)
-  val Just: scalaz.Maybe.Just.type   = scalaz.Maybe.Just
-  val Empty: scalaz.Maybe.Empty.type = scalaz.Maybe.Empty
-  val -\/ : scalaz.-\/.type          = scalaz.-\/
-  val \/- : scalaz.\/-.type          = scalaz.\/-
-  val ICons: scalaz.ICons.type       = scalaz.ICons
-  val INil: scalaz.INil.type         = scalaz.INil
+  @inline def Just: scalaz.Maybe.Just.type   = scalaz.Maybe.Just
+  @inline def Empty: scalaz.Maybe.Empty.type = scalaz.Maybe.Empty
+  @inline def -\/ : scalaz.-\/.type          = scalaz.-\/
+  @inline def \/- : scalaz.\/-.type          = scalaz.\/-
+  @inline def ICons: scalaz.ICons.type       = scalaz.ICons
+  @inline def INil: scalaz.INil.type         = scalaz.INil
 
   // Minimal `scalaz.Scalaz`
   object Z
