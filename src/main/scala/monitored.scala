@@ -23,7 +23,7 @@ final class Monitored[U[_]: Functor](program: DynAgents[U]) {
     def stop(node: MachineNode): F[Unit]         = Const(Set(node))
   }
 
-  val monitor = new DynAgents[F]
+  val monitor: DynAgents[F] = new DynAgents[F]
 
   def act(world: WorldView): U[(WorldView, Set[MachineNode])] = {
     val stopped = monitor.act(world).getConst

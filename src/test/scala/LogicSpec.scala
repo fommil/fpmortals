@@ -13,16 +13,17 @@ import algebra._
 import logic._
 
 object Data {
-  val node1   = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
-  val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
-  val managed = NonEmptyList(node1, node2)
+  val node1: MachineNode                 = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
+  val node2: MachineNode                 = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
+  val managed: NonEmptyList[MachineNode] = NonEmptyList(node1, node2)
 
-  val time1 = instant"2017-03-03T18:07:00Z"
-  val time2 = instant"2017-03-03T18:59:00Z" // +52 mins
-  val time3 = instant"2017-03-03T19:06:00Z" // +59 mins
-  val time4 = instant"2017-03-03T23:07:00Z" // +5 hours
+  val time1: Instant = instant"2017-03-03T18:07:00Z"
+  val time2: Instant = instant"2017-03-03T18:59:00Z" // +52 mins
+  val time3: Instant = instant"2017-03-03T19:06:00Z" // +59 mins
+  val time4: Instant = instant"2017-03-03T23:07:00Z" // +5 hours
 
-  val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
+  val needsAgents: WorldView =
+    WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 
 }
 import Data._
@@ -43,7 +44,7 @@ final class StaticHandlers(state: WorldView) {
     def stop(node: MachineNode): Unit         = stopped += 1
   }
 
-  val program = new DynAgents[Id]
+  val program: DynAgents[Id] = new DynAgents[Id]
 }
 
 object ConstHandlers {
@@ -62,7 +63,7 @@ object ConstHandlers {
     def stop(node: MachineNode): F[Unit]         = Const("stop")
   }
 
-  val program = new DynAgents[F]
+  val program: DynAgents[F] = new DynAgents[F]
 
 }
 

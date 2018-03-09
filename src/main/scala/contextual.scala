@@ -8,25 +8,25 @@ import java.time._
 
 package object datetime {
   implicit class DateTimeStringContext(sc: StringContext) {
-    val instant = Prefix(InstantInterpolator, sc)
-    val zdt     = Prefix(ZonedDateTimeInterpolator, sc)
+    val instant = Prefix(InstantInterpolator, sc)       // scalafix:ok
+    val zdt     = Prefix(ZonedDateTimeInterpolator, sc) // scalafix:ok
   }
 }
 
 package datetime {
   object InstantInterpolator extends UnsafeVerifier[Instant] {
-    override def attempt(s: String) = Instant.parse(s)
-    override def fail               = "not in ISO-8601 format"
+    override def attempt(s: String): Instant = Instant.parse(s)
+    override def fail: String                = "not in ISO-8601 format"
   }
 
   object ZonedDateTimeInterpolator extends UnsafeVerifier[ZonedDateTime] {
-    override def attempt(s: String) = ZonedDateTime.parse(s)
-    override def fail               = "not in ISO-8601 format"
+    override def attempt(s: String): ZonedDateTime = ZonedDateTime.parse(s)
+    override def fail: String                      = "not in ISO-8601 format"
   }
 }
 
 abstract class UnsafeVerifier[A] extends Verifier[A] {
-  override def check(s: String) =
+  override def check(s: String): Either[(Int, String), A] =
     Try(attempt(s)).toEither.left.map(_ => (0, fail))
 
   def attempt(s: String): A
