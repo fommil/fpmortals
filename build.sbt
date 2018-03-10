@@ -23,8 +23,8 @@ libraryDependencies ++= Seq(
   "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
   "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
   "org.scalaz"           %% "scalaz-effect"         % "7.2.20",
-  "com.fommil"           %% "deriving-macro"        % "0.9.0",
-  "com.fommil"           %% "scalaz-deriving"       % "0.9.0",
+  "com.fommil"           %% "deriving-macro"        % "0.10.0",
+  "com.fommil"           %% "scalaz-deriving"       % "0.10.0",
   "com.propensive"       %% "magnolia"              % "0.7.1",
   "com.propensive"       %% "contextual"            % "1.1.0",
   "org.scalatest"        %% "scalatest"             % "3.0.5" % "test"
@@ -50,13 +50,6 @@ addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
-
-scalacOptions ++= {
-  val dir = (baseDirectory in ThisBuild).value / "project"
-  Seq(
-    s"-Xmacro-settings:deriving.targets=$dir/deriving-targets.conf"
-  )
-}
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 scalacOptions in (Compile, console) -= "-Yno-imports"
