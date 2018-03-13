@@ -227,7 +227,7 @@ package logic {
 
 /** The API as defined by the OAuth 2.0 server */
 package api {
-  @scalaz.deriving(UrlQueryWriter)
+  @deriving(UrlQueryWriter)
   final case class AuthRequest(
     redirect_uri: String Refined AsciiUrl,
     scope: String,
@@ -239,7 +239,7 @@ package api {
   // AuthResponse is to send the user's browser to redirect_uri with a
   // `code` param (yup, seriously).
 
-  @scalaz.deriving(UrlEncodedWriter)
+  @deriving(UrlEncodedWriter)
   final case class AccessRequest(
     code: String,
     redirect_uri: String Refined AsciiUrl,
@@ -255,14 +255,14 @@ package api {
     refresh_token: String
   )
 
-  @scalaz.deriving(UrlEncodedWriter)
+  @deriving(UrlEncodedWriter)
   final case class RefreshRequest(
     client_secret: String,
     refresh_token: String,
     client_id: String,
     grant_type: String = "refresh_token"
   )
-  @scalaz.deriving(UrlEncodedWriter)
+  @deriving(UrlEncodedWriter)
   final case class RefreshResponse(
     access_token: String,
     token_type: String,

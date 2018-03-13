@@ -76,7 +76,8 @@ package object std {
 
   // macro annotations don't work: https://github.com/scalamacros/paradise/issues/8
   // type typeclass = simulacrum.typeclass
-  // type deriving = scalaz.deriving
+  type deriving  = scalaz.deriving
+  type xderiving = scalaz.xderiving
 
   // common scalaz typeclasses
   type Align[F[_]]            = scalaz.Align[F]

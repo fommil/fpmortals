@@ -17,14 +17,15 @@ addCommandAlias(
 )
 addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
+val derivingVersion = "0.11.0"
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
   "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
   "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
   "org.scalaz"           %% "scalaz-effect"         % "7.2.20",
-  "com.fommil"           %% "deriving-macro"        % "0.10.0",
-  "com.fommil"           %% "scalaz-deriving"       % "0.10.0",
+  "com.fommil"           %% "deriving-macro"        % derivingVersion,
+  "com.fommil"           %% "scalaz-deriving"       % derivingVersion,
   "com.propensive"       %% "magnolia"              % "0.7.1",
   "com.propensive"       %% "contextual"            % "1.1.0",
   "org.scalatest"        %% "scalatest"             % "3.0.5" % "test"
@@ -46,7 +47,8 @@ scalacOptions ++= Seq(
   "-Ywarn-unused:explicits,patvars,linted"
 )
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
+addCompilerPlugin("com.fommil"     %% "deriving-plugin" % derivingVersion)
+addCompilerPlugin("org.spire-math" %% "kind-projector"  % "0.9.6")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )

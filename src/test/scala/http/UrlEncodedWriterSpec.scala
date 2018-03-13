@@ -13,7 +13,7 @@ import http.client._
 
 import UrlEncodedWriter.ops._
 
-@scalaz.deriving(UrlEncodedWriter, UrlQueryWriter)
+@deriving(UrlEncodedWriter, UrlQueryWriter)
 final case class Foo(apple: String, bananas: Long, pears: String)
 
 class UrlEncodedWriterSpec extends FlatSpec {
