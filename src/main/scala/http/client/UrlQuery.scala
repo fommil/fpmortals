@@ -12,7 +12,7 @@ import http.encoding.UrlEncodedWriter
 /**
  * A container for URL query key=value pairs, in unencoded form.
  */
-@deriving(UrlEncodedWriter)
+@xderiving(UrlEncodedWriter)
 final case class UrlQuery(params: List[(String, String)]) extends AnyVal
 object UrlQuery {
   object ops {
