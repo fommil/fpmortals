@@ -10024,14 +10024,10 @@ There is not just one associated monad, but two! =MonadTell= and =MonadListen=
 
 @typeclass trait MonadListen[F[_], W] extends MonadTell[F, W] {
   def listen[A](fa: F[A]): F[(A, W)]
+
+  def written[A](fa: F[A]): F[W] = ...
 }
 #+END_SRC
-
-The syntax =<++:= and =:++>= let us write to the beginning and end of the log,
-respectively. The log, =W=, must have a =Semigroup=, such as a =Dequeue[String]=
-or something more specialised to the application, perhaps even reusing =Meta=,
-as we used for error reporting.
-
 
 TODO: rewrite with a Star Wars theme, symbolic syntax, a better =W=, and using
 =.listen= (actually any kind of usecase for =MonadListen= would be good)
