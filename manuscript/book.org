@@ -9995,6 +9995,103 @@ implicit val monad: MonadError[XDecoder, String] = MonadError.fromIso(isoReaderT
 
 which we know to be useful for defining new decoders in terms of existing ones.
 
+**** =WriterT=
+
+The opposite to reading is writing. The =WriterT= monad transformer is typically
+used for writing logs.
+
+#+BEGIN_SRC scala
+final case class WriterT[F[_], W, A](run: F[(W, A)])
+object WriterT {
+  def put[F[_]: Functor, W, A](value: F[A])(w: W): WriterT[F, W, A] = ...
+  def putWith[F[_]: Functor, W, A](value: F[A])(w: A => W): WriterT[F, W, A] = ...
+  ...
+}
+#+END_SRC
+
+The wrapped type is =F[(W, A)]= with the log message accumulated in =W=.
+
+There is not just one associated monad, but two! =MonadTell= and =MonadListen=
+
+#+BEGIN_SRC scala
+@typeclass trait MonadTell[F[_], W] extends Monad[F] {
+  def writer[A](w: W, v: A): F[A]
+  def tell(w: W): F[Unit] = ...
+
+  def :++>[A](fa: F[A])(w: =>W): F[A] = ...
+  def :++>>[A](fa: F[A])(f: A => W): F[A] = ...
+}
+
+@typeclass trait MonadListen[F[_], W] extends MonadTell[F, W] {
+  def listen[A](fa: F[A]): F[(A, W)]
+}
+#+END_SRC
+
+The syntax =<++:= and =:++>= let us write to the beginning and end of the log,
+respectively. The log, =W=, must have a =Semigroup=, such as a =Dequeue[String]=
+or something more specialised to the application, perhaps even reusing =Meta=,
+as we used for error reporting.
+
+
+TODO: rewrite with a Star Wars theme, symbolic syntax, a better =W=, and using
+=.listen= (actually any kind of usecase for =MonadListen= would be good)
+
+thoughts: unwriter lets you ignore some logs from a thing that was logging
+
+also, would be good to have an example that is not a log. a "monoidal
+computation": counting things maybe. like I get a result but I want to know how
+many times a thing happened.
+
+from =WriterUsage.scala= by Markus Klink...
+
+#+BEGIN_SRC scala
+  type Logger[A] = Writer[List[String], A]
+
+  case class Person(name: String, age: Int, address: Option[Address] = None)
+  case class Address(street: String, city: String)
+
+  val drWatson =
+    for {
+      watson <- Person("Watson", 40).set(List("Create Watson"))
+      address <- Address("Baker Street", "London").set(List("Create address."))
+      _ <- List("tell lets us log something in between. Writer[List[String], Unit]").tell
+      moveWatson <- watson.copy(address = Some(address)).set(List("Move to new address."))
+    } yield moveWatson
+
+#+END_SRC
+
+A popular specialisation of =WriterT= is when the monad is =Id=, meaning the
+underlying =run= value is just a simple tuple =(W, A)=.
+
+#+BEGIN_SRC scala
+type Writer[W, A] = WriterT[Id, W, A]
+object WriterT {
+  def writer[W, A](v: (W, A)): Writer[W, A] = WriterT[Id, W, A](v)
+  def tell[W](w: W): Writer[W, Unit] = WriterT((w, ()))
+  ...
+}
+final implicit class WriterOps[A](self: A) {
+  def set[W](w: W): Writer[W, A] = WriterT.writer(w -> self)
+  def tell: Writer[A, Unit] = WriterT.tell(self)
+}
+#+END_SRC
+
+TODO: usecases for =Unwriter=
+
+#+BEGIN_SRC scala
+final case class WriterT[F[_], W, A](run: F[(W, A)]) {
+  def off: UnwriterT[F, W, A] = UnwriterT(run)
+  ...
+}
+final case class UnwriterT[F[_], U, A](run: F[(U, A)]) {
+  def on: WriterT[F, U, A] = WriterT(run)
+  ...
+}
+type Unwriter[W, A] = UnwriterT[Id, W, A]
+#+END_SRC
+
+
+
 ** The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
@@ -10019,10 +10116,6 @@ while continuing to build out the example application.
   :PROPERTIES:
   :EXPORT_FILE_NAME: remaining.md
   :END:
-
-**** TODO =WriterT=
-
-including =UnwriterT=
 
 **** TODO =StateT=
 
