@@ -52,6 +52,11 @@ scheduling and context switching. It is not unusual to see 50% of our CPU power
 dealing with thread scheduling, instead of doing the work. So much so that
 parallelising work with `Future` can often make it *slower*.
 
+Combined, eager evaluation and executor submission means that it is impossible
+to know when a job started, when it finished, or the sub-tasks that were spawned
+to calculate the final result. It should not surprise us that performance
+monitoring "solutions" are a solid earner for the modern day snake oil merchant.
+
 Furthermore, `Future.flatMap` requires an `ExecutionContext` to be in implicit
 scope: users are forced to think about business logic and execution semantics at
 the same time.
@@ -907,12 +912,11 @@ and then refactor the `refresh` parameter to be part of the `Monad`
       refresh <- F.ask
 ~~~~~~~~
 
-Fundamentally, any single parameter can be moved into the `MonadReader`. This is
-of most value to your immediate caller when they simply want to thread through
-this information from above. This means that we can reserve `implicit` parameter
-blocks entirely for the use of typeclasses, which again simplifies our use of
-the Scala language: reducing the axis of choice and letting us focus on getting
-our job done.
+Fundamentally, any parameter can be moved into the `MonadReader`. This is of
+most value to your immediate caller when they simply want to thread through this
+information from above. With `ReaderT`, we can reserve `implicit` parameter
+blocks entirely for the use of typeclasses, reducing the mental burden of using
+Scala.
 
 The other method in `MonadReader` is `.local`
 
