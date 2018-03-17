@@ -100,13 +100,13 @@ concepts that are in this book. Thanks to Juan Manuel Serrano for [[https://skil
 to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For:
 What is it Good For?]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]],
 Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Sukant Hajra for [[https://www.youtube.com/watch?v=QtZJATIPB0k][Classy Monad Transformers]],
-Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Yi Lin Wei and Zainab Ali for
-their tutorials at Hack The Tower meetups.
+Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Vincent Marquez for [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your
+State]], Yi Lin Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained some concepts to me: Merlin Göttlinger,
-Edmund Noble, Fabio Labella, Vincent Marquez, Adelbert Chang, Michael Pilquist,
-Paul Snively, Daniel Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi,
-Pedro Rodriguez, Emily Pillmore, Aaron Vargo.
+Edmund Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively,
+Daniel Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez,
+Emily Pillmore, Aaron Vargo.
 
 ** Practicalities
 
@@ -10114,7 +10114,7 @@ TODO this might need to introduce an unindexed version of =IndexedStateT= to ini
 TODO rewrite our tests, and show a rewrite of =logic.scala= (but ultimately it's
 better to use =Applicative= if we can)
 
-TODO what the indexed state is good for https://www.youtube.com/watch?v=eO1JLs5FR6k
+TODO what the indexed state is good for https://www.youtube.com/watch?v=eO1JLs5FR6k and https://www.youtube.com/watch?v=JPVagd9W4Lo
 
 ** The Infinite Sadness
 
