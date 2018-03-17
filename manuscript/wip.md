@@ -82,7 +82,7 @@ The simplest implementation of such a `Monad` is `IO`
   object IO {
     def apply[A](a: =>A): IO[A] = new IO(() => a)
   
-    implicit val Monad: Monad[IO] = new Monad[IO] {
+    implicit val monad: Monad[IO] = new Monad[IO] {
       def point[A](a: =>A): IO[A] = IO(a)
       def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
         IO(f(fa.interpret()).interpret())
@@ -413,7 +413,7 @@ transformers, why they are useful, and how they work.
 | optionality          | `F[Maybe[A]]`               | `MaybeT`    | `MonadPlus`   |
 | errors               | `F[E \/ A]`                 | `EitherT`   | `MonadError`  |
 | read configuration   | `A => F[B]`                 | `ReaderT`   | `MonadReader` |
-| logging              | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
+| journal / multitask  | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
@@ -1023,6 +1023,125 @@ typeclass we need is `MonadError[Decoder, String]`
 ~~~~~~~~
 
 which we know to be useful for defining new decoders in terms of existing ones.
+
+
+### `WriterT`
+
+The opposite to reading is writing. The `WriterT` monad transformer is typically
+for writing to a journal.
+
+{lang="text"}
+~~~~~~~~
+  final case class WriterT[F[_], W, A](run: F[(W, A)])
+  object WriterT {
+    def put[F[_]: Functor, W, A](value: F[A])(w: W): WriterT[F, W, A] = ...
+    def putWith[F[_]: Functor, W, A](value: F[A])(w: A => W): WriterT[F, W, A] = ...
+    ...
+  }
+~~~~~~~~
+
+The wrapped type is `F[(W, A)]` with the journal accumulated in `W`.
+
+There is not just one associated monad, but two! `MonadTell` and `MonadListen`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadTell[F[_], W] extends Monad[F] {
+    def writer[A](w: W, v: A): F[A]
+    def tell(w: W): F[Unit] = ...
+  
+    def :++>[A](fa: F[A])(w: =>W): F[A] = ...
+    def :++>>[A](fa: F[A])(f: A => W): F[A] = ...
+  }
+  
+  @typeclass trait MonadListen[F[_], W] extends MonadTell[F, W] {
+    def listen[A](fa: F[A]): F[(A, W)]
+  
+    def written[A](fa: F[A]): F[W] = ...
+  }
+~~~~~~~~
+
+`MonadTell` is for writing to the journal and `MonadListen` is to recover it.
+The `WriterT` implementation is
+
+{lang="text"}
+~~~~~~~~
+  implicit def monad[F[_]: Monad, W: Monoid] = new MonadListen[WriterT[F, W, ?], W] {
+    def point[A](a: =>A) = WriterT((Monoid[W].zero, a).point)
+    def bind[A, B](fa: WriterT[F, W, A])(f: A => WriterT[F, W, B]) = WriterT(
+      fa.run >>= { case (wa, a) => f(a).run.map { case (wb, b) => (wa |+| wb, b) } })
+  
+    def writer[A](w: W, v: A) = WriterT((w -> v).point)
+    def listen[A](fa: WriterT[F, W, A]) = WriterT(
+      fa.run.map { case (w, a) => (w, (a, w)) })
+  }
+~~~~~~~~
+
+The most obvious example is to use `MonadWriter` for logging, or audit
+reporting. Reusing `Meta` from our error reporting we could imagine creating a
+log structure like
+
+{lang="text"}
+~~~~~~~~
+  sealed trait Log
+  final case class Debug(msg: String)(implicit m: Meta)   extends Log
+  final case class Info(msg: String)(implicit m: Meta)    extends Log
+  final case class Warning(msg: String)(implicit m: Meta) extends Log
+~~~~~~~~
+
+and use `Dequeue[Log]` as our journal type. We could change our OAuth2
+`authenticate` method to
+
+{lang="text"}
+~~~~~~~~
+  def debug(msg: String)(implicit m: Meta): Dequeue[Log] = Dequeue(Debug(msg))
+  
+  def authenticate: F[CodeToken] =
+    for {
+      callback <- user.start :++> debug("started the webserver")
+      params   = AuthRequest(callback, config.scope, config.clientId)
+      url      = config.auth.withQuery(params.toUrlQuery)
+      _        <- user.open(url) :++> debug(s"user visiting $url")
+      code     <- user.stop :++> debug("stopped the webserver")
+    } yield code
+~~~~~~~~
+
+We could even combine this with the `ReaderT` traces and get structured logs.
+
+The caller can recover the logs with `.written` and do something with them.
+
+However, there is a strong argument that logging deserves its own algebra. The
+log level is often needed at the point of creation for performance reasons and
+writing out the logs is typically managed at the application level rather than
+something each component needs to be concerned about.
+
+The `W` in `WriterT` has a `Monoid`, allowing us to journal any kind of
+*monoidic* calculation as a secondary value along with our primary program. For
+example, counting the number of times we do something, building up an
+explanation of a calculation, or building up a `TradeTemplate` for a new trade
+while we price it.
+
+A popular specialisation of `WriterT` is when the monad is `Id`, meaning the
+underlying `run` value is just a simple tuple `(W, A)`.
+
+{lang="text"}
+~~~~~~~~
+  type Writer[W, A] = WriterT[Id, W, A]
+  object WriterT {
+    def writer[W, A](v: (W, A)): Writer[W, A] = WriterT[Id, W, A](v)
+    def tell[W](w: W): Writer[W, Unit] = WriterT((w, ()))
+    ...
+  }
+  final implicit class WriterOps[A](self: A) {
+    def set[W](w: W): Writer[W, A] = WriterT(w -> self)
+    def tell: Writer[A, Unit] = WriterT.tell(self)
+  }
+~~~~~~~~
+
+which allows us to let any value carry around a secondary monoidal calculation,
+without needing a context `F[_]`.
+
+In a nutshell, `WriterT` / `MonadTell` is how to multi-task in FP.
 
 
 # The Infinite Sadness

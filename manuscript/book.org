@@ -9412,7 +9412,7 @@ transformers, why they are useful, and how they work.
 | optionality          | ~F[Maybe[A]]~               | ~MaybeT~    | ~MonadPlus~   |
 | errors               | ~F[E \/ A]~                 | ~EitherT~   | ~MonadError~  |
 | read configuration   | ~A => F[B]~                 | ~ReaderT~   | ~MonadReader~ |
-| logging              | ~F[(W, A)]~                 | ~WriterT~   | ~MonadTell~   |
+| journal / multitask  | ~F[(W, A)]~                 | ~WriterT~   | ~MonadTell~   |
 | evolving state       | ~S => F[(S, A)]~            | ~StateT~    | ~MonadState~  |
 | keep calm & carry on | ~F[E \&/ A]~                | ~TheseT~    |               |
 | non-determinism      | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT~   |               |
@@ -9998,7 +9998,7 @@ which we know to be useful for defining new decoders in terms of existing ones.
 **** =WriterT=
 
 The opposite to reading is writing. The =WriterT= monad transformer is typically
-used for writing logs.
+for writing to a journal.
 
 #+BEGIN_SRC scala
 final case class WriterT[F[_], W, A](run: F[(W, A)])
@@ -10009,7 +10009,7 @@ object WriterT {
 }
 #+END_SRC
 
-The wrapped type is =F[(W, A)]= with the log message accumulated in =W=.
+The wrapped type is =F[(W, A)]= with the journal accumulated in =W=.
 
 There is not just one associated monad, but two! =MonadTell= and =MonadListen=
 
@@ -10029,32 +10029,62 @@ There is not just one associated monad, but two! =MonadTell= and =MonadListen=
 }
 #+END_SRC
 
-TODO: rewrite with a Star Wars theme, symbolic syntax, a better =W=, and using
-=.listen= (actually any kind of usecase for =MonadListen= would be good)
-
-thoughts: unwriter lets you ignore some logs from a thing that was logging
-
-also, would be good to have an example that is not a log. a "monoidal
-computation": counting things maybe. like I get a result but I want to know how
-many times a thing happened.
-
-from =WriterUsage.scala= by Markus Klink...
+=MonadTell= is for writing to the journal and =MonadListen= is to recover it.
+The =WriterT= implementation is
 
 #+BEGIN_SRC scala
-  type Logger[A] = Writer[List[String], A]
+implicit def monad[F[_]: Monad, W: Monoid] = new MonadListen[WriterT[F, W, ?], W] {
+  def point[A](a: =>A) = WriterT((Monoid[W].zero, a).point)
+  def bind[A, B](fa: WriterT[F, W, A])(f: A => WriterT[F, W, B]) = WriterT(
+    fa.run >>= { case (wa, a) => f(a).run.map { case (wb, b) => (wa |+| wb, b) } })
 
-  case class Person(name: String, age: Int, address: Option[Address] = None)
-  case class Address(street: String, city: String)
-
-  val drWatson =
-    for {
-      watson <- Person("Watson", 40).set(List("Create Watson"))
-      address <- Address("Baker Street", "London").set(List("Create address."))
-      _ <- List("tell lets us log something in between. Writer[List[String], Unit]").tell
-      moveWatson <- watson.copy(address = Some(address)).set(List("Move to new address."))
-    } yield moveWatson
-
+  def writer[A](w: W, v: A) = WriterT((w -> v).point)
+  def listen[A](fa: WriterT[F, W, A]) = WriterT(
+    fa.run.map { case (w, a) => (w, (a, w)) })
+}
 #+END_SRC
+
+The most obvious example is to use =MonadWriter= for logging, or audit
+reporting. Reusing =Meta= from our error reporting we could imagine creating a
+log structure like
+
+#+BEGIN_SRC scala
+sealed trait Log
+final case class Debug(msg: String)(implicit m: Meta)   extends Log
+final case class Info(msg: String)(implicit m: Meta)    extends Log
+final case class Warning(msg: String)(implicit m: Meta) extends Log
+#+END_SRC
+
+and use =Dequeue[Log]= as our journal type. We could change our OAuth2
+=authenticate= method to
+
+#+BEGIN_SRC scala
+def debug(msg: String)(implicit m: Meta): Dequeue[Log] = Dequeue(Debug(msg))
+
+def authenticate: F[CodeToken] =
+  for {
+    callback <- user.start :++> debug("started the webserver")
+    params   = AuthRequest(callback, config.scope, config.clientId)
+    url      = config.auth.withQuery(params.toUrlQuery)
+    _        <- user.open(url) :++> debug(s"user visiting $url")
+    code     <- user.stop :++> debug("stopped the webserver")
+  } yield code
+#+END_SRC
+
+We could even combine this with the =ReaderT= traces and get structured logs.
+
+The caller can recover the logs with =.written= and do something with them.
+
+However, there is a strong argument that logging deserves its own algebra. The
+log level is often needed at the point of creation for performance reasons and
+writing out the logs is typically managed at the application level rather than
+something each component needs to be concerned about.
+
+The =W= in =WriterT= has a =Monoid=, allowing us to journal any kind of
+/monoidic/ calculation as a secondary value along with our primary program. For
+example, counting the number of times we do something, building up an
+explanation of a calculation, or building up a =TradeTemplate= for a new trade
+while we price it.
 
 A popular specialisation of =WriterT= is when the monad is =Id=, meaning the
 underlying =run= value is just a simple tuple =(W, A)=.
@@ -10067,26 +10097,24 @@ object WriterT {
   ...
 }
 final implicit class WriterOps[A](self: A) {
-  def set[W](w: W): Writer[W, A] = WriterT.writer(w -> self)
+  def set[W](w: W): Writer[W, A] = WriterT(w -> self)
   def tell: Writer[A, Unit] = WriterT.tell(self)
 }
 #+END_SRC
 
-TODO: usecases for =Unwriter=
+which allows us to let any value carry around a secondary monoidal calculation,
+without needing a context =F[_]=.
 
-#+BEGIN_SRC scala
-final case class WriterT[F[_], W, A](run: F[(W, A)]) {
-  def off: UnwriterT[F, W, A] = UnwriterT(run)
-  ...
-}
-final case class UnwriterT[F[_], U, A](run: F[(U, A)]) {
-  def on: WriterT[F, U, A] = WriterT(run)
-  ...
-}
-type Unwriter[W, A] = UnwriterT[Id, W, A]
-#+END_SRC
+In a nutshell, =WriterT= / =MonadTell= is how to multi-task in FP.
 
+**** TODO =StateT=
 
+TODO this might need to introduce an unindexed version of =IndexedStateT= to initially explain, then reveal that there exists =IndexedReaderWriterStateT=
+
+TODO rewrite our tests, and show a rewrite of =logic.scala= (but ultimately it's
+better to use =Applicative= if we can)
+
+TODO what the indexed state is good for https://www.youtube.com/watch?v=eO1JLs5FR6k
 
 ** The Infinite Sadness
 
@@ -10112,10 +10140,6 @@ while continuing to build out the example application.
   :PROPERTIES:
   :EXPORT_FILE_NAME: remaining.md
   :END:
-
-**** TODO =StateT=
-
-=ReaderWriterStateT=
 
 **** TODO =TheseT=
 
