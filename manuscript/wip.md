@@ -1144,6 +1144,66 @@ without needing a context `F[_]`.
 In a nutshell, `WriterT` / `MonadTell` is how to multi-task in FP.
 
 
+### `StateT`
+
+`StateT` gives us the ability to `.put`, `.get` and `.modify` a value. It is the
+FP replacement for a thread-safe `var`, but without the thread blocking.
+
+The associated monad is `MonadState`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadState[F[_], S] extends Monad[F] {
+    def put(s: S): F[Unit]
+    def get: F[S]
+  
+    def modify(f: S => S): F[Unit] = get >>= (s => put(f(s)))
+    ...
+  }
+~~~~~~~~
+
+A> `S` is an immutable type: `.modify` is not an escape hatch to update a mutable
+A> data structure. Mutability is impure and is only allowed within an `IO` block.
+
+TODO rewrite our `LogicSpecs` to avoid that `var`
+
+The wrapped data type is `S => F[(S, A)]` which is a combination of `ReaderT`'s
+`S => F[A]` and `WriterT`'s `F[(S, A)]` but `S` is not aggregated by its
+`Monoid` so can be any value.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class StateT[F[_], S, A] {
+    import StateT._
+  
+    def run(initial: S)(implicit F: Monad[F]): F[(S, A)] = this match {
+      case Point(f) => f(initial)
+      case FlatMap(Point(f), g) =>
+        f(initial) >>= { case (s, x) => g(s, x).run(s) }
+      case FlatMap(a @ FlatMap(f, g), h) =>
+        FlatMap(f, (s: S, x: a.Out) => FlatMap(g(s, x), h)).run(initial)
+    }
+  
+  }
+  object StateT {
+    def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
+  
+    private final case class Point[F[_], S, A](
+      run: S => F[(S, A)]
+    ) extends StateT[F, S, A]
+    private final case class FlatMap[F[_], S, A, B](
+      a: StateT[F, S, A],
+      f: (S, A) => StateT[F, S, B]
+    ) extends StateT[F, S, B] {
+      type Out = B
+    }
+~~~~~~~~
+
+TODO do not rewrite `logic.scala`, it's always better to use `Applicative`
+
+TODO `IndexedStateT` `IndexedReaderWriterStateT` and what they are good for <https://www.youtube.com/watch?v=eO1JLs5FR6k> and <https://www.youtube.com/watch?v=JPVagd9W4Lo>
+
+
 # The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the

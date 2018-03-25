@@ -23,7 +23,7 @@
 | `Align`            | `align`         | `F[A], F[B]`    |                        | `F[A \&/ B]`   |
 |                    | `merge`         | `F[A], F[A]`    |                        | `F[A]`         |
 | `Zip`              | `zip`           | `F[A], F[B]`    |                        | `F[(A, B)]`    |
-| `Unzip`            | `unzip`         | `F(A, B)`       |                        | `(F[A], F[B])` |
+| `Unzip`            | `unzip`         | `F[(A, B)]`     |                        | `(F[A], F[B])` |
 | `Cozip`            | `cozip`         | `F[A \/ B]`     |                        | `F[A] \/ F[B]` |
 | `Foldable`         | `foldMap`       | `F[A]`          | `A => B`               | `B`            |
 |                    | `foldMapM`      | `F[A]`          | `A => G[B]`            | `G[B]`         |

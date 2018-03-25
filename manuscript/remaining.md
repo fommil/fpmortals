@@ -1,9 +1,4 @@
 
-### TODO `StateT`
-
-`ReaderWriterStateT`
-
-
 ### TODO `TheseT`
 
 
