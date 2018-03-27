@@ -52,10 +52,10 @@ package object std {
   type Map[K, V] = immutable.Map[K, V]
   type List[A]   = immutable.List[A]
   type Set[A]    = immutable.Set[A]
-  @inline final val Map: scala.collection.immutable.Map.type   = immutable.Map
-  @inline final val List: scala.collection.immutable.List.type = immutable.List
-  @inline final val Nil: scala.collection.immutable.Nil.type   = immutable.Nil
-  @inline final val Set: scala.collection.immutable.Set.type   = immutable.Set
+  @inline final val Map: immutable.Map.type   = immutable.Map
+  @inline final val List: immutable.List.type = immutable.List
+  @inline final val Nil: immutable.Nil.type   = immutable.Nil
+  @inline final val Set: immutable.Set.type   = immutable.Set
 
   type Try[A] = scala.util.Try[A]
   @inline final val Try: scala.util.Try.type = scala.util.Try
