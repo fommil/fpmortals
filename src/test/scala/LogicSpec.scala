@@ -116,17 +116,16 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "request agents when needed" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val (world, view) = StateHandlers.program.act(needsAgents).run(needsAgentsW)
 
     val expected = needsAgents.copy(
       pending = Map(node1 -> time1)
     )
 
-    program.act(needsAgents).shouldBe(expected)
+    view.shouldBe(expected)
 
-    handlers.stopped.shouldBe(0)
-    handlers.started.shouldBe(1)
+    world.stopped.size.shouldBe(0)
+    world.started.size.shouldBe(1)
   }
 
   it should "not request agents when pending" in {
