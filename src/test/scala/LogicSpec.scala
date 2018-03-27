@@ -46,6 +46,7 @@ object StateHandlers {
   type F[a] = State[World, a]
   import State.{ get, modify }
 
+  // could also increment the time on every call
   implicit val drone: Drone[F] = new Drone[F] {
     def getBacklog: F[Int] = get.map(_.backlog)
     def getAgents: F[Int]  = get.map(_.agents)
@@ -55,12 +56,12 @@ object StateHandlers {
     def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
     def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
     def getTime: F[Instant]                      = get.map(_.time)
+
+    // will rewrite to use lenses later...
     def start(node: MachineNode): F[Unit] =
       modify(w => w.copy(started = w.started + node))
-
     def stop(node: MachineNode): F[Unit] =
-      modify(w => w.copy(stopped = w.started + node))
-
+      modify(w => w.copy(stopped = w.stopped + node))
   }
 
   val program: DynAgents[F] = new DynAgents[F]
