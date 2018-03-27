@@ -241,6 +241,7 @@ package object std {
   type WriterT[F[_], W, A]            = scalaz.WriterT[F, W, A]
   type IndexedStateT[F[_], S1, S2, A] = scalaz.IndexedStateT[F, S1, S2, A]
   type StateT[F[_], S, A]             = scalaz.IndexedStateT[F, S, S, A]
+  type State[S, A]                    = scalaz.IndexedStateT[scalaz.Id.Id, S, S, A]
   type TheseT[F[_], A, B]             = scalaz.TheseT[F, A, B]
   type StreamT[M[_], A]               = scalaz.StreamT[M, A]
   type ContT[M[_], R, A]              = scalaz.ContsT[scalaz.Id.Id, M, R, A]
@@ -251,10 +252,11 @@ package object std {
   @inline def ReaderT: scalaz.Kleisli.type             = scalaz.ReaderT
   @inline def WriterT: scalaz.WriterT.type             = scalaz.WriterT
   @inline def IndexedStateT: scalaz.IndexedStateT.type = scalaz.IndexedStateT
-  @inline def StateT: scalaz.`package`.StateT.type     = scalaz.StateT
+  @inline def StateT: scalaz.StateT.type               = scalaz.StateT
+  @inline val State: scalaz.State.type                 = scalaz.State
   @inline def TheseT: scalaz.TheseT.type               = scalaz.TheseT
   @inline def StreamT: scalaz.StreamT.type             = scalaz.StreamT
-  @inline def ContT: scalaz.`package`.ContT.type       = scalaz.ContT
+  @inline def ContT: scalaz.ContT.type                 = scalaz.ContT
   @inline def IdT: scalaz.IdT.type                     = scalaz.IdT
 
   // ADT constructors / deconstructors (types not exposed)
@@ -277,6 +279,7 @@ package object std {
       with scalaz.std.AllFunctions
       with scalaz.syntax.std.ToAllStdOps {
     type OptionT[F[_], A] = scalaz.OptionT[F, A]
+    @inline def OptionT: scalaz.OptionT.type = scalaz.OptionT
   }
 
 }

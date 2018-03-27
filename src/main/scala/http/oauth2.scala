@@ -178,7 +178,7 @@ package logic {
     import api._
     import http.encoding.UrlQueryWriter.ops._
     import UrlQuery.ops._
-    import xyz.driver.json.DerivedFormats._
+    import spray.json.ImplicitDerivedFormats._
 
     // for use in one-shot apps requiring user interaction
     def authenticate: F[CodeToken] =

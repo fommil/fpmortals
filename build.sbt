@@ -17,11 +17,11 @@ addCommandAlias(
 )
 addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
-val derivingVersion = "0.11.0"
+val derivingVersion = "0.12.0"
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
-  "xyz.driver"           %% "spray-json-derivation" % "0.1.1",
+  "xyz.driver"           %% "spray-json-derivation" % "0.4.1",
   "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
   "org.scalaz"           %% "scalaz-effect"         % "7.2.20",
   "com.fommil"           %% "deriving-macro"        % derivingVersion,

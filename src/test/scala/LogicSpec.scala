@@ -25,10 +25,48 @@ object Data {
   val needsAgents: WorldView =
     WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 
+  val needsAgentsW: World =
+    World(5, 0, managed, Map.empty, Set.empty, Set.empty, time1)
+
 }
 import Data._
 
-final class StaticHandlers(state: WorldView) {
+// fully describes the world, as viewed by WorldView
+final case class World(
+  backlog: Int,
+  agents: Int,
+  managed: NonEmptyList[MachineNode],
+  alive: Map[MachineNode, Instant],
+  started: Set[MachineNode],
+  stopped: Set[MachineNode],
+  time: Instant
+)
+
+object StateHandlers {
+  type F[a] = State[World, a]
+  import State.{ get, modify }
+
+  implicit val drone: Drone[F] = new Drone[F] {
+    def getBacklog: F[Int] = get.map(_.backlog)
+    def getAgents: F[Int]  = get.map(_.agents)
+  }
+
+  implicit val machines: Machines[F] = new Machines[F] {
+    def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
+    def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
+    def getTime: F[Instant]                      = get.map(_.time)
+    def start(node: MachineNode): F[Unit] =
+      modify(w => w.copy(started = w.started + node))
+
+    def stop(node: MachineNode): F[Unit] =
+      modify(w => w.copy(stopped = w.started + node))
+
+  }
+
+  val program: DynAgents[F] = new DynAgents[F]
+}
+
+final class MutableHandlers(state: WorldView) {
   var started, stopped: Int = 0 // scalafix:ok DisableSyntax.keywords.var
 
   implicit val drone: Drone[Id] = new Drone[Id] {
@@ -70,14 +108,14 @@ object ConstHandlers {
 final class LogicSpec extends FlatSpec {
 
   "Business Logic" should "generate an initial world view" in {
-    val handlers = new StaticHandlers(needsAgents)
-    import handlers._
+    val (world, view) = StateHandlers.program.initial.run(needsAgentsW)
 
-    program.initial.shouldBe(needsAgents)
+    world.shouldBe(needsAgentsW)
+    view.shouldBe(needsAgents)
   }
 
   it should "request agents when needed" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val expected = needsAgents.copy(
@@ -91,7 +129,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "not request agents when pending" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val pending = needsAgents.copy(
@@ -105,7 +143,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "don't shut down agents if nodes are too young" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
@@ -117,7 +155,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents when there is no backlog and nodes will shortly incur new costs" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
@@ -130,7 +168,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "not shut down agents if there are pending actions" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val world =
@@ -143,7 +181,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents when there is no backlog if they are too old" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
@@ -156,7 +194,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents, even if they are potentially doing work, if they are too old" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val world    = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
@@ -170,7 +208,7 @@ final class LogicSpec extends FlatSpec {
 
   it should "remove changed nodes from pending" in {
     val world    = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = new StaticHandlers(world)
+    val handlers = new MutableHandlers(world)
     import handlers._
 
     val initial =
@@ -183,7 +221,7 @@ final class LogicSpec extends FlatSpec {
 
   it should "ignore unresponsive pending actions during update" in {
     val world    = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
-    val handlers = new StaticHandlers(world)
+    val handlers = new MutableHandlers(world)
     import handlers._
 
     val initial  = world.copy(time = time1)
@@ -205,7 +243,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "monitor stopped nodes" in {
-    val underlying = new StaticHandlers(needsAgents).program
+    val underlying = new MutableHandlers(needsAgents).program
 
     val alive    = Map(node1 -> time1, node2 -> time1)
     val world    = WorldView(1, 1, managed, alive, Map.empty, time4)
