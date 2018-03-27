@@ -1458,7 +1458,7 @@ isolated the state of our system, so we can use =var= to store the
 state (but this is not threadsafe).
 
 #+BEGIN_SRC scala
-class StaticHandlers(state: WorldView) {
+class MutableHandlers(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone[Id] = new Drone[Id] {
@@ -1479,7 +1479,7 @@ class StaticHandlers(state: WorldView) {
 #+END_SRC
 
 When we write a unit test (here using =FlatSpec= from scalatest), we
-create an instance of =StaticHandlers= and then import all of its
+create an instance of =MutableHandlers= and then import all of its
 members.
 
 Our implicit =drone= and =machines= both use the =Id= execution
@@ -1491,7 +1491,7 @@ the same value that we use in the static handlers:
 
 #+BEGIN_SRC scala
   "Business Logic" should "generate an initial world view" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     program.initial shouldBe needsAgents
@@ -1504,7 +1504,7 @@ helping us flush out bugs and refine the requirements:
 #+BEGIN_SRC scala
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = new StaticHandlers(world)
+    val handlers = new MutableHandlers(world)
     import handlers._
 
     val old = world.copy(alive = Map.empty,
@@ -1514,7 +1514,7 @@ helping us flush out bugs and refine the requirements:
   }
 
   it should "request agents when needed" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
 
     val expected = needsAgents.copy(
@@ -7415,7 +7415,7 @@ this:
 
 #+BEGIN_SRC scala
   it should "monitor stopped nodes" in {
-    val underlying = new StaticHandlers(needsAgents).program
+    val underlying = new MutableHandlers(needsAgents).program
 
     val alive = Map(node1 -> time1, node2 -> time1)
     val world = WorldView(1, 1, managed, alive, Map.empty, time4)
@@ -10110,7 +10110,15 @@ In a nutshell, =WriterT= / =MonadTell= is how to multi-task in FP.
 **** =StateT=
 
 =StateT= gives us the ability to =.put=, =.get= and =.modify= a value. It is the
-FP replacement for a thread-safe =var=, but without the thread blocking.
+FP replacement for a =var=.
+
+The wrapped data type is ~S => F[(S, A)]~ which is a combination of ~ReaderT~'s
+~S => F[A]~ and ~WriterT~'s ~F[(S, A)]~ but =S= is not aggregated by its
+=Monoid= so can be any type. If we were to write an impure method that had
+access to some mutable state, it might have the signature ~() => F[A]~ with a
+different value on every call, breaking referential transparency, but with pure
+FP the function takes the state as input and returns the updated state as
+output.
 
 The associated monad is =MonadState=
 
@@ -10125,15 +10133,10 @@ The associated monad is =MonadState=
 #+END_SRC
 
 #+BEGIN_ASIDE
-=S= is an immutable type: =.modify= is not an escape hatch to update a mutable
-data structure. Mutability is impure and is only allowed within an =IO= block.
+=S= must be an immutable type: =.modify= is not an escape hatch to update a
+mutable data structure. Mutability is impure and is only allowed within an =IO=
+block.
 #+END_ASIDE
-
-TODO rewrite our =LogicSpecs= to avoid that =var=
-
-The wrapped data type is ~S => F[(S, A)]~ which is a combination of ~ReaderT~'s
-~S => F[A]~ and ~WriterT~'s ~F[(S, A)]~ but =S= is not aggregated by its
-=Monoid= so can be any value.
 
 #+BEGIN_SRC scala
 sealed abstract class StateT[F[_], S, A] {
@@ -10143,10 +10146,9 @@ sealed abstract class StateT[F[_], S, A] {
     case Point(f) => f(initial)
     case FlatMap(Point(f), g) =>
       f(initial) >>= { case (s, x) => g(s, x).run(s) }
-    case FlatMap(a @ FlatMap(f, g), h) =>
-      FlatMap(f, (s: S, x: a.Out) => FlatMap(g(s, x), h)).run(initial)
+    case FlatMap(FlatMap(f, g), h) =>
+      FlatMap(f, (s, x) => FlatMap(g(s, x), h)).run(initial)
   }
-
 }
 object StateT {
   def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
@@ -10157,11 +10159,40 @@ object StateT {
   private final case class FlatMap[F[_], S, A, B](
     a: StateT[F, S, A],
     f: (S, A) => StateT[F, S, B]
-  ) extends StateT[F, S, B] {
-    type Out = B
-  }
-
+  ) extends StateT[F, S, B]
+  ...
+}
 #+END_SRC
+
+TODO rewrite our =LogicSpecs= to avoid that =var=
+
+TODO =State=
+
+#+BEGIN_SRC scala
+object State extends StateFunctions {
+ def apply[S, A](f: S => (S, A)): State[S, A] = StateT[Id, S, A](f)
+
+  def constantState[S, A](a: A, s: => S): State[S, A] =
+    State((_: S) => (s, a))
+
+  def state[S, A](a: A): State[S, A] =
+    State((_ : S, a))
+
+  def init[S]: State[S, S] = State(s => (s, s))
+
+  def get[S]: State[S, S] = init
+
+  def gets[S, T](f: S => T): State[S, T] = State(s => (s, f(s)))
+
+  def put[S](s: S): State[S, Unit] = State(_ => (s, ()))
+
+  def modify[S](f: S => S): State[S, Unit] = State(s => {
+    val r = f(s);
+    (r, ())
+  })
+}
+#+END_SRC
+
 
 TODO do not rewrite =logic.scala=, it's always better to use =Applicative=
 
