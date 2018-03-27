@@ -2722,7 +2722,7 @@ To depend on =spray-json= in our project we must add the following to
 =build.sbt=:
 
 #+BEGIN_SRC scala
-libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.1.1"
+libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.4.1"
 #+END_SRC
 
 Because =spray-json-derivation= provides /derived/ typeclass instances, we can
@@ -2730,7 +2730,7 @@ conjure up a =JsonReader[AccessResponse]= and =JsonReader[RefreshResponse]=.
 This is an example of parsing text into =AccessResponse=:
 
 #+BEGIN_SRC scala
-scala> import xyz.driver.json.DerivedFormats._
+scala> import spray.json.ImplicitDerivedFormats._
 
        for {
          json     <- spray.json.JsonParser("""
@@ -2932,7 +2932,7 @@ and then write an OAuth2 client:
 #+BEGIN_SRC scala
 import java.time.temporal.ChronoUnit
 import http.encoding.UrlQueryWriter.ops._
-import xyz.driver.json.DerivedFormats._
+import spray.json.ImplicitDerivedFormats._
 
 class OAuth2Client[F[_]: Monad](
   config: ServerConfig
