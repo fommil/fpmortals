@@ -3,7 +3,7 @@
 
 package tests
 
-import std._, Z._, S._
+import std._, S._
 
 import contextual.datetime._
 import org.scalatest._
@@ -25,7 +25,7 @@ object Data {
   val needsAgents: WorldView =
     WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 
-  val needsAgentsW: World =
+  val hungry: World =
     World(5, 0, managed, Map.empty, Set.empty, Set.empty, time1)
 
 }
@@ -67,25 +67,6 @@ object StateHandlers {
   val program: DynAgents[F] = new DynAgents[F]
 }
 
-final class MutableHandlers(state: WorldView) {
-  var started, stopped: Int = 0 // scalafix:ok DisableSyntax.keywords.var
-
-  implicit val drone: Drone[Id] = new Drone[Id] {
-    def getBacklog: Int = state.backlog
-    def getAgents: Int  = state.agents
-  }
-
-  implicit val machines: Machines[Id] = new Machines[Id] {
-    def getAlive: Map[MachineNode, Instant]   = state.alive
-    def getManaged: NonEmptyList[MachineNode] = state.managed
-    def getTime: Instant                      = state.time
-    def start(node: MachineNode): Unit        = started += 1
-    def stop(node: MachineNode): Unit         = stopped += 1
-  }
-
-  val program: DynAgents[Id] = new DynAgents[Id]
-}
-
 object ConstHandlers {
   type F[a] = Const[String, a]
 
@@ -107,150 +88,151 @@ object ConstHandlers {
 }
 
 final class LogicSpec extends FlatSpec {
+  import StateHandlers.program.{ act, initial, update }
 
   "Business Logic" should "generate an initial world view" in {
-    val (world, view) = StateHandlers.program.initial.run(needsAgentsW)
+    val world1          = hungry
+    val (world2, view2) = initial.run(world1)
 
-    world.shouldBe(needsAgentsW)
-    view.shouldBe(needsAgents)
+    world2.shouldBe(world1)
+    view2.shouldBe(needsAgents)
   }
 
   it should "request agents when needed" in {
-    val (world, view) = StateHandlers.program.act(needsAgents).run(needsAgentsW)
+    val world1          = hungry
+    val view1           = needsAgents
+    val (world2, view2) = act(view1).run(world1)
 
-    val expected = needsAgents.copy(
-      pending = Map(node1 -> time1)
-    )
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
 
-    view.shouldBe(expected)
-
-    world.stopped.size.shouldBe(0)
-    world.started.size.shouldBe(1)
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(Set(node1))
   }
 
   it should "not request agents when pending" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val world1          = hungry
+    val view1           = needsAgents.copy(pending = Map(node1 -> time1))
+    val (world2, view2) = act(view1).run(world1)
 
-    val pending = needsAgents.copy(
-      pending = Map(node1 -> time1)
-    )
+    view2.shouldBe(view1)
 
-    program.act(pending).shouldBe(pending)
-
-    handlers.stopped.shouldBe(0)
-    handlers.started.shouldBe(0)
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(world1.started)
   }
 
   it should "don't shut down agents if nodes are too young" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val world1          = hungry
+    val view1           = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
+    val (world2, view2) = act(view1).run(world1)
 
-    val world = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
+    view2.shouldBe(view1)
 
-    program.act(world).shouldBe(world)
-
-    handlers.stopped.shouldBe(0)
-    handlers.started.shouldBe(0)
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(world1.started)
   }
 
   it should "shut down agents when there is no backlog and nodes will shortly incur new costs" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val world1          = hungry
+    val view1           = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
+    val (world2, view2) = act(view1).run(world1)
 
-    val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
-    val expected = world.copy(pending = Map(node1 -> time3))
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time3)))
 
-    program.act(world).shouldBe(expected)
-
-    handlers.stopped.shouldBe(1)
-    handlers.started.shouldBe(0)
+    world2.stopped.shouldBe(Set(node1))
+    world2.started.shouldBe(world1.started)
   }
 
   it should "not shut down agents if there are pending actions" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
-
-    val world =
+    val world1 = hungry
+    val view1 =
       WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
 
-    program.act(world).shouldBe(world)
+    val (world2, view2) = act(view1).run(world1)
 
-    handlers.stopped.shouldBe(0)
-    handlers.started.shouldBe(0)
+    view2.shouldBe(view1)
+
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(world1.started)
   }
 
   it should "shut down agents when there is no backlog if they are too old" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val world1          = hungry
+    val view1           = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
+    val (world2, view2) = act(view1).run(world1)
 
-    val world    = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
-    val expected = world.copy(pending = Map(node1 -> time4))
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time4)))
 
-    program.act(world).shouldBe(expected)
-
-    handlers.stopped.shouldBe(1)
-    handlers.started.shouldBe(0)
+    world2.stopped.shouldBe(Set(node1))
+    world2.started.shouldBe(world1.started)
   }
 
   it should "shut down agents, even if they are potentially doing work, if they are too old" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val old           = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
+    val (world, view) = act(old).run(hungry)
 
-    val world    = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
-    val expected = world.copy(pending = Map(node1 -> time4))
+    view.shouldBe(old.copy(pending = Map(node1 -> time4)))
 
-    program.act(world).shouldBe(expected)
-
-    handlers.stopped.shouldBe(1)
-    handlers.started.shouldBe(0)
+    world.stopped.shouldBe(Set(node1))
+    world.started.size.shouldBe(0)
   }
 
   it should "remove changed nodes from pending" in {
-    val world    = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = new MutableHandlers(world)
-    import handlers._
+    val world1 =
+      World(0, 0, managed, Map(node1 -> time3), Set.empty, Set.empty, time3)
 
-    val initial =
-      world.copy(alive = Map.empty, pending = Map(node1 -> time2), time = time2)
-    program.update(initial).shouldBe(world) // i.e. pending is gone
+    val view1 = WorldView(0, 0, managed, Map.empty, Map(node1 -> time2), time2)
 
-    handlers.stopped.shouldBe(0)
-    handlers.started.shouldBe(0)
+    val (world2, view2) = update(view1).run(world1)
+
+    view2.shouldBe(
+      view1.copy(alive = world1.alive, pending = Map.empty, time = time3)
+    )
+
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(world2.started)
   }
 
   it should "ignore unresponsive pending actions during update" in {
-    val world    = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time2)
-    val handlers = new MutableHandlers(world)
-    import handlers._
+    val view1  = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time1)
+    val world1 = World(0, 0, managed, Map.empty, Set(node1), Set.empty, time2)
 
-    val initial  = world.copy(time = time1)
-    val expected = world.copy(pending = Map.empty)
+    val (world2, view2) = update(view1).run(world1)
 
-    program.update(initial).shouldBe(expected)
+    view2.shouldBe(view1.copy(pending = Map.empty, time = time2))
 
-    handlers.stopped.shouldBe(0)
-    handlers.started.shouldBe(0)
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(world1.started)
   }
 
   it should "call the expected methods" in {
     import ConstHandlers._
 
-    val alive = Map(node1 -> time1, node2 -> time1)
-    val world = WorldView(1, 1, managed, alive, Map.empty, time4)
+    val world1 = WorldView(1,
+                           1,
+                           managed,
+                           Map(node1 -> time1, node2 -> time1),
+                           Map.empty,
+                           time4)
 
-    program.act(world).getConst.shouldBe("stopstop")
+    program.act(world1).getConst.shouldBe("stopstop")
   }
 
   it should "monitor stopped nodes" in {
-    val underlying = new MutableHandlers(needsAgents).program
+    val world1 = hungry
+    val view1 = WorldView(1,
+                          1,
+                          managed,
+                          Map(node1 -> time1, node2 -> time1),
+                          Map.empty,
+                          time4)
 
-    val alive    = Map(node1 -> time1, node2 -> time1)
-    val world    = WorldView(1, 1, managed, alive, Map.empty, time4)
-    val expected = world.copy(pending = Map(node1 -> time4, node2 -> time4))
+    val monitored       = new Monitored(StateHandlers.program)
+    val (world2, view2) = monitored.act(view1).run(world1)
 
-    val monitored = new Monitored(underlying)
-    monitored.act(world).shouldBe(expected -> Set(node1, node2))
+    world2.stopped.shouldBe(Set(node1, node2))
+
+    val expected = view1.copy(pending = Map(node1 -> time4, node2 -> time4))
+    view2.shouldBe(expected -> Set(node1, node2))
   }
 
 }
