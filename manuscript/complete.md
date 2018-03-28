@@ -1010,7 +1010,7 @@ state (but this is not threadsafe).
 
 {lang="text"}
 ~~~~~~~~
-  class StaticHandlers(state: WorldView) {
+  class MutableHandlers(state: WorldView) {
     var started, stopped: Int = 0
   
     implicit val drone: Drone[Id] = new Drone[Id] {
@@ -1031,7 +1031,7 @@ state (but this is not threadsafe).
 ~~~~~~~~
 
 When we write a unit test (here using `FlatSpec` from scalatest), we
-create an instance of `StaticHandlers` and then import all of its
+create an instance of `MutableHandlers` and then import all of its
 members.
 
 Our implicit `drone` and `machines` both use the `Id` execution
@@ -1044,7 +1044,7 @@ the same value that we use in the static handlers:
 {lang="text"}
 ~~~~~~~~
   "Business Logic" should "generate an initial world view" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
   
     program.initial shouldBe needsAgents
@@ -1058,7 +1058,7 @@ helping us flush out bugs and refine the requirements:
 ~~~~~~~~
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = new StaticHandlers(world)
+    val handlers = new MutableHandlers(world)
     import handlers._
   
     val old = world.copy(alive = Map.empty,
@@ -1068,7 +1068,7 @@ helping us flush out bugs and refine the requirements:
   }
   
   it should "request agents when needed" in {
-    val handlers = new StaticHandlers(needsAgents)
+    val handlers = new MutableHandlers(needsAgents)
     import handlers._
   
     val expected = needsAgents.copy(
@@ -2343,7 +2343,7 @@ To depend on `spray-json` in our project we must add the following to
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.1.1"
+  libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.4.1"
 ~~~~~~~~
 
 Because `spray-json-derivation` provides *derived* typeclass instances, we can
@@ -2352,7 +2352,7 @@ This is an example of parsing text into `AccessResponse`:
 
 {lang="text"}
 ~~~~~~~~
-  scala> import xyz.driver.json.DerivedFormats._
+  scala> import spray.json.ImplicitDerivedFormats._
   
          for {
            json     <- spray.json.JsonParser("""
@@ -2563,7 +2563,7 @@ and then write an OAuth2 client:
 ~~~~~~~~
   import java.time.temporal.ChronoUnit
   import http.encoding.UrlQueryWriter.ops._
-  import xyz.driver.json.DerivedFormats._
+  import spray.json.ImplicitDerivedFormats._
   
   class OAuth2Client[F[_]: Monad](
     config: ServerConfig
@@ -6505,7 +6505,7 @@ this:
 {lang="text"}
 ~~~~~~~~
   it should "monitor stopped nodes" in {
-    val underlying = new StaticHandlers(needsAgents).program
+    val underlying = new MutableHandlers(needsAgents).program
   
     val alive = Map(node1 -> time1, node2 -> time1)
     val world = WorldView(1, 1, managed, alive, Map.empty, time4)

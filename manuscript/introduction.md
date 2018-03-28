@@ -123,7 +123,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A>   object FooEitherString extends Foo[EitherString] {
-A>    def create(i: Int): Either[String, Int] = Right(i)
+A>     def create(i: Int): Either[String, Int] = Right(i)
 A>   }
 A> ~~~~~~~~
 A> 
@@ -133,7 +133,7 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A>   object FooEitherString extends Foo[Either[String, ?]] {
-A>    def create(i: Int): Either[String, Int] = Right(i)
+A>     def create(i: Int): Either[String, Int] = Right(i)
 A>   }
 A> ~~~~~~~~
 A> 

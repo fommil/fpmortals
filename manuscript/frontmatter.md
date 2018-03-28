@@ -10,9 +10,6 @@
 > 
 > ― Bertrand Russell
 
-{width=60%}
-![](images/z.png)
-
 
 # About This Book
 
