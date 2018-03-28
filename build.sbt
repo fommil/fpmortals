@@ -17,7 +17,7 @@ addCommandAlias(
 )
 addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
-val derivingVersion = "0.12.0"
+val derivingVersion = "0.12.1"
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
