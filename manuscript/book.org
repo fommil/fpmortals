@@ -292,7 +292,7 @@ when it would otherwise think there are two, like when we implement
 
 #+BEGIN_SRC scala
 object FooEitherString extends Foo[EitherString] {
- def create(i: Int): Either[String, Int] = Right(i)
+  def create(i: Int): Either[String, Int] = Right(i)
 }
 #+END_SRC
 
@@ -301,7 +301,7 @@ alias and use =?= syntax to tell the compiler where the type hole is:
 
 #+BEGIN_SRC scala
 object FooEitherString extends Foo[Either[String, ?]] {
- def create(i: Int): Either[String, Int] = Right(i)
+  def create(i: Int): Either[String, Int] = Right(i)
 }
 #+END_SRC
 
