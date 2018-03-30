@@ -21,7 +21,8 @@ sealed abstract class StateT[F[_], S, A] {
 object StateT {
   def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
 
-  def stateT[F[_]: Applicative, S, A](a: A): StateT[F, S, A] = a.pure[StateT[F, S, ?]]
+  def stateT[F[_]: Applicative, S, A](a: A): StateT[F, S, A] =
+    a.pure[StateT[F, S, ?]]
 
   private final case class Point[F[_], S, A](
     run: S => F[(S, A)]
