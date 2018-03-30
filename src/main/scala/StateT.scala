@@ -3,7 +3,7 @@
 
 package statet
 
-import scalaz.{ Bind, Monad, MonadState }
+import scalaz.{ Applicative, Bind, Monad, MonadState }
 import scalaz.syntax.monad._
 
 sealed abstract class StateT[F[_], S, A] {
@@ -21,6 +21,8 @@ sealed abstract class StateT[F[_], S, A] {
 object StateT {
   def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
 
+  def stateT[F[_]: Applicative, S, A](a: A): StateT[F, S, A] = a.pure[StateT[F, S, ?]]
+
   private final case class Point[F[_], S, A](
     run: S => F[(S, A)]
   ) extends StateT[F, S, A]
@@ -31,16 +33,16 @@ object StateT {
     type Out = B
   }
 
-  implicit def monad[F[_]: Monad, S]: MonadState[StateT[F, S, ?], S] =
+  implicit def monad[F[_]: Applicative, S]: MonadState[StateT[F, S, ?], S] =
     new MonadState[StateT[F, S, ?], S] {
-      def point[A](a: =>A): StateT[F, S, A] = StateT(s => (s, a).point[F])
+      def point[A](a: =>A): StateT[F, S, A] = Point(s => (s, a).point[F])
       def bind[A, B](
         fa: StateT[F, S, A]
       )(f: A => StateT[F, S, B]): StateT[F, S, B] =
-        FlatMap(fa, (s: S, a: A) => f(a))
+        FlatMap(fa, (_, a: A) => f(a))
 
-      def get: StateT[F, S, S]          = StateT(s => (s, s).point[F])
-      def put(s: S): StateT[F, S, Unit] = StateT(_ => (s, ()).point[F])
+      def get: StateT[F, S, S]          = Point(s => (s, s).point[F])
+      def put(s: S): StateT[F, S, Unit] = Point(_ => (s, ()).point[F])
 
       def init = get // 7.2 artefact, removed in 7.3
     }

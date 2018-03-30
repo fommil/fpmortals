@@ -1163,7 +1163,7 @@ algebra: it is a good level of abstraction to design a system.
 #+BEGIN_SRC scala
 package algebra
 
-import java.time.ZonedDateTime
+import java.time.Instant
 import scalaz.NonEmptyList
 
 trait Drone[F[_]] {
@@ -1173,9 +1173,9 @@ trait Drone[F[_]] {
 
 final case class MachineNode(id: String)
 trait Machines[F[_]] {
-  def getTime: F[ZonedDateTime]
+  def getTime: F[Instant]
   def getManaged: F[NonEmptyList[MachineNode]]
-  def getAlive: F[Map[MachineNode, ZonedDateTime]] // with start zdt
+  def getAlive: F[Map[MachineNode, Instant]]
   def start(node: MachineNode): F[MachineNode]
   def stop(node: MachineNode): F[MachineNode]
 }
@@ -1211,7 +1211,7 @@ First, the imports
 #+BEGIN_SRC scala
 package logic
 
-import java.time.ZonedDateTime
+import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import scala.concurrent.duration._
@@ -1234,9 +1234,9 @@ final case class WorldView(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, ZonedDateTime],
-  pending: Map[MachineNode, ZonedDateTime], // requested at zdt
-  time: ZonedDateTime
+  alive: Map[MachineNode, Instant],
+  pending: Map[MachineNode, Instant],
+  time: Instant
 )
 #+END_SRC
 
@@ -1317,7 +1317,7 @@ assume that it failed and forget that we asked to do it.
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
 
-  private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+  private def timediff(from: Instant, to: Instant): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 #+END_SRC
 
@@ -1439,7 +1439,7 @@ object Data {
   val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, node2)
 
-  import ZonedDateTime.parse
+  import Instant.parse
   val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
   val time2 = parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
   val time3 = parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
@@ -1455,7 +1455,7 @@ We implement algebras by creating /handlers/ that extend =Drone= and
 
 Our "mock" implementations simply play back a fixed =WorldView=. We've
 isolated the state of our system, so we can use =var= to store the
-state (but this is not threadsafe).
+state:
 
 #+BEGIN_SRC scala
 class MutableHandlers(state: WorldView) {
@@ -1467,9 +1467,9 @@ class MutableHandlers(state: WorldView) {
   }
 
   implicit val machines: Machines[Id] = new Machines[Id] {
-    def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
+    def getAlive: Map[MachineNode, Instant] = state.alive
     def getManaged: NonEmptyList[MachineNode] = state.managed
-    def getTime: ZonedDateTime = state.time
+    def getTime: Instant = state.time
     def start(node: MachineNode): MachineNode = { started += 1 ; node }
     def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
   }
@@ -1477,6 +1477,11 @@ class MutableHandlers(state: WorldView) {
   val program = new DynAgents[Id]
 }
 #+END_SRC
+
+#+BEGIN_ASIDE
+We will return to this code later on in the book and replace =var= with a
+principled way of managing state.
+#+END_ASIDE
 
 When we write a unit test (here using =FlatSpec= from scalatest), we
 create an instance of =MutableHandlers= and then import all of its
@@ -7347,11 +7352,11 @@ object ConstHandlers {
     }
 
   implicit val machines: Machines[F] = new Machines[F] {
-      def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const("alive")
-      def getManaged: F[NonEmptyList[MachineNode]]     = Const("managed")
-      def getTime: F[ZonedDateTime]                    = Const("time")
-      def start(node: MachineNode): F[Unit]            = Const("start")
-      def stop(node: MachineNode): F[Unit]             = Const("stop")
+      def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
+      def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
+      def getTime: F[Instant]                      = Const("time")
+      def start(node: MachineNode): F[Unit]        = Const("start")
+      def stop(node: MachineNode): F[Unit]         = Const("stop")
     }
 
   val program = new DynAgents[F]
@@ -7391,11 +7396,11 @@ final class Monitored[U[_]: Functor](program: DynAgents[U]) {
     def getAgents: F[Int]  = Const(Set.empty)
   }
   implicit val machines: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const(Set.empty)
-    def getManaged: F[NonEmptyList[MachineNode]]     = Const(Set.empty)
-    def getTime: F[ZonedDateTime]                    = Const(Set.empty)
-    def start(node: MachineNode): F[Unit]            = Const(Set.empty)
-    def stop(node: MachineNode): F[Unit]             = Const(Set(node))
+    def getAlive: F[Map[MachineNode, Instant]]   = Const(Set.empty)
+    def getManaged: F[NonEmptyList[MachineNode]] = Const(Set.empty)
+    def getTime: F[Instant]                      = Const(Set.empty)
+    def start(node: MachineNode): F[Unit]        = Const(Set.empty)
+    def stop(node: MachineNode): F[Unit]         = Const(Set(node))
   }
   val monitor = new DynAgents[F]
 
@@ -10109,16 +10114,18 @@ In a nutshell, =WriterT= / =MonadTell= is how to multi-task in FP.
 
 **** =StateT=
 
-=StateT= gives us the ability to =.put=, =.get= and =.modify= a value. It is the
-FP replacement for a =var=.
+=StateT= lets us =.put=, =.get= and =.modify= a value that is handled by the
+monadic context. It is the FP replacement of =var=.
 
 The wrapped data type is ~S => F[(S, A)]~ which is a combination of ~ReaderT~'s
-~S => F[A]~ and ~WriterT~'s ~F[(S, A)]~ but =S= is not aggregated by its
-=Monoid= so can be any type. If we were to write an impure method that had
-access to some mutable state, it might have the signature ~() => F[A]~ with a
-different value on every call, breaking referential transparency, but with pure
-FP the function takes the state as input and returns the updated state as
-output.
+~S => F[A]~ and ~WriterT~'s ~F[(S, A)]~, except =S= is just a value and does not
+need a =Monoid=.
+
+If we were to write an impure method that has access to some mutable state, held
+in a =var=, it might have the signature ~() => F[A]~ and return a different
+value on every call, breaking referential transparency. With pure FP the
+function takes the state as input and returns the updated state as output, which
+is why the ~S~ in ~S => F[(S, A)]~ is there.
 
 The associated monad is =MonadState=
 
@@ -10138,18 +10145,11 @@ mutable data structure. Mutability is impure and is only allowed within an =IO=
 block.
 #+END_ASIDE
 
-#+BEGIN_SRC scala
-sealed abstract class StateT[F[_], S, A] {
-  import StateT._
+=StateT= is implemented slightly differently than the monad transformers we have
+studied so far. Instead of being a =case class= it is an ADT with two members:
 
-  def run(initial: S)(implicit F: Monad[F]): F[(S, A)] = this match {
-    case Point(f) => f(initial)
-    case FlatMap(Point(f), g) =>
-      f(initial) >>= { case (s, x) => g(s, x).run(s) }
-    case FlatMap(FlatMap(f, g), h) =>
-      FlatMap(f, (s, x) => FlatMap(g(s, x), h)).run(initial)
-  }
-}
+#+BEGIN_SRC scala
+sealed abstract class StateT[F[_], S, A]
 object StateT {
   def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
 
@@ -10164,39 +10164,225 @@ object StateT {
 }
 #+END_SRC
 
-TODO rewrite our =LogicSpecs= to avoid that =var=
-
-TODO =State=
+which are a specialised form of =Trampoline=, giving us stack safety when we
+want to recover the underlying data structure, =.run=:
 
 #+BEGIN_SRC scala
-object State extends StateFunctions {
- def apply[S, A](f: S => (S, A)): State[S, A] = StateT[Id, S, A](f)
-
-  def constantState[S, A](a: A, s: => S): State[S, A] =
-    State((_: S) => (s, a))
-
-  def state[S, A](a: A): State[S, A] =
-    State((_ : S, a))
-
-  def init[S]: State[S, S] = State(s => (s, s))
-
-  def get[S]: State[S, S] = init
-
-  def gets[S, T](f: S => T): State[S, T] = State(s => (s, f(s)))
-
-  def put[S](s: S): State[S, Unit] = State(_ => (s, ()))
-
-  def modify[S](f: S => S): State[S, Unit] = State(s => {
-    val r = f(s);
-    (r, ())
-  })
+sealed abstract class StateT[F[_], S, A] {
+  def run(initial: S)(implicit F: Monad[F]): F[(S, A)] = this match {
+    case Point(f) => f(initial)
+    case FlatMap(Point(f), g) =>
+      f(initial) >>= { case (s, x) => g(s, x).run(s) }
+    case FlatMap(FlatMap(f, g), h) =>
+      FlatMap(f, (s, x) => FlatMap(g(s, x), h)).run(initial)
+  }
+  ...
 }
 #+END_SRC
 
+=StateT= can straightforwardly implement =MonadState= with its ADT:
 
-TODO do not rewrite =logic.scala=, it's always better to use =Applicative=
+#+BEGIN_SRC scala
+implicit def monad[F[_]: Applicative, S] = new MonadState[StateT[F, S, ?], S] {
+  def point[A](a: =>A) = Point(s => (s, a).point[F])
+  def bind[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]) =
+    FlatMap(fa, (_, a: A) => f(a))
 
-TODO =IndexedStateT= =IndexedReaderWriterStateT= and what they are good for https://www.youtube.com/watch?v=eO1JLs5FR6k and https://www.youtube.com/watch?v=JPVagd9W4Lo
+  def get       = Point(s => (s, s).point[F])
+  def put(s: S) = Point(_ => (s, ()).point[F])
+}
+#+END_SRC
+
+With =.pure= mirrored on the companion as =.stateT=:
+
+#+BEGIN_SRC scala
+object StateT {
+  def stateT[F[_]: Applicative, S, A](a: A): StateT[F, S, A] = ...
+  ...
+}
+#+END_SRC
+
+and =MonadTrans.liftM= providing the ~F[A] => StateT[F, S, A]~ constructor as
+usual.
+
+A common variant of =StateT= is when ~F = Id~, giving the underlying type
+signature ~S => (S, A)~. Scalaz provides a type alias and convenience functions
+for interacting with the =State= monad transformer directly, and mirroring
+=MonadState=:
+
+#+BEGIN_SRC scala
+type State[a] = StateT[Id, a]
+object State {
+  def apply[S, A](f: S => (S, A)): State[S, A] = StateT[Id, S, A](f)
+  def state[S, A](a: A): State[S, A] = State((_, a))
+
+  def get[S]: State[S, S] = State(s => (s, s))
+  def put[S](s: S): State[S, Unit] = State(_ => (s, ()))
+  def modify[S](f: S => S): State[S, Unit] = ...
+  ...
+}
+#+END_SRC
+
+For an example we can return to the business logic tests of
+=drone-dynamic-agents=. Recall from Chapter 3 that we created =MutableHandlers=
+as test interpreters for our application and we stored the number of =started=
+and =stoped= nodes in =var=.
+
+#+BEGIN_SRC scala
+class MutableHandlers(state: WorldView) {
+  var started, stopped: Int = 0
+
+  implicit val drone: Drone[Id] = new Drone[Id] { ... }
+  implicit val machines: Machines[Id] = new Machines[Id] { ... }
+  val program = new DynAgents[Id]
+}
+#+END_SRC
+
+We now know that we can write a much better test simulator with =State=. We'll
+take the opportunity to upgrade the accuracy of the simulation at the same time.
+Recall that a core domain object is our application's view of the world:
+
+#+BEGIN_SRC scala
+final case class WorldView(
+  backlog: Int,
+  agents: Int,
+  managed: NonEmptyList[MachineNode],
+  alive: Map[MachineNode, Instant],
+  pending: Map[MachineNode, Instant],
+  time: Instant
+)
+#+END_SRC
+
+Since we're writing a simulation of the world for our tests, we can create a
+data type that captures the ground truth of everything
+
+#+BEGIN_SRC scala
+final case class World(
+  backlog: Int,
+  agents: Int,
+  managed: NonEmptyList[MachineNode],
+  alive: Map[MachineNode, Instant],
+  started: Set[MachineNode],
+  stopped: Set[MachineNode],
+  time: Instant
+)
+#+END_SRC
+
+#+BEGIN_ASIDE
+We have not yet rewritten the application to fully make use scalaz data types
+and typeclasses, and we are still relying on stdlib collections. There is no
+urgency to update as this is straightforward and these types can be used in a
+pure FP manner.
+#+END_ASIDE
+
+The key difference being that the =started= and =stopped= nodes can be separated
+out. Our interpreter can be implemented in terms of =State[World, a]= and we can
+write our tests to assert on what both the =World= and =WorldView= looks like
+after the business logic has run.
+
+The interpreters, which are mocking out contacting external Drone and Google
+services, may be implemented like this:
+
+#+BEGIN_SRC scala
+import State.{ get, modify }
+object StateHandlers {
+  type F[a] = State[World, a]
+
+  implicit val drone: Drone[F] = new Drone[F] {
+    def getBacklog: F[Int] = get.map(_.backlog)
+    def getAgents: F[Int]  = get.map(_.agents)
+  }
+
+  implicit val machines: Machines[F] = new Machines[F] {
+    def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
+    def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
+    def getTime: F[Instant]                      = get.map(_.time)
+
+    def start(node: MachineNode): F[Unit] =
+      modify(w => w.copy(started = w.started + node))
+    def stop(node: MachineNode): F[Unit] =
+      modify(w => w.copy(stopped = w.stopped + node))
+  }
+
+  val program: DynAgents[F] = new DynAgents[F]
+}
+#+END_SRC
+
+and we can rewrite our tests to follow a convention where:
+
+- =world1= is the state of the world before running the program
+- =view1= is the application's belief about the world
+- =world2= is the state of the world after running the program
+- =view2= is the application's belief after running the program
+
+For example,
+
+#+BEGIN_SRC scala
+  it should "request agents when needed" in {
+    val world1          = World(5, 0, managed, Map(), Set(), Set(), time1)
+    val view1           = WorldView(5, 0, managed, Map(), Map(), time1)
+
+    val (world2, view2) = StateHandlers.program.act(view1).run(world1)
+
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(Set(node1))
+  }
+#+END_SRC
+
+We would be forgiven for looking back to our business logic loop
+
+#+BEGIN_SRC python
+state = initial()
+while True:
+  state = update(state)
+  state = act(state)
+#+END_SRC
+
+and use =StateT= to manage the =state=. However, our =DynAgents= business logic
+requires only =Applicative= and we would be violating the /Rule of Least Power/
+to require the more powerful =MonadState=. It is therefore entirely reasonable
+to handle the state manually by passing it in to =update= and =act=.
+
+**** =IndexedStateT=
+
+The code that we have studied thus far is not how scalaz implements =StateT=.
+Instead, a type alias points to =IndexedStateT=
+
+#+BEGIN_SRC scala
+type StateT[F[_], S, A] = IndexedStateT[F, S, S, A]
+#+END_SRC
+
+The implementation of =IndexedStateT= is much as we have studied, with an extra
+type parameter allowing the input state =S1= and output state =S2= to differ:
+
+#+BEGIN_SRC scala
+sealed abstract class IndexedStateT[F[_], -S1, S2, A] {
+  def run(initial: S1)(implicit F: Bind[F]): F[(S2, A)] = ...
+  ...
+}
+object IndexedStateT {
+  def apply[F[_], S1, S2, A](
+    f: S1 => F[(S2, A)]
+  ): IndexedStateT[F, S1, S2, A] = Wrap(f)
+
+  private final case class Wrap[F[_], S1, S2, A](
+    run: S1 => F[(S2, A)]
+  ) extends IndexedStateT[F, S1, S2, A]
+  private final case class FlatMap[F[_], S1, S2, S3, A, B](
+    a: IndexedStateT[F, S1, S2, A],
+    f: (S2, A) => IndexedStateT[F, S2, S3, B]
+  ) extends IndexedStateT[F, S1, S3, B]
+  ...
+}
+#+END_SRC
+
+=IndexedStateT= does not have a =MonadState= when =S1 != S2= but it is
+nonetheless useful as a standalone data type. Consider the case where
+
+# https://youtu.be/JPVagd9W4Lo?t=646
+
+**** TODO =IndexedReaderWriterStateT=
 
 ** The Infinite Sadness
 
