@@ -198,8 +198,8 @@ A>
 A>   a.map { (i: Int) => i}
 A> ~~~~~~~~
 A> 
-A> Mistaken patterns result in compiletime errors instead of silent filtering at
-A> runtime. Highly recommended.
+A> instead of inefficient double matching (in the best case) and silent filtering
+A> at runtime (in the worst case). Highly recommended.
 
 
 ### For Each
@@ -5192,6 +5192,51 @@ types because LUB calculations are performed on the parameters:
   res: IList[Any] = [hello, ,world]
 ~~~~~~~~
 
+Another similar problem arises from Scala's `Nothing` type, which is a subtype
+of all other types, including `sealed` ADTs, `final` classes, primitives and
+`null`.
+
+There are no values of type `Nothing`: functions that take a `Nothing` as a
+parameter cannot be run and functions that return `Nothing` will never return.
+`Nothing` was introduced as a mechanism to enable covariant type parameters, but
+a consequence is that we can write un-runnable code, by accident. Scalaz says we
+do not need covariant type parameters which means that we are limiting ourselves
+to writing practical code that can be run.
+
+To show how easy it is to introduce an inferred `Nothing`, the following code
+
+{lang="text"}
+~~~~~~~~
+  final case class Foos(things: List[String])
+  
+  Foos(List.empty)
+~~~~~~~~
+
+is inferred to be
+
+{lang="text"}
+~~~~~~~~
+  Foos(List.empty[Nothing])
+~~~~~~~~
+
+Whereas an invariant list
+
+{lang="text"}
+~~~~~~~~
+  final case class Bars(v: IList[String])
+  
+  Bars(IList.empty)
+~~~~~~~~
+
+is accurately inferred to be
+
+{lang="text"}
+~~~~~~~~
+  Bars(IList.empty[String])
+~~~~~~~~
+
+with no need for a `Nothing` hack.
+
 
 ### Contrarivariance
 
@@ -6591,6 +6636,25 @@ should be familiar. They codify a classic linked list data structure:
     ...
   }
 ~~~~~~~~
+
+A> The source code for scalaz 7.3 reveals that `INil` is implemented as
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   sealed abstract case class INil[A] private() extends IList[A]
+A>   object INil {
+A>     private[this] val value: INil[Nothing] = new INil[Nothing]{}
+A>     def apply[A](): IList[A] = value.asInstanceOf[IList[A]]
+A>   }
+A> ~~~~~~~~
+A> 
+A> which exploits JVM implementation details to avoid an object allocation when
+A> creating an `INil`.
+A> 
+A> This optimisation is manually applied to all zero-parameter classes. Indeed,
+A> scalaz is full of many optimisations of this nature: debated and accepted only
+A> when presented with evidence of a significant performance boost and no risk of a
+A> semantic change.
 
 The main advantage of `IList` over stdlib `List` is that there are no
 unsafe methods, like `.head` which throws an exception on an empty

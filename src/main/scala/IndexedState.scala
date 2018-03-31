@@ -30,7 +30,9 @@ object Cache {
 
 object Main {
 
-  def wibbleise[M[_]: Monad](C: Cache[M]): IndexedStateT[M, Ready, Ready, String] =
+  def wibbleise[M[_]: Monad](
+    C: Cache[M]
+  ): IndexedStateT[M, Ready, Ready, String] =
     for {
       _  <- C.lock
       a1 <- C.read(13)
@@ -39,7 +41,9 @@ object Main {
       _  <- C.commit
     } yield a2
 
-  def fail[M[_]: Monad](C: Cache[M]): IndexedStateT[M, Locked, Ready, Maybe[String]] =
+  def fail[M[_]: Monad](
+    C: Cache[M]
+  ): IndexedStateT[M, Locked, Ready, Maybe[String]] =
     for {
       a1 <- C.read(13)
       _  <- C.update(13, "wibble")

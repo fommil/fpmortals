@@ -667,8 +667,8 @@ reify> for { i: Int <- a } yield i
 a.map { (i: Int) => i}
 #+END_SRC
 
-Mistaken patterns result in compiletime errors instead of silent filtering at
-runtime. Highly recommended.
+instead of inefficient double matching (in the best case) and silent filtering
+at runtime (in the worst case). Highly recommended.
 #+END_ASIDE
 
 **** For Each
@@ -6149,6 +6149,47 @@ scala> IList("hello", ' ', "world")
 res: IList[Any] = [hello, ,world]
 #+END_SRC
 
+Another similar problem arises from Scala's =Nothing= type, which is a subtype
+of all other types, including =sealed= ADTs, =final= classes, primitives and
+=null=.
+
+There are no values of type =Nothing=: functions that take a =Nothing= as a
+parameter cannot be run and functions that return =Nothing= will never return.
+=Nothing= was introduced as a mechanism to enable covariant type parameters, but
+a consequence is that we can write un-runnable code, by accident. Scalaz says we
+do not need covariant type parameters which means that we are limiting ourselves
+to writing practical code that can be run.
+
+To show how easy it is to introduce an inferred =Nothing=, the following code
+
+#+BEGIN_SRC scala
+final case class Foos(things: List[String])
+
+Foos(List.empty)
+#+END_SRC
+
+is inferred to be
+
+#+BEGIN_SRC scala
+Foos(List.empty[Nothing])
+#+END_SRC
+
+Whereas an invariant list
+
+#+BEGIN_SRC scala
+final case class Bars(v: IList[String])
+
+Bars(IList.empty)
+#+END_SRC
+
+is accurately inferred to be
+
+#+BEGIN_SRC scala
+Bars(IList.empty[String])
+#+END_SRC
+
+with no need for a =Nothing= hack.
+
 **** Contrarivariance
 
 On the other hand, /contravariant/ type parameters, such as =trait
@@ -7501,6 +7542,26 @@ final case class NonEmptyList[A](head: A, tail: IList[A]) {
   ...
 }
 #+END_SRC
+
+#+BEGIN_ASIDE
+The source code for scalaz 7.3 reveals that =INil= is implemented as
+
+#+BEGIN_SRC scala
+sealed abstract case class INil[A] private() extends IList[A]
+object INil {
+  private[this] val value: INil[Nothing] = new INil[Nothing]{}
+  def apply[A](): IList[A] = value.asInstanceOf[IList[A]]
+}
+#+END_SRC
+
+which exploits JVM implementation details to avoid an object allocation when
+creating an =INil=.
+
+This optimisation is manually applied to all zero-parameter classes. Indeed,
+scalaz is full of many optimisations of this nature: debated and accepted only
+when presented with evidence of a significant performance boost and no risk of a
+semantic change.
+#+END_ASIDE
 
 The main advantage of =IList= over stdlib =List= is that there are no
 unsafe methods, like =.head= which throws an exception on an empty
