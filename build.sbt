@@ -52,6 +52,10 @@ addCompilerPlugin("org.spire-math" %% "kind-projector"  % "0.9.6")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
+addCompilerPlugin("com.github.oleg-py" %% "better-monadic-for" % "0.1.0")
+
+// WORKAROUND https://github.com/oleg-py/better-monadic-for/issues/5
+resolvers += "JitPack" at "https://jitpack.io"
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 scalacOptions in (Compile, console) -= "-Yno-imports"
