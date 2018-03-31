@@ -10377,10 +10377,132 @@ object IndexedStateT {
 }
 #+END_SRC
 
-=IndexedStateT= does not have a =MonadState= when =S1 != S2= but it is
-nonetheless useful as a standalone data type. Consider the case where
+=IndexedStateT= does not have a =MonadState= when =S1 != S2=, although it has a
+=Monad=.
 
-# https://youtu.be/JPVagd9W4Lo?t=646
+The following example is adapted from [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your State]] by Vincent Marquez.
+Consider the scenario where we must design an algebraic interface to access a
+=key: Int= to =value: String= lookup. This may have a networked implementation
+and the order of calls is essential. Our first attempt at the API may look
+something like:
+
+#+BEGIN_SRC scala
+  trait Cache[F[_]] {
+    def read(k: Int): F[Maybe[String]]
+
+    def lock: F[Unit]
+    def update(k: Int, v: String): F[Unit]
+    def commit: F[Unit]
+  }
+#+END_SRC
+
+with runtime errors if =.update= or =.commit= is called without a =.lock=. A
+more complex design may involve multiple traits and a custom DSL that nobody
+remembers how to use.
+
+Instead, we can use =IndexedStateT= to require that the caller is in the correct
+state. First we define our possible states as an ADT
+
+#+BEGIN_SRC scala
+  sealed abstract class Status
+  final case class Ready()                          extends Status
+  final case class Locked(on: ISet[Int])            extends Status
+  final case class Updated(values: Int ==>> String) extends Status
+#+END_SRC
+
+and then revisit our algebra
+
+#+BEGIN_SRC scala
+trait Cache[M[_]] {
+  type F[in, out, a] = IndexedStateT[M, in, out, a]
+
+  def read(k: Int): F[Ready, Ready, Maybe[String]]
+  def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
+  def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
+
+  def lock: F[Ready, Locked, Unit]
+  def update(k: Int, v: String): F[Locked, Updated, Unit]
+  def commit: F[Updated, Ready, Unit]
+}
+#+END_SRC
+
+which will give a compiletime error if we try to =.update= without a =.lock=
+
+#+BEGIN_SRC scala
+    for {
+      a1 <- C.read(13)
+      _  <- C.update(13, "wibble")
+      _  <- C.commit
+    } yield a1
+
+[error]  found   : IndexedStateT[M,Locked,Ready,Maybe[String]]
+[error]  required: IndexedStateT[M,Ready,?,?]
+[error]       _  <- C.update(13, "wibble")
+[error]          ^
+#+END_SRC
+
+but allowing us to construct functions that can be composed by explicitly
+including their state:
+
+#+BEGIN_SRC scala
+  def wibbleise[M[_]: Monad](C: Cache[M]): F[Ready, Ready, String] =
+    for {
+      _  <- C.lock
+      a1 <- C.readLocked(13)
+      a2 = a1.cata(_ + "'", "wibble")
+      _  <- C.update(13, a2)
+      _  <- C.commit
+    } yield a2
+#+END_SRC
+
+#+BEGIN_ASIDE
+We introduced code duplication in our API when we defined multiple =.read=
+operations
+
+#+BEGIN_SRC scala
+  def read(k: Int): F[Ready, Ready, Maybe[String]]
+  def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
+  def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
+#+END_SRC
+
+Instead of
+
+#+BEGIN_SRC scala
+  def read[S <: Status](k: Int): F[S, S, Maybe[String]]
+#+END_SRC
+
+The reason we didn't do this is, /because subtyping/. This code will compile
+
+#+BEGIN_SRC scala
+    for {
+      a1 <- C.read(13)
+      _  <- C.update(13, "wibble")
+      _  <- C.commit
+    } yield a1
+#+END_SRC
+
+because the compiler infers the type signature =F[Nothing, Ready,
+Maybe[String]]=. This is because the scala type system has a =Nothing= type
+which is the subtype of all other types.
+
+FIXME
+Only fails to compile if the user adds an explicit =F[Ready, Ready,
+Maybe[String]]= type ascription. It is, however, more likely that the user will
+forget to do this and a confusing compiletime error will appear somewhere else.
+
+Scalaz provides implicit evidence to assert that a type is not inferred as
+=Nothing= and we can use it instead:
+
+#+BEGIN_SRC scala
+def read[S <: Status](k: Int)(implicit NN: NotNothing[S]): F[S, S, Maybe[String]]
+#+END_SRC
+
+# automated rewrite proposed in https://github.com/scalacenter/scalafix/issues/668
+
+but it means that we now need to explicitly pass the type parameter =S= when
+calling =.read=. Both are good and equivalent, the choice it's up to the
+personal taste of the API designer.
+#+END_ASIDE
 
 **** TODO =IndexedReaderWriterStateT=
 
