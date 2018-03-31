@@ -701,7 +701,7 @@ algebra: it is a good level of abstraction to design a system.
 ~~~~~~~~
   package algebra
   
-  import java.time.ZonedDateTime
+  import java.time.Instant
   import scalaz.NonEmptyList
   
   trait Drone[F[_]] {
@@ -711,9 +711,9 @@ algebra: it is a good level of abstraction to design a system.
   
   final case class MachineNode(id: String)
   trait Machines[F[_]] {
-    def getTime: F[ZonedDateTime]
+    def getTime: F[Instant]
     def getManaged: F[NonEmptyList[MachineNode]]
-    def getAlive: F[Map[MachineNode, ZonedDateTime]] // with start zdt
+    def getAlive: F[Map[MachineNode, Instant]]
     def start(node: MachineNode): F[MachineNode]
     def stop(node: MachineNode): F[MachineNode]
   }
@@ -749,7 +749,7 @@ First, the imports
 ~~~~~~~~
   package logic
   
-  import java.time.ZonedDateTime
+  import java.time.Instant
   import java.time.temporal.ChronoUnit
   
   import scala.concurrent.duration._
@@ -773,9 +773,9 @@ algebras, and adds a *pending* field to track unfulfilled requests.
     backlog: Int,
     agents: Int,
     managed: NonEmptyList[MachineNode],
-    alive: Map[MachineNode, ZonedDateTime],
-    pending: Map[MachineNode, ZonedDateTime], // requested at zdt
-    time: ZonedDateTime
+    alive: Map[MachineNode, Instant],
+    pending: Map[MachineNode, Instant],
+    time: Instant
   )
 ~~~~~~~~
 
@@ -862,7 +862,7 @@ assume that it failed and forget that we asked to do it.
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
   
-  private def timediff(from: ZonedDateTime, to: ZonedDateTime): FiniteDuration =
+  private def timediff(from: Instant, to: Instant): FiniteDuration =
     ChronoUnit.MINUTES.between(from, to).minutes
 ~~~~~~~~
 
@@ -990,7 +990,7 @@ We'll start with some test data
     val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
     val managed = NonEmptyList(node1, node2)
   
-    import ZonedDateTime.parse
+    import Instant.parse
     val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
     val time2 = parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
     val time3 = parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
@@ -1006,7 +1006,7 @@ We implement algebras by creating *handlers* that extend `Drone` and
 
 Our "mock" implementations simply play back a fixed `WorldView`. We've
 isolated the state of our system, so we can use `var` to store the
-state (but this is not threadsafe).
+state:
 
 {lang="text"}
 ~~~~~~~~
@@ -1019,9 +1019,9 @@ state (but this is not threadsafe).
     }
   
     implicit val machines: Machines[Id] = new Machines[Id] {
-      def getAlive: Map[MachineNode, ZonedDateTime] = state.alive
+      def getAlive: Map[MachineNode, Instant] = state.alive
       def getManaged: NonEmptyList[MachineNode] = state.managed
-      def getTime: ZonedDateTime = state.time
+      def getTime: Instant = state.time
       def start(node: MachineNode): MachineNode = { started += 1 ; node }
       def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
     }
@@ -1029,6 +1029,9 @@ state (but this is not threadsafe).
     val program = new DynAgents[Id]
   }
 ~~~~~~~~
+
+A> We will return to this code later on in the book and replace `var` with a
+A> principled way of managing state.
 
 When we write a unit test (here using `FlatSpec` from scalatest), we
 create an instance of `MutableHandlers` and then import all of its
@@ -6434,11 +6437,11 @@ We can write tests using anything that provides an `Applicative[F]`, like
       }
   
     implicit val machines: Machines[F] = new Machines[F] {
-        def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const("alive")
-        def getManaged: F[NonEmptyList[MachineNode]]     = Const("managed")
-        def getTime: F[ZonedDateTime]                    = Const("time")
-        def start(node: MachineNode): F[Unit]            = Const("start")
-        def stop(node: MachineNode): F[Unit]             = Const("stop")
+        def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
+        def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
+        def getTime: F[Instant]                      = Const("time")
+        def start(node: MachineNode): F[Unit]        = Const("start")
+        def stop(node: MachineNode): F[Unit]         = Const("stop")
       }
   
     val program = new DynAgents[F]
@@ -6480,11 +6483,11 @@ production) the nodes that we are stopping in `act`. We can create handlers of
       def getAgents: F[Int]  = Const(Set.empty)
     }
     implicit val machines: Machines[F] = new Machines[F] {
-      def getAlive: F[Map[MachineNode, ZonedDateTime]] = Const(Set.empty)
-      def getManaged: F[NonEmptyList[MachineNode]]     = Const(Set.empty)
-      def getTime: F[ZonedDateTime]                    = Const(Set.empty)
-      def start(node: MachineNode): F[Unit]            = Const(Set.empty)
-      def stop(node: MachineNode): F[Unit]             = Const(Set(node))
+      def getAlive: F[Map[MachineNode, Instant]]   = Const(Set.empty)
+      def getManaged: F[NonEmptyList[MachineNode]] = Const(Set.empty)
+      def getTime: F[Instant]                      = Const(Set.empty)
+      def start(node: MachineNode): F[Unit]        = Const(Set.empty)
+      def stop(node: MachineNode): F[Unit]         = Const(Set(node))
     }
     val monitor = new DynAgents[F]
   

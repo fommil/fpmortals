@@ -10471,7 +10471,8 @@ Instead of
   def read[S <: Status](k: Int): F[S, S, Maybe[String]]
 #+END_SRC
 
-The reason we didn't do this is, /because subtyping/. This code will compile
+The reason we didn't do this is, /because subtyping/. This (broken) code would
+compile with the inferred type signature =F[Nothing, Ready, Maybe[String]]=
 
 #+BEGIN_SRC scala
     for {
@@ -10481,17 +10482,13 @@ The reason we didn't do this is, /because subtyping/. This code will compile
     } yield a1
 #+END_SRC
 
-because the compiler infers the type signature =F[Nothing, Ready,
-Maybe[String]]=. This is because the scala type system has a =Nothing= type
-which is the subtype of all other types.
+Scala has a =Nothing= type which is the subtype of all other types. Thankfully,
+this code can not make it to runtime, as it would be impossible to call it, but
+it is a bad API since users need to remember to add type ascriptions.
 
-FIXME
-Only fails to compile if the user adds an explicit =F[Ready, Ready,
-Maybe[String]]= type ascription. It is, however, more likely that the user will
-forget to do this and a confusing compiletime error will appear somewhere else.
-
-Scalaz provides implicit evidence to assert that a type is not inferred as
-=Nothing= and we can use it instead:
+Another approach would be to stop the compiler from inferring =Nothing=. Scalaz
+provides implicit evidence to assert that a type is not inferred as =Nothing=
+and we can use it instead:
 
 #+BEGIN_SRC scala
 def read[S <: Status](k: Int)(implicit NN: NotNothing[S]): F[S, S, Maybe[String]]
@@ -10499,8 +10496,7 @@ def read[S <: Status](k: Int)(implicit NN: NotNothing[S]): F[S, S, Maybe[String]
 
 # automated rewrite proposed in https://github.com/scalacenter/scalafix/issues/668
 
-but it means that we now need to explicitly pass the type parameter =S= when
-calling =.read=. Both are good and equivalent, the choice it's up to the
+The choice of which of the three alternative APIs to prefer is left to the
 personal taste of the API designer.
 #+END_ASIDE
 

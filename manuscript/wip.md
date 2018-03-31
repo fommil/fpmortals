@@ -1146,16 +1146,18 @@ In a nutshell, `WriterT` / `MonadTell` is how to multi-task in FP.
 
 ### `StateT`
 
-`StateT` gives us the ability to `.put`, `.get` and `.modify` a value. It is the
-FP replacement for a `var`.
+`StateT` lets us `.put`, `.get` and `.modify` a value that is handled by the
+monadic context. It is the FP replacement of `var`.
 
 The wrapped data type is `S => F[(S, A)]` which is a combination of `ReaderT`'s
-`S => F[A]` and `WriterT`'s `F[(S, A)]` but `S` is not aggregated by its
-`Monoid` so can be any type. If we were to write an impure method that had
-access to some mutable state, it might have the signature `() => F[A]` with a
-different value on every call, breaking referential transparency, but with pure
-FP the function takes the state as input and returns the updated state as
-output.
+`S => F[A]` and `WriterT`'s `F[(S, A)]`, except `S` is just a value and does not
+need a `Monoid`.
+
+If we were to write an impure method that has access to some mutable state, held
+in a `var`, it might have the signature `() => F[A]` and return a different
+value on every call, breaking referential transparency. With pure FP the
+function takes the state as input and returns the updated state as output, which
+is why the `S` in `S => F[(S, A)]` is there.
 
 The associated monad is `MonadState`
 
@@ -1174,19 +1176,12 @@ A> `S` must be an immutable type: `.modify` is not an escape hatch to update a
 A> mutable data structure. Mutability is impure and is only allowed within an `IO`
 A> block.
 
+`StateT` is implemented slightly differently than the monad transformers we have
+studied so far. Instead of being a `case class` it is an ADT with two members:
+
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class StateT[F[_], S, A] {
-    import StateT._
-  
-    def run(initial: S)(implicit F: Monad[F]): F[(S, A)] = this match {
-      case Point(f) => f(initial)
-      case FlatMap(Point(f), g) =>
-        f(initial) >>= { case (s, x) => g(s, x).run(s) }
-      case FlatMap(FlatMap(f, g), h) =>
-        FlatMap(f, (s, x) => FlatMap(g(s, x), h)).run(initial)
-    }
-  }
+  sealed abstract class StateT[F[_], S, A]
   object StateT {
     def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
   
@@ -1201,39 +1196,360 @@ A> block.
   }
 ~~~~~~~~
 
-TODO rewrite our `LogicSpecs` to avoid that `var`
-
-TODO `State`
+which are a specialised form of `Trampoline`, giving us stack safety when we
+want to recover the underlying data structure, `.run`:
 
 {lang="text"}
 ~~~~~~~~
-  object State extends StateFunctions {
-   def apply[S, A](f: S => (S, A)): State[S, A] = StateT[Id, S, A](f)
-  
-    def constantState[S, A](a: A, s: => S): State[S, A] =
-      State((_: S) => (s, a))
-  
-    def state[S, A](a: A): State[S, A] =
-      State((_ : S, a))
-  
-    def init[S]: State[S, S] = State(s => (s, s))
-  
-    def get[S]: State[S, S] = init
-  
-    def gets[S, T](f: S => T): State[S, T] = State(s => (s, f(s)))
-  
-    def put[S](s: S): State[S, Unit] = State(_ => (s, ()))
-  
-    def modify[S](f: S => S): State[S, Unit] = State(s => {
-      val r = f(s);
-      (r, ())
-    })
+  sealed abstract class StateT[F[_], S, A] {
+    def run(initial: S)(implicit F: Monad[F]): F[(S, A)] = this match {
+      case Point(f) => f(initial)
+      case FlatMap(Point(f), g) =>
+        f(initial) >>= { case (s, x) => g(s, x).run(s) }
+      case FlatMap(FlatMap(f, g), h) =>
+        FlatMap(f, (s, x) => FlatMap(g(s, x), h)).run(initial)
+    }
+    ...
   }
 ~~~~~~~~
 
-TODO do not rewrite `logic.scala`, it's always better to use `Applicative`
+`StateT` can straightforwardly implement `MonadState` with its ADT:
 
-TODO `IndexedStateT` `IndexedReaderWriterStateT` and what they are good for <https://www.youtube.com/watch?v=eO1JLs5FR6k> and <https://www.youtube.com/watch?v=JPVagd9W4Lo>
+{lang="text"}
+~~~~~~~~
+  implicit def monad[F[_]: Applicative, S] = new MonadState[StateT[F, S, ?], S] {
+    def point[A](a: =>A) = Point(s => (s, a).point[F])
+    def bind[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]) =
+      FlatMap(fa, (_, a: A) => f(a))
+  
+    def get       = Point(s => (s, s).point[F])
+    def put(s: S) = Point(_ => (s, ()).point[F])
+  }
+~~~~~~~~
+
+With `.pure` mirrored on the companion as `.stateT`:
+
+{lang="text"}
+~~~~~~~~
+  object StateT {
+    def stateT[F[_]: Applicative, S, A](a: A): StateT[F, S, A] = ...
+    ...
+  }
+~~~~~~~~
+
+and `MonadTrans.liftM` providing the `F[A] => StateT[F, S, A]` constructor as
+usual.
+
+A common variant of `StateT` is when `F = Id`, giving the underlying type
+signature `S => (S, A)`. Scalaz provides a type alias and convenience functions
+for interacting with the `State` monad transformer directly, and mirroring
+`MonadState`:
+
+{lang="text"}
+~~~~~~~~
+  type State[a] = StateT[Id, a]
+  object State {
+    def apply[S, A](f: S => (S, A)): State[S, A] = StateT[Id, S, A](f)
+    def state[S, A](a: A): State[S, A] = State((_, a))
+  
+    def get[S]: State[S, S] = State(s => (s, s))
+    def put[S](s: S): State[S, Unit] = State(_ => (s, ()))
+    def modify[S](f: S => S): State[S, Unit] = ...
+    ...
+  }
+~~~~~~~~
+
+For an example we can return to the business logic tests of
+`drone-dynamic-agents`. Recall from Chapter 3 that we created `MutableHandlers`
+as test interpreters for our application and we stored the number of `started`
+and `stoped` nodes in `var`.
+
+{lang="text"}
+~~~~~~~~
+  class MutableHandlers(state: WorldView) {
+    var started, stopped: Int = 0
+  
+    implicit val drone: Drone[Id] = new Drone[Id] { ... }
+    implicit val machines: Machines[Id] = new Machines[Id] { ... }
+    val program = new DynAgents[Id]
+  }
+~~~~~~~~
+
+We now know that we can write a much better test simulator with `State`. We'll
+take the opportunity to upgrade the accuracy of the simulation at the same time.
+Recall that a core domain object is our application's view of the world:
+
+{lang="text"}
+~~~~~~~~
+  final case class WorldView(
+    backlog: Int,
+    agents: Int,
+    managed: NonEmptyList[MachineNode],
+    alive: Map[MachineNode, Instant],
+    pending: Map[MachineNode, Instant],
+    time: Instant
+  )
+~~~~~~~~
+
+Since we're writing a simulation of the world for our tests, we can create a
+data type that captures the ground truth of everything
+
+{lang="text"}
+~~~~~~~~
+  final case class World(
+    backlog: Int,
+    agents: Int,
+    managed: NonEmptyList[MachineNode],
+    alive: Map[MachineNode, Instant],
+    started: Set[MachineNode],
+    stopped: Set[MachineNode],
+    time: Instant
+  )
+~~~~~~~~
+
+A> We have not yet rewritten the application to fully make use scalaz data types
+A> and typeclasses, and we are still relying on stdlib collections. There is no
+A> urgency to update as this is straightforward and these types can be used in a
+A> pure FP manner.
+
+The key difference being that the `started` and `stopped` nodes can be separated
+out. Our interpreter can be implemented in terms of `State[World, a]` and we can
+write our tests to assert on what both the `World` and `WorldView` looks like
+after the business logic has run.
+
+The interpreters, which are mocking out contacting external Drone and Google
+services, may be implemented like this:
+
+{lang="text"}
+~~~~~~~~
+  import State.{ get, modify }
+  object StateHandlers {
+    type F[a] = State[World, a]
+  
+    implicit val drone: Drone[F] = new Drone[F] {
+      def getBacklog: F[Int] = get.map(_.backlog)
+      def getAgents: F[Int]  = get.map(_.agents)
+    }
+  
+    implicit val machines: Machines[F] = new Machines[F] {
+      def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
+      def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
+      def getTime: F[Instant]                      = get.map(_.time)
+  
+      def start(node: MachineNode): F[Unit] =
+        modify(w => w.copy(started = w.started + node))
+      def stop(node: MachineNode): F[Unit] =
+        modify(w => w.copy(stopped = w.stopped + node))
+    }
+  
+    val program: DynAgents[F] = new DynAgents[F]
+  }
+~~~~~~~~
+
+and we can rewrite our tests to follow a convention where:
+
+-   `world1` is the state of the world before running the program
+-   `view1` is the application's belief about the world
+-   `world2` is the state of the world after running the program
+-   `view2` is the application's belief after running the program
+
+For example,
+
+{lang="text"}
+~~~~~~~~
+  it should "request agents when needed" in {
+    val world1          = World(5, 0, managed, Map(), Set(), Set(), time1)
+    val view1           = WorldView(5, 0, managed, Map(), Map(), time1)
+  
+    val (world2, view2) = StateHandlers.program.act(view1).run(world1)
+  
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(Set(node1))
+  }
+~~~~~~~~
+
+We would be forgiven for looking back to our business logic loop
+
+{lang="text"}
+~~~~~~~~
+  state = initial()
+  while True:
+    state = update(state)
+    state = act(state)
+~~~~~~~~
+
+and use `StateT` to manage the `state`. However, our `DynAgents` business logic
+requires only `Applicative` and we would be violating the *Rule of Least Power*
+to require the more powerful `MonadState`. It is therefore entirely reasonable
+to handle the state manually by passing it in to `update` and `act`.
+
+
+### `IndexedStateT`
+
+The code that we have studied thus far is not how scalaz implements `StateT`.
+Instead, a type alias points to `IndexedStateT`
+
+{lang="text"}
+~~~~~~~~
+  type StateT[F[_], S, A] = IndexedStateT[F, S, S, A]
+~~~~~~~~
+
+The implementation of `IndexedStateT` is much as we have studied, with an extra
+type parameter allowing the input state `S1` and output state `S2` to differ:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class IndexedStateT[F[_], -S1, S2, A] {
+    def run(initial: S1)(implicit F: Bind[F]): F[(S2, A)] = ...
+    ...
+  }
+  object IndexedStateT {
+    def apply[F[_], S1, S2, A](
+      f: S1 => F[(S2, A)]
+    ): IndexedStateT[F, S1, S2, A] = Wrap(f)
+  
+    private final case class Wrap[F[_], S1, S2, A](
+      run: S1 => F[(S2, A)]
+    ) extends IndexedStateT[F, S1, S2, A]
+    private final case class FlatMap[F[_], S1, S2, S3, A, B](
+      a: IndexedStateT[F, S1, S2, A],
+      f: (S2, A) => IndexedStateT[F, S2, S3, B]
+    ) extends IndexedStateT[F, S1, S3, B]
+    ...
+  }
+~~~~~~~~
+
+`IndexedStateT` does not have a `MonadState` when `S1 !` S2=, although it has a
+`Monad`.
+
+The following example is adapted from [Index your State](https://www.youtube.com/watch?v=JPVagd9W4Lo) by Vincent Marquez.
+Consider the scenario where we must design an algebraic interface to access a
+`key: Int` to `value: String` lookup. This may have a networked implementation
+and the order of calls is essential. Our first attempt at the API may look
+something like:
+
+{lang="text"}
+~~~~~~~~
+  trait Cache[F[_]] {
+    def read(k: Int): F[Maybe[String]]
+  
+    def lock: F[Unit]
+    def update(k: Int, v: String): F[Unit]
+    def commit: F[Unit]
+  }
+~~~~~~~~
+
+with runtime errors if `.update` or `.commit` is called without a `.lock`. A
+more complex design may involve multiple traits and a custom DSL that nobody
+remembers how to use.
+
+Instead, we can use `IndexedStateT` to require that the caller is in the correct
+state. First we define our possible states as an ADT
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Status
+  final case class Ready()                          extends Status
+  final case class Locked(on: ISet[Int])            extends Status
+  final case class Updated(values: Int ==>> String) extends Status
+~~~~~~~~
+
+and then revisit our algebra
+
+{lang="text"}
+~~~~~~~~
+  trait Cache[M[_]] {
+    type F[in, out, a] = IndexedStateT[M, in, out, a]
+  
+    def read(k: Int): F[Ready, Ready, Maybe[String]]
+    def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
+    def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
+  
+    def lock: F[Ready, Locked, Unit]
+    def update(k: Int, v: String): F[Locked, Updated, Unit]
+    def commit: F[Updated, Ready, Unit]
+  }
+~~~~~~~~
+
+which will give a compiletime error if we try to `.update` without a `.lock`
+
+{lang="text"}
+~~~~~~~~
+  for {
+        a1 <- C.read(13)
+        _  <- C.update(13, "wibble")
+        _  <- C.commit
+      } yield a1
+  
+  [error]  found   : IndexedStateT[M,Locked,Ready,Maybe[String]]
+  [error]  required: IndexedStateT[M,Ready,?,?]
+  [error]       _  <- C.update(13, "wibble")
+  [error]          ^
+~~~~~~~~
+
+but allowing us to construct functions that can be composed by explicitly
+including their state:
+
+{lang="text"}
+~~~~~~~~
+  def wibbleise[M[_]: Monad](C: Cache[M]): F[Ready, Ready, String] =
+    for {
+      _  <- C.lock
+      a1 <- C.readLocked(13)
+      a2 = a1.cata(_ + "'", "wibble")
+      _  <- C.update(13, a2)
+      _  <- C.commit
+    } yield a2
+~~~~~~~~
+
+A> We introduced code duplication in our API when we defined multiple `.read`
+A> operations
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   def read(k: Int): F[Ready, Ready, Maybe[String]]
+A>   def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
+A>   def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
+A> ~~~~~~~~
+A> 
+A> Instead of
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   def read[S <: Status](k: Int): F[S, S, Maybe[String]]
+A> ~~~~~~~~
+A> 
+A> The reason we didn't do this is, *because subtyping*. This (broken) code would
+A> compile with the inferred type signature `F[Nothing, Ready, Maybe[String]]`
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   for {
+A>     a1 <- C.read(13)
+A>     _  <- C.update(13, "wibble")
+A>     _  <- C.commit
+A>   } yield a1
+A> ~~~~~~~~
+A> 
+A> Scala has a `Nothing` type which is the subtype of all other types. Thankfully,
+A> this code can not make it to runtime, as it would be impossible to call it, but
+A> it is a bad API since users need to remember to add type ascriptions.
+A> 
+A> Another approach would be to stop the compiler from inferring `Nothing`. Scalaz
+A> provides implicit evidence to assert that a type is not inferred as `Nothing`
+A> and we can use it instead:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   def read[S <: Status](k: Int)(implicit NN: NotNothing[S]): F[S, S, Maybe[String]]
+A> ~~~~~~~~
+A> 
+A> The choice of which of the three alternative APIs to prefer is left to the
+A> personal taste of the API designer.
+
+
+### TODO `IndexedReaderWriterStateT`
 
 
 # The Infinite Sadness
