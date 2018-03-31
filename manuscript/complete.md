@@ -188,6 +188,19 @@ hand side. But unlike assignment (which throws `MatchError` on
 failure), generators are *filtered* and will not fail at runtime.
 However, there is an inefficient double application of the pattern.
 
+A> The compiler plugin [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for) produces alternative, ****better****,
+A> desugarings than the scala compiler. This example is interpreted as:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   reify> for { i: Int <- a } yield i
+A>   
+A>   a.map { (i: Int) => i}
+A> ~~~~~~~~
+A> 
+A> Mistaken patterns result in compiletime errors instead of silent filtering at
+A> runtime. Highly recommended.
+
 
 ### For Each
 
