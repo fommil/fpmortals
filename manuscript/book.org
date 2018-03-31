@@ -658,7 +658,7 @@ failure), generators are /filtered/ and will not fail at runtime.
 However, there is an inefficient double application of the pattern.
 
 #+BEGIN_ASIDE
-The compiler plugin [[https://github.com/oleg-py/better-monadic-for][=better-monadic-for=]] produces alternative, **better**,
+The compiler plugin [[https://github.com/oleg-py/better-monadic-for][=better-monadic-for=]] produces alternative, *better*,
 desugarings than the scala compiler. This example is interpreted as:
 
 #+BEGIN_SRC scala
