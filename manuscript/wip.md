@@ -1549,7 +1549,42 @@ A> The choice of which of the three alternative APIs to prefer is left to the
 A> personal taste of the API designer.
 
 
-### TODO `IndexedReaderWriterStateT`
+### `IndexedReaderWriterStateT`
+
+Those wanting to have a combination of `ReaderT`, `WriterT` and `IndexedStateT`
+will not be disappointed. The transformer `IndexedReaderWriterStateT` wraps `(R,
+S1) => F[(W, A, S2)]` with `R` having `Reader` semantics, `W` for monoidic
+writes, and the `S` parameters for indexed state updates.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class IndexedReaderWriterStateT[F[_], -R, W, -S1, S2, A] {
+    def run(r: R, s: S1)(implicit F: Monad[F]): F[(W, A, S2)] = ...
+    ...
+  }
+  object IndexedReaderWriterStateT {
+    def apply[F[_], R, W, S1, S2, A](f: (R, S1) => F[(W, A, S2)]) = ...
+  }
+  
+  type ReaderWriterStateT[F[_], -R, W, S, A] = IndexedReaderWriterStateT[F, R, W, S, S, A]
+  object ReaderWriterStateT {
+    def apply[F[_], R, W, S, A](f: (R, S) => F[(W, A, S)]) = ...
+  }
+~~~~~~~~
+
+Abbreviations are provided because otherwise, let's be honest, these types are
+so long they look like they are part of a J2EE API:
+
+{lang="text"}
+~~~~~~~~
+  type IRWST[F[_], -R, W, -S1, S2, A] = IndexedReaderWriterStateT[F, R, W, S1, S2, A]
+  val IRWST = IndexedReaderWriterStateT
+  type RWST[F[_], -R, W, S, A] = ReaderWriterStateT[F, R, W, S, A]
+  val RWST = ReaderWriterStateT
+~~~~~~~~
+
+`IRWST` is a more efficient implementation than a manually created transformer
+*stack* of `ReaderT[WriterT[IndexedStateT[F, ...], ...], ...]`.
 
 
 # The Infinite Sadness
