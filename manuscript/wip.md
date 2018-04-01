@@ -382,31 +382,17 @@ A> the stack.
 
 ## Monad Transformer Library
 
-Monad transformers are data structures that wrap an underlying monadic value,
-providing a new `Monad` that encapsulates an *effect*, augmenting the control
-flow of the program.
+Monad transformers are data structures that wrap an underlying value and provide
+a monadic *effect*.
 
 For example, in Chapter 2 we used `OptionT` to let us use `F[Option[A]]` in a
 `for` comprehension as if it was just a `F[A]`. This gave our program the effect
-of an *optional* value:
+of an *optional* value. Alternatively, we can get the effect of optionality if
+we have a `MonadPlus`.
 
-{lang="text"}
-~~~~~~~~
-  final case class OptionT[F[_], A](run: F[Option[A]])
-  object OptionT {
-    implicit def monad[F[_]: Monad]: MonadPlus[OptionT[F, ?]] = ...
-    ...
-  }
-~~~~~~~~
-
-Scalaz has specialisations of `Monad` that generalise some of the transformer
-effects. For example, the typeclass corresponding to optionality is `MonadPlus`,
-we can call `MonadPlus[F].empty` to short circuit the control flow of an
-application, equivalent to `OptionT(None.pure[F])`.
-
-This subset of scalaz is often referred to as the *Monad Transformer Library*
-(MTL), summarised below. In this section, we will explain each of the
-transformers, why they are useful, and how they work.
+This subset of data types and extensions to `Monad` are often referred to as the
+*Monad Transformer Library* (MTL), summarised below. In this section, we will
+explain each of the transformers, why they are useful, and how they work.
 
 | Effect               | Underlying                  | Transformer | Typeclass     |
 |-------------------- |--------------------------- |----------- |------------- |
@@ -1149,15 +1135,11 @@ In a nutshell, `WriterT` / `MonadTell` is how to multi-task in FP.
 `StateT` lets us `.put`, `.get` and `.modify` a value that is handled by the
 monadic context. It is the FP replacement of `var`.
 
-The wrapped data type is `S => F[(S, A)]` which is a combination of `ReaderT`'s
-`S => F[A]` and `WriterT`'s `F[(S, A)]`, except `S` is just a value and does not
-need a `Monoid`.
-
 If we were to write an impure method that has access to some mutable state, held
 in a `var`, it might have the signature `() => F[A]` and return a different
 value on every call, breaking referential transparency. With pure FP the
 function takes the state as input and returns the updated state as output, which
-is why the `S` in `S => F[(S, A)]` is there.
+is why the underlying type of `StateT` is `S => F[(S, A)]`.
 
 The associated monad is `MonadState`
 
