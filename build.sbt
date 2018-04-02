@@ -22,10 +22,7 @@ addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )
 
-addCompilerPlugin("com.github.oleg-py" %% "better-monadic-for" % "0.1.0")
-
-// WORKAROUND https://github.com/oleg-py/better-monadic-for/issues/5
-resolvers += "JitPack" at "https://jitpack.io"
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.1.0")
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(
