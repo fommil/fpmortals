@@ -9478,13 +9478,12 @@ explain each of the transformers, why they are useful, and how they work.
 |----------------------+-----------------------------+-------------+---------------|
 | optionality          | ~F[Maybe[A]]~               | ~MaybeT~    | ~MonadPlus~   |
 | errors               | ~F[E \/ A]~                 | ~EitherT~   | ~MonadError~  |
-| read configuration   | ~A => F[B]~                 | ~ReaderT~   | ~MonadReader~ |
+| a runtime value      | ~A => F[B]~                 | ~ReaderT~   | ~MonadReader~ |
 | journal / multitask  | ~F[(W, A)]~                 | ~WriterT~   | ~MonadTell~   |
 | evolving state       | ~S => F[(S, A)]~            | ~StateT~    | ~MonadState~  |
 | keep calm & carry on | ~F[E \&/ A]~                | ~TheseT~    |               |
-| non-determinism      | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT~   |               |
 | continuations        | ~(A => F[R]) => F[R]~       | ~ContT~     |               |
-| none                 | ~F[A]~                      | ~IdT~       |               |
+| non-determinism      | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT~   |               |
 
 # https://www.slideshare.net/sukanthajra/classy-monad-transformers-stop-effing-around
 # https://www.youtube.com/watch?v=QtZJATIPB0k
@@ -10640,6 +10639,29 @@ computing along with the primary calculation =B= an the same is true here.
 when Charlie Bucket found the last golden ticket (=A=) he threw away his
 chocolate bar (=B=).
 
+**** TODO =ContT=
+
+Specialisations of ContT like Condensity also have their own nice use cases e.g.
+reassociating binds to make them linear rather than quadratic or abstract over
+bracketed functions like withFile (ResourceT, Managed)
+
+from iravid, it's a generalisation of Akka Directives
+
+https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/index.html#structure, https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/custom-directives.html are decent
+there's a bit of conflation in the API with abstracting over the arity of tuples for a nicer API, be aware
+
+- =IndexedContsT=
+- =ResourceT=
+
+# https://www.schoolofhaskell.com/user/jwiegley/understanding-continuations
+# http://www.haskellforall.com/2012/12/the-continuation-monad.html
+# http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
+
+Also research MonadBracket
+
+# example continuation for a simple neural network...
+# https://gist.github.com/alexknvl/4412f775328ff25cbe29e63abb33393c
+
 ** The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
@@ -10666,32 +10688,6 @@ while continuing to build out the example application.
   :END:
 
 **** TODO =StreamT=
-
-**** TODO =ContT=
-
-Specialisations of ContT like Condensity also have their own nice use cases e.g.
-reassociating binds to make them linear rather than quadratic or abstract over
-bracketed functions like withFile (ResourceT, Managed)
-
-from iravid, it's a generalisation of Akka Directives
-
-https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/index.html#structure, https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/custom-directives.html are decent
-there's a bit of conflation in the API with abstracting over the arity of tuples for a nicer API, be aware
-
-- =IndexedContsT=
-- =ResourceT=
-
-# https://www.schoolofhaskell.com/user/jwiegley/understanding-continuations
-# http://www.haskellforall.com/2012/12/the-continuation-monad.html
-# http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
-# http://blog.sigfpe.com/2008/12/mother-of-all-monads.html
-
-Also research MonadBracket
-
-# example continuation for a simple neural network...
-# https://gist.github.com/alexknvl/4412f775328ff25cbe29e63abb33393c
-
-**** TODO =IdT=
 
 **** TODO Others
 
