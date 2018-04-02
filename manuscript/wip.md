@@ -1569,6 +1569,53 @@ so long they look like they are part of a J2EE API:
 *stack* of `ReaderT[WriterT[IndexedStateT[F, ...], ...], ...]`.
 
 
+### `TheseT`
+
+`TheseT` allows errors to either abort the calculation or to be accumulated if
+there is some partial success. Hence *keep calm and carry on*.
+
+The underlying data type is `F[A \&/ B]` with `A` being the error type,
+requiring a `Semigroup` to enable the accumulation of errors.
+
+{lang="text"}
+~~~~~~~~
+  final case class TheseT[F[_], A, B](run: F[A \&/ B])
+  object TheseT {
+    def `this`[F[_]: Functor, A, B](a: F[A]): TheseT[F, A, B] = ...
+    def that[F[_]: Functor, A, B](b: F[B]): TheseT[F, A, B] = ...
+    def both[F[_]: Functor, A, B](ab: F[(A, B)]): TheseT[F, A, B] = ...
+  
+    implicit def monad[F[_]: Monad, A: Semigroup] = new Monad[TheseT[F, A, ?]] {
+      def bind[B, C](fa: TheseT[F, A, B])(f: B => TheseT[F, A, C]) =
+        TheseT(fa.run >>= {
+          case This(a) => a.wrapThis[C].point[F]
+          case That(b) => f(b).run
+          case Both(a, b) =>
+            f(b).run.map {
+              case This(a_)     => (a |+| a_).wrapThis[C]
+              case That(c_)     => Both(a, c_)
+              case Both(a_, c_) => Both(a |+| a_, c_)
+            }
+        })
+  
+      def point[B](b: =>B) = TheseT(b.wrapThat.point[F])
+    }
+  }
+~~~~~~~~
+
+There is no special monad associated with `TheseT`, it is just a regular
+`Monad`. If we wish to abort a calculation we can return a `This` value, but we
+accumulate errors when we return a `Both` which also contains a successful part
+of the calculation.
+
+`TheseT` can also be thought of from a different angle: `A` does not need to be
+an *error*. In `WriterT`, the `A` may be a secondary calculation that we are
+computing along with the primary calculation `B` an the same is true here.
+`TheseT` allows early exit when something special about `A` demands it, like
+when Charlie Bucket found the last golden ticket (`A`) he threw away his
+chocolate bar (`B`).
+
+
 # The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the

@@ -1,7 +1,4 @@
 
-### TODO `TheseT`
-
-
 ### TODO `StreamT`
 
 
