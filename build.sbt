@@ -44,7 +44,9 @@ scalacOptions ++= Seq(
   "-Yrangepos",
   "-Yno-imports",
   "-Yno-predef",
-  "-Ywarn-unused:explicits,patvars,linted"
+  "-Ywarn-unused:explicits,patvars,imports,privates,locals,implicits",
+  "-opt:l:method,inline",
+  "-opt-inline-from:scalaz.**"
 )
 
 addCompilerPlugin("com.fommil"     %% "deriving-plugin" % derivingVersion)
