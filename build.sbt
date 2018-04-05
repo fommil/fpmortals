@@ -17,7 +17,7 @@ addCommandAlias(
 )
 addCommandAlias("lint", "all compile:scalafix test:scalafix")
 
-val derivingVersion = "0.12.1"
+val derivingVersion = "0.13.0"
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
@@ -49,8 +49,15 @@ scalacOptions ++= Seq(
   "-opt-inline-from:scalaz.**"
 )
 
-addCompilerPlugin("com.fommil"     %% "deriving-plugin" % derivingVersion)
-addCompilerPlugin("org.spire-math" %% "kind-projector"  % "0.9.6")
+addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
+
+managedClasspath in Compile := {
+  val res = (resourceDirectory in Compile).value
+  val old = (managedClasspath in Compile).value
+  Attributed.blank(res) +: old
+}
+
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
