@@ -2,26 +2,6 @@
 ### TODO `StreamT`
 
 
-### TODO `ContT`
-
-Specialisations of ContT like Condensity also have their own nice use cases e.g.
-reassociating binds to make them linear rather than quadratic or abstract over
-bracketed functions like withFile (ResourceT, Managed)
-
-from iravid, it's a generalisation of Akka Directives
-
-<https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/index.html#structure>, <https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/custom-directives.html> are decent
-there's a bit of conflation in the API with abstracting over the arity of tuples for a nicer API, be aware
-
--   `IndexedContsT`
--   `ResourceT`
-
-Also research MonadBracket
-
-
-### TODO `IdT`
-
-
 ### TODO Others
 
 -   `BijectionT` ??? (a bit weird)

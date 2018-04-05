@@ -6436,8 +6436,8 @@ spare type parameter `B`.
   final case class Const[A, B](getConst: A)
 ~~~~~~~~
 
-`Const` provides an instance of `Applicative[Const[A, ?]]` (and `Traverse` /
-`Divisible`) if there is a `Monoid[A]` available:
+`Const` provides an instance of `Applicative[Const[A, ?]]` if there is a
+`Monoid[A]` available:
 
 {lang="text"}
 ~~~~~~~~
@@ -6450,14 +6450,13 @@ spare type parameter `B`.
     }
 ~~~~~~~~
 
-It might feel like we smashed some typeclasses together just because we could,
-but this has practical applications.
+The most important thing about this `Applicative` is that it ignores the `B`
+parameters, continuing on without failing and only combining the constant values
+that it encounters.
 
 Going back to our example application `drone-dynamic-agents`, we should first
-refactor our `logic.scala` file to use `Applicative` instead of `Monad`
-
-A> We wrote `logic.scala` before we learnt about `Applicative`: this is a good
-A> refactor that is overdue.
+refactor our `logic.scala` file to use `Applicative` instead of `Monad`. We
+wrote `logic.scala` before we learnt about `Applicative` and now we know better:
 
 {lang="text"}
 ~~~~~~~~
@@ -6481,8 +6480,9 @@ A> refactor that is overdue.
   }
 ~~~~~~~~
 
-We can write tests using anything that provides an `Applicative[F]`, like
-`Const[String, ?]`
+Since our business logic only requires an `Applicative`, we can write mock
+interpreters with `F[a]` as `Const[String, a]`. In each case, we return the name
+of the function that is called:
 
 {lang="text"}
 ~~~~~~~~
@@ -6490,23 +6490,24 @@ We can write tests using anything that provides an `Applicative[F]`, like
     type F[a] = Const[String, a]
   
     implicit val drone: Drone[F] = new Drone[F] {
-        def getBacklog: F[Int] = Const("backlog")
-        def getAgents: F[Int]  = Const("agents")
-      }
+      def getBacklog: F[Int] = Const("backlog")
+      def getAgents: F[Int]  = Const("agents")
+    }
   
     implicit val machines: Machines[F] = new Machines[F] {
-        def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
-        def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
-        def getTime: F[Instant]                      = Const("time")
-        def start(node: MachineNode): F[Unit]        = Const("start")
-        def stop(node: MachineNode): F[Unit]         = Const("stop")
-      }
+      def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
+      def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
+      def getTime: F[Instant]                      = Const("time")
+      def start(node: MachineNode): F[Unit]        = Const("start")
+      def stop(node: MachineNode): F[Unit]         = Const("stop")
+    }
   
     val program = new DynAgents[F]
   }
 ~~~~~~~~
 
-We can write a test to assert on the methods that we expect to be called:
+With this interpretation of our program, we can assert on the methods that are
+called:
 
 {lang="text"}
 ~~~~~~~~
@@ -6520,12 +6521,14 @@ We can write a test to assert on the methods that we expect to be called:
   }
 ~~~~~~~~
 
-`Const` combines all calls using the `Monoid[A]`, in this case `String`
-concatenation. Alternatively, we could have counted method calls by using
-`Const[Int, ?]`.
+Alternatively, we could have counted total method calls by using `Const[Int, ?]`
+or an `IMap[String, Int]`.
 
-Arguably we can achieve the same with `Validation`, also allowing us to return
-happy path values, but `Const` lets us focus on just the inputs / unhappy path.
+With this test, we've gone beyond traditional *Mock* testing with a `Const` test
+which asserts on *what is called* without having to provide implementations.
+This is useful if our specification demands that we make certain calls for
+certain input, e.g. for accounting purposes. Furthermore, we've achieved this
+with compiletime safety.
 
 Let's take this line of thinking a little further and say we want to monitor (in
 production) the nodes that we are stopping in `act`. We can create handlers of

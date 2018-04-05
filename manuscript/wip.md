@@ -398,13 +398,12 @@ explain each of the transformers, why they are useful, and how they work.
 |-------------------- |--------------------------- |----------- |------------- |
 | optionality          | `F[Maybe[A]]`               | `MaybeT`    | `MonadPlus`   |
 | errors               | `F[E \/ A]`                 | `EitherT`   | `MonadError`  |
-| read configuration   | `A => F[B]`                 | `ReaderT`   | `MonadReader` |
+| a runtime value      | `A => F[B]`                 | `ReaderT`   | `MonadReader` |
 | journal / multitask  | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
-| non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
 | continuations        | `(A => F[R]) => F[R]`       | `ContT`     |               |
-| none                 | `F[A]`                      | `IdT`       |               |
+| non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
 
 
 ### `MonadTrans`
@@ -1614,6 +1613,23 @@ computing along with the primary calculation `B` an the same is true here.
 `TheseT` allows early exit when something special about `A` demands it, like
 when Charlie Bucket found the last golden ticket (`A`) he threw away his
 chocolate bar (`B`).
+
+
+### TODO `ContT`
+
+Specialisations of ContT like Condensity also have their own nice use cases e.g.
+reassociating binds to make them linear rather than quadratic or abstract over
+bracketed functions like withFile (ResourceT, Managed)
+
+from iravid, it's a generalisation of Akka Directives
+
+<https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/index.html#structure>, <https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/custom-directives.html> are decent
+there's a bit of conflation in the API with abstracting over the arity of tuples for a nicer API, be aware
+
+-   `IndexedContsT`
+-   `ResourceT`
+
+Also research MonadBracket
 
 
 # The Infinite Sadness
