@@ -6525,10 +6525,10 @@ Alternatively, we could have counted total method calls by using `Const[Int, ?]`
 or an `IMap[String, Int]`.
 
 With this test, we've gone beyond traditional *Mock* testing with a `Const` test
-which asserts on *what is called* without having to provide implementations.
-This is useful if our specification demands that we make certain calls for
-certain input, e.g. for accounting purposes. Furthermore, we've achieved this
-with compiletime safety.
+that asserts on *what is called* without having to provide implementations. This
+is useful if our specification demands that we make certain calls for certain
+input, e.g. for accounting purposes. Furthermore, we've achieved this with
+compiletime safety.
 
 Let's take this line of thinking a little further and say we want to monitor (in
 production) the nodes that we are stopping in `act`. We can create handlers of
@@ -6586,8 +6586,13 @@ support a monitoring concern, without having to complicate the business logic.
 
 It gets even better. We can run the `Const` handler in production to gather what
 we want to `stop`, and then provide an **optimised** implementation of `act` that
-can make use of handler-specific batched calls. The code to do this is rather
-involved, so we will return to it in the chapter on Advanced Monads.
+can make use of handler-specific batched calls.
+
+The silent hero of this story is `Applicative`. `Const` lets us show off what is
+possible. If we need to change our program to require a `Monad`, we can no
+longer use `Const` and must write full mocks to be able to assert on what is
+called under certain inputs. The *Rule of Least Power* demands that we use
+`Applicative` instead of `Monad` wherever we can.
 
 
 ## Collections
