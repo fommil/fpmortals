@@ -8,8 +8,10 @@ import java.time._
 
 package object datetime {
   implicit class DateTimeStringContext(sc: StringContext) {
-    val instant = Prefix(InstantInterpolator, sc)       // scalafix:ok
-    val zdt     = Prefix(ZonedDateTimeInterpolator, sc) // scalafix:ok
+    val instant: Prefix[Instant, Context, InstantInterpolator.type] =
+      Prefix(InstantInterpolator, sc)
+    val zdt: Prefix[ZonedDateTime, Context, ZonedDateTimeInterpolator.type] =
+      Prefix(ZonedDateTimeInterpolator, sc)
   }
 }
 
