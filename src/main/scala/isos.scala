@@ -31,10 +31,10 @@ object Decoder {
 
   implicit val string: Decoder[String] = instance(_.right)
 
-  private[this] type K[a] = String => Int \/ a
+  private[this] type Decode[a] = String => Int \/ a
   val iso: Decoder <~> Kleisli[Int \/ ?, String, ?] = KleisliIso.iso(
-    λ[K ~> Decoder](instance(_)),
-    λ[Decoder ~> K](_.decode)
+    λ[Decode ~> Decoder](instance(_)),
+    λ[Decoder ~> Decode](_.decode)
   )
 
   implicit val monad: MonadError[Decoder, Int] = MonadError.fromIso(iso)
