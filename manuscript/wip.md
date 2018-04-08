@@ -402,7 +402,7 @@ explain each of the transformers, why they are useful, and how they work.
 | journal / multitask  | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
-| continuations        | `(A => F[R]) => F[R]`       | `ContT`     |               |
+| continuations        | `(A => F[R]) => F[R]`       | `ContsT`    |               |
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
 
 
@@ -1615,9 +1615,9 @@ when Charlie Bucket found the last golden ticket (`A`) he threw away his
 chocolate bar (`B`).
 
 
-### TODO `ContT`
+### TODO `ContsT`
 
-Specialisations of ContT like Condensity also have their own nice use cases e.g.
+Specialisations of ContsT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
 

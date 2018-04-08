@@ -93,13 +93,14 @@ Miles Sabin for fixing a critical bug in the scala compiler ([[https://issues.sc
 
 Thank you to the readers who gave feedback on early drafts of this text.
 
-Some conference talks were particularly helpful for my own understanding of the
-concepts that are in this book. Thanks to Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead
-to Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For:
+Some material was particularly helpful for my own understanding of the concepts
+that are in this book. Thanks to Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to
+Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For:
 What is it Good For?]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]],
 Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Sukant Hajra for [[https://www.youtube.com/watch?v=QtZJATIPB0k][Classy Monad Transformers]],
 Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Vincent Marquez for [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your
-State]], Yi Lin Wei and Zainab Ali for their tutorials at Hack The Tower meetups.
+State]], [[http://www.haskellforall.com/2012/12/the-continuation-monad.html][The Continuation Monad]] by Gabriel Gonzalez, Yi Lin Wei and Zainab Ali for
+their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
@@ -2068,6 +2069,53 @@ When our complexity is "infinity in, infinity out" we should introduce
 restrictive data types and validation closer to the point of input with
 =Refined= from the previous section.
 
+The ability to count the complexity of a type signature has one other practical
+application: we can find simpler type signatures with High School algebra! To go
+from a type signature to its algebra of complexity, simply replace
+
+- ~Either[A, B]~ with ~a + b~
+- ~(A, B)~ with ~a * b~
+- ~A => B~ with ~b ^ a~
+
+do some rearranging, and convert back. For example, say we've designed a
+framework based on callbacks and we've managed to work ourselves into the
+situation where we have created this type signature:
+
+#+BEGIN_SRC scala
+(A => C) => ((B => C) => C)
+#+END_SRC
+
+We can convert and rearrange
+
+#+BEGIN_SRC
+  (c ^ (c ^ b)) ^ (c ^ a)
+= c ^ ((c ^ b) * (c ^ a))
+= c ^ (c ^ (a + b))
+#+END_SRC
+
+then convert back to types and get
+
+#+BEGIN_SRC scala
+(Either[A, B] => C) => C
+#+END_SRC
+
+which is much simpler: we only need to ask the users of our framework to provide
+a ~Either[A, B] => C~.
+
+The same line of reasoning can be used to prove that
+
+#+BEGIN_SRC scala
+A => B => C
+#+END_SRC
+
+is equivalent to
+
+#+BEGIN_SRC scala
+(A, B) => C
+#+END_SRC
+
+also known as /Currying/.
+
 **** Prefer Coproduct over Product
 
 An archetypal modelling problem that comes up a lot is when there are
@@ -2100,9 +2148,9 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, [[https://gitlab.com/fommil/stalagmite][stalagmite]] aims to pack =Boolean= and =Option= fields into an
-=Array[Byte]=, cache instances, memoise =hashCode=, optimise =equals=, enforce
-validation, use =@switch= statements when pattern matching, and much more.
+For example, we can pack =Boolean= and =Option= fields into an =Array[Byte]=,
+cache instances, memoise =hashCode=, optimise =equals=, use =@switch= statements
+when pattern matching, and much more.
 
 These optimisations are not applicable to OOP =class= hierarchies that
 may be managing state, throwing exceptions, or providing adhoc method
@@ -9488,7 +9536,7 @@ explain each of the transformers, why they are useful, and how they work.
 | journal / multitask  | ~F[(W, A)]~                 | ~WriterT~   | ~MonadTell~   |
 | evolving state       | ~S => F[(S, A)]~            | ~StateT~    | ~MonadState~  |
 | keep calm & carry on | ~F[E \&/ A]~                | ~TheseT~    |               |
-| continuations        | ~(A => F[R]) => F[R]~       | ~ContT~     |               |
+| continuations        | ~(A => F[R]) => F[R]~       | ~ContsT~    |               |
 | non-determinism      | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT~   |               |
 
 # https://www.slideshare.net/sukanthajra/classy-monad-transformers-stop-effing-around
@@ -10645,9 +10693,9 @@ computing along with the primary calculation =B= an the same is true here.
 when Charlie Bucket found the last golden ticket (=A=) he threw away his
 chocolate bar (=B=).
 
-**** TODO =ContT=
+**** TODO =ContsT=
 
-Specialisations of ContT like Condensity also have their own nice use cases e.g.
+Specialisations of ContsT like Condensity also have their own nice use cases e.g.
 reassociating binds to make them linear rather than quadratic or abstract over
 bracketed functions like withFile (ResourceT, Managed)
 

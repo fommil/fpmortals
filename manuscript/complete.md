@@ -1654,6 +1654,58 @@ When our complexity is "infinity in, infinity out" we should introduce
 restrictive data types and validation closer to the point of input with
 `Refined` from the previous section.
 
+The ability to count the complexity of a type signature has one other practical
+application: we can find simpler type signatures with High School algebra! To go
+from a type signature to its algebra of complexity, simply replace
+
+-   `Either[A, B]` with `a + b`
+-   `(A, B)` with `a * b`
+-   `A => B` with `b ^ a`
+
+do some rearranging, and convert back. For example, say we've designed a
+framework based on callbacks and we've managed to work ourselves into the
+situation where we have created this type signature:
+
+{lang="text"}
+~~~~~~~~
+  (A => C) => ((B => C) => C)
+~~~~~~~~
+
+We can convert and rearrange
+
+{lang="text"}
+~~~~~~~~
+  (c ^ (c ^ b)) ^ (c ^ a)
+  = c ^ ((c ^ b) * (c ^ a))
+  = c ^ (c ^ (a + b))
+~~~~~~~~
+
+then convert back to types and get
+
+{lang="text"}
+~~~~~~~~
+  (Either[A, B] => C) => C
+~~~~~~~~
+
+which is much simpler: we only need to ask the users of our framework to provide
+a `Either[A, B] => C`.
+
+The same line of reasoning can be used to prove that
+
+{lang="text"}
+~~~~~~~~
+  A => B => C
+~~~~~~~~
+
+is equivalent to
+
+{lang="text"}
+~~~~~~~~
+  (A, B) => C
+~~~~~~~~
+
+also known as *Currying*.
+
 
 ### Prefer Coproduct over Product
 
@@ -1689,9 +1741,9 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, [stalagmite](https://gitlab.com/fommil/stalagmite) aims to pack `Boolean` and `Option` fields into an
-`Array[Byte]`, cache instances, memoise `hashCode`, optimise `equals`, enforce
-validation, use `@switch` statements when pattern matching, and much more.
+For example, we can pack `Boolean` and `Option` fields into an `Array[Byte]`,
+cache instances, memoise `hashCode`, optimise `equals`, use `@switch` statements
+when pattern matching, and much more.
 
 These optimisations are not applicable to OOP `class` hierarchies that
 may be managing state, throwing exceptions, or providing adhoc method
