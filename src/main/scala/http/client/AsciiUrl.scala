@@ -33,12 +33,7 @@ object AsciiUrl {
     new URI(encoded.value) // safe
 
   def parse(raw: String): String \/ URI =
-    Try(new URI(raw)).toDisjunction.leftMap { t =>
-      // Parser failures are computationally expensive because of the exception.
-      // If performance of the unhappy path is important, a regex bloom filter
-      // could be used prior to constructing the URI.
-      s"'$raw' is not a valid URL: ${t.getMessage}"
-    }
+    Maybe.attempt(new URI(raw)).toRight(s"'$raw' is not a valid URL")
 
   def validated(raw: String, uri: URI): String \/ URI =
     if (!uri.isAbsolute || Maybe.fromNullable(uri.getHost).isEmpty)
