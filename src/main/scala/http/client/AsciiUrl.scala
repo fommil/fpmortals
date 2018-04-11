@@ -39,7 +39,7 @@ object AsciiUrl {
   def validated(raw: String, uri: URI): String \/ URI =
     if (!uri.isAbsolute || Maybe.fromNullable(uri.getHost).isEmpty)
       s"'$raw' is not an absolute URL".left[URI]
-    else if (raw != uri.toASCIIString)
+    else if (raw /== uri.toASCIIString)
       s"'$raw' is not ASCII encoded".left[URI]
     else
       uri.right[String]

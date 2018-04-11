@@ -33,9 +33,7 @@ object UrlEncodedWriter {
   implicit val string: UrlEncodedWriter[String] = { s =>
     URLEncoder.encode(s, "UTF-8")
   }
-  implicit val long: UrlEncodedWriter[Long] = { n =>
-    n.toString
-  }
+  implicit val long: UrlEncodedWriter[Long] = (_.shows)
 
   implicit def kvs[F[_]: Traverse]: UrlEncodedWriter[F[(String, String)]] = {
     m =>
