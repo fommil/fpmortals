@@ -9832,6 +9832,9 @@ There are two problems with an ADT of errors on the application level:
 - no matter how granular the errors are, the resolution is often the same: log
   it and try it again, or give up. We don't need an ADT for this.
 
+An error ADT is of value if every entry allows a different kind of recovery to
+be performed.
+
 A compromise between an error ADT and a =String= is an intermediary format. JSON
 is a good choice as it can be understood by most logging and monitoring
 frameworks.
@@ -9904,9 +9907,9 @@ object IO {
 
 It is good to avoid using keywords where possible, as it means we have to
 remember less caveats of the language. If we need to interact with a legacy API
-with a *predictable* exception, like a string parser, we can use
-=scala.util.Try= and use =.toDisjunction.leftMap= to convert the non
-referentially transparent =Throwable= into a descriptive =String=.
+with a *predictable* exception, like a string parser, we can use =Maybe.attempt=
+or =\/.attempt= and convert the non referentially transparent =Throwable= into a
+descriptive =String=.
 
 **** =ReaderT=
 
