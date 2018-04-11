@@ -4556,10 +4556,9 @@ typeclasses, we will not list them all.
 }
 #+END_SRC
 
-The ~α => ~ type syntax is a ~kind-projector~ /type lambda/ that says
-if ~Functor[F]~ is composed with a type ~G[_]~ (that has a
-~Functor[G]~), we get a ~Functor[F[G[_]]]~ that operates on the ~A~ in
-~F[G[A]]~.
+The ~α =>~ type syntax is a ~kind-projector~ /type lambda/ that says if
+~Functor[F]~ is composed with a type ~G[_]~ (that has a ~Functor[G]~), we get a
+~Functor[F[G[_]]]~ that operates on the ~A~ in ~F[G[A]]~.
 
 An example of =Functor.compose= is where =F[_]= is =List=, =G[_]= is
 =Option=, and we want to be able to map over the =Int= inside a
