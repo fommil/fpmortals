@@ -49,6 +49,8 @@ scalacOptions ++= Seq(
   "-opt-inline-from:scalaz.**"
 )
 
+addCompilerPlugin(scalafixSemanticdb)
+
 addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
 
 managedClasspath in Compile := {
