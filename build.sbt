@@ -67,7 +67,6 @@ addCompilerPlugin(
 resolvers += Resolver.sonatypeRepo("snapshots")
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.0-SNAPSHOT")
 
-scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 scalacOptions in (Compile, console) -= "-Yno-imports"
 scalacOptions in (Compile, console) -= "-Yno-predef"
 initialCommands in (Compile, console) := Seq(
