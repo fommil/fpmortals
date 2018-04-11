@@ -15,7 +15,8 @@ addCommandAlias(
   "check",
   "all headerCheck test:headerCheck scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 )
-addCommandAlias("lint", "all compile:scalafix test:scalafix")
+addCommandAlias("lint", "all compile:scalafixTest test:scalafixTest")
+addCommandAlias("fix", "all compile:scalafixCli test:scalafixCli")
 
 val derivingVersion = "0.13.0"
 libraryDependencies ++= Seq(
