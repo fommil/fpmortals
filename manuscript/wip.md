@@ -402,7 +402,7 @@ explain each of the transformers, why they are useful, and how they work.
 | journal / multitask  | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
-| continuations        | `(A => F[R]) => F[R]`       | `ContsT`    |               |
+| continuations        | `(A => F[R]) => F[R]`       | `ContT`     |               |
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
 
 
@@ -1618,7 +1618,14 @@ when Charlie Bucket found the last golden ticket (`A`) he threw away his
 chocolate bar (`B`).
 
 
-### TODO `ContsT`
+### `ContT`
+
+A *continuation*, as in the continuation of the computation step, are callbacks
+with the underlying type signature `(A => F[O]) => F[R]`. Callbacks are
+typically used as part of a framework where control must be passed back to the
+downstream developer.
+
+For example, TODO
 
 
 # The Infinite Sadness

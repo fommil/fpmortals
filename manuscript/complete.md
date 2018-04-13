@@ -3288,11 +3288,10 @@ An instance of `Foldable` need only implement `foldMap` and
 `foldRight` to get all of the functionality in this typeclass,
 although methods are typically optimised for specific data structures.
 
-You might recognise `foldMap` by its marketing buzzword name,
-**MapReduce**. Given an `F[A]`, a function from `A` to `B`, a zero `B`
-and a way to combine `B` (provided by the `Monoid`), we can produce a
-summary value of type `B`. There is no enforced operation order,
-allowing for parallel computation.
+You might recognise `foldMap` by its marketing buzzword name, **MapReduce**. Given
+an `F[A]`, a function from `A` to `B`, and a way to combine `B` (provided by the
+`Monoid`, along with a zero `B`), we can produce a summary value of type `B`.
+There is no enforced operation order, allowing for parallel computation.
 
 `foldRight` does not require its parameters to have a `Monoid`,
 meaning that it needs a starting value `z` and a way to combine each

@@ -105,7 +105,8 @@ their tutorials at Hack The Tower meetups.
 The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
-Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau.
+Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
+A. Baker.
 
 ** Practicalities
 
@@ -3834,11 +3835,10 @@ An instance of =Foldable= need only implement =foldMap= and
 =foldRight= to get all of the functionality in this typeclass,
 although methods are typically optimised for specific data structures.
 
-You might recognise =foldMap= by its marketing buzzword name,
-*MapReduce*. Given an =F[A]=, a function from =A= to =B=, a zero =B=
-and a way to combine =B= (provided by the =Monoid=), we can produce a
-summary value of type =B=. There is no enforced operation order,
-allowing for parallel computation.
+You might recognise =foldMap= by its marketing buzzword name, *MapReduce*. Given
+an =F[A]=, a function from =A= to =B=, and a way to combine =B= (provided by the
+=Monoid=, along with a zero =B=), we can produce a summary value of type =B=.
+There is no enforced operation order, allowing for parallel computation.
 
 =foldRight= does not require its parameters to have a =Monoid=,
 meaning that it needs a starting value =z= and a way to combine each
@@ -10704,6 +10704,7 @@ downstream developer.
 
 For example, TODO
 
+# https://github.com/http4s/http4s/issues/1705
 # https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
 
 # TODO ManagedT / Codensity

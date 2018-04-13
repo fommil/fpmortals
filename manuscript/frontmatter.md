@@ -91,7 +91,8 @@ their tutorials at Hack The Tower meetups.
 The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
-Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau.
+Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
+A. Baker.
 
 
 # Practicalities
