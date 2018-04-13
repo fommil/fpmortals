@@ -31,7 +31,8 @@ object UrlEncodedWriter {
     }
 
   implicit val string: UrlEncodedWriter[String] = { s =>
-    URLEncoder.encode(s, "UTF-8")
+    // UTF-8 always succeeds
+    URLEncoder.encode(s, "UTF-8") // scalafix:ok
   }
   implicit val long: UrlEncodedWriter[Long] = (_.shows)
 
