@@ -25,7 +25,7 @@ libraryDependencies ++= Seq(
   "xyz.driver"           %% "spray-json-derivation" % "0.4.1",
   "eu.timepit"           %% "refined-scalaz"        % "0.8.7",
   "org.scalaz"           %% "scalaz-effect"         % "7.2.21",
-  "com.fommil"           %% "deriving-macro"        % derivingVersion,
+  "com.fommil"           %% "deriving-macro"        % derivingVersion % "provided",
   "com.fommil"           %% "scalaz-deriving"       % derivingVersion,
   "com.propensive"       %% "magnolia"              % "0.7.1",
   "com.propensive"       %% "contextual"            % "1.1.0",
