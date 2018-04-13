@@ -36,6 +36,15 @@ object Directives {
   def isTargetValid(t: Target): IO[Boolean] = ???
   def sayUhOh: IO[Unit]                     = ???
 
+  // without ContT
+  def unitAttack2(t: Target): (Target => IO[Unit]) => IO[Unit] = { todo =>
+    for {
+      _     <- swingAxeBack(60)
+      valid <- isTargetValid(t)
+      res   <- if (valid) todo(t) else sayUhOh
+    } yield res
+  }
+
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
 
