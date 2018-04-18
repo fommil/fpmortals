@@ -65,8 +65,7 @@ addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
 
-resolvers += Resolver.sonatypeRepo("snapshots")
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.0-SNAPSHOT")
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.0")
 
 scalacOptions in (Compile, console) -= "-Yno-imports"
 scalacOptions in (Compile, console) -= "-Yno-predef"
