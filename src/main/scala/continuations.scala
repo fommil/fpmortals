@@ -19,12 +19,29 @@ object ContT {
       )(f: A => ContT[F, B, C]): ContT[F, B, C] =
         ContT(d => fa.run(a => f(a).run(d)))
     }
+
+  object ops {
+    final implicit class ContTOps[M[_], A](val self: M[A]) extends AnyVal {
+      def cps[R](implicit M: Monad[M]): ContT[M, R, A] =
+        ContT((f: A => M[R]) => M.bind(self)(f))
+    }
+  }
 }
 
 object Directives {
 
   // http://www.haskellforall.com/2012/12/the-continuation-monad.html
   class Target
+  // without ContT
+  def unitAttack_(t: Target): (Target => IO[Unit]) => IO[Unit] = { todo =>
+    for {
+      _     <- swingAxeBack(60)
+      valid <- isTargetValid(t)
+      res   <- if (valid) todo(t) else sayUhOh
+    } yield res
+  }
+  // but creating combo would be very painful...
+
   def unitAttack(t: Target): ContT[IO, Unit, Target] = ContT { todo =>
     for {
       _     <- swingAxeBack(60)
@@ -36,14 +53,40 @@ object Directives {
   def isTargetValid(t: Target): IO[Boolean] = ???
   def sayUhOh: IO[Unit]                     = ???
 
-  // without ContT
-  def unitAttack2(t: Target): (Target => IO[Unit]) => IO[Unit] = { todo =>
-    for {
-      _     <- swingAxeBack(60)
-      valid <- isTargetValid(t)
-      res   <- if (valid) todo(t) else sayUhOh
-    } yield res
-  }
+  def halfAssed(t: Target): ContT[IO, Unit, Int] = ???
+  def fullAss(i: Int): ContT[IO, Unit, String]   = ???
+
+  // with bind
+  def combo1(t: Target): ContT[IO, Unit, Int] = unitAttack(t) >>= halfAssed
+  def combo2(t: Target): ContT[IO, Unit, String] =
+    unitAttack(t) >>= halfAssed >>= fullAss
+
+  // with arrows
+  val combo1
+    : Target => ContT[IO, Unit, String] = Kleisli(unitAttack) >=> Kleisli(
+    halfAssed
+  ) >=> Kleisli(fullAss)
+  // or with the >==> sugar
+  val combo2
+    : Target => ContT[IO, Unit, String] = Kleisli(unitAttack) >==> halfAssed >==> fullAss
+
+  // with cps syntax, not sure I see where this is used...
+  //import ContT.ops._
+  //def otherAss: IO[Unit] = ???
+  //val combo3: Target => ContT[IO, Unit, String] = Kleisli(unitAttack) >==> halfAssed >==> otherAss.cps[Unit]
+
+  // a web framework based on callbacks
+  //
+  // inspired by
+  // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
+  final case class Request[F[_]](
+    method: String,
+    query: String,
+    headers: Map[String, String],
+    body: F[String]
+  )
+
+  //def routes: Request =>
 
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
