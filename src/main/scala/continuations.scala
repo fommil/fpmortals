@@ -86,7 +86,14 @@ object Directives {
     body: F[String]
   )
 
-  //def routes: Request =>
+  final case class Response[F[_]](
+    code: Int,
+    headers: Map[String, String],
+    body: F[String]
+  )
+
+  //def routes_[F[_]: Monad]: Request[F] => F[Response[F]] = ???
+  def routes[F[_]: Monad]: Kleisli[F, Request[F], Response[F]] = ???
 
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
