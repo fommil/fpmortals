@@ -3,9 +3,10 @@
 
 package continuations
 
-import scalaz.{ Kleisli, Monad }
+import scalaz.{ Contravariant, Functor, Kleisli, Monad }
 import monadio.IO
 import scalaz.Scalaz._
+import spray.json._
 
 final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
   def run(f: A => F[B]): F[B] = _run(f)
@@ -18,6 +19,12 @@ object ContT {
         fa: ContT[F, B, A]
       )(f: A => ContT[F, B, C]): ContT[F, B, C] =
         ContT(d => fa.run(a => f(a).run(d)))
+    }
+
+  implicit def contravariant[F[_]: Functor, A]: Contravariant[ContT[F, ?, A]] =
+    new Contravariant[ContT[F, ?, A]] {
+      def contramap[B, C](fa: ContT[F, B, A])(f: C => B): ContT[F, C, A] =
+        ContT(a_fc => fa.run(a => a_fc(a).map(f))) // FIXME
     }
 
   object ops {
@@ -94,22 +101,48 @@ object Directives {
 
   //def routes_[F[_]: Monad]: Request[F] => F[Response[F]] = ???
   //def routes[F[_]: Monad]: Kleisli[F, Request[F], Response[F]] = ???
-  def routes[F[_]: Monad]: ContT[F, Response[F], Request[F]] = ???
+  def routes[F[_]: Monad](req: Request[F]): ContT[F, Response[F], Request[F]] =
+    ???
 
-  // // TODO: how do we change the input type? Is it just a regular function?
-  // final case class JsonRequest[F[_]](
-  //   method: String,
-  //   query: String,
-  //   headers: Map[String, String],
-  //   body: JsValue
-  // )
-  // final case class JsonResponse[F[_]](
-  //   code: Int,
-  //   headers: Map[String, String],
-  //   body: JsValue
-  // )
-  // def jsonRoute[F[_]: Monad]: ContT[F, JsonRequest, JsonResponse] = ???
+  final case class JsonRequest(
+    method: String,
+    query: String,
+    headers: Map[String, String],
+    body: JsValue
+  )
+  final case class JsonResponse(
+    code: Int,
+    headers: Map[String, String],
+    body: JsValue
+  )
 
+  import scalaz.Maybe
+
+  def fromJson[F[_]: Monad](
+    req: Request[F]
+  ): ContT[F, Response[F], JsonRequest] = ContT { handler =>
+    for {
+      body  <- req.body
+      mjson = Maybe.attempt(JsonParser(body)) // TODO: MonadPlus
+      resp <- mjson match {
+                case Maybe.Just(json) =>
+                  handler(JsonRequest(req.method, req.query, req.headers, json))
+                case Maybe.Empty() =>
+                  ??? // TODO: error
+              }
+    } yield resp
+  }
+
+  // FIXME: do we need another type parameter in ContT to allow the output to be changed?
+
+//  def jsonRoutes[F[_]: Monad]: ContT[F, Response[F], Request[F]] = ContT {
+//    (req: Request[F] => F[Response[F]]) =>
+//    toJson(req).flatMap { json =>
+
+//    }
+//  }
+
+  //def toJson[F[_]: Monad](req: Request[F]): F[JsonRequest] = ???
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
 

@@ -52,7 +52,7 @@ object Execution {
 
   implicit val deferred: Execution[IO] = new Execution[IO] {
     def doAndThen[A, B](c: IO[A])(f: A => IO[B]): IO[B] = c.flatMap(f)
-    def create[B](b: B): IO[B] = IO(b)
+    def create[B](b: B): IO[B]                          = IO(b)
   }
 }
 
@@ -86,7 +86,7 @@ object Runner {
 }
 
 final class IO[A] private (val interpret: () => A) {
-  def map[B](f: A => B): IO[B] = IO(f(interpret()))
+  def map[B](f: A => B): IO[B]         = IO(f(interpret()))
   def flatMap[B](f: A => IO[B]): IO[B] = IO(f(interpret()).interpret())
 }
 object IO {
