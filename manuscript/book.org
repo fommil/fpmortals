@@ -437,45 +437,26 @@ access to volatile state, performing I/O, or auditing of the session.
 
 *** Pure Functional Programming
 
-FP functions have three key properties:
+Functional Programming is writing programs with /pure functions/. Pure functions
+have three properties:
 
-- *Totality* return a value for every possible input
-- *Determinism* return the same value for the same input
-- *Purity* the only effect is the computation of a return value.
+- *Total*: return a value for every possible input
+- *Deterministic*: return the same value for the same input
+- *Inculpable*: no (direct) interaction with the world or program state.
 
-Together, these properties give us an unprecedented ability to reason
-about our code. Caching is easier to understand with determinism and
-purity, and input validation is easier to isolate with totality.
+Together, these properties give us an unprecedented ability to reason about our
+code. For example, input validation is easier to isolate with totality, caching
+is easier to understand when functions are deterministic, and interacting with
+the world is easier to control, and test, when functions are inculpable.
 
-The kinds of things that break these properties are /side effects/:
-accessing or changing mutable state (e.g. generating random numbers,
-maintaining a =var= in a class), communicating with external resources
-(e.g. files or network lookup), or throwing exceptions.
+The kinds of things that break these properties are /side effects/: directly
+accessing or changing mutable state (e.g. maintaining a =var= in a class or
+using a legacy API that is impure), communicating with external resources (e.g.
+files or network lookup), or throwing exceptions.
 
-But in Scala, we perform side effects all the time. A call to
-=log.info= will perform I/O and a call to =asString= on a =Http=
-instance will speak to a web server. It is fair to say that typical
-Scala is *not* FP.
-
-However, something beautiful happened when we wrote our implementation
-of =echo=. Anything that depends on state or external resources is
-provided as an explicit input: our functions are deterministic and
-pure. We not only get to abstract over execution environment, but we
-also get to dramatically improve the repeatability - and performance -
-of our tests. We are free to implement =Terminal= without any
-interactions with a real console.
-
-Of course we cannot write an application devoid of interaction with the world.
-In FP we push the code that deals with side effects to the edges, using
-battle-tested libraries like NIO, isolated away from the core business logic.
-
-This book expands on the FP style introduced in this chapter. We're
-going to use the traits and classes defined in the /scalaz/ and /fs2/
-libraries to implement streaming applications. We'll also use
-developer tooling to eliminate some of the boilerplate we've already
-seen in this chapter, allowing you to focus on writing pure business
-logic. We'll also discover how to write a pure implementation of
-=Terminal= that uses something much better than =Id= or =Future=.
+We write pure functions by avoiding the use of exceptions for control flow, and
+only interacting with the world through a safe =F[_]= execution context,
+=IO[_]=, introduced later.
 
 * Complete                                                            :final:
   :PROPERTIES:

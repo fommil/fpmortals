@@ -93,7 +93,22 @@ object Directives {
   )
 
   //def routes_[F[_]: Monad]: Request[F] => F[Response[F]] = ???
-  def routes[F[_]: Monad]: Kleisli[F, Request[F], Response[F]] = ???
+  //def routes[F[_]: Monad]: Kleisli[F, Request[F], Response[F]] = ???
+  def routes[F[_]: Monad]: ContT[F, Response[F], Request[F]] = ???
+
+  // TODO: how do we change the input type? Is it just a regular function?
+  final case class JsonRequest[F[_]](
+    method: String,
+    query: String,
+    headers: Map[String, String],
+    body: JsValue
+  )
+  final case class JsonResponse[F[_]](
+    code: Int,
+    headers: Map[String, String],
+    body: JsValue
+  )
+  def jsonRoute[F[_]: Monad]: ContT[F, JsonRequest, JsonResponse] = ???
 
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
