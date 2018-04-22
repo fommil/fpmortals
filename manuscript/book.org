@@ -487,7 +487,7 @@ something different the second time.
 We can define a simple safe =F[_]= execution context
 
 #+BEGIN_SRC scala
-final class IO[A] private (val interpret: () => A) {
+class IO[A](val interpret: () => A) {
   def map[B](f: A => B): IO[B] = IO(f(interpret()))
   def flatMap[B](f: A => IO[B]): IO[B] = IO(f(interpret()).interpret())
 }
@@ -507,7 +507,7 @@ object TerminalIO extends Terminal[IO] {
 }
 #+END_SRC
 
-an then call =echo[IO]=, getting back a value
+and call =echo[IO]= to get back a value
 
 #+BEGIN_SRC scala
   val delayed: IO[String] = echo[IO]

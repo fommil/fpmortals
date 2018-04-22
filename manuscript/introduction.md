@@ -323,7 +323,7 @@ We can define a simple safe `F[_]` execution context
 
 {lang="text"}
 ~~~~~~~~
-  final class IO[A] private (val interpret: () => A) {
+  class IO[A](val interpret: () => A) {
     def map[B](f: A => B): IO[B] = IO(f(interpret()))
     def flatMap[B](f: A => IO[B]): IO[B] = IO(f(interpret()).interpret())
   }
@@ -344,7 +344,7 @@ which lazily evaluates a thunk. `IO` is just a data structure that references
   }
 ~~~~~~~~
 
-an then call `echo[IO]`, getting back a value
+and call `echo[IO]` to get back a value
 
 {lang="text"}
 ~~~~~~~~
