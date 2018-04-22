@@ -8,31 +8,45 @@ import monadio.IO
 import scalaz.Scalaz._
 import spray.json._
 
-final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
-  def run(f: A => F[B]): F[B] = _run(f)
+// final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
+//   def run(f: A => F[B]): F[B] = _run(f)
+// }
+// we can't contramap over a ContT, we need to introduce a type parameter for that
+final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C]) {
+  def run(f: A => F[B]): F[C] = _run(f)
 }
-object ContT {
+object IndexedContT {
+  type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
+
   implicit def monad[F[_], B]: Monad[ContT[F, B, ?]] =
     new Monad[ContT[F, B, ?]] {
       def point[A](a: =>A): ContT[F, B, A] = ContT(_(a))
       def bind[A, C](
         fa: ContT[F, B, A]
       )(f: A => ContT[F, B, C]): ContT[F, B, C] =
-        ContT(d => fa.run(a => f(a).run(d)))
+        ContT(c_fb => fa.run(a => f(a).run(c_fb)))
     }
 
-  implicit def contravariant[F[_]: Functor, A]: Contravariant[ContT[F, ?, A]] =
-    new Contravariant[ContT[F, ?, A]] {
-      def contramap[B, C](fa: ContT[F, B, A])(f: C => B): ContT[F, C, A] =
-        ContT(a_fc => fa.run(a => a_fc(a).map(f))) // FIXME
+  implicit def contravariant[F[_]: Functor, C, A]
+    : Contravariant[IndexedContT[F, C, ?, A]] =
+    new Contravariant[IndexedContT[F, C, ?, A]] {
+      def contramap[Z, ZZ](
+        fa: IndexedContT[F, C, Z, A]
+      )(f: ZZ => Z): IndexedContT[F, C, ZZ, A] =
+        IndexedContT(a_fc => fa.run(a => a_fc(a).map(f)))
     }
 
   object ops {
-    final implicit class ContTOps[M[_], A](val self: M[A]) extends AnyVal {
-      def cps[R](implicit M: Monad[M]): ContT[M, R, A] =
-        ContT((f: A => M[R]) => M.bind(self)(f))
+    final implicit class ContTOps[F[_], A](val self: F[A]) extends AnyVal {
+      def cps[B](implicit F: Monad[F]): ContT[F, B, A] =
+        ContT(a_fb => self >>= a_fb)
     }
   }
+}
+import IndexedContT.ContT
+object ContT {
+  def apply[F[_], B, A](_run: (A => F[B]) => F[B]): ContT[F, B, A] =
+    IndexedContT(_run)
 }
 
 object Directives {
@@ -125,15 +139,24 @@ object Directives {
       body  <- req.body
       mjson = Maybe.attempt(JsonParser(body)) // TODO: MonadPlus
       resp <- mjson match {
-                case Maybe.Just(json) =>
-                  handler(JsonRequest(req.method, req.query, req.headers, json))
-                case Maybe.Empty() =>
-                  ??? // TODO: error
-              }
+               case Maybe.Just(json) =>
+                 handler(JsonRequest(req.method, req.query, req.headers, json))
+               case Maybe.Empty() =>
+                 ??? // TODO: error
+             }
     } yield resp
   }
 
-  // FIXME: do we need another type parameter in ContT to allow the output to be changed?
+  // changing the return type is horrible... best require the users to
+  // "completeJson" or something.
+  def toJson[F[_]: Monad](
+    req: Request[F]
+  ): IndexedContT[F, Response[F], JsonResponse, JsonRequest] =
+    (fromJson(req): IndexedContT[F, Response[F], Response[F], JsonRequest])
+      .contramap(
+        (jresp: JsonResponse) => null: Response[F]
+//    (rreps: Response[F]) => ??? : JsonResponse
+      )
 
 //  def jsonRoutes[F[_]: Monad]: ContT[F, Response[F], Request[F]] = ContT {
 //    (req: Request[F] => F[Response[F]]) =>
