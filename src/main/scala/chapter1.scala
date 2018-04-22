@@ -50,6 +50,10 @@ object Execution {
       def create[B](b: B): Future[B] = Future.successful(b)
     }
 
+  implicit val deferred: Execution[IO] = new Execution[IO] {
+    def doAndThen[A, B](c: IO[A])(f: A => IO[B]): IO[B] = c.flatMap(f)
+    def create[B](b: B): IO[B] = IO(b)
+  }
 }
 
 object Runner {
@@ -64,13 +68,32 @@ object Runner {
 
   implicit val now: Terminal[Now]       = TerminalSync
   implicit val future: Terminal[Future] = new TerminalAsync
+  implicit val io: Terminal[IO]         = TerminalIO
 
   def main(args: Array[String]): Unit = {
-    // interpret for Now
+    // interpret for Now (impure)
     echo[Now]: Now[String]
 
-    // interpret for Future
+    // interpret for Future (impure)
     val running: Future[String] = echo[Future]
     Await.result(running, Duration.Inf)
+
+    // define using IO
+    val delayed: IO[String] = echo[IO]
+    // interpret, impure, end of the world
+    delayed.interpret()
   }
+}
+
+final class IO[A] private (val interpret: () => A) {
+  def map[B](f: A => B): IO[B] = IO(f(interpret()))
+  def flatMap[B](f: A => IO[B]): IO[B] = IO(f(interpret()).interpret())
+}
+object IO {
+  def apply[A](a: =>A): IO[A] = new IO(() => a)
+}
+
+object TerminalIO extends Terminal[IO] {
+  def read: IO[String]           = IO { io.StdIn.readLine }
+  def write(t: String): IO[Unit] = IO { println(t) }
 }

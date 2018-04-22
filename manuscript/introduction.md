@@ -273,8 +273,8 @@ access to volatile state, performing I/O, or auditing of the session.
 
 ## Pure Functional Programming
 
-Functional Programming is writing programs with *pure functions*. Pure functions
-have three properties:
+Functional Programming is the act of writing programs with *pure functions*.
+Pure functions have three properties:
 
 -   **Total**: return a value for every possible input
 -   **Deterministic**: return the same value for the same input
@@ -282,16 +282,93 @@ have three properties:
 
 Together, these properties give us an unprecedented ability to reason about our
 code. For example, input validation is easier to isolate with totality, caching
-is easier to understand when functions are deterministic, and interacting with
-the world is easier to control, and test, when functions are inculpable.
+is possible when functions are deterministic, and interacting with the world is
+easier to control, and test, when functions are inculpable.
 
 The kinds of things that break these properties are *side effects*: directly
 accessing or changing mutable state (e.g. maintaining a `var` in a class or
 using a legacy API that is impure), communicating with external resources (e.g.
 files or network lookup), or throwing exceptions.
 
-We write pure functions by avoiding the use of exceptions for control flow, and
-only interacting with the world through a safe `F[_]` execution context,
-`IO[_]`, introduced later.
+We write pure functions by avoiding exceptions, and interacting with the world
+only through a safe `F[_]` execution context.
+
+In the previous section, we abstracted over execution and defined `echo[Id]` and
+`echo[Future]`. We might reasonably expect that calling any `echo` will not
+perform any side effects, because it is pure. However, if we use `Future` or
+`Id` as the execution context, our application will start listening to stdin:
+
+{lang="text"}
+~~~~~~~~
+  val futureEcho: Future[String] = echo[Future]
+~~~~~~~~
+
+We have broken purity and are no longer writing FP code: `futureEcho` is the
+result of running `echo` once. `Future` conflates the definition of a program
+with *interpreting* it (running it). As a result, applications built with
+`Future` are difficult to reason about.
+
+A> An expression is *referentially transparent* if it can be replaced with its
+A> corresponding value without changing the program's behaviour.
+A> 
+A> Pure functions are referentially transparent, allowing for a great deal of code
+A> reuse, performance optimisation, understanding, and control of a program.
+A> 
+A> Impure functions are not referentially transparent, unless we take a liberal
+A> interpretation of "the program's behaviour". We cannot replace `echo[Future]`
+A> with a value, such as `val futureEcho`, since the pesky user will probably type
+A> something different the second time.
+
+We can define a simple safe `F[_]` execution context
+
+{lang="text"}
+~~~~~~~~
+  final class IO[A] private (val interpret: () => A) {
+    def map[B](f: A => B): IO[B] = IO(f(interpret()))
+    def flatMap[B](f: A => IO[B]): IO[B] = IO(f(interpret()).interpret())
+  }
+  object IO {
+    def apply[A](a: =>A): IO[A] = new IO(() => a)
+  }
+~~~~~~~~
+
+which lazily evaluates a thunk. `IO` is just a data structure that references
+(potentially) impure code, it isn't actually running anything. We can implement
+`Terminal[IO]`
+
+{lang="text"}
+~~~~~~~~
+  object TerminalIO extends Terminal[IO] {
+    def read: IO[String]           = IO { io.StdIn.readLine }
+    def write(t: String): IO[Unit] = IO { println(t) }
+  }
+~~~~~~~~
+
+an then call `echo[IO]`, getting back a value
+
+{lang="text"}
+~~~~~~~~
+  val delayed: IO[String] = echo[IO]
+~~~~~~~~
+
+This `val delayed` can be reused, it is just the definition of the work to be
+done. We can map the `String` and compose additional programs, much as we would
+map over a `Future`. `IO` keeps us honest that we are depending on some
+interaction with the world, but does not prevent us from accessing the output of
+that interaction.
+
+The impure code inside the `IO` is only evaluated when we `.interpret()` the
+value, which is an impure action
+
+{lang="text"}
+~~~~~~~~
+  delayed.interpret()
+~~~~~~~~
+
+An application composed of `IO` programs is only interpreted once, in the `main`
+method, which is also called *the end of the world*.
+
+In this book, we expand on the concepts introduced in this chapter and show how
+to write maintainable, pure functions, that achieve your business's objectives.
 
 

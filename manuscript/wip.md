@@ -15,36 +15,8 @@ offer simpler and faster alternatives.
 ## Always in motion is the `Future`
 
 The biggest problem with `Future` is that it eagerly schedules work during
-construction. Let's see why that's a problem. Rewriting the Chapter 1 example to
-use `Monad`:
-
-{lang="text"}
-~~~~~~~~
-  def echo[F[_]: Monad](implicit T: Terminal[F]): F[String] =
-    for {
-      in <- T.read
-      _  <- T.write(in)
-    } yield in
-~~~~~~~~
-
-We can reasonably expect that calling `echo` will not perform any side effects,
-because it is pure. However, if we use `Future` as `F[_]` it will start running
-immediately, listening to `stdin`:
-
-{lang="text"}
-~~~~~~~~
-  import ExecutionContext.Implicits._
-  val futureEcho: Future[String] = echo[Future]
-~~~~~~~~
-
-We have broken purity and are no longer writing FP code: `futureEcho` is not a
-definition of the `echo` program that we can rerun or substitute using
-referential transparency, but is instead the result of running `echo` once.
-
-`Future` conflates the definition of a program with *interpreting* it (i.e.
-running it). As a result, applications built with `Future` are difficult to
-reason about. If we wish to use `Future` in FP code, we must avoid performing
-any side effects, such as I/O or mutating state.
+construction. As we discovered in the introduction, `Future` conflates the
+definition of a program with *interpreting* it (i.e. running it).
 
 `Future` is also bad from a performance perspective: every time `.flatMap` is
 called, a closure is submitted to an `Executor`, resulting in unnecessary thread
@@ -74,7 +46,8 @@ application's entrypoint. We can now refer to I/O and mutation as an *effect* on
 the world, captured by the type system, as opposed to having a hidden
 *side-effect*.
 
-The simplest implementation of such a `Monad` is `IO`
+The simplest implementation of such a `Monad` is `IO`, formalising the version
+we wrote in the introduction:
 
 {lang="text"}
 ~~~~~~~~
@@ -90,25 +63,8 @@ The simplest implementation of such a `Monad` is `IO`
   }
 ~~~~~~~~
 
-Note that `IO` only holds a reference to an impure `() => A`. The caller must
-invoke `.interpret()` before the effect will execute, including nested calls to
-`.bind` / `.flatMap`.
-
-If we create an interpreter for our `Terminal` algebra using `IO`
-
-{lang="text"}
-~~~~~~~~
-  implicit val TerminalIO: Terminal[IO] = new Terminal[IO] {
-    def read: IO[String]           = IO { io.StdIn.readLine }
-    def write(t: String): IO[Unit] = IO { println(t) }
-  }
-  
-  val program: IO[String] = echo[IO]
-~~~~~~~~
-
-we can assign `program` to a `val` and reuse it as much as we like to re-run the
-effects that it describes. The `.interpret` method is only called once, in the
-entrypoint of the application:
+The `.interpret` method is only called once, in the entrypoint of an
+application:
 
 {lang="text"}
 ~~~~~~~~

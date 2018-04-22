@@ -264,7 +264,7 @@ A> ~~~~~~~~
 A> 
 A> `for` comprehensions are fundamentally for defining sequential
 A> programs. We will show a far superior way of defining parallel
-A> computations in a later chapter.
+A> computations in a later chapter. Spoiler: don't use `Future`.
 
 
 ## Unhappy path
