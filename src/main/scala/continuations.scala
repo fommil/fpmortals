@@ -3,7 +3,7 @@
 
 package continuations
 
-import scalaz.{ Contravariant, Functor, Kleisli, Monad }
+import scalaz.{ Contravariant, Functor, Kleisli, Monad, MonadPlus }
 import monadio.IO
 import scalaz.Scalaz._
 import spray.json._
@@ -14,6 +14,9 @@ import spray.json._
 // we can't contramap over a ContT, we need to introduce a type parameter for that
 final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C]) {
   def run(f: A => F[B]): F[C] = _run(f)
+
+  // workaround implicit type resolution in scalac
+  def dealias: IndexedContT[F, C, B, A] = this
 }
 object IndexedContT {
   type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
@@ -132,38 +135,26 @@ object Directives {
 
   import scalaz.Maybe
 
-  def fromJson[F[_]: Monad](
+  def fromJson[F[_]: MonadPlus](
     req: Request[F]
   ): ContT[F, Response[F], JsonRequest] = ContT { handler =>
     for {
-      body  <- req.body
-      mjson = Maybe.attempt(JsonParser(body)) // TODO: MonadPlus
-      resp <- mjson match {
-               case Maybe.Just(json) =>
-                 handler(JsonRequest(req.method, req.query, req.headers, json))
-               case Maybe.Empty() =>
-                 ??? // TODO: error
-             }
+      body <- req.body
+      json <- Maybe
+               .attempt(JsonParser(body))
+               .orEmpty[F] // TODO: explicit failure response
+      resp <- handler(JsonRequest(req.method, req.query, req.headers, json))
     } yield resp
   }
 
   // changing the return type is horrible... best require the users to
   // "completeJson" or something.
-  def toJson[F[_]: Monad](
-    req: Request[F]
-  ): IndexedContT[F, Response[F], JsonResponse, JsonRequest] =
-    (fromJson(req): IndexedContT[F, Response[F], Response[F], JsonRequest])
-      .contramap(
-        (jresp: JsonResponse) => null: Response[F]
-//    (rreps: Response[F]) => ??? : JsonResponse
-      )
-
-//  def jsonRoutes[F[_]: Monad]: ContT[F, Response[F], Request[F]] = ContT {
-//    (req: Request[F] => F[Response[F]]) =>
-//    toJson(req).flatMap { json =>
-
-//    }
-//  }
+  def toJson[F[_]: Monad, A](
+    cont: ContT[F, Response[F], A]
+  ): IndexedContT[F, Response[F], JsonResponse, A] =
+    cont.dealias.contramap(
+      j => Response[F](j.code, j.headers, j.body.compactPrint.pure[F])
+    )
 
   //def toJson[F[_]: Monad](req: Request[F]): F[JsonRequest] = ???
   // inspired by

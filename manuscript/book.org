@@ -10724,6 +10724,12 @@ For example, TODO
 # TODO ManagedT / Codensity
 # https://github.com/iravid/managedt
 
+# Edmund...
+# "Hey, I want a Contravariant/Functor instance, but I have some occurrences of
+# the type parameter in the wrong position so all I have is Invariant" ==>
+# "Whoa, I can split the occurrences into negative and positive occurrences and
+# get a profunctor"
+
 ** The Infinite Sadness
 
 You've reached the end of this Early Access book. Please check the
