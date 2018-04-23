@@ -3,10 +3,19 @@
 
 package continuations
 
-import scalaz.{ Contravariant, Functor, Kleisli, Monad, MonadPlus }
 import monadio.IO
+import scalaz.{
+  Contravariant,
+  EitherT,
+  Functor,
+  Kleisli,
+  Maybe,
+  Monad,
+  MonadError
+}
 import scalaz.Scalaz._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 // final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
 //   def run(f: A => F[B]): F[B] = _run(f)
@@ -14,9 +23,6 @@ import spray.json._
 // we can't contramap over a ContT, we need to introduce a type parameter for that
 final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C]) {
   def run(f: A => F[B]): F[C] = _run(f)
-
-  // workaround implicit type resolution in scalac
-  def dealias: IndexedContT[F, C, B, A] = this
 }
 object IndexedContT {
   type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
@@ -116,11 +122,6 @@ object Directives {
     body: F[String]
   )
 
-  //def routes_[F[_]: Monad]: Request[F] => F[Response[F]] = ???
-  //def routes[F[_]: Monad]: Kleisli[F, Request[F], Response[F]] = ???
-  def routes[F[_]: Monad](req: Request[F]): ContT[F, Response[F], Request[F]] =
-    ???
-
   final case class JsonRequest(
     method: String,
     query: String,
@@ -133,54 +134,89 @@ object Directives {
     body: JsValue
   )
 
-  import scalaz.Maybe
+  final case class RequestError(
+    code: Int,
+    message: String
+  )
 
-  def fromJson[F[_]: MonadPlus](
-    req: Request[F]
-  ): ContT[F, Response[F], JsonRequest] = ContT { handler =>
+  type Route[f[_], a, b] = Kleisli[ContT[f, Response[f], ?], a, b]
+  object Route {
+    def apply[F[_], A, B](
+      f: A => (B => F[Response[F]]) => F[Response[F]]
+    ): Route[F, A, B] =
+      Kleisli(a => ContT(f(a)))
+  }
+
+  //def routes_[F[_]: Monad]: Request[F] => F[Response[F]] = ???
+  //def routes[F[_]: Monad]: Kleisli[F, Request[F], Response[F]] = ???
+  //def routes[F[_]: Monad](req: Request[F]): ContT[F, Response[F], Request[F]] = ???
+
+  def asJson[F[_]](
+    implicit F: MonadError[F, RequestError]
+  ): Route[F, Request[F], JsonRequest] = Route { req => handler =>
     for {
       body <- req.body
       json <- Maybe
                .attempt(JsonParser(body))
-               .orEmpty[F] // TODO: explicit failure response
-      resp <- handler(JsonRequest(req.method, req.query, req.headers, json))
+               .orError(RequestError(400, "invalid json"))(F)
+      resp <- handler(
+               JsonRequest(req.method, req.query, req.headers, json)
+             )
     } yield resp
   }
 
+  def as[F[_], A: JsonReader](
+    implicit F: MonadError[F, RequestError]
+  ): Route[F, JsonRequest, A] = Route { req => handler =>
+    for {
+      a <- Maybe
+            .attempt(jsonReader[A].read(req.body))
+            .orError(RequestError(400, "invalid json"))(F)
+      resp <- handler(a)
+    } yield resp
+  }
+
+  def completeJson[F[_]: Monad, A: JsonWriter](
+    a: A,
+    headers: Map[String, String] = Map.empty,
+    code: Int = 200
+  ): Response[F] =
+    Response(code, headers, a.toJson.compactPrint.pure[F])
+
+  type Ctx[a] = EitherT[IO, RequestError, a]
+
+  // TODO: abstract over F[_]
+  val routes: Route[Ctx, Request[Ctx], String] = asJson[Ctx] >=> as[Ctx, String]
+  // TODO: path matching
+  // TODO: using completeJson
+
+  val wibble = routes.run(null: Request[Ctx]).run { s =>
+    completeJson[Ctx, String](s).pure[Ctx]
+  }
+
   // changing the return type is horrible... best require the users to
-  // "completeJson" or something.
+  // "completeJson" or something. Most notably, we can no longer use Kleisli.
   def toJson[F[_]: Monad, A](
-    cont: ContT[F, Response[F], A]
+    cont: IndexedContT[F, Response[F], Response[F], A]
   ): IndexedContT[F, Response[F], JsonResponse, A] =
-    cont.dealias.contramap(
+    cont.contramap(
       j => Response[F](j.code, j.headers, j.body.compactPrint.pure[F])
     )
+  def jsonify[F[_]](req: Request[F])(
+    implicit F: MonadError[F, RequestError]
+  ): IndexedContT[F, Response[F], JsonResponse, JsonRequest] =
+    toJson(asJson[F].run(req))
 
-  //def toJson[F[_]: Monad](req: Request[F]): F[JsonRequest] = ???
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
-
-  // trait RequestContext[F[_]] {
-  //   def method: String
-  //   def path: String
-  //   def complete(resp: String): F[RouteResult]
-  // }
-
-  // class RouteResult
-  // type Service[f[_]] = Kleisli[f, RequestContext[f], RouteResult]
-  // type Directive[f[_], a] = ContT[f, Service[f], a]
-
   /*
   trait RequestContext {
     def method: String
     def path: String
     def complete(resp: String): Future[RouteResult]
   }
-
   class RouteResult
-
   type Service = Kleisli[Future, RequestContext, RouteResult]
-
   type Directive[A] = ContT[Future, Service, A]
 
   def inspect(f: RequestContext => Boolean)(implicit ec: ExecutionContext) =

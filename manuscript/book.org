@@ -9762,7 +9762,7 @@ It should be of no surprise that we can rewrite the =MonadPlus= example with
 #+BEGIN_SRC scala
   def stars[F[_]: Twitter](name: String)
                           (implicit F: MonadError[F, String]): F[Int] = for {
-    user  <- T.getUser(name) >>= (_.orError[F, String](s"user '$name' not found"))
+    user  <- T.getUser(name) >>= (_.orError(s"user '$name' not found")(F))
     stars <- T.getStars(user)
   } yield stars
 #+END_SRC
