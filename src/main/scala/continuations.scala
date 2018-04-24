@@ -141,10 +141,17 @@ object Directives {
 
   type Route[f[_], a, b] = Kleisli[ContT[f, Response[f], ?], a, b]
   object Route {
+    // this version lets us perform actions after the handler
     def apply[F[_], A, B](
-      f: A => (B => F[Response[F]]) => F[Response[F]]
+      f: (A, (B => F[Response[F]])) => F[Response[F]]
     ): Route[F, A, B] =
-      Kleisli(a => ContT(f(a)))
+      Kleisli(a => ContT(b => f(a, b)))
+
+    // this applies the handler as the last action... but this is just Kleisli
+    def apply[F[_]: Monad, A, B](
+      f: A => F[B]
+    ): Route[F, A, B] =
+      Kleisli(a => ContT(b => f(a) >>= b))
   }
 
   //def routes_[F[_]: Monad]: Request[F] => F[Response[F]] = ???
@@ -153,27 +160,24 @@ object Directives {
 
   def asJson[F[_]](
     implicit F: MonadError[F, RequestError]
-  ): Route[F, Request[F], JsonRequest] = Route { req => handler =>
+  ): Route[F, Request[F], JsonRequest] = Route { req =>
     for {
       body <- req.body
       json <- Maybe
                .attempt(JsonParser(body))
                .orError(RequestError(400, "invalid json"))(F)
-      resp <- handler(
-               JsonRequest(req.method, req.query, req.headers, json)
-             )
+      resp = JsonRequest(req.method, req.query, req.headers, json)
     } yield resp
   }
 
   def as[F[_], A: JsonReader](
     implicit F: MonadError[F, RequestError]
-  ): Route[F, JsonRequest, A] = Route { req => handler =>
+  ): Route[F, JsonRequest, A] = Route { req =>
     for {
       a <- Maybe
             .attempt(jsonReader[A].read(req.body))
             .orError(RequestError(400, "invalid json"))(F)
-      resp <- handler(a)
-    } yield resp
+    } yield a
   }
 
   def completeJson[F[_]: Monad, A: JsonWriter](
@@ -185,11 +189,13 @@ object Directives {
 
   type Ctx[a] = EitherT[IO, RequestError, a]
 
-  // TODO: abstract over F[_]
+  // all this and all we got was a glorified Kleisli...
   val routes: Route[Ctx, Request[Ctx], String] = asJson[Ctx] >=> as[Ctx, String]
-  // TODO: path matching
-  // TODO: using completeJson
 
+  // TODO: path matching
+
+  // TODO: is it cleaner if we don't use Kleisli?
+  // TODO: syntactic helper for this...
   val wibble = routes.run(null: Request[Ctx]).run { s =>
     completeJson[Ctx, String](s).pure[Ctx]
   }
