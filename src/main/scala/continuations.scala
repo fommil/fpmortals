@@ -4,15 +4,7 @@
 package continuations
 
 import monadio.IO
-import scalaz.{
-  Contravariant,
-  EitherT,
-  Functor,
-  Kleisli,
-  Maybe,
-  Monad,
-  MonadError
-}
+import scalaz.{ ContT => _, IndexedContT => _, _ }
 import scalaz.Scalaz._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -59,7 +51,29 @@ object ContT {
 }
 
 object Directives {
+  // this is an example of using ContT for resource cleanup
 
+  def cleanup[F[_], E, B, A](
+    action: A => F[Unit]
+  )(implicit F: MonadError[F, E]): A => ContT[F, B, A] =
+    a =>
+      ContT { todo =>
+        todo(a).handleError(e => action(a) >> F.raiseError(e)) <* action(a)
+    }
+
+  // TODO take alternative actions based on some condition check
+
+  // def unitAttack: ContT[IO, Unit, Target] = ContT { todo =>
+  //   for {
+  //     _     <- swingAxeBack(60)
+  //     valid <- isTargetValid(t)
+  //     res   <- if (valid) todo(t) else sayUhOh
+  //   } yield res
+  // }
+
+  // this section translates a haskell tutorial... it touches on the core
+  // concept of "breaking out of the standard control flow"
+  //
   // http://www.haskellforall.com/2012/12/the-continuation-monad.html
   class Target
   // without ContT
@@ -100,12 +114,9 @@ object Directives {
   val combo2
     : Target => ContT[IO, Unit, String] = Kleisli(unitAttack) >==> halfAssed >==> fullAss
 
-  // with cps syntax, not sure I see where this is used...
-  //import ContT.ops._
-  //def otherAss: IO[Unit] = ???
-  //val combo3: Target => ContT[IO, Unit, String] = Kleisli(unitAttack) >==> halfAssed >==> otherAss.cps[Unit]
-
-  // a web framework based on callbacks
+  // this is a completely failed attempt to build a web framework based on
+  // ContT. Spoiler: it ends up just being Kleisli, and I never figured
+  // out how to do paths.
   //
   // inspired by
   // https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d

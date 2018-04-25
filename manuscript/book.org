@@ -10711,24 +10711,44 @@ chocolate bar (=B=).
 
 **** =ContT=
 
-A /continuation/, as in the continuation of the computation step, are callbacks
-with the underlying type signature ~(A => F[O]) => F[R]~. Callbacks are
-typically used as part of a framework where control must be passed back to the
-downstream developer.
+/Continuation Passing Style/ (CPS) is a style of programming where functions
+never return, instead /continuing/ to the next computation. CPS is popular in
+Javascript and Lisp as they allow non-blocking I/O (including interacting with
+the user) that invokes a callback when data is available or an action occurs. A
+direct translation of the pattern into impure Scala looks like
 
-For example, TODO
+#+BEGIN_SRC scala
+def foo[I, A](input: I)(next: A => Unit): Unit = next(doSomeStuff(input))
+#+END_SRC
 
-# https://github.com/http4s/http4s/issues/1705
-# https://gist.github.com/iravid/7c4b3d0bbd5a9de058bd7a5534073b4d
+We can make this pure by introducing an =F[_]= context
 
-# TODO ManagedT / Codensity
-# https://github.com/iravid/managedt
+#+BEGIN_SRC scala
+def foo[F[_], I, A](input: I)(next: A => F[Unit]): F[Unit]
+#+END_SRC
 
-# Edmund...
-# "Hey, I want a Contravariant/Functor instance, but I have some occurrences of
-# the type parameter in the wrong position so all I have is Invariant" ==>
-# "Whoa, I can split the occurrences into negative and positive occurrences and
-# get a profunctor"
+and refactor to return a function for the provided input
+
+#+BEGIN_SRC scala
+def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
+#+END_SRC
+
+The =ContT= transformer monad is just a container for this signature, slightly
+generalised ~(A => F[B]) => F[B]~
+
+#+BEGIN_SRC scala
+final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
+  def run(f: A => F[B]): F[B] = _run(f)
+}
+#+END_SRC
+
+However, this in itself is of no value in pure functional programming because we
+already know how to sequence non-blocking, potentially distributed,
+computations: that's what =Monad= is for and we can do this with =.bind= or a
+=Kleisli= arrow.
+
+- TODO: maybe useful for resource cleanup
+- TODO: choosing the next computation
 
 ** The Infinite Sadness
 
@@ -10764,6 +10784,7 @@ while continuing to build out the example application.
 
 Probably ignore...
 
+- =Codensity=
 - =Cokleisli=
 - =ComonadStore=
 - =TracedT= (comonad tranformer)
@@ -10949,11 +10970,18 @@ that this is a step you can do later.
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
 
-https://mobile.twitter.com/ctford/status/887216797421842433
+https://twitter.com/ctford/status/887216797421842433
 
 "These dynamic langs are so sloppy. We should be more rigorous, like maths."
 "Cool! What does maths use to indicate types?"
 "Fonts, mostly." -- Chris Ford
+
+# Edmund...
+# "Hey, I want a Contravariant/Functor instance, but I have some occurrences of
+# the type parameter in the wrong position so all I have is Invariant" ==>
+# "Whoa, I can split the occurrences into negative and positive occurrences and
+# get a profunctor"
+
 
 *** Reality Check
 
