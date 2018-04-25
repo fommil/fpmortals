@@ -11,7 +11,7 @@ import org.scalatest.Matchers._
 import UrlQueryWriter.ops._
 
 class UrlQueryWriterSpec extends FlatSpec {
-  "UrlQueryWriter" should "encode case classes" in {
+  "UrlQueryWriter" should "encode case classes" in
     (Foo("http://foo", 10, "%").toUrlQuery.params should contain)
       .theSameElementsInOrderAs(
         List(
@@ -20,5 +20,4 @@ class UrlQueryWriterSpec extends FlatSpec {
           "pears"   -> "%"
         )
       )
-  }
 }
