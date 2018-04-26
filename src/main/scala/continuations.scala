@@ -3,9 +3,9 @@
 
 package continuations
 
-import monadio.IO
 import scalaz.{ ContT => _, IndexedContT => _, _ }
 import scalaz.Scalaz._
+import scalaz.ioeffect._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -53,13 +53,36 @@ object ContT {
 object Directives {
   // this is an example of using ContT for resource cleanup
 
+  // poor man's Bracket...
   def cleanup[F[_], E, B, A](
-    action: A => F[Unit]
+    action: F[Unit]
   )(implicit F: MonadError[F, E]): A => ContT[F, B, A] =
     a =>
-      ContT { todo =>
-        todo(a).handleError(e => action(a) >> F.raiseError(e)) <* action(a)
+      ContT { next =>
+        next(a).handleError(e => action >> F.raiseError(e)) <* action
     }
+
+  def main(args: Array[String]): Unit = {
+    type F[a] = EitherT[IO, Int, a]
+    val F = MonadError[F, Int]
+
+    def safe: Boolean => ContT[F, String, Boolean] =
+      cleanup(EitherT.rightT(IO.sync(println(s"cleaned up"))))
+
+    def good(a: Boolean): ContT[F, String, Boolean] =
+      ContT(next => next(a).map(_.toUpperCase))
+    def bad(a: Boolean): ContT[F, String, Boolean] =
+      ContT(next => F.raiseError(1) >> next(a))
+    def ugly(a: Boolean): ContT[F, String, Boolean] =
+      ContT(_ => EitherT.rightT(IO.fail[String](new NullPointerException)))
+
+    println((safe(true) >>= good).run(_.toString.pure[F]).run.unsafePerformIO())
+
+    println((safe(true) >>= bad).run(_.toString.pure[F]).run.unsafePerformIO())
+
+    // doesn't run after this...
+    //println((safe(true) >>= ugly).run(_.toString.pure[F]).run.unsafePerformIO())
+  }
 
   // TODO take alternative actions based on some condition check
 
@@ -207,9 +230,9 @@ object Directives {
 
   // TODO: is it cleaner if we don't use Kleisli?
   // TODO: syntactic helper for this...
-  val wibble = routes.run(null: Request[Ctx]).run { s =>
-    completeJson[Ctx, String](s).pure[Ctx]
-  }
+  // val wibble = routes.run(null: Request[Ctx]).run { s =>
+  //   completeJson[Ctx, String](s).pure[Ctx]
+  // }
 
   // changing the return type is horrible... best require the users to
   // "completeJson" or something. Most notably, we can no longer use Kleisli.
