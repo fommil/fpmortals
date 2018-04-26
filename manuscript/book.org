@@ -2320,7 +2320,7 @@ There is a slightly more verbose form of =implicit class= that avoids
 the allocation and is therefore preferred:
 
 #+BEGIN_SRC scala
-implicit final class DoubleOps(private val x: Double) extends AnyVal {
+implicit final class DoubleOps(val x: Double) extends AnyVal {
   def sin: Double = java.lang.Math.sin(x)
 }
 #+END_SRC
