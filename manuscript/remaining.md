@@ -9,6 +9,7 @@
 
 Probably ignore...
 
+-   `Codensity`
 -   `Cokleisli`
 -   `ComonadStore`
 -   `TracedT` (comonad tranformer)
@@ -211,7 +212,7 @@ that this is a step you can do later.
 Just some of the high level concepts, where to get started if you're interested.
 Not needed to write FP but it is needed if you want to read any academic papers.
 
-<https://mobile.twitter.com/ctford/status/887216797421842433>
+<https://twitter.com/ctford/status/887216797421842433>
 
 "These dynamic langs are so sloppy. We should be more rigorous, like maths."
 "Cool! What does maths use to indicate types?"

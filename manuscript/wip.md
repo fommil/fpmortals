@@ -581,7 +581,7 @@ It should be of no surprise that we can rewrite the `MonadPlus` example with
 ~~~~~~~~
   def stars[F[_]: Twitter](name: String)
                           (implicit F: MonadError[F, String]): F[Int] = for {
-    user  <- T.getUser(name) >>= (_.orError[F, String](s"user '$name' not found"))
+    user  <- T.getUser(name) >>= (_.orError(s"user '$name' not found")(F))
     stars <- T.getStars(user)
   } yield stars
 ~~~~~~~~
@@ -1576,12 +1576,48 @@ chocolate bar (`B`).
 
 ### `ContT`
 
-A *continuation*, as in the continuation of the computation step, are callbacks
-with the underlying type signature `(A => F[O]) => F[R]`. Callbacks are
-typically used as part of a framework where control must be passed back to the
-downstream developer.
+*Continuation Passing Style* (CPS) is a style of programming where functions
+never return, instead *continuing* to the next computation. CPS is popular in
+Javascript and Lisp as they allow non-blocking I/O (including interacting with
+the user) that invokes a callback when data is available or an action occurs. A
+direct translation of the pattern into impure Scala looks like
 
-For example, TODO
+{lang="text"}
+~~~~~~~~
+  def foo[I, A](input: I)(next: A => Unit): Unit = next(doSomeStuff(input))
+~~~~~~~~
+
+We can make this pure by introducing an `F[_]` context
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_], I, A](input: I)(next: A => F[Unit]): F[Unit]
+~~~~~~~~
+
+and refactor to return a function for the provided input
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
+~~~~~~~~
+
+The `ContT` transformer monad is just a container for this signature, slightly
+generalised `(A => F[B]) => F[B]`
+
+{lang="text"}
+~~~~~~~~
+  final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
+    def run(f: A => F[B]): F[B] = _run(f)
+  }
+~~~~~~~~
+
+However, this in itself is of no value in pure functional programming because we
+already know how to sequence non-blocking, potentially distributed,
+computations: that's what `Monad` is for and we can do this with `.bind` or a
+`Kleisli` arrow.
+
+-   TODO: maybe useful for resource cleanup
+-   TODO: choosing the next computation
 
 
 # The Infinite Sadness

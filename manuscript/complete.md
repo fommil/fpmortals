@@ -1862,7 +1862,7 @@ A> the allocation and is therefore preferred:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   implicit final class DoubleOps(private val x: Double) extends AnyVal {
+A>   implicit final class DoubleOps(val x: Double) extends AnyVal {
 A>     def sin: Double = java.lang.Math.sin(x)
 A>   }
 A> ~~~~~~~~
