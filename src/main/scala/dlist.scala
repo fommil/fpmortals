@@ -13,11 +13,10 @@ final case class DList[A](f: IList[A] => IList[A]) {
 object DList {
   def fromIList[A](as: IList[A]): DList[A] =
     DList(
-      xs => {
+      xs =>
         // convince yourself of the work that occurs
         // println(s"$as ::: $xs")
         as ::: xs
-      }
     )
 }
 
