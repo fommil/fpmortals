@@ -77,8 +77,8 @@ object Directives {
   // we want a function A1 => F[A0]
 
   // so just chain them, what's the big deal?
-  def simple: Kleisli[IO, A1, A0] =
-    Kleisli(bar2) >=> Kleisli(bar3) >=> Kleisli(bar4) >=> Kleisli(bar0)
+  def simple(a: A1): IO[A0] =
+    bar2(a) >>= bar3 >>= bar4 >>= bar0
 
   // or we can overengineer it with ContT...
   def foo1(a: A1): ContT[IO, A0, A2] = ContT(next => bar2(a) >>= next)
@@ -293,8 +293,6 @@ object Directives {
 
   // TODO: path matching
 
-  // TODO: is it cleaner if we don't use Kleisli?
-  // TODO: syntactic helper for this...
   // val wibble = routes.run(null: Request[Ctx]).run { s =>
   //   completeJson[Ctx, String](s).pure[Ctx]
   // }
