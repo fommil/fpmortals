@@ -5,7 +5,7 @@ package continuations
 
 import scalaz.{ ContT => _, IndexedContT => _, _ }
 import scalaz.Scalaz._
-import scalaz.ioeffect._
+import scalaz.effect.IO
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -62,19 +62,84 @@ object Directives {
         next(a).handleError(e => action >> F.raiseError(e)) <* action
     }
 
+  final case class A0() // we can create one if we have an A4
+  final case class A1() // we have one of these (or can create one)
+  final case class A2() // can create from A1
+  final case class A3() // can create from A2
+  final case class A4() // can create from A3
+
+  // encode what we can make...
+  def bar0(a4: A4): IO[A0] = ???
+  def bar2(a1: A1): IO[A2] = ???
+  def bar3(a2: A2): IO[A3] = ???
+  def bar4(a3: A3): IO[A4] = ???
+
+  // we want a function A1 => F[A0]
+
+  // so just chain them, what's the big deal?
+  def simple: Kleisli[IO, A1, A0] =
+    Kleisli(bar2) >=> Kleisli(bar3) >=> Kleisli(bar4) >=> Kleisli(bar0)
+
+  // or we can overengineer it with ContT...
+  def foo1(a: A1): ContT[IO, A0, A2] = ContT(next => bar2(a) >>= next)
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT(next => bar3(a) >>= next)
+  def foo3(a: A3): ContT[IO, A0, A4] = ContT(next => bar4(a) >>= next)
+  def overengineered(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
+
+  // but lets say we want to change the return value of something to the right,
+  // e.g. foo2 could change the result of downstream.
+  def alter(a: A0): A0 = ???
+  def foo2_(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3  <- bar3(a)
+      a0  <- next(a3)
+      a0_ = alter(a0)
+    } yield a0_
+  }
+  // all the ContT can do this, so unlike the Kleisli arrows that are one way,
+  // the ContT arrows go all the way to the right and then back again!
+  def yoyo(a: A1): IO[A0] = (foo1(a) >>= foo2_ >>= foo3).run(bar0)
+
+  // we can also raise an error or run the downstream action again (visualise
+  // this) based on a downstream value. Perhaps useful for asynchronous user
+  // data validation.
+  def check(a0: A0): Boolean = ???
+  def foo2_retry(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3 <- bar3(a)
+      a0 <- next(a3)
+      a0_ <- if (check(a0)) a0.pure[IO]
+            else next(a3)
+    } yield a0_
+  }
+
+  // or set the computation off into a different chain of continuations
+  def elsewhere: ContT[IO, A0, A4] = ???
+  def foo2_elsewhere(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3 <- bar3(a)
+      a0 <- next(a3)
+      a0_ <- if (check(a0)) a0.pure[IO]
+            else elsewhere.run(bar0)
+    } yield a0_
+  }
+
+  // basically, ContT is custom control flow for Kleisli. it is incredibly
+  // unlikely that you'll need to use it, but now you know it exist.
+
   def main(args: Array[String]): Unit = {
     type F[a] = EitherT[IO, Int, a]
     val F = MonadError[F, Int]
 
     def safe: Boolean => ContT[F, String, Boolean] =
-      cleanup(EitherT.rightT(IO.sync(println(s"cleaned up"))))
+      cleanup(EitherT.rightT(IO(println(s"cleaned up"))))
 
     def good(a: Boolean): ContT[F, String, Boolean] =
       ContT(next => next(a).map(_.toUpperCase))
     def bad(a: Boolean): ContT[F, String, Boolean] =
       ContT(next => F.raiseError(1) >> next(a))
     def ugly(a: Boolean): ContT[F, String, Boolean] =
-      ContT(_ => EitherT.rightT(IO.fail[String](new NullPointerException)))
+      ContT(_ => EitherT.rightT(IO.throwIO[String](new NullPointerException)))
 
     println((safe(true) >>= good).run(_.toString.pure[F]).run.unsafePerformIO())
 
