@@ -10877,7 +10877,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 75
 #+RESULTS:
 [[file:images/contt-process1.png]]
 
@@ -11134,8 +11134,11 @@ type Cont[b, a]                  = IndexedContsT[Id, Id, b, b, a]
 
 where =W[_]= has a =Comonad=, and =ContT= is actually implemented as a type
 alias. Companion objects exist for these type aliases with convenient
-constructors. Admittedly, five type parameters is perhaps a generalisation too
-far.
+constructors.
+
+Admittedly, five type parameters is perhaps a generalisation too far. But then
+again, over-generalisation is consistent with the sensibilities of
+continuations.
 
 # https://github.com/scalaz/scalaz/issues/1737
 

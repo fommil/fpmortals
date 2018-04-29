@@ -1681,7 +1681,7 @@ What if we are the authors of `foo2` and we want to post-process the `a0` that
 we receive from the right (downstream), i.e. we want to split our `foo2` into
 `foo2a` and `foo2b`
 
-{width=70%}
+{width=75%}
 ![](images/contt-process1.png)
 
 Let's **add the constraint that we cannot change the definition of `flow` or
@@ -1799,8 +1799,11 @@ actually implemented in terms of an even more general structure (note the extra
 
 where `W[_]` has a `Comonad`, and `ContT` is actually implemented as a type
 alias. Companion objects exist for these type aliases with convenient
-constructors. Admittedly, five type parameters is perhaps a generalisation too
-far.
+constructors.
+
+Admittedly, five type parameters is perhaps a generalisation too far. But then
+again, over-generalisation is consistent with the sensibilities of
+continuations.
 
 
 ### TODO `StreamT`
