@@ -169,8 +169,6 @@ you:
 :END:
 {mainmatter}
 
-[[file:images/z.png]]
-
 * Introduction                                                        :final:
   :PROPERTIES:
   :EXPORT_FILE_NAME: introduction.md
@@ -10833,7 +10831,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 60
 #+RESULTS:
 [[file:images/contt-simple.png]]
 
@@ -10933,7 +10931,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 50
+#+CAPTION: 45
 #+RESULTS:
 [[file:images/contt-process2.png]]
 
@@ -11067,7 +11065,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 50
+#+CAPTION: 45
 #+RESULTS:
 [[file:images/contt-retry.png]]
 

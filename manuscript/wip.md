@@ -1674,7 +1674,7 @@ syntax and a little bit of extra boilerplate for each step:
 So what does this buy us? Firstly, it's worth noting that the control flow of
 this application is left to right
 
-{width=70%}
+{width=60%}
 ![](images/contt-simple.png)
 
 What if we are the authors of `foo2` and we want to post-process the `a0` that
@@ -1692,7 +1692,7 @@ It is not possible to process the output of `a0` by modifying any of the
 remaining `barX` methods. However, with `ContT` we can modify `foo2` to process
 the result of the `next` continuation:
 
-{width=50%}
+{width=45%}
 ![](images/contt-process2.png)
 
 Which can be defined with
@@ -1728,7 +1728,7 @@ control flow turning the linear flow into a graph!
 
 Or we can stay within the original flow and retry everything downstream
 
-{width=50%}
+{width=45%}
 ![](images/contt-retry.png)
 
 {lang="text"}
