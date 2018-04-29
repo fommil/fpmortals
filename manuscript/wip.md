@@ -1599,7 +1599,7 @@ and refactor to return a function for the provided input
   def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
 ~~~~~~~~
 
-The `ContT` transformer monad is just a container for this signature
+`ContT` is just a container for this signature, with a `Monad` instance
 
 {lang="text"}
 ~~~~~~~~
@@ -1615,7 +1615,7 @@ The `ContT` transformer monad is just a container for this signature
   }
 ~~~~~~~~
 
-with convenient syntax to create a `ContT` from a monadic value:
+and convenient syntax to create a `ContT` from a monadic value:
 
 {lang="text"}
 ~~~~~~~~
@@ -1650,7 +1650,7 @@ with each component owned by a different development team:
   def bar4(a3: A3): IO[A4] = ...
 ~~~~~~~~
 
-Our goal is to produce a `A0` given an `A1`. Whereas Javascript and Lisp would
+Our goal is to produce an `A0` given an `A1`. Whereas Javascript and Lisp would
 reach for continuations to solve this problem (because the I/O could block) we
 can just chain the functions
 
@@ -1692,7 +1692,7 @@ It is not possible to process the output of `a0` by modifying any of the
 remaining `barX` methods. However, with `ContT` we can modify `foo2` to process
 the result of the `next` continuation:
 
-{width=70%}
+{width=60%}
 ![](images/contt-process2.png)
 
 Which can be defined with
@@ -1710,7 +1710,7 @@ Which can be defined with
 We are not limited to `.map` over the return value, we can `.bind` into another
 control flow turning the linear flow into a graph!
 
-{width=70%}
+{width=60%}
 ![](images/contt-elsewhere.png)
 
 {lang="text"}
@@ -1718,8 +1718,8 @@ control flow turning the linear flow into a graph!
   def elsewhere: ContT[IO, A0, A4] = ???
   def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
     for {
-      a3 <- bar3(a)
-      a0 <- next(a3)
+      a3  <- bar3(a)
+      a0  <- next(a3)
       a0_ <- if (check(a0)) a0.pure[IO]
              else elsewhere.run(bar0)
     } yield a0_
@@ -1728,15 +1728,15 @@ control flow turning the linear flow into a graph!
 
 Or we can stay within the original flow and retry everything downstream
 
-{width=70%}
+{width=60%}
 ![](images/contt-retry.png)
 
 {lang="text"}
 ~~~~~~~~
   def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
     for {
-      a3 <- bar3(a)
-      a0 <- next(a3)
+      a3  <- bar3(a)
+      a0  <- next(a3)
       a0_ <- if (check(a0)) a0.pure[IO]
              else next(a3)
     } yield a0_

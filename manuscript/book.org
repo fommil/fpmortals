@@ -10731,7 +10731,7 @@ and refactor to return a function for the provided input
 def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
 #+END_SRC
 
-The =ContT= transformer monad is just a container for this signature
+=ContT= is just a container for this signature, with a =Monad= instance
 
 #+BEGIN_SRC scala
 final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
@@ -10746,7 +10746,7 @@ object IndexedContT {
 }
 #+END_SRC
 
-with convenient syntax to create a =ContT= from a monadic value:
+and convenient syntax to create a =ContT= from a monadic value:
 
 #+BEGIN_SRC scala
 implicit class ContTOps[F[_]: Monad, A](self: F[A]) {
@@ -10778,7 +10778,7 @@ with each component owned by a different development team:
   def bar4(a3: A3): IO[A4] = ...
 #+END_SRC
 
-Our goal is to produce a =A0= given an =A1=. Whereas Javascript and Lisp would
+Our goal is to produce an =A0= given an =A1=. Whereas Javascript and Lisp would
 reach for continuations to solve this problem (because the I/O could block) we
 can just chain the functions
 
@@ -10933,7 +10933,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 60
 #+RESULTS:
 [[file:images/contt-process2.png]]
 
@@ -11005,7 +11005,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 60
 #+RESULTS:
 [[file:images/contt-elsewhere.png]]
 
@@ -11013,8 +11013,8 @@ digraph G {
   def elsewhere: ContT[IO, A0, A4] = ???
   def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
     for {
-      a3 <- bar3(a)
-      a0 <- next(a3)
+      a3  <- bar3(a)
+      a0  <- next(a3)
       a0_ <- if (check(a0)) a0.pure[IO]
              else elsewhere.run(bar0)
     } yield a0_
@@ -11067,15 +11067,15 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 70
+#+CAPTION: 60
 #+RESULTS:
 [[file:images/contt-retry.png]]
 
 #+BEGIN_SRC scala
   def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
     for {
-      a3 <- bar3(a)
-      a0 <- next(a3)
+      a3  <- bar3(a)
+      a0  <- next(a3)
       a0_ <- if (check(a0)) a0.pure[IO]
              else next(a3)
     } yield a0_
