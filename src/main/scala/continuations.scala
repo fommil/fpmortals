@@ -81,9 +81,11 @@ object Directives {
     bar2(a) >>= bar3 >>= bar4 >>= bar0
 
   // or we can overengineer it with ContT...
-  def foo1(a: A1): ContT[IO, A0, A2] = ContT(next => bar2(a) >>= next)
-  def foo2(a: A2): ContT[IO, A0, A3] = ContT(next => bar3(a) >>= next)
-  def foo3(a: A3): ContT[IO, A0, A4] = ContT(next => bar4(a) >>= next)
+  import IndexedContT.ops._
+
+  def foo1(a: A1): ContT[IO, A0, A2] = bar2(a).cps
+  def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).cps
+  def foo3(a: A3): ContT[IO, A0, A4] = bar4(a).cps
   def overengineered(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
 
   // but lets say we want to change the return value of something to the right,
@@ -124,10 +126,8 @@ object Directives {
     } yield a0_
   }
 
-  def cleanup: IO[Unit] = ???
-  def foo2_err(a: A2): ContT[IO, A0, A3] = ContT { next =>
-    (bar3(a) >>= next).ensuring(cleanup)
-  }
+  def cleanup: IO[Unit]                  = ???
+  def foo2_err(a: A2): ContT[IO, A0, A3] = bar3(a).ensuring(cleanup).cps
 
   // basically, ContT is custom control flow for Kleisli. it is incredibly
   // unlikely that you'll need to use it, but now you know it exist.

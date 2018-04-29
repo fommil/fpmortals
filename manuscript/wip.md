@@ -1618,13 +1618,23 @@ generalised `(A => F[B]) => F[B]`
   }
 ~~~~~~~~
 
-However, this in itself is of no value in pure functional programming because we
-already know how to sequence non-blocking, potentially distributed,
-computations: that's what `Monad` is for and we can do this with `.bind` or a
-`Kleisli` arrow.
+with convenient syntax to create a `ContT` from a monadic value:
 
-For example, let's say we have modularised our application into several data
-components that can perform I/O, and owned by different teams:
+{lang="text"}
+~~~~~~~~
+  implicit class ContTOps[F[_]: Monad, A](self: F[A]) {
+    def cps[B]: ContT[F, B, A] = ContT(a_fb => self >>= a_fb)
+  }
+~~~~~~~~
+
+However, the simple callback use of continuations brings nothing to pure
+functional programming because we already know how to sequence non-blocking,
+potentially distributed, computations: that's what `Monad` is for and we can do
+this with `.bind` or a `Kleisli` arrow. To see why continuations are useful we
+need to consider a more complex example under a rigid design constraint.
+
+Say we have modularised our application into components that can perform I/O,
+with each component owned by a different development team:
 
 {lang="text"}
 ~~~~~~~~
@@ -1640,11 +1650,6 @@ components that can perform I/O, and owned by different teams:
   def bar4(a3: A3): IO[A4] = ...
 ~~~~~~~~
 
-A> The names and contents of the data structures in this example are intentionally
-A> abstract because control flow is so general that any specific example will be
-A> both confusing and misleading, so we're stripping it down to the bare
-A> essentials.
-
 Our goal is to produce a `A0` given an `A1`. Whereas Javascript and Lisp would
 reach for continuations to solve this problem (because the I/O could block) we
 can just chain the functions
@@ -1654,13 +1659,15 @@ can just chain the functions
   def simple(a: A1): IO[A0] = bar2(a) >>= bar3 >>= bar4 >>= bar0
 ~~~~~~~~
 
-We could do the same thing with continuations, albeit with more boilerplate:
+We can lift `.simple` into its continuation form by using the convenient `.cps`
+syntax and a little bit of extra boilerplate for each step:
 
 {lang="text"}
 ~~~~~~~~
-  def foo1(a: A1): ContT[IO, A0, A2] = ContT(next => bar2(a) >>= next)
-  def foo2(a: A2): ContT[IO, A0, A3] = ContT(next => bar3(a) >>= next)
-  def foo3(a: A3): ContT[IO, A0, A4] = ContT(next => bar4(a) >>= next)
+  def foo1(a: A1): ContT[IO, A0, A2] = bar2(a).cps
+  def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).cps
+  def foo3(a: A3): ContT[IO, A0, A4] = bar4(a).cps
+  
   def flow(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
 ~~~~~~~~
 
@@ -1669,18 +1676,18 @@ this application is left to right
 
 {lang="text"}
 ~~~~~~~~
-  foo1  foo2  foo3  foo4
+  foo1  foo2  foo3  bar0
   a1 -> a2 -> a3 -> a4 -> a0
 ~~~~~~~~
 
 What if we are the authors of `foo2` and we want to post-process the `a0` that
-we receive from the right, i.e. we want to split our `foo2` into `foo2a` and
-`foo2b`
+we receive from the right (downstream), i.e. we want to split our `foo2` into
+`foo2a` and `foo2b`
 
 {lang="text"}
 ~~~~~~~~
-  foo1 |  foo2a   | foo3  foo4 |  foo2b
-  a1 ->  | a2 -> a3 |  -> a4 ->  | a0 -> a0
+  foo1 |  foo2a   | foo3  bar0 |  foo2b   |
+  a1 ->  | a2 -> a3 |  -> a4 ->  | a0 -> a0 |
 ~~~~~~~~
 
 but we can't change the definition of `flow` because it is owned by another
@@ -1690,9 +1697,9 @@ shape of the control flow and grab the results to the right of us:
 {lang="text"}
 ~~~~~~~~
   |   foo2   |
-  a1 ->  | a2 -> a3 | -> a4  -> a0
-         |          |    ┌──────┘
-         | process  |   <┘
+  a1 -> | a2 -> a3 | -> a4 -> a0
+        |          |    ┌─────┘
+        | process  |   <┘
 ~~~~~~~~
 
 It would look something like
@@ -1713,9 +1720,9 @@ control flow turning the linear flow into a graph!
 {lang="text"}
 ~~~~~~~~
   |   foo2   |
-  a1 ->  | a2 -> a3 | -> a4 -> a0
-         |          |    ┌─────┘
-         | check    |   <┘
+  a1 -> | a2 -> a3 | -> a4 -> a0
+        |          |  ┌───────┘
+        | check    | <┘
                \
                 \- elsewhere
 ~~~~~~~~
@@ -1734,20 +1741,20 @@ control flow turning the linear flow into a graph!
 ~~~~~~~~
 
 A> If the Scala compiler was written using CPS, it would allow for a principled
-A> approach to plugins and "time travel" between compiler phases. For example, a
+A> approach to plugins and communication between compiler phases. For example, a
 A> compiler plugin would be able to perform some action based on the inferred type
 A> of an expression, computed at a later stage in the compile.
 
-Or we can stay within the original flow and retry everything to the right
+Or we can stay within the original flow and retry everything downstream
 
 {lang="text"}
 ~~~~~~~~
   |   foo2   |
-  a1 ->  | a2 -> a3 | -> a4 -> a0
-         |          |   ┌──────┘
-         | check    |  <┘
-         |          | -> a4 -> a0
-         | yield    | <────────┘
+  a1 -> | a2 -> a3 | -> a4 -> a0
+        |          |  ┌───────┘
+        | check    | <┘
+        |          | -> a4 -> a0
+        | yield    | <────────┘
 ~~~~~~~~
 
 {lang="text"}
@@ -1762,28 +1769,59 @@ Or we can stay within the original flow and retry everything to the right
   }
 ~~~~~~~~
 
-A use case might be to make a user reconfirm a dangerous action.
+For example, we might wish a user to reconfirm a potentially dangerous action.
 
 Finally, we can perform actions that are specific to the context of the `ContT`,
-in this case `IO`. We can use `ContT` for error handling and resource cleanup:
+in this case `IO` which lets us do error handling and resource cleanup:
 
 {lang="text"}
 ~~~~~~~~
-  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
-    (bar3(a) >>= next).ensuring(...)
-  }
+  def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).ensuring(cleanup).cps
 ~~~~~~~~
 
-Since many of these things are possible already if you are in control of writing
-or changing the definition of `flow`, it is rarely the case that `ContT` is
-needed. If, however, you are the author of a framework, you should consider
-designing your workflow with `ContT` so as to allow your downstream users more
-power to affect the control flow.
+All of these control flow changes are possible if we are in control of writing
+or changing the definition of `flow`, therefore we do not typically need to use
+`ContT`. However, if we are designing a framework, we should consider exposing
+the plugin stages as `ContT` callbacks so as to allow our users more power over
+the control flow.
 
 A caveat with `ContT` is that it is not stack safe, so cannot be used for
 programs that run forever.
 
-TODO: IndexedContT to change the return type, via contravariant, but lose the Monad.
+A more complex variant of `ContT` exists that allows the return type (`A0` in
+the above examples) to be changed, which is how `ContT` is implemented
+
+{lang="text"}
+~~~~~~~~
+  final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C]) {
+    def run(f: A => F[B]): F[C] = _run(f)
+  
+    def flatMap[BB, AA](f: A => IndexedContT[F, B, BB, AA]): IndexedContT[F, C, BB, AA] =
+  }
+  object IndexedContT {
+    type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
+  
+    implicit def contra[F[_]: Functor, C, A] =
+      new Contravariant[IndexedContT[F, C, ?, A]] {
+        def contramap[Z, ZZ](fa: IndexedContT[F, C, Z, A])(f: ZZ => Z) = ...
+      }
+  }
+~~~~~~~~
+
+The `.contramap` method allows the third `C` type parameter to be changed, but
+if `B` is not equal to `C` then there is no `Monad` and `.flatMap` is
+implemented as a custom method on the class itself to allow monad-like
+sequencing of operations.
+
+Not missing an opportunity to generalise, `IndexedContT` is actually implemented
+in terms of an even more general structure
+
+{lang="text"}
+~~~~~~~~
+  final case class IndexedContsT[W[_], F[_], C, B, A](_run: W[A => F[B]] => F[C])
+~~~~~~~~
+
+where `W[_]` has a `Comonad`. This is perhaps a generalisation too far.
 
 
 # The Infinite Sadness
