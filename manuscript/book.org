@@ -10933,7 +10933,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 60
+#+CAPTION: 50
 #+RESULTS:
 [[file:images/contt-process2.png]]
 
@@ -11005,7 +11005,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 60
+#+CAPTION: 50
 #+RESULTS:
 [[file:images/contt-elsewhere.png]]
 
@@ -11067,7 +11067,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 60
+#+CAPTION: 50
 #+RESULTS:
 [[file:images/contt-retry.png]]
 

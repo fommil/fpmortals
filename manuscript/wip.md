@@ -1692,7 +1692,7 @@ It is not possible to process the output of `a0` by modifying any of the
 remaining `barX` methods. However, with `ContT` we can modify `foo2` to process
 the result of the `next` continuation:
 
-{width=60%}
+{width=50%}
 ![](images/contt-process2.png)
 
 Which can be defined with
@@ -1710,7 +1710,7 @@ Which can be defined with
 We are not limited to `.map` over the return value, we can `.bind` into another
 control flow turning the linear flow into a graph!
 
-{width=60%}
+{width=50%}
 ![](images/contt-elsewhere.png)
 
 {lang="text"}
@@ -1728,7 +1728,7 @@ control flow turning the linear flow into a graph!
 
 Or we can stay within the original flow and retry everything downstream
 
-{width=60%}
+{width=50%}
 ![](images/contt-retry.png)
 
 {lang="text"}
