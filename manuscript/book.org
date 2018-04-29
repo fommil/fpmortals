@@ -11055,10 +11055,9 @@ digraph G {
     bar3 -> bar4 [label="a3"];
     bar4 -> bar0 [label="a4"];
 
-    bar0 -> check [label="a0"];
+    bar0 -> check; #[label="a0"];
     check -> end [label="a0"];
     check -> bar4 [label="a3"];
-    bar0 -> end;
 
     # pushes end one out to the right
     bar2 -> bar0 [style=invis];
