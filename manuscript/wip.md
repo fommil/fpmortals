@@ -358,7 +358,7 @@ explain each of the transformers, why they are useful, and how they work.
 | journal / multitask  | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
 | evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
 | keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
-| continuations        | `(A => F[R]) => F[R]`       | `ContT`     |               |
+| control flow         | `(A => F[B]) => F[B]`       | `ContT`     |               |
 | non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
 
 
