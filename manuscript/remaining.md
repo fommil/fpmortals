@@ -1,21 +1,5 @@
 
-### TODO `StreamT`
-
-
-### TODO Others
-
--   `BijectionT` ??? (a bit weird)
--   `StoreT` (or leave to lenses)
-
-Probably ignore...
-
--   `Codensity`
--   `Cokleisli`
--   `ComonadStore`
--   `TracedT` (comonad tranformer)
-
-
-## TODO Parallelism and `Task`
+## TODO Parallelism and `scalaz.ioeffect.IO`
 
 `LiftIO`
 
@@ -41,7 +25,7 @@ optimise for bulk read / write. Analogous to bytecode instrumentation.
 And for testing: [smock](https://github.com/djspiewak/smock)
 
 
-## TODO Initial vs Final Encoding
+### TODO Initial vs Final Encoding
 
 Then (much more complicated) optimisation for final encoding of our drone app.
 

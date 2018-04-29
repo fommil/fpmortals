@@ -1567,20 +1567,18 @@ accumulate errors when we return a `Both` which also contains a successful part
 of the calculation.
 
 `TheseT` can also be thought of from a different angle: `A` does not need to be
-an *error*. In `WriterT`, the `A` may be a secondary calculation that we are
-computing along with the primary calculation `B` an the same is true here.
-`TheseT` allows early exit when something special about `A` demands it, like
-when Charlie Bucket found the last golden ticket (`A`) he threw away his
-chocolate bar (`B`).
+an *error*. Similarly to `WriterT`, the `A` may be a secondary calculation that
+we are computing along with the primary calculation `B`. `TheseT` allows early
+exit when something special about `A` demands it, like when Charlie Bucket found
+the last golden ticket (`A`) he threw away his chocolate bar (`B`).
 
 
 ### `ContT`
 
 *Continuation Passing Style* (CPS) is a style of programming where functions
 never return, instead *continuing* to the next computation. CPS is popular in
-Javascript and Lisp as they allow non-blocking I/O (including interacting with
-the user) with callbacks to handle data when it becomes available, or when an
-action occurs. A direct translation of the pattern into impure Scala looks like
+Javascript and Lisp as they allow non-blocking I/O via callbacks when data is
+available. A direct translation of the pattern into impure Scala looks like
 
 {lang="text"}
 ~~~~~~~~
@@ -1601,8 +1599,7 @@ and refactor to return a function for the provided input
   def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
 ~~~~~~~~
 
-The `ContT` transformer monad is just a container for this signature, slightly
-generalised `(A => F[B]) => F[B]`
+The `ContT` transformer monad is just a container for this signature
 
 {lang="text"}
 ~~~~~~~~
@@ -1632,6 +1629,9 @@ functional programming because we already know how to sequence non-blocking,
 potentially distributed, computations: that's what `Monad` is for and we can do
 this with `.bind` or a `Kleisli` arrow. To see why continuations are useful we
 need to consider a more complex example under a rigid design constraint.
+
+
+#### Control Flow
 
 Say we have modularised our application into components that can perform I/O,
 with each component owned by a different development team:
@@ -1674,35 +1674,26 @@ syntax and a little bit of extra boilerplate for each step:
 So what does this buy us? Firstly, it's worth noting that the control flow of
 this application is left to right
 
-{lang="text"}
-~~~~~~~~
-  foo1  foo2  foo3  bar0
-  a1 -> a2 -> a3 -> a4 -> a0
-~~~~~~~~
+{width=35%}
+![](images/contt-simple.png)
 
 What if we are the authors of `foo2` and we want to post-process the `a0` that
 we receive from the right (downstream), i.e. we want to split our `foo2` into
 `foo2a` and `foo2b`
 
-{lang="text"}
-~~~~~~~~
-  foo1 |  foo2a   | foo3  bar0 |  foo2b   |
-  a1 ->  | a2 -> a3 |  -> a4 ->  | a0 -> a0 |
-~~~~~~~~
+{width=35%}
+![](images/contt-process1.png)
 
-but we can't change the definition of `flow` because it is owned by another
-team, or lives in the framework we're using. With `ContT` we can change the
-shape of the control flow and grab the results to the right of us:
+Let's add the constraint that we cannot change the definition of `flow` or
+`bar0`, perhaps it is not our code and is defined by the framework we are using.
+It is not possible to process the output of `a0` by modifying any of the
+remaining `barX` methods. However, with `ContT` we can modify `foo2` to process
+the result of the `next` continuation:
 
-{lang="text"}
-~~~~~~~~
-  |   foo2   |
-  a1 -> | a2 -> a3 | -> a4 -> a0
-        |          |    ┌─────┘
-        | process  |   <┘
-~~~~~~~~
+{width=35%}
+![](images/contt-process2.png)
 
-It would look something like
+Which can be defined with
 
 {lang="text"}
 ~~~~~~~~
@@ -1717,15 +1708,8 @@ It would look something like
 We are not limited to `.map` over the return value, we can `.bind` into another
 control flow turning the linear flow into a graph!
 
-{lang="text"}
-~~~~~~~~
-  |   foo2   |
-  a1 -> | a2 -> a3 | -> a4 -> a0
-        |          |  ┌───────┘
-        | check    | <┘
-               \
-                \- elsewhere
-~~~~~~~~
+{width=35%}
+![](images/contt-elsewhere.png)
 
 {lang="text"}
 ~~~~~~~~
@@ -1740,22 +1724,10 @@ control flow turning the linear flow into a graph!
   }
 ~~~~~~~~
 
-A> If the Scala compiler was written using CPS, it would allow for a principled
-A> approach to plugins and communication between compiler phases. For example, a
-A> compiler plugin would be able to perform some action based on the inferred type
-A> of an expression, computed at a later stage in the compile.
-
 Or we can stay within the original flow and retry everything downstream
 
-{lang="text"}
-~~~~~~~~
-  |   foo2   |
-  a1 -> | a2 -> a3 | -> a4 -> a0
-        |          |  ┌───────┘
-        | check    | <┘
-        |          | -> a4 -> a0
-        | yield    | <────────┘
-~~~~~~~~
+{width=35%}
+![](images/contt-retry.png)
 
 {lang="text"}
 ~~~~~~~~
@@ -1769,7 +1741,8 @@ Or we can stay within the original flow and retry everything downstream
   }
 ~~~~~~~~
 
-For example, we might wish a user to reconfirm a potentially dangerous action.
+This is just one retry, not an infinite loop. For example, we might want
+downstream to reconfirm a potentially dangerous action.
 
 Finally, we can perform actions that are specific to the context of the `ContT`,
 in this case `IO` which lets us do error handling and resource cleanup:
@@ -1779,49 +1752,62 @@ in this case `IO` which lets us do error handling and resource cleanup:
   def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).ensuring(cleanup).cps
 ~~~~~~~~
 
-All of these control flow changes are possible if we are in control of writing
-or changing the definition of `flow`, therefore we do not typically need to use
-`ContT`. However, if we are designing a framework, we should consider exposing
-the plugin stages as `ContT` callbacks so as to allow our users more power over
-the control flow.
+
+#### When to Order Spaghetti
+
+It is not an accident that these diagrams look like spaghetti, that's just what
+happens when we start messing with control flow. All the mechanisms we've
+discussed in this section are simple to implement directly if we can edit the
+definition of `flow`, therefore we do not typically need to use `ContT`.
+
+However, if we are designing a framework, we should consider exposing the plugin
+system as `ContT` callbacks to allow our users more power over their control
+flow. Sometimes the customer just really wants the spaghetti.
+
+For example, if the Scala compiler was written using CPS, it would allow for a
+principled approach to communication between compiler phases. A compiler plugin
+would be able to perform some action based on the inferred type of an
+expression, computed at a later stage in the compile. Similarly, continuations
+would be a good API for an extensible build tool or text editor.
 
 A caveat with `ContT` is that it is not stack safe, so cannot be used for
 programs that run forever.
 
+
+#### Great, kid. Don't get cocky.
+
 A more complex variant of `ContT` exists that allows the return type (`A0` in
-the above examples) to be changed, which is how `ContT` is implemented
+the above examples) to be changed. `ContT` is not defined as above, but as a
+type alias
 
 {lang="text"}
 ~~~~~~~~
-  final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C]) {
-    def run(f: A => F[B]): F[C] = _run(f)
+  final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C])
   
-    def flatMap[BB, AA](f: A => IndexedContT[F, B, BB, AA]): IndexedContT[F, C, BB, AA] =
-  }
-  object IndexedContT {
-    type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
-  
-    implicit def contra[F[_]: Functor, C, A] =
-      new Contravariant[IndexedContT[F, C, ?, A]] {
-        def contramap[Z, ZZ](fa: IndexedContT[F, C, Z, A])(f: ZZ => Z) = ...
-      }
-  }
+  type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
 ~~~~~~~~
 
-The `.contramap` method allows the third `C` type parameter to be changed, but
-if `B` is not equal to `C` then there is no `Monad` and `.flatMap` is
-implemented as a custom method on the class itself to allow monad-like
-sequencing of operations.
+The new type parameter allows the return type of the entire computation to be
+different to the return type between each component. But if `B` is not equal to
+`C` then there is no `Monad`.
 
-Not missing an opportunity to generalise, `IndexedContT` is actually implemented
-in terms of an even more general structure
+Not missing an opportunity to generalise as much as possible, `IndexedContT` is
+actually implemented in terms of an even more general structure (not the extra
+`s` before the `T`)
 
 {lang="text"}
 ~~~~~~~~
   final case class IndexedContsT[W[_], F[_], C, B, A](_run: W[A => F[B]] => F[C])
+  
+  type IndexedContT[f[_], c, b, a] = IndexedContsT[Id, f, c, b, a]
+  type ContT[f[_], b, a] = IndexedContsT[Id, f, b, b, a]
 ~~~~~~~~
 
-where `W[_]` has a `Comonad`. This is perhaps a generalisation too far.
+where `W[_]` has a `Comonad`. Admittedly, this is perhaps a generalisation too
+far.
+
+
+### TODO `StreamT`
 
 
 # The Infinite Sadness
@@ -1835,8 +1821,6 @@ You can expect to see chapters covering the following topics:
 -   Typeclass Derivation
 -   Property Testing
 -   Optics
--   Functional Streams
--   Bluffing Haskell
 
 while continuing to build out the example application.
 

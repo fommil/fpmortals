@@ -10703,19 +10703,17 @@ accumulate errors when we return a =Both= which also contains a successful part
 of the calculation.
 
 =TheseT= can also be thought of from a different angle: =A= does not need to be
-an /error/. In =WriterT=, the =A= may be a secondary calculation that we are
-computing along with the primary calculation =B= an the same is true here.
-=TheseT= allows early exit when something special about =A= demands it, like
-when Charlie Bucket found the last golden ticket (=A=) he threw away his
-chocolate bar (=B=).
+an /error/. Similarly to =WriterT=, the =A= may be a secondary calculation that
+we are computing along with the primary calculation =B=. =TheseT= allows early
+exit when something special about =A= demands it, like when Charlie Bucket found
+the last golden ticket (=A=) he threw away his chocolate bar (=B=).
 
 **** =ContT=
 
 /Continuation Passing Style/ (CPS) is a style of programming where functions
 never return, instead /continuing/ to the next computation. CPS is popular in
-Javascript and Lisp as they allow non-blocking I/O (including interacting with
-the user) with callbacks to handle data when it becomes available, or when an
-action occurs. A direct translation of the pattern into impure Scala looks like
+Javascript and Lisp as they allow non-blocking I/O via callbacks when data is
+available. A direct translation of the pattern into impure Scala looks like
 
 #+BEGIN_SRC scala
 def foo[I, A](input: I)(next: A => Unit): Unit = next(doSomeStuff(input))
@@ -10733,8 +10731,7 @@ and refactor to return a function for the provided input
 def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
 #+END_SRC
 
-The =ContT= transformer monad is just a container for this signature, slightly
-generalised ~(A => F[B]) => F[B]~
+The =ContT= transformer monad is just a container for this signature
 
 #+BEGIN_SRC scala
 final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
@@ -10762,6 +10759,8 @@ functional programming because we already know how to sequence non-blocking,
 potentially distributed, computations: that's what =Monad= is for and we can do
 this with =.bind= or a =Kleisli= arrow. To see why continuations are useful we
 need to consider a more complex example under a rigid design constraint.
+
+***** Control Flow
 
 Say we have modularised our application into components that can perform I/O,
 with each component owned by a different development team:
@@ -10801,32 +10800,142 @@ syntax and a little bit of extra boilerplate for each step:
 So what does this buy us? Firstly, it's worth noting that the control flow of
 this application is left to right
 
-#+BEGIN_SRC
-    foo1  foo2  foo3  bar0
-  a1 -> a2 -> a3 -> a4 -> a0
-#+END_SRC
+#+BEGIN_SRC dot :cmd dot :file images/contt-simple.png :exports results
+digraph G {
+    graph [dpi=100,rankdir=LR];
+    node [fontname=Hack];
+    edge [fontname=Hack];
+    fontname=Hack;
+    compound=true;
+
+    start [shape=point,width=0.1]
+    end [shape=point,width=0.1]
+
+    subgraph cluster_foo1 {
+      label="foo1";
+      bar2 [shape=rectangle];
+    }
+    subgraph cluster_foo2 {
+      label="foo2";
+      bar3 [shape=rectangle];
+    }
+    subgraph cluster_foo3 {
+      label="foo3";
+      bar4 [shape=rectangle];
+    }
+    bar0 [shape=rectangle];
+
+    start -> bar2 [label="a1"]
+    bar2 -> bar3 [label="a2"];
+    bar3 -> bar4 [label="a3"];
+    bar4 -> bar0 [label="a4"];
+    bar0 -> end [label="a0"];
+}
+#+End_SRC
+
+#+CAPTION: 35
+#+RESULTS:
+[[file:images/contt-simple.png]]
 
 What if we are the authors of =foo2= and we want to post-process the =a0= that
 we receive from the right (downstream), i.e. we want to split our =foo2= into
 =foo2a= and =foo2b=
 
-#+BEGIN_SRC
-    foo1 |  foo2a   | foo3  bar0 |  foo2b   |
-  a1 ->  | a2 -> a3 |  -> a4 ->  | a0 -> a0 |
-#+END_SRC
+#+BEGIN_SRC dot :cmd dot :file images/contt-process1.png :exports results
+digraph G {
+    graph [dpi=100,rankdir=LR];
+    node [fontname=Hack];
+    edge [fontname=Hack];
+    fontname=Hack;
+    compound=true;
 
-but we can't change the definition of =flow= because it is owned by another
-team, or lives in the framework we're using. With =ContT= we can change the
-shape of the control flow and grab the results to the right of us:
+    start [shape=point,width=0.1]
+    end [shape=point,width=0.1]
 
-#+BEGIN_SRC
-      |   foo2   |
-a1 -> | a2 -> a3 | -> a4 -> a0
-      |          |    ┌─────┘
-      | process  |   <┘
-#+END_SRC
+    subgraph cluster_foo1 {
+      label="foo1";
+      bar2 [shape=rectangle];
+    }
+    subgraph cluster_foo2a {
+      label="foo2a";
+      bar3 [shape=rectangle];
+    }
+    subgraph cluster_foo3 {
+      label="foo3";
+      bar4 [shape=rectangle];
+    }
+    subgraph cluster_foo2b {
+      label="foo2b";
+      process [shape=rectangle];
+    }
+    bar0 [shape=rectangle];
 
-It would look something like
+    start -> bar2 [label="a1"]
+    bar2 -> bar3 [label="a2"];
+    bar3 -> bar4 [label="a3"];
+    bar4 -> bar0 [label="a4"];
+    bar0 -> process [label="a0"];
+    process -> end [label="a0"];
+}
+#+End_SRC
+
+#+CAPTION: 35
+#+RESULTS:
+[[file:images/contt-process1.png]]
+
+Let's add the constraint that we cannot change the definition of =flow= or
+=bar0=, perhaps it is not our code and is defined by the framework we are using.
+It is not possible to process the output of =a0= by modifying any of the
+remaining =barX= methods. However, with =ContT= we can modify =foo2= to process
+the result of the =next= continuation:
+
+#+BEGIN_SRC dot :cmd dot :file images/contt-process2.png :exports results
+digraph G {
+    graph [dpi=100,rankdir=LR];
+    node [fontname=Hack];
+    edge [fontname=Hack];
+    fontname=Hack;
+    #compound=true;
+    #overlap = false;
+
+    start [shape=point,width=0.1]
+
+    subgraph cluster_foo1 {
+      label="foo1";
+      bar2 [shape=rectangle];
+    }
+    subgraph cluster_foo2 {
+      label="foo2";
+      bar3 [shape=rectangle];
+      process [shape=rectangle];
+    }
+    subgraph cluster_foo3 {
+      label="foo3";
+      bar4 [shape=rectangle];
+    }
+
+    bar0 [shape=rectangle];
+    end [shape=point,width=0.1];
+
+    start -> bar2 [label="a1"]
+    bar2 -> bar3 [label="a2"];
+    bar3:e -> bar4:w [label="a3"];
+    bar4:s -> bar0:s [label="a4"];
+    bar0 -> process [label="a0"];
+
+    process:e -> end:w [label="a0"];
+
+    # pushes end one out to the right
+    hidden1 [style=invis];
+    hidden1 -> end [style=invis];
+}
+#+End_SRC
+
+#+CAPTION: 35
+#+RESULTS:
+[[file:images/contt-process2.png]]
+
+Which can be defined with
 
 #+BEGIN_SRC scala
   def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
@@ -10840,14 +10949,63 @@ It would look something like
 We are not limited to =.map= over the return value, we can =.bind= into another
 control flow turning the linear flow into a graph!
 
-#+BEGIN_SRC
-      |   foo2   |
-a1 -> | a2 -> a3 | -> a4 -> a0
-      |          |  ┌───────┘
-      | check    | <┘
-             \
-              \- elsewhere
-#+END_SRC
+#+BEGIN_SRC dot :cmd dot :file images/contt-elsewhere.png :exports results
+digraph G {
+    graph [dpi=100,rankdir=LR];
+    node [fontname=Hack];
+    edge [fontname=Hack];
+    fontname=Hack;
+    #compound=true;
+    #overlap = false;
+
+    start [shape=point,width=0.1]
+
+    subgraph cluster_foo1 {
+      label="foo1";
+      bar2 [shape=rectangle];
+    }
+    subgraph cluster_foo2 {
+      label="foo2";
+      bar3 [shape=rectangle];
+      check [shape=rectangle];
+      # cheating by hiding another bar0 to keep it tidy
+    }
+    subgraph cluster_foo3 {
+      label="foo3";
+      bar4 [shape=rectangle];
+    }
+    subgraph cluster_elsewhere {
+      label="elsewhere";
+      elsewhere [label="???",shape=rectangle];
+    }
+
+    bar0 [label="bar0",shape=rectangle];
+    end [shape=point,width=0.1];
+
+    start -> bar2 [label="a1"];
+    bar2 -> bar3 [label="a2"];
+    bar3 -> bar4 [label="a3"];
+    bar4 -> bar0 [label="a4"];
+
+    # don't show the label, it's noisy
+    bar0 -> check; #[label="a0"];
+    check -> end [label="a0"];
+    check -> elsewhere;
+    elsewhere -> end [label="a0"];
+
+    # pushes end one out to the right
+    bar2 -> bar0 [style=invis];
+#    hidden1 [style=invis];
+#    hidden1 -> end [style=invis];
+#    hidden1 -> hidden2 [style=invis];
+#    hidden2 [style=invis];
+#    hidden2 -> bar0 [style=invis];
+}
+#+End_SRC
+
+#+CAPTION: 35
+#+RESULTS:
+[[file:images/contt-elsewhere.png]]
 
 #+BEGIN_SRC scala
   def elsewhere: ContT[IO, A0, A4] = ???
@@ -10861,25 +11019,55 @@ a1 -> | a2 -> a3 | -> a4 -> a0
   }
 #+END_SRC
 
-#+BEGIN_ASIDE
-If the Scala compiler was written using CPS, it would allow for a principled
-approach to plugins and communication between compiler phases. For example, a
-compiler plugin would be able to perform some action based on the inferred type
-of an expression, computed at a later stage in the compile.
-#+END_ASIDE
-
-# https://www.microsoft.com/en-us/research/wp-content/uploads/2016/11/compiling-without-continuations.pdf
-
 Or we can stay within the original flow and retry everything downstream
 
-#+BEGIN_SRC
-      |   foo2   |
-a1 -> | a2 -> a3 | -> a4 -> a0
-      |          |  ┌───────┘
-      | check    | <┘
-      |          | -> a4 -> a0
-      | yield    | <────────┘
-#+END_SRC
+#+BEGIN_SRC dot :cmd dot :file images/contt-retry.png :exports results
+digraph G {
+    graph [dpi=100,rankdir=LR];
+    node [fontname=Hack];
+    edge [fontname=Hack];
+    fontname=Hack;
+    #compound=true;
+    #overlap = false;
+
+    start [shape=point,width=0.1]
+
+    subgraph cluster_foo1 {
+      label="foo1";
+      bar2 [shape=rectangle];
+    }
+    subgraph cluster_foo2 {
+      label="foo2";
+      bar3 [shape=rectangle];
+      check [shape=rectangle];
+      # cheating by hiding another bar0 to keep it tidy
+    }
+    subgraph cluster_foo3 {
+      label="foo3";
+      bar4 [shape=rectangle];
+    }
+
+    bar0 [label="bar0",shape=rectangle];
+    end [shape=point,width=0.1];
+
+    start -> bar2 [label="a1"];
+    bar2 -> bar3 [label="a2"];
+    bar3 -> bar4 [label="a3"];
+    bar4 -> bar0 [label="a4"];
+
+    bar0 -> check [label="a0"];
+    check -> end [label="a0"];
+    check -> bar4 [label="a3"];
+    bar0 -> end;
+
+    # pushes end one out to the right
+    bar2 -> bar0 [style=invis];
+}
+#+End_SRC
+
+#+CAPTION: 35
+#+RESULTS:
+[[file:images/contt-retry.png]]
 
 #+BEGIN_SRC scala
   def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
@@ -10892,7 +11080,8 @@ a1 -> | a2 -> a3 | -> a4 -> a0
   }
 #+END_SRC
 
-For example, we might wish a user to reconfirm a potentially dangerous action.
+This is just one retry, not an infinite loop. For example, we might want
+downstream to reconfirm a potentially dangerous action.
 
 Finally, we can perform actions that are specific to the context of the =ContT=,
 in this case =IO= which lets us do error handling and resource cleanup:
@@ -10901,51 +11090,63 @@ in this case =IO= which lets us do error handling and resource cleanup:
   def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).ensuring(cleanup).cps
 #+END_SRC
 
-All of these control flow changes are possible if we are in control of writing
-or changing the definition of =flow=, therefore we do not typically need to use
-=ContT=. However, if we are designing a framework, we should consider exposing
-the plugin stages as =ContT= callbacks so as to allow our users more power over
-the control flow.
+***** When to Order Spaghetti
+
+It is not an accident that these diagrams look like spaghetti, that's just what
+happens when we start messing with control flow. All the mechanisms we've
+discussed in this section are simple to implement directly if we can edit the
+definition of =flow=, therefore we do not typically need to use =ContT=.
+
+However, if we are designing a framework, we should consider exposing the plugin
+system as =ContT= callbacks to allow our users more power over their control
+flow. Sometimes the customer just really wants the spaghetti.
+
+For example, if the Scala compiler was written using CPS, it would allow for a
+principled approach to communication between compiler phases. A compiler plugin
+would be able to perform some action based on the inferred type of an
+expression, computed at a later stage in the compile. Similarly, continuations
+would be a good API for an extensible build tool or text editor.
+
+# https://www.microsoft.com/en-us/research/wp-content/uploads/2016/11/compiling-without-continuations.pdf
 
 A caveat with =ContT= is that it is not stack safe, so cannot be used for
 programs that run forever.
 
+***** Great, kid. Don't get cocky.
+
 A more complex variant of =ContT= exists that allows the return type (=A0= in
-the above examples) to be changed, which is how =ContT= is implemented
+the above examples) to be changed. =ContT= is not defined as above, but as a
+type alias
 
 #+BEGIN_SRC scala
-final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C]) {
-  def run(f: A => F[B]): F[C] = _run(f)
+final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C])
 
-  def flatMap[BB, AA](f: A => IndexedContT[F, B, BB, AA]): IndexedContT[F, C, BB, AA] =
-}
-object IndexedContT {
-  type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
-
-  implicit def contra[F[_]: Functor, C, A] =
-    new Contravariant[IndexedContT[F, C, ?, A]] {
-      def contramap[Z, ZZ](fa: IndexedContT[F, C, Z, A])(f: ZZ => Z) = ...
-    }
-}
+type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
 #+END_SRC
 
-The =.contramap= method allows the third =C= type parameter to be changed, but
-if =B= is not equal to =C= then there is no =Monad= and =.flatMap= is
-implemented as a custom method on the class itself to allow monad-like
-sequencing of operations.
+The new type parameter allows the return type of the entire computation to be
+different to the return type between each component. But if =B= is not equal to
+=C= then there is no =Monad=.
 
-Not missing an opportunity to generalise, =IndexedContT= is actually implemented
-in terms of an even more general structure
+Not missing an opportunity to generalise as much as possible, =IndexedContT= is
+actually implemented in terms of an even more general structure (not the extra
+=s= before the =T=)
 
 #+BEGIN_SRC scala
 final case class IndexedContsT[W[_], F[_], C, B, A](_run: W[A => F[B]] => F[C])
+
+type IndexedContT[f[_], c, b, a] = IndexedContsT[Id, f, c, b, a]
+type ContT[f[_], b, a] = IndexedContsT[Id, f, b, b, a]
 #+END_SRC
 
-where =W[_]= has a =Comonad=. This is perhaps a generalisation too far.
+where =W[_]= has a =Comonad=. Admittedly, this is perhaps a generalisation too
+far.
 
 # https://github.com/scalaz/scalaz/issues/1737
 
 # http://www.haskellforall.com/2012/12/the-continuation-monad.html
+
+**** TODO =StreamT=
 
 ** The Infinite Sadness
 
@@ -10958,9 +11159,10 @@ You can expect to see chapters covering the following topics:
 - Typeclass Derivation
 - Property Testing
 - Optics
-- Functional Streams
-- Bluffing Haskell
 
+# Maybe...
+# - Functional Streams
+# - Bluffing Haskell
 # - Recursion Schemes
 # - Category Theory
 # - Dependent Types
@@ -10972,22 +11174,7 @@ while continuing to build out the example application.
   :EXPORT_FILE_NAME: remaining.md
   :END:
 
-**** TODO =StreamT=
-
-**** TODO Others
-
-- =BijectionT= ??? (a bit weird)
-- =StoreT= (or leave to lenses)
-
-Probably ignore...
-
-- =Codensity=
-- =Cokleisli=
-- =ComonadStore=
-- =TracedT= (comonad tranformer)
-
-
-*** TODO Parallelism and =Task=
+*** TODO Parallelism and =scalaz.ioeffect.IO=
 
 =LiftIO=
 
@@ -11011,7 +11198,7 @@ optimise for bulk read / write. Analogous to bytecode instrumentation.
 
 And for testing: [[https://github.com/djspiewak/smock][smock]]
 
-*** TODO Initial vs Final Encoding
+**** TODO Initial vs Final Encoding
 
 # "initial" vs "final" encodings
 # https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
@@ -11048,6 +11235,7 @@ Then (much more complicated) optimisation for final encoding of our drone app.
    }
  }
  #+END_SRC
+
 
 ** TODO Utilities
 
