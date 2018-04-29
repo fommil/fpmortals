@@ -1579,8 +1579,8 @@ chocolate bar (`B`).
 *Continuation Passing Style* (CPS) is a style of programming where functions
 never return, instead *continuing* to the next computation. CPS is popular in
 Javascript and Lisp as they allow non-blocking I/O (including interacting with
-the user) that invokes a callback when data is available or an action occurs. A
-direct translation of the pattern into impure Scala looks like
+the user) with callbacks to handle data when it becomes available, or when an
+action occurs. A direct translation of the pattern into impure Scala looks like
 
 {lang="text"}
 ~~~~~~~~
@@ -1609,6 +1609,13 @@ generalised `(A => F[B]) => F[B]`
   final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
     def run(f: A => F[B]): F[B] = _run(f)
   }
+  object IndexedContT {
+    implicit def monad[F[_], B] = new Monad[ContT[F, B, ?]] {
+      def point[A](a: =>A) = ContT(_(a))
+      def bind[A, C](fa: ContT[F, B, A])(f: A => ContT[F, B, C]) =
+        ContT(c_fb => fa.run(a => f(a).run(c_fb)))
+    }
+  }
 ~~~~~~~~
 
 However, this in itself is of no value in pure functional programming because we
@@ -1616,8 +1623,167 @@ already know how to sequence non-blocking, potentially distributed,
 computations: that's what `Monad` is for and we can do this with `.bind` or a
 `Kleisli` arrow.
 
--   TODO: maybe useful for resource cleanup
--   TODO: choosing the next computation
+For example, let's say we have modularised our application into several data
+components that can perform I/O, and owned by different teams:
+
+{lang="text"}
+~~~~~~~~
+  final case class A0()
+  final case class A1()
+  final case class A2()
+  final case class A3()
+  final case class A4()
+  
+  def bar0(a4: A4): IO[A0] = ...
+  def bar2(a1: A1): IO[A2] = ...
+  def bar3(a2: A2): IO[A3] = ...
+  def bar4(a3: A3): IO[A4] = ...
+~~~~~~~~
+
+A> The names and contents of the data structures in this example are intentionally
+A> abstract because control flow is so general that any specific example will be
+A> both confusing and misleading, so we're stripping it down to the bare
+A> essentials.
+
+Our goal is to produce a `A0` given an `A1`. Whereas Javascript and Lisp would
+reach for continuations to solve this problem (because the I/O could block) we
+can just chain the functions
+
+{lang="text"}
+~~~~~~~~
+  def simple(a: A1): IO[A0] = bar2(a) >>= bar3 >>= bar4 >>= bar0
+~~~~~~~~
+
+We could do the same thing with continuations, albeit with more boilerplate:
+
+{lang="text"}
+~~~~~~~~
+  def foo1(a: A1): ContT[IO, A0, A2] = ContT(next => bar2(a) >>= next)
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT(next => bar3(a) >>= next)
+  def foo3(a: A3): ContT[IO, A0, A4] = ContT(next => bar4(a) >>= next)
+  def flow(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
+~~~~~~~~
+
+So what does this buy us? Firstly, it's worth noting that the control flow of
+this application is left to right
+
+{lang="text"}
+~~~~~~~~
+  foo1  foo2  foo3  foo4
+  a1 -> a2 -> a3 -> a4 -> a0
+~~~~~~~~
+
+What if we are the authors of `foo2` and we want to post-process the `a0` that
+we receive from the right, i.e. we want to split our `foo2` into `foo2a` and
+`foo2b`
+
+{lang="text"}
+~~~~~~~~
+  foo1 |  foo2a   | foo3  foo4 |  foo2b
+  a1 ->  | a2 -> a3 |  -> a4 ->  | a0 -> a0
+~~~~~~~~
+
+but we can't change the definition of `flow` because it is owned by another
+team, or lives in the framework we're using. With `ContT` we can change the
+shape of the control flow and grab the results to the right of us:
+
+{lang="text"}
+~~~~~~~~
+  |   foo2   |
+  a1 ->  | a2 -> a3 | -> a4  -> a0
+         |          |    ┌──────┘
+         | process  |   <┘
+~~~~~~~~
+
+It would look something like
+
+{lang="text"}
+~~~~~~~~
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3  <- bar3(a)
+      a0  <- next(a3)
+    } yield process(a0)
+  }
+~~~~~~~~
+
+We are not limited to `.map` over the return value, we can `.bind` into another
+control flow turning the linear flow into a graph!
+
+{lang="text"}
+~~~~~~~~
+  |   foo2   |
+  a1 ->  | a2 -> a3 | -> a4 -> a0
+         |          |    ┌─────┘
+         | check    |   <┘
+               \
+                \- elsewhere
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  def elsewhere: ContT[IO, A0, A4] = ???
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3 <- bar3(a)
+      a0 <- next(a3)
+      a0_ <- if (check(a0)) a0.pure[IO]
+             else elsewhere.run(bar0)
+    } yield a0_
+  }
+~~~~~~~~
+
+A> If the Scala compiler was written using CPS, it would allow for a principled
+A> approach to plugins and "time travel" between compiler phases. For example, a
+A> compiler plugin would be able to perform some action based on the inferred type
+A> of an expression, computed at a later stage in the compile.
+
+Or we can stay within the original flow and retry everything to the right
+
+{lang="text"}
+~~~~~~~~
+  |   foo2   |
+  a1 ->  | a2 -> a3 | -> a4 -> a0
+         |          |   ┌──────┘
+         | check    |  <┘
+         |          | -> a4 -> a0
+         | yield    | <────────┘
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3 <- bar3(a)
+      a0 <- next(a3)
+      a0_ <- if (check(a0)) a0.pure[IO]
+             else next(a3)
+    } yield a0_
+  }
+~~~~~~~~
+
+A use case might be to make a user reconfirm a dangerous action.
+
+Finally, we can perform actions that are specific to the context of the `ContT`,
+in this case `IO`. We can use `ContT` for error handling and resource cleanup:
+
+{lang="text"}
+~~~~~~~~
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    (bar3(a) >>= next).ensuring(...)
+  }
+~~~~~~~~
+
+Since many of these things are possible already if you are in control of writing
+or changing the definition of `flow`, it is rarely the case that `ContT` is
+needed. If, however, you are the author of a framework, you should consider
+designing your workflow with `ContT` so as to allow your downstream users more
+power to affect the control flow.
+
+A caveat with `ContT` is that it is not stack safe, so cannot be used for
+programs that run forever.
+
+TODO: IndexedContT to change the return type, via contravariant, but lose the Monad.
 
 
 # The Infinite Sadness

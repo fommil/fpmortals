@@ -62,7 +62,7 @@ object Directives {
         next(a).handleError(e => action >> F.raiseError(e)) <* action
     }
 
-  final case class A0() // we can create one if we have an A4
+  final case class A0() // we can create one if we have an A3
   final case class A1() // we have one of these (or can create one)
   final case class A2() // can create from A1
   final case class A3() // can create from A2
@@ -122,6 +122,11 @@ object Directives {
       a0_ <- if (check(a0)) a0.pure[IO]
             else elsewhere.run(bar0)
     } yield a0_
+  }
+
+  def cleanup: IO[Unit] = ???
+  def foo2_err(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    (bar3(a) >>= next).ensuring(cleanup)
   }
 
   // basically, ContT is custom control flow for Kleisli. it is incredibly
