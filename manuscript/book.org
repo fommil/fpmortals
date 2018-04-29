@@ -10833,7 +10833,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 35
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/contt-simple.png]]
 
@@ -10879,12 +10879,14 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 35
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/contt-process1.png]]
 
-Let's add the constraint that we cannot change the definition of =flow= or
-=bar0=, perhaps it is not our code and is defined by the framework we are using.
+Let's *add the constraint that we cannot change the definition of =flow= or
+=bar0=*, perhaps it is not our code and is defined by the framework we are
+using.
+
 It is not possible to process the output of =a0= by modifying any of the
 remaining =barX= methods. However, with =ContT= we can modify =foo2= to process
 the result of the =next= continuation:
@@ -10931,7 +10933,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 35
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/contt-process2.png]]
 
@@ -11003,7 +11005,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 35
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/contt-elsewhere.png]]
 
@@ -11065,7 +11067,7 @@ digraph G {
 }
 #+End_SRC
 
-#+CAPTION: 35
+#+CAPTION: 70
 #+RESULTS:
 [[file:images/contt-retry.png]]
 
@@ -11112,34 +11114,29 @@ would be a good API for an extensible build tool or text editor.
 A caveat with =ContT= is that it is not stack safe, so cannot be used for
 programs that run forever.
 
-***** Great, kid. Don't get cocky.
+***** Great, kid. Don't get =ContT=.
 
-A more complex variant of =ContT= exists that allows the return type (=A0= in
-the above examples) to be changed. =ContT= is not defined as above, but as a
-type alias
-
-#+BEGIN_SRC scala
-final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C])
-
-type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
-#+END_SRC
-
-The new type parameter allows the return type of the entire computation to be
-different to the return type between each component. But if =B= is not equal to
-=C= then there is no =Monad=.
+A more complex variant of ~ContT~ called ~IndexedContT~ wraps ~(A => F[B]) =>
+F[C]~. The new type parameter ~C~ allows the return type of the entire
+computation to be different to the return type between each component. But if
+~B~ is not equal to ~C~ then there is no ~Monad~.
 
 Not missing an opportunity to generalise as much as possible, =IndexedContT= is
-actually implemented in terms of an even more general structure (not the extra
+actually implemented in terms of an even more general structure (note the extra
 =s= before the =T=)
 
 #+BEGIN_SRC scala
 final case class IndexedContsT[W[_], F[_], C, B, A](_run: W[A => F[B]] => F[C])
 
 type IndexedContT[f[_], c, b, a] = IndexedContsT[Id, f, c, b, a]
-type ContT[f[_], b, a] = IndexedContsT[Id, f, b, b, a]
+type ContT[f[_], b, a]           = IndexedContsT[Id, f, b, b, a]
+type ContsT[w[_], f[_], b, a]    = IndexedContsT[w, f, b, b, a]
+type Cont[b, a]                  = IndexedContsT[Id, Id, b, b, a]
 #+END_SRC
 
-where =W[_]= has a =Comonad=. Admittedly, this is perhaps a generalisation too
+where =W[_]= has a =Comonad=, and =ContT= is actually implemented as a type
+alias. Companion objects exist for these type aliases with convenient
+constructors. Admittedly, five type parameters is perhaps a generalisation too
 far.
 
 # https://github.com/scalaz/scalaz/issues/1737

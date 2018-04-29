@@ -1674,23 +1674,25 @@ syntax and a little bit of extra boilerplate for each step:
 So what does this buy us? Firstly, it's worth noting that the control flow of
 this application is left to right
 
-{width=35%}
+{width=70%}
 ![](images/contt-simple.png)
 
 What if we are the authors of `foo2` and we want to post-process the `a0` that
 we receive from the right (downstream), i.e. we want to split our `foo2` into
 `foo2a` and `foo2b`
 
-{width=35%}
+{width=70%}
 ![](images/contt-process1.png)
 
-Let's add the constraint that we cannot change the definition of `flow` or
-`bar0`, perhaps it is not our code and is defined by the framework we are using.
+Let's **add the constraint that we cannot change the definition of `flow` or
+`bar0`**, perhaps it is not our code and is defined by the framework we are
+using.
+
 It is not possible to process the output of `a0` by modifying any of the
 remaining `barX` methods. However, with `ContT` we can modify `foo2` to process
 the result of the `next` continuation:
 
-{width=35%}
+{width=70%}
 ![](images/contt-process2.png)
 
 Which can be defined with
@@ -1708,7 +1710,7 @@ Which can be defined with
 We are not limited to `.map` over the return value, we can `.bind` into another
 control flow turning the linear flow into a graph!
 
-{width=35%}
+{width=70%}
 ![](images/contt-elsewhere.png)
 
 {lang="text"}
@@ -1726,7 +1728,7 @@ control flow turning the linear flow into a graph!
 
 Or we can stay within the original flow and retry everything downstream
 
-{width=35%}
+{width=70%}
 ![](images/contt-retry.png)
 
 {lang="text"}
@@ -1774,25 +1776,15 @@ A caveat with `ContT` is that it is not stack safe, so cannot be used for
 programs that run forever.
 
 
-#### Great, kid. Don't get cocky.
+#### Great, kid. Don't get `ContT`.
 
-A more complex variant of `ContT` exists that allows the return type (`A0` in
-the above examples) to be changed. `ContT` is not defined as above, but as a
-type alias
-
-{lang="text"}
-~~~~~~~~
-  final case class IndexedContT[F[_], C, B, A](_run: (A => F[B]) => F[C])
-  
-  type ContT[f[_], b, a] = IndexedContT[f, b, b, a]
-~~~~~~~~
-
-The new type parameter allows the return type of the entire computation to be
-different to the return type between each component. But if `B` is not equal to
-`C` then there is no `Monad`.
+A more complex variant of `ContT` called `IndexedContT` wraps `(A => F[B]) =>
+F[C]`. The new type parameter `C` allows the return type of the entire
+computation to be different to the return type between each component. But if
+`B` is not equal to `C` then there is no `Monad`.
 
 Not missing an opportunity to generalise as much as possible, `IndexedContT` is
-actually implemented in terms of an even more general structure (not the extra
+actually implemented in terms of an even more general structure (note the extra
 `s` before the `T`)
 
 {lang="text"}
@@ -1800,10 +1792,14 @@ actually implemented in terms of an even more general structure (not the extra
   final case class IndexedContsT[W[_], F[_], C, B, A](_run: W[A => F[B]] => F[C])
   
   type IndexedContT[f[_], c, b, a] = IndexedContsT[Id, f, c, b, a]
-  type ContT[f[_], b, a] = IndexedContsT[Id, f, b, b, a]
+  type ContT[f[_], b, a]           = IndexedContsT[Id, f, b, b, a]
+  type ContsT[w[_], f[_], b, a]    = IndexedContsT[w, f, b, b, a]
+  type Cont[b, a]                  = IndexedContsT[Id, Id, b, b, a]
 ~~~~~~~~
 
-where `W[_]` has a `Comonad`. Admittedly, this is perhaps a generalisation too
+where `W[_]` has a `Comonad`, and `ContT` is actually implemented as a type
+alias. Companion objects exist for these type aliases with convenient
+constructors. Admittedly, five type parameters is perhaps a generalisation too
 far.
 
 
