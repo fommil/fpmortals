@@ -9548,7 +9548,6 @@ explain each of the transformers, why they are useful, and how they work.
 | evolving state       | ~S => F[(S, A)]~            | ~StateT~    | ~MonadState~  |
 | keep calm & carry on | ~F[E \&/ A]~                | ~TheseT~    |               |
 | control flow         | ~(A => F[B]) => F[B]~       | ~ContT~     |               |
-| non-determinism      | ~F[Step[A, StreamT[F, A]]]~ | ~StreamT~   |               |
 
 # https://www.slideshare.net/sukanthajra/classy-monad-transformers-stop-effing-around
 # https://www.youtube.com/watch?v=QtZJATIPB0k
@@ -11140,11 +11139,136 @@ again, over-generalisation is consistent with the sensibilities of
 continuations.
 
 # https://github.com/scalaz/scalaz/issues/1737
-
 # http://www.haskellforall.com/2012/12/the-continuation-monad.html
 
-**** TODO =StreamT=
-**** TODO Transformer Stacks and Ambiguous Implicits
+**** Transformer Stacks and Ambiguous Implicits
+
+This concludes our tour of the monad transformers in scalaz.
+
+When multiple transformers are combined, we call this a /transformer stack/ and
+although it is verbose, it is possible to read off the features by reading the
+transformers. For example if we construct an =F[_]= context which is a set of
+composed transformers, such as
+
+#+BEGIN_SRC scala
+type F[A] = EitherT[StateT[IO, Bar, ?], Foo, A]
+#+END_SRC
+
+we know that we are adding error handling with error type =Foo= (there is a
+=MonadError[F, Foo]=) and we are managing state =A= (there is a =MonadState[F,
+Bar]=).
+
+But there are unfortunately practical drawbacks to using monad transformers and
+their companion =Monad= typeclasses:
+
+1. Multiple implicit =Monad= parameters mean that the compiler cannot find the
+   correct syntax to use for the context.
+
+2. All the interpreters must be lifted into the common context. For example, we
+   might have an implementation of some algebra that uses for =IO= and now we
+   need to wrap it with =StateT= and =EitherT= even though they are unused
+   inside the interpreter.
+
+3. Multiple implicit =Monad= parameters can result in ambiguous implicit
+   compiler errors when trying to call our business logic.
+
+4. There is a performance cost associated to each layer. And some monad
+   transformers are worse than others. =StateT= is particularly bad but even
+   =EitherT= can cause memory allocation problems for high throughput
+   applications.
+
+Drawbacks 1 through 3 can be solved with some boilerplate. Let's say we have an
+algebra
+
+#+BEGIN_SRC scala
+trait Lookup[F[_]] {
+  def look: F[Int]
+}
+#+END_SRC
+
+and some data types
+
+#+BEGIN_SRC scala
+final case class Problem(bad: Int)
+final case class Table(last: Int)
+#+END_SRC
+
+that we want to use in our business logic
+
+#+BEGIN_SRC scala
+  def foo[F[_]](L: Lookup[F])(
+    implicit
+      E: MonadError[F, Problem],
+      S: MonadState[F, Table]
+  ): F[Int] = for {
+    old <- S.get
+    i   <- L.look
+    _   <- if (i === old.last)
+             E.raiseError(Problem(i))
+           else
+             ().pure[F]
+  } yield i
+#+END_SRC
+
+The first problem we encounter is that this fails to compile
+
+#+BEGIN_SRC
+[error] value flatMap is not a member of type parameter F[Table]
+[error]     old <- S.get
+[error]              ^
+#+END_SRC
+
+There are several tactical solutions to this problem. The most obvious is to
+make all the parameters explicit
+
+#+BEGIN_SRC scala
+  def foo1[F[_]: Monad](
+    L: Lookup[F],
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = ...
+#+END_SRC
+
+and require only =Monad= to be passed implicitly via context bounds. However,
+this means that we must manually wire up the =MonadError= and =MonadState= when
+calling =foo1= and if =foo1= were to call some other method that requires such
+an =implicit=.
+
+A second solution is to leave the parameters =implicit= and use name shadowing
+to make all but one of the parameters explicit. This is verbose but allows
+upstream to use implicit resolution when calling us
+
+#+BEGIN_SRC scala
+  def foo2[F[_]](L: Lookup[F])(
+    implicit
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = {
+    val s = S;
+    {
+      val S = s;
+      ...
+    }
+  }
+#+END_SRC
+
+A third, and even more verbose solution, is to create a custom =Monad= typeclass
+that delegates all of the methods we wish to use
+
+#+BEGIN_SRC scala
+TODO: MonadErrorState
+
+#+END_SRC
+
+
+
+TODO: work through each drawback.
+
+
+
+
+TODO: but drawback 3 can be devastating to a high throughput application.
+However, =scalaz.ioeffect.IO= to the rescue...
 
 ** The Infinite Sadness
 
