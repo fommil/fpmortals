@@ -350,16 +350,15 @@ This subset of data types and extensions to `Monad` are often referred to as the
 *Monad Transformer Library* (MTL), summarised below. In this section, we will
 explain each of the transformers, why they are useful, and how they work.
 
-| Effect               | Underlying                  | Transformer | Typeclass     |
-|-------------------- |--------------------------- |----------- |------------- |
-| optionality          | `F[Maybe[A]]`               | `MaybeT`    | `MonadPlus`   |
-| errors               | `F[E \/ A]`                 | `EitherT`   | `MonadError`  |
-| a runtime value      | `A => F[B]`                 | `ReaderT`   | `MonadReader` |
-| journal / multitask  | `F[(W, A)]`                 | `WriterT`   | `MonadTell`   |
-| evolving state       | `S => F[(S, A)]`            | `StateT`    | `MonadState`  |
-| keep calm & carry on | `F[E \&/ A]`                | `TheseT`    |               |
-| control flow         | `(A => F[B]) => F[B]`       | `ContT`     |               |
-| non-determinism      | `F[Step[A, StreamT[F, A]]]` | `StreamT`   |               |
+| Effect               | Underlying            | Transformer | Typeclass     |
+|-------------------- |--------------------- |----------- |------------- |
+| optionality          | `F[Maybe[A]]`         | `MaybeT`    | `MonadPlus`   |
+| errors               | `F[E \/ A]`           | `EitherT`   | `MonadError`  |
+| a runtime value      | `A => F[B]`           | `ReaderT`   | `MonadReader` |
+| journal / multitask  | `F[(W, A)]`           | `WriterT`   | `MonadTell`   |
+| evolving state       | `S => F[(S, A)]`      | `StateT`    | `MonadState`  |
+| keep calm & carry on | `F[E \&/ A]`          | `TheseT`    |               |
+| control flow         | `(A => F[B]) => F[B]` | `ContT`     |               |
 
 
 ### `MonadTrans`
@@ -1806,7 +1805,205 @@ again, over-generalisation is consistent with the sensibilities of
 continuations.
 
 
-### TODO `StreamT`
+### Transformer Stacks and Ambiguous Implicits
+
+This concludes our tour of the monad transformers in scalaz.
+
+When multiple transformers are combined, we call this a *transformer stack* and
+although it is verbose, it is possible to read off the features by reading the
+transformers. For example if we construct an `F[_]` context which is a set of
+composed transformers, such as
+
+{lang="text"}
+~~~~~~~~
+  type F[A] = EitherT[StateT[IO, Bar, ?], Foo, A]
+~~~~~~~~
+
+we know that we are adding error handling with error type `Foo` (there is a
+`MonadError[F, Foo]`) and we are managing state `A` (there is a `MonadState[F,
+Bar]`).
+
+But there are unfortunately practical drawbacks to using monad transformers and
+their companion `Monad` typeclasses:
+
+1.  Multiple implicit `Monad` parameters mean that the compiler cannot find the
+    correct syntax to use for the context.
+
+2.  All the interpreters must be lifted into the common context. For example, we
+    might have an implementation of some algebra that uses for `IO` and now we
+    need to wrap it with `StateT` and `EitherT` even though they are unused
+    inside the interpreter.
+
+3.  Multiple implicit `Monad` parameters can result in ambiguous implicit
+    compiler errors when trying to call our business logic.
+
+4.  There is a performance cost associated to each layer. And some monad
+    transformers are worse than others. `StateT` is particularly bad but even
+    `EitherT` can cause memory allocation problems for high throughput
+    applications.
+
+Let's talk about workarounds.
+
+
+#### No Syntax
+
+Let's say we have an algebra
+
+{lang="text"}
+~~~~~~~~
+  trait Lookup[F[_]] {
+    def look: F[Int]
+  }
+~~~~~~~~
+
+and some data types
+
+{lang="text"}
+~~~~~~~~
+  final case class Problem(bad: Int)
+  final case class Table(last: Int)
+~~~~~~~~
+
+that we want to use in our business logic
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]](L: Lookup[F])(
+    implicit
+      E: MonadError[F, Problem],
+      S: MonadState[F, Table]
+  ): F[Int] = for {
+    old <- S.get
+    i   <- L.look
+    _   <- if (i === old.last) E.raiseError(Problem(i))
+           else ().pure[F]
+  } yield i
+~~~~~~~~
+
+The first problem we encounter is that this fails to compile
+
+{lang="text"}
+~~~~~~~~
+  [error] value flatMap is not a member of type parameter F[Table]
+  [error]     old <- S.get
+  [error]              ^
+~~~~~~~~
+
+There are some tactical solutions to this problem. The most obvious is to make
+all the parameters explicit
+
+{lang="text"}
+~~~~~~~~
+  def foo1[F[_]: Monad](
+    L: Lookup[F],
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = ...
+~~~~~~~~
+
+and require only `Monad` to be passed implicitly via context bounds. However,
+this means that we must manually wire up the `MonadError` and `MonadState` when
+calling `foo1` and when calling out to another method that requires an
+`implicit`.
+
+A second solution is to leave the parameters `implicit` and use name shadowing
+to make all but one of the parameters explicit. This allows upstream to use
+implicit resolution when calling us but we still need to pass parameters
+explicitly if we call out.
+
+{lang="text"}
+~~~~~~~~
+  @inline final def shadow[A, B, C](a: A, b: B)(f: (A, B) => C): C = f(a, b)
+  
+  def foo2a[F[_]: Monad](L: Lookup[F])(
+    implicit
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = shadow(E, S) { (E, S) => ...
+~~~~~~~~
+
+or we could shadow just one `Monad`, leaving the other one to provide our syntax
+and to be available for when we call out to other methods
+
+{lang="text"}
+~~~~~~~~
+  @inline final def shadow[A, B](a: A)(f: A => B): B = f(a)
+  ...
+  
+  def foo2b[F[_]](L: Lookup[F])(
+    implicit
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = shadow(E) { E => ...
+~~~~~~~~
+
+A third option, with a higher up-front cost, is to create a custom `Monad`
+typeclass that holds `implicit` references to the two `Monad` classes that we
+care about
+
+{lang="text"}
+~~~~~~~~
+  trait MonadErrorState[F[_], E, S] {
+    implicit def E: MonadError[F, E]
+    implicit def S: MonadState[F, S]
+  }
+~~~~~~~~
+
+and a derivation of the typeclass given a `MonadError` and `MonadState`
+
+{lang="text"}
+~~~~~~~~
+  object MonadErrorState {
+    implicit def create[F[_], E, S](
+      implicit
+        E0: MonadError[F, E],
+        S0: MonadState[F, S]
+    ) = new MonadErrorState[F, E, S] {
+      def E: MonadError[F, E] = E0
+      def S: MonadState[F, S] = S0
+    }
+  }
+~~~~~~~~
+
+Now if we want access to `S` or `E` we get them via `F.S` or `F.E`
+
+{lang="text"}
+~~~~~~~~
+  def foo3a[F[_]: Monad](L: Lookup[F])(
+    implicit F: MonadErrorState[F, Problem, Table]
+  ): F[Int] =
+    for {
+      old <- F.S.get
+      i   <- L.look
+      _ <- if (i === old.last) F.E.raiseError(Problem(i))
+      else ().pure[F]
+    } yield i
+~~~~~~~~
+
+Like the second solution, we can choose one of `Monad` instances to be
+`implicit` within the block, achieved by importing it
+
+{lang="text"}
+~~~~~~~~
+  def foo3b[F[_]](L: Lookup[F])(
+    implicit F: MonadErrorState[F, Problem, Table]
+  ): F[Int] = {
+    import F.E
+    ...
+  }
+~~~~~~~~
+
+
+#### TODO Lifting Interpreters
+
+
+#### TODO Ambiguous Implicits
+
+
+#### TODO Performance
+
+can be devastating to a high throughput application. However,
+`scalaz.ioeffect.IO` to the rescue...
 
 
 # The Infinite Sadness

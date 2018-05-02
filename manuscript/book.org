@@ -11151,12 +11151,12 @@ transformers. For example if we construct an =F[_]= context which is a set of
 composed transformers, such as
 
 #+BEGIN_SRC scala
-type F[A] = EitherT[StateT[IO, Bar, ?], Foo, A]
+type Ctx[A] = EitherT[StateT[IO, S, ?], E, A]
 #+END_SRC
 
-we know that we are adding error handling with error type =Foo= (there is a
-=MonadError[F, Foo]=) and we are managing state =A= (there is a =MonadState[F,
-Bar]=).
+we know that we are adding error handling with error type =E= (there is a
+=MonadError[Ctx, E]=) and we are managing state =A= (there is a =MonadState[Ctx,
+S]=).
 
 But there are unfortunately practical drawbacks to using monad transformers and
 their companion =Monad= typeclasses:
@@ -11177,8 +11177,11 @@ their companion =Monad= typeclasses:
    =EitherT= can cause memory allocation problems for high throughput
    applications.
 
-Drawbacks 1 through 3 can be solved with some boilerplate. Let's say we have an
-algebra
+Let's talk about workarounds.
+
+***** No Syntax
+
+Let's say we have an algebra
 
 #+BEGIN_SRC scala
 trait Lookup[F[_]] {
@@ -11203,10 +11206,8 @@ that we want to use in our business logic
   ): F[Int] = for {
     old <- S.get
     i   <- L.look
-    _   <- if (i === old.last)
-             E.raiseError(Problem(i))
-           else
-             ().pure[F]
+    _   <- if (i === old.last) E.raiseError(Problem(i))
+           else ().pure[F]
   } yield i
 #+END_SRC
 
@@ -11218,8 +11219,8 @@ The first problem we encounter is that this fails to compile
 [error]              ^
 #+END_SRC
 
-There are several tactical solutions to this problem. The most obvious is to
-make all the parameters explicit
+There are some tactical solutions to this problem. The most obvious is to make
+all the parameters explicit
 
 #+BEGIN_SRC scala
   def foo1[F[_]: Monad](
@@ -11231,44 +11232,190 @@ make all the parameters explicit
 
 and require only =Monad= to be passed implicitly via context bounds. However,
 this means that we must manually wire up the =MonadError= and =MonadState= when
-calling =foo1= and if =foo1= were to call some other method that requires such
-an =implicit=.
+calling =foo1= and when calling out to another method that requires an
+=implicit=.
 
 A second solution is to leave the parameters =implicit= and use name shadowing
-to make all but one of the parameters explicit. This is verbose but allows
-upstream to use implicit resolution when calling us
+to make all but one of the parameters explicit. This allows upstream to use
+implicit resolution when calling us but we still need to pass parameters
+explicitly if we call out.
 
 #+BEGIN_SRC scala
-  def foo2[F[_]](L: Lookup[F])(
+  @inline final def shadow[A, B, C](a: A, b: B)(f: (A, B) => C): C = f(a, b)
+
+  def foo2a[F[_]: Monad](L: Lookup[F])(
     implicit
     E: MonadError[F, Problem],
     S: MonadState[F, Table]
+  ): F[Int] = shadow(E, S) { (E, S) => ...
+#+END_SRC
+
+or we could shadow just one =Monad=, leaving the other one to provide our syntax
+and to be available for when we call out to other methods
+
+#+BEGIN_SRC scala
+  @inline final def shadow[A, B](a: A)(f: A => B): B = f(a)
+  ...
+
+  def foo2b[F[_]](L: Lookup[F])(
+    implicit
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = shadow(E) { E => ...
+#+END_SRC
+
+A third option, with a higher up-front cost, is to create a custom =Monad=
+typeclass that holds =implicit= references to the two =Monad= classes that we
+care about
+
+#+BEGIN_SRC scala
+trait MonadErrorState[F[_], E, S] {
+  implicit def E: MonadError[F, E]
+  implicit def S: MonadState[F, S]
+}
+#+END_SRC
+
+and a derivation of the typeclass given a =MonadError= and =MonadState=
+
+#+BEGIN_SRC scala
+object MonadErrorState {
+  implicit def create[F[_], E, S](
+    implicit
+      E0: MonadError[F, E],
+      S0: MonadState[F, S]
+  ) = new MonadErrorState[F, E, S] {
+    def E: MonadError[F, E] = E0
+    def S: MonadState[F, S] = S0
+  }
+}
+#+END_SRC
+
+Now if we want access to =S= or =E= we get them via =F.S= or =F.E=
+
+#+BEGIN_SRC scala
+  def foo3a[F[_]: Monad](L: Lookup[F])(
+    implicit F: MonadErrorState[F, Problem, Table]
+  ): F[Int] =
+    for {
+      old <- F.S.get
+      i   <- L.look
+      _ <- if (i === old.last) F.E.raiseError(Problem(i))
+      else ().pure[F]
+    } yield i
+#+END_SRC
+
+Like the second solution, we can choose one of the =Monad= instances to be
+=implicit= within the block, achieved by importing it
+
+#+BEGIN_SRC scala
+  def foo3b[F[_]](L: Lookup[F])(
+    implicit F: MonadErrorState[F, Problem, Table]
   ): F[Int] = {
-    val s = S;
-    {
-      val S = s;
-      ...
-    }
+    import F.E
+    ...
   }
 #+END_SRC
 
-A third, and even more verbose solution, is to create a custom =Monad= typeclass
-that delegates all of the methods we wish to use
+***** Lifting Interpreters
+
+Continuing the same example, let's say our =Lookup= algebra has an =IO=
+interpreter
 
 #+BEGIN_SRC scala
-TODO: MonadErrorState
+final class LookupRandom extends Lookup[IO] {
+  def look: IO[Int] = IO { util.Random.nextInt }
+}
+#+END_SRC
+
+but we want our context to be
+
+#+BEGIN_SRC scala
+type Ctx[A] = EitherT[StateT[IO, Table, ?], Problem, A]
+#+END_SRC
+
+to give us a =MonadError= and a =MonadState=. This means we need to wrap
+=LookupRandom= to operate over =Ctx=.
+
+This is a type parameter asteroid field. The odds of correctly entering the
+types on the first attempt are approximately 3,720 to one.
+
+Firstly, we want to make use of the =.liftM= syntax on =Monad=, which uses
+=MonadTrans= to lift from our starting =F[A]= into =G[F, A]=
+
+#+BEGIN_SRC scala
+final class MonadOps[F[_]: Monad, A](fa: F[A]) {
+  def liftM[G[_[_], _]: MonadTrans]: G[F, A] = ...
+  ...
+}
+#+END_SRC
+
+It is important to realise that the type parameters to =.liftM= have two type
+holes, one of shape =_[_]= and another of shape =_=. If we create type aliases
+of this shape
+
+#+BEGIN_SRC scala
+type Ctx0[F[_], A] = EitherT[StateT[F, Table, ?], Problem, A]
+type Ctx1[F[_], A] = StateT[F, Table, A]
+type Ctx2[F[_], A] = EitherT[F, Problem, A]
+#+END_SRC
+
+and a wrapper implementation of =Lookup= that simply delegates and lifts
+
+#+BEGIN_SRC scala
+  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
+    def look: Ctx[Int] = io.look.liftM[Ctx1].liftM[Ctx2]
+  }
+#+END_SRC
+
+We can skip the type aliases and use kind-projector syntax
+
+#+BEGIN_SRC scala
+    def look: Ctx[Int] = io.look
+                           .liftM[StateT[?[_], Table, ?]]
+                           .liftM[EitherT[?[_], Problem, ?]]
+#+END_SRC
+
+We'll be typing this a *lot*, so it is useful to create some syntax
+
+#+BEGIN_SRC scala
+  implicit class CtxOps[A](fa: IO[A]) {
+    def liftCtx: Ctx[A] = fa
+        .liftM[StateT[?[_], Table, ?]]
+        .liftM[EitherT[?[_], Problem, ?]]
+  }
+#+END_SRC
+
+Meaning that the overhead to lift an =IO= interpreter is 2 lines of code per
+interpreter, and another 1 line of code per member of the algebra:
+
+#+BEGIN_SRC scala
+  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
+    def look: Ctx[Int] = io.look.liftCtx
+  }
+#+END_SRC
+
+Which is not an insignificant amount of boilerplate.
+
+#+BEGIN_ASIDE
+It should be possible to write a compiler plugin that can automatically produce
+the wrappers, but nobody has done so.
+#+END_ASIDE
+
+# https://github.com/kailuowang/mainecoon is almost what we need, but not quite
+
+***** Ambiguous Implicits
+
+Now that we have our interpreter, we may wish to call our business logic
+
+#+BEGIN_SRC scala
 
 #+END_SRC
 
 
+***** TODO Performance
 
-TODO: work through each drawback.
-
-
-
-
-TODO: but drawback 3 can be devastating to a high throughput application.
-However, =scalaz.ioeffect.IO= to the rescue...
+can be devastating to a high throughput application. However,
+=scalaz.ioeffect.IO= to the rescue...
 
 ** The Infinite Sadness
 
