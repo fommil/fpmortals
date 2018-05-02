@@ -33,27 +33,32 @@ object MonadErrorState {
 }
 
 object Logic {
-  type Ctx[A] = EitherT[StateT[IO, Table, ?], Problem, A]
+  type Ctx[A] = StateT[EitherT[IO, Problem, ?], Table, A]
 
   implicit class CtxOps[A](fa: IO[A]) {
-    def liftCtx: Ctx[A] = fa
+    def liftCtx: Ctx[A] =
+      fa.liftM[EitherT[?[_], Problem, ?]]
         .liftM[StateT[?[_], Table, ?]]
-        .liftM[EitherT[?[_], Problem, ?]]
   }
 
-  type Ctx0[F[_], A] = EitherT[StateT[F, Table, ?], Problem, A]
-  type Ctx1[F[_], A] = StateT[F, Table, A]
-  type Ctx2[F[_], A] = EitherT[F, Problem, A]
+  type Ctx0[F[_], A] = StateT[EitherT[F, Problem, ?], Table, A]
+  type Ctx1[F[_], A] = EitherT[F, Problem, A]
+  type Ctx2[F[_], A] = StateT[F, Table, A]
   final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
     def look1: Ctx[Int] = io.look.liftM[Ctx1].liftM[Ctx2]
 
     def look2: Ctx[Int] =
       io.look
-        .liftM[StateT[?[_], Table, ?]]
         .liftM[EitherT[?[_], Problem, ?]]
+        .liftM[StateT[?[_], Table, ?]]
 
     def look: Ctx[Int] = io.look.liftCtx
   }
+
+  def foo[F[_]: Monad](L: Lookup[F])(
+    implicit E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = ???
 
   // implicit Monad, rest explicit. Easier for us, more work for upstream
   def foo1[F[_]: Monad](L: Lookup[F])(
@@ -98,16 +103,11 @@ object Logic {
   def main(args: Array[String]): Unit = {
     val L: Lookup[Ctx] = new LookupRandomCtx(new LookupRandom)
 
-    MonadState[Ctx1[IO, ?], Table]
+    foo[Ctx](L)
 
-    // FIXME huh? Does it maybe need to be StateT outside?
-    // MonadState[Ctx0[IO, ?], Table]
+    foo2[Ctx](L)
 
-    MonadError[Ctx2[IO, ?], Problem]
-
-//    foo2[Ctx](L)
-
-//    foo3[Ctx](L)
+    foo3[Ctx](L)
   }
 
 }

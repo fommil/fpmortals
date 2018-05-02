@@ -1816,12 +1816,12 @@ composed transformers, such as
 
 {lang="text"}
 ~~~~~~~~
-  type F[A] = EitherT[StateT[IO, Bar, ?], Foo, A]
+  type Ctx[A] = StateT[EitherT[IO, E, ?], S, A]
 ~~~~~~~~
 
-we know that we are adding error handling with error type `Foo` (there is a
-`MonadError[F, Foo]`) and we are managing state `A` (there is a `MonadState[F,
-Bar]`).
+we know that we are adding error handling with error type `E` (there is a
+`MonadError[Ctx, E]`) and we are managing state `A` (there is a `MonadState[Ctx,
+S]`).
 
 But there are unfortunately practical drawbacks to using monad transformers and
 their companion `Monad` typeclasses:
@@ -1829,13 +1829,13 @@ their companion `Monad` typeclasses:
 1.  Multiple implicit `Monad` parameters mean that the compiler cannot find the
     correct syntax to use for the context.
 
-2.  All the interpreters must be lifted into the common context. For example, we
+2.  Monads do not compose in the general case, which means that the order of
+    nesting of the transformers is important.
+
+3.  All the interpreters must be lifted into the common context. For example, we
     might have an implementation of some algebra that uses for `IO` and now we
     need to wrap it with `StateT` and `EitherT` even though they are unused
     inside the interpreter.
-
-3.  Multiple implicit `Monad` parameters can result in ambiguous implicit
-    compiler errors when trying to call our business logic.
 
 4.  There is a performance cost associated to each layer. And some monad
     transformers are worse than others. `StateT` is particularly bad but even
@@ -1980,7 +1980,7 @@ Now if we want access to `S` or `E` we get them via `F.S` or `F.E`
     } yield i
 ~~~~~~~~
 
-Like the second solution, we can choose one of `Monad` instances to be
+Like the second solution, we can choose one of the `Monad` instances to be
 `implicit` within the block, achieved by importing it
 
 {lang="text"}
@@ -1994,10 +1994,108 @@ Like the second solution, we can choose one of `Monad` instances to be
 ~~~~~~~~
 
 
-#### TODO Lifting Interpreters
+#### Composing Transformers
+
+An `EitherT[StateT[...], ...]` has a `MonadError` but does not have a
+`MonadState`, whereas `StateT[EitherT[...], ...]` can provide both.
+
+The workaround is to study the implicit derivations on the companion of the
+transformers that we want to know and to make sure that the outer most
+transformer provides everything that we need. A rule of thumb is that more
+complex transformers go on the outside.
 
 
-#### TODO Ambiguous Implicits
+#### Lifting Interpreters
+
+Continuing the same example, let's say our `Lookup` algebra has an `IO`
+interpreter
+
+{lang="text"}
+~~~~~~~~
+  final class LookupRandom extends Lookup[IO] {
+    def look: IO[Int] = IO { util.Random.nextInt }
+  }
+~~~~~~~~
+
+but we want our context to be
+
+{lang="text"}
+~~~~~~~~
+  type Ctx[A] = StateT[EitherT[IO, Problem, ?], Table, A]
+~~~~~~~~
+
+to give us a `MonadError` and a `MonadState`. This means we need to wrap
+`LookupRandom` to operate over `Ctx`.
+
+A> The odds of getting the types correct on the first attempt are approximately
+A> 3,720 to one.
+
+Firstly, we want to make use of the `.liftM` syntax on `Monad`, which uses
+`MonadTrans` to lift from our starting `F[A]` into `G[F, A]`
+
+{lang="text"}
+~~~~~~~~
+  final class MonadOps[F[_]: Monad, A](fa: F[A]) {
+    def liftM[G[_[_], _]: MonadTrans]: G[F, A] = ...
+    ...
+  }
+~~~~~~~~
+
+It is important to realise that the type parameters to `.liftM` have two type
+holes, one of shape `_[_]` and another of shape `_`. If we create type aliases
+of this shape
+
+{lang="text"}
+~~~~~~~~
+  type Ctx0[F[_], A] = StateT[EitherT[F, Problem, ?], Table, A]
+  type Ctx1[F[_], A] = EitherT[F, Problem, A]
+  type Ctx2[F[_], A] = StateT[F, Table, A]
+~~~~~~~~
+
+and a wrapper implementation of `Lookup` that simply delegates and lifts
+
+{lang="text"}
+~~~~~~~~
+  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
+    def look: Ctx[Int] = io.look.liftM[Ctx1].liftM[Ctx2]
+  }
+~~~~~~~~
+
+We can skip the type aliases and use kind-projector syntax
+
+{lang="text"}
+~~~~~~~~
+  def look: Ctx[Int] = io.look
+                         .liftM[EitherT[?[_], Problem, ?]]
+                         .liftM[StateT[?[_], Table, ?]]
+~~~~~~~~
+
+We'll be typing this a **lot**, so it is useful to create some syntax
+
+{lang="text"}
+~~~~~~~~
+  implicit class CtxOps[A](fa: IO[A]) {
+    def liftCtx: Ctx[A] = fa
+        .liftM[EitherT[?[_], Problem, ?]]
+        .liftM[StateT[?[_], Table, ?]]
+  }
+~~~~~~~~
+
+Meaning that the overhead to lift an `IO` interpreter is 2 lines of code per
+interpreter, and another 1 line of code per member of the algebra:
+
+{lang="text"}
+~~~~~~~~
+  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
+    def look: Ctx[Int] = io.look.liftCtx
+  }
+~~~~~~~~
+
+Which is not an insignificant amount of boilerplate.
+
+A> It should be possible to write a compiler plugin that can automatically produce
+A> the wrappers, but nobody has done so. This would be a great contribution to the
+A> ecosystem!
 
 
 #### TODO Performance
