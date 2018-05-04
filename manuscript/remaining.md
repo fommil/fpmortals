@@ -1,13 +1,4 @@
 
-## TODO Parallelism and `scalaz.ioeffect.IO`
-
-`LiftIO`
-
-The issue of parallelisation of applicatives vs the sequential nature of Monad.
-
-Can use this to motivate the scalaz8 typeclass design.
-
-
 ## TODO The `Free Monad`
 
 `Free` as the algebra for Terminal.
@@ -56,6 +47,13 @@ Try this with the `act` in our example app. It is tricky because we have two alg
     }
   }
 ~~~~~~~~
+
+
+## TODO Parallelism and `scalaz.ioeffect.IO`
+
+The issue of parallelisation of applicatives vs the sequential nature of Monad.
+
+Can use this to motivate the scalaz8 typeclass design.
 
 
 # TODO Utilities
