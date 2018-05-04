@@ -116,6 +116,7 @@ is not really worth mentioning, except for a few things.
 -   shapeless
 -   macros
 -   export-hook
+-   Property Testing (as a case study for Arbitrary)
 
 
 # TODO Refinement

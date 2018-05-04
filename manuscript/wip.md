@@ -2054,7 +2054,8 @@ of this shape
   type Ctx2[F[_], A] = StateT[F, Table, A]
 ~~~~~~~~
 
-and a wrapper implementation of `Lookup` that simply delegates and lifts
+we can write a wrapper implementation of `Lookup` that simply delegates and
+lifts:
 
 {lang="text"}
 ~~~~~~~~
@@ -2067,9 +2068,8 @@ We can skip the type aliases and use kind-projector syntax
 
 {lang="text"}
 ~~~~~~~~
-  def look: Ctx[Int] = io.look
-                         .liftM[EitherT[?[_], Problem, ?]]
-                         .liftM[StateT[?[_], Table, ?]]
+  def look: Ctx[Int] =
+    io.look.liftM[EitherT[?[_], Problem, ?]].liftM[StateT[?[_], Table, ?]]
 ~~~~~~~~
 
 We'll be typing this a **lot**, so it is useful to create some syntax
@@ -2077,13 +2077,13 @@ We'll be typing this a **lot**, so it is useful to create some syntax
 {lang="text"}
 ~~~~~~~~
   implicit class CtxOps[A](fa: IO[A]) {
-    def liftCtx: Ctx[A] = fa
-        .liftM[EitherT[?[_], Problem, ?]]
-        .liftM[StateT[?[_], Table, ?]]
+    def liftCtx: Ctx[A] =
+      fa.liftM[EitherT[?[_], Problem, ?]].liftM[StateT[?[_], Table, ?]]
   }
 ~~~~~~~~
 
-However, we don't typically need to write the converters or syntax ourselves.
+It's important to understand how to convert between contexts if needed, but the
+good news is that we don't typically need to write the converters or syntax.
 Scalaz already provides `scalaz.effect.LiftIO` because lifting an `IO` into a
 transformer stack is so common:
 
@@ -2126,7 +2126,6 @@ You can expect to see chapters covering the following topics:
 
 -   Advanced Monads (more to come)
 -   Typeclass Derivation
--   Property Testing
 -   Optics
 
 while continuing to build out the example application.
