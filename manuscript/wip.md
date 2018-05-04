@@ -2127,6 +2127,7 @@ You can expect to see chapters covering the following topics:
 -   Advanced Monads (more to come)
 -   Typeclass Derivation
 -   Optics
+-   Finish off `drone-dynamic-agents`
 
 while continuing to build out the example application.
 
