@@ -2134,14 +2134,14 @@ structures which we have already seen: `Free` and `IO`.
 
 ## A `Free` Lunch
 
-Our industry craves safer higher-level languages, gaining developer efficiency
-(time to market) and reliability at the cost of reduced runtime performance.
+Our industry craves safe high-level languages, trading developer efficiency and
+reliability for reduced runtime performance.
 
 The Just In Time (JIT) compiler on the JVM performs so well that simple
-functions can have comparable performance characteristics as their C or C++
-equivalents, ignoring the cost of garbage collection. However, the JIT only
-performs *low level optimisations*: branch prediction, inlining methods,
-unrolling loops, and so on.
+functions can have comparable performance to their C or C++ equivalents,
+ignoring the cost of garbage collection. However, the JIT only performs *low
+level optimisations*: branch prediction, inlining methods, unrolling loops, and
+so on.
 
 The JIT does not perform optimisations of our business logic, for example
 batching network calls or parallelising independent tasks. The developer is
@@ -2149,18 +2149,18 @@ responsible for designing accordingly. However, optimisations make our business
 logic harder to read and maintain. It would be good if optimisation was a
 tangential concern.
 
-The `Free` monad is a data structure that represents a lazily evaluated
-(suspended) `Monad`, or in other words it is a data structure that describes our
-business logic, lending itself to analysis and *high level optimisation*. A
-`Free` monad can be created and transformed at runtime (carrying an overhead)
-allowing us to streamline or de-duplicate expensive work.
+The `Free` monad is a data structure that represents a suspended `Monad`, or in
+other words it is a data structure that describes our business logic, lending
+itself to analysis and *high level optimisation*. A `Free` monad can be created
+and transformed at runtime allowing us to streamline or de-duplicate expensive
+work.
 
-In this section we will learn how to create a `Free` monad, how to use it, and
-how to generalise the concept beyond `Monad`.
+In this section we will learn how to create a `Free` monad, what it is good for,
+and how to generalise the concept beyond `Monad`.
 
 A> Functional Programming lends itself well to compiletime optimisations, an area
-A> that has not been explored to its full potential for Scala. Consider mapping
-A> over a `Functor` three times:
+A> that has not been explored to its full potential. Consider mapping over a
+A> `Functor` three times:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
