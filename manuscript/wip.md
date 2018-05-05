@@ -1199,13 +1199,13 @@ for interacting with the `State` monad transformer directly, and mirroring
 ~~~~~~~~
 
 For an example we can return to the business logic tests of
-`drone-dynamic-agents`. Recall from Chapter 3 that we created `MutableHandlers`
-as test interpreters for our application and we stored the number of `started`
-and `stoped` nodes in `var`.
+`drone-dynamic-agents`. Recall from Chapter 3 that we created `Mutable` as test
+interpreters for our application and we stored the number of `started` and
+`stoped` nodes in `var`.
 
 {lang="text"}
 ~~~~~~~~
-  class MutableHandlers(state: WorldView) {
+  class Mutable(state: WorldView) {
     var started, stopped: Int = 0
   
     implicit val drone: Drone[Id] = new Drone[Id] { ... }
@@ -1262,7 +1262,7 @@ services, may be implemented like this:
 {lang="text"}
 ~~~~~~~~
   import State.{ get, modify }
-  object StateHandlers {
+  object StateImpl {
     type F[a] = State[World, a]
   
     implicit val drone: Drone[F] = new Drone[F] {
@@ -1300,7 +1300,7 @@ For example,
     val world1          = World(5, 0, managed, Map(), Set(), Set(), time1)
     val view1           = WorldView(5, 0, managed, Map(), Map(), time1)
   
-    val (world2, view2) = StateHandlers.program.act(view1).run(world1)
+    val (world2, view2) = StateImpl.program.act(view1).run(world1)
   
     view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
     world2.stopped.shouldBe(world1.stopped)
@@ -2178,30 +2178,101 @@ A> and is the best place to get involved, if performance optimisation is your
 A> thing.
 
 
-### TODO Generated Freely
+### Generated Freely
+
+As a refresher, `Free` is defined as an ADT of three elements
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Free[S[_], A]
   object Free {
-    private final case class Return[S[_], A](a: A)     extends Free[S, A]
     private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+    private final case class Return[S[_], A](a: A)     extends Free[S, A]
     private final case class Gosub[S[_], A0, B](
       a: Free[S, A0],
       f: A0 => Free[S, B]
     ) extends Free[S, B] { type A = A0 }
+  
+    def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
     ...
   }
 ~~~~~~~~
 
-TODO: previously we only studied `Free` when `S` was a thunk
+-   `Suspend` represents a program that has not yet been interpreted
+-   `Return` is `.pure`
+-   `Gosub` is `.bind`
+
+Previously we studied `Free` when `S` was a thunk
 
 {lang="text"}
 ~~~~~~~~
   type Trampoline[A] = Free[() => ?, A]
 ~~~~~~~~
 
-TODO: but we can create a `Free` for any algebra. Optimise network lookup.
+and made a cryptic comment that `Free` can be *freely generated* for any
+algebra. To make this explicit with an example, consider our application's
+`Machines` algebra
+
+{lang="text"}
+~~~~~~~~
+  trait Machines[F[_]] {
+    def getTime: F[Instant]
+    def getManaged: F[NonEmptyList[MachineNode]]
+    def getAlive: F[Map[MachineNode, Instant]]
+    def start(node: MachineNode): F[Unit]
+    def stop(node: MachineNode): F[Unit]
+  }
+~~~~~~~~
+
+We define a freely generated `Free` for `Machines` by creating an GADT with a
+data type for each element of the algebra. Each data type has the same input
+parameters as its corresponding element, is parameterised over the return type,
+with the convention that it is named the same but capitalised:
+
+{lang="text"}
+~~~~~~~~
+  object Machines {
+    sealed abstract class Ast[A]
+    final case class GetTime()                extends Ast[Instant]
+    final case class GetManaged()             extends Ast[NonEmptyList[MachineNode]]
+    final case class GetAlive()               extends Ast[Map[MachineNode, Instant]]
+    final case class Start(node: MachineNode) extends Ast[Unit]
+    final case class Stop(node: MachineNode)  extends Ast[Unit]
+    ...
+~~~~~~~~
+
+The GADT defines an Abstract Syntax Tree (AST) because each member is
+representing a computation in a program.
+
+Note that the freely generated `Free` for `Machines` is for the AST,
+`Free[Machines.Ast, ?]`, not the algebraic interface.
+
+We then define `Handler`, an implementation of `Machines`, with `Free[Ast, ?]`
+as the context. Every method simply delegates to `Free.liftT` to create a
+`Suspend`
+
+{lang="text"}
+~~~~~~~~
+  ...
+    object Handler extends Machines[Free[Ast, ?]] {
+      def getTime = Free.liftF(GetTime())
+      def getManaged = Free.liftF(GetManaged())
+      def getAlive = Free.liftF(GetAlive())
+      def start(node: MachineNode) = Free.liftF(Start(node))
+      def stop(node: MachineNode) = Free.liftF(Stop(node))
+    }
+  }
+~~~~~~~~
+
+A> The [Freestyle](http://frees.io/docs/core/algebras/) project introduces a `@free` annotation that automatically
+A> produces the `Free` for an algebra, along with other conveniences. Unfortunately
+A> it depends on the [deprecated `scalameta-macros`](https://github.com/frees-io/freestyle/issues/539) project and [does not yet support
+A> scalaz](https://github.com/frees-io/freestyle/issues/373).
+A> 
+A> A compiler plugin to generate the `scalaz.Free` boilerplate for an algebra would
+A> be greatly appreciated by every scalaz user.
+
+TODO: Optimise network lookup.
 
 
 ### TODO Free Applicative

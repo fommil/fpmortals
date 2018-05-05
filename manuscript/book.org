@@ -1519,15 +1519,15 @@ object Data {
 import Data._
 #+END_SRC
 
-We implement algebras by creating /handlers/ that extend =Drone= and
-=Machines= with a specific monadic context, =Id= being the simplest.
+We implement algebras by extending =Drone= and =Machines= with a specific
+monadic context, =Id= being the simplest.
 
 Our "mock" implementations simply play back a fixed =WorldView=. We've
 isolated the state of our system, so we can use =var= to store the
 state:
 
 #+BEGIN_SRC scala
-class MutableHandlers(state: WorldView) {
+class Mutable(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone[Id] = new Drone[Id] {
@@ -1552,21 +1552,20 @@ We will return to this code later on in the book and replace =var= with a
 principled way of managing state.
 #+END_ASIDE
 
-When we write a unit test (here using =FlatSpec= from scalatest), we
-create an instance of =MutableHandlers= and then import all of its
-members.
+When we write a unit test (here using =FlatSpec= from scalatest), we create an
+instance of =Mutable= and then import all of its members.
 
 Our implicit =drone= and =machines= both use the =Id= execution
 context and therefore interpreting this program with them returns an
 =Id[WorldView]= that we can assert on.
 
 In this trivial case we just check that the =initial= method returns
-the same value that we use in the static handlers:
+the same value that we use in the static implementations:
 
 #+BEGIN_SRC scala
   "Business Logic" should "generate an initial world view" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val mutable = new Mutable(needsAgents)
+    import mutable._
 
     program.initial shouldBe needsAgents
   }
@@ -1578,8 +1577,8 @@ helping us flush out bugs and refine the requirements:
 #+BEGIN_SRC scala
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = new MutableHandlers(world)
-    import handlers._
+    val mutable = new Mutable(world)
+    import mutable._
 
     val old = world.copy(alive = Map.empty,
                          pending = Map(node1 -> time2),
@@ -1588,8 +1587,8 @@ helping us flush out bugs and refine the requirements:
   }
 
   it should "request agents when needed" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val mutable = new Mutable(needsAgents)
+    import mutable._
 
     val expected = needsAgents.copy(
       pending = Map(node1 -> time1)
@@ -1597,8 +1596,8 @@ helping us flush out bugs and refine the requirements:
 
     program.act(needsAgents) shouldBe expected
 
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 1
+    mutable.stopped shouldBe 0
+    mutable.started shouldBe 1
   }
 #+END_SRC
 
@@ -1689,26 +1688,22 @@ Arguably, this is easier to understand than the sequential version.
 
 **** Parallel Interpretation
 
-Marking something as suitable for parallel execution does not
-guarantee that it will be executed in parallel: that is the
-responsibility of the handler. Not to state the obvious: parallel
-execution is supported by =Future=, but not =Id=.
+Marking something as suitable for parallel execution does not guarantee that it
+will be executed in parallel: that is the responsibility of the implementation.
+Not to state the obvious: parallel execution is supported by =Future=, but not
+=Id=.
 
-Of course, we need to be careful when implementing handlers such that
-they can perform operations safely in parallel, perhaps requiring
-protecting internal state with concurrency locks or actors.
+Of course, we need to be careful when implementing algebras such that they can
+perform operations safely in parallel, perhaps requiring protecting internal
+state with concurrency locks or actors.
 
 *** Summary
 
-1. /algebras/ define the interface between systems, implemented by
-   /handlers/.
-2. /modules/ define pure logic and depend on algebras and other
-   modules.
-3. modules are /interpreted/ by handlers
-4. Test handlers can mock out the side-effecting parts of the system
-   with trivial implementations, enabling a high level of test
-   coverage for the business logic.
-5. algebraic methods can be performed in parallel by taking their
+1. /algebras/ define the interface between systems.
+2. /modules/ define pure logic and depend on algebras and other modules.
+3. Test implementations can mock out the side-effecting parts of the system,
+   enabling a high level of test coverage for the business logic.
+4. algebraic methods can be performed in parallel by taking their
    product or traversing sequences (caveat emptor, revisited later).
 
 ** Data and Functionality
@@ -3847,8 +3842,8 @@ for {
 } yield update
 #+END_SRC
 
-But this hack pushes unnecessary complexity into the interpreters. It
-is better if we let our algebras return =F[Unit]= and use =as=:
+But this hack pushes unnecessary complexity into the implementations. It is
+better if we let our algebras return =F[Unit]= and use =as=:
 
 #+BEGIN_SRC scala
 m.start(node) as world.copy(pending = Map(node -> world.time))
@@ -5132,11 +5127,10 @@ Chapter 3 when we ran these effects in parallel
 (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 #+END_SRC
 
-because we know that they are commutative among themselves. When it
-comes to interpreting our application, later in the book, we will have
-to provide evidence that these effects are in fact commutative, or an
-asynchronous interpreter may choose to sequence the operations to be
-on the safe side.
+because we know that they are commutative among themselves. When it comes to
+interpreting our application, later in the book, we will have to provide
+evidence that these effects are in fact commutative, or an asynchronous
+implementation may choose to sequence the operations to be on the safe side.
 
 The subtleties of how we deal with (re)-ordering of effects, and what
 those effects are, deserves a dedicated chapter on Advanced Monads.
@@ -7492,11 +7486,11 @@ final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
 #+END_SRC
 
 Since our business logic only requires an =Applicative=, we can write mock
-interpreters with ~F[a]~ as ~Const[String, a]~. In each case, we return the name
-of the function that is called:
+implementations with ~F[a]~ as ~Const[String, a]~. In each case, we return the
+name of the function that is called:
 
 #+BEGIN_SRC scala
-object ConstHandlers {
+object ConstImpl {
   type F[a] = Const[String, a]
 
   implicit val drone: Drone[F] = new Drone[F] {
@@ -7521,7 +7515,7 @@ called:
 
 #+BEGIN_SRC scala
   it should "call the expected methods" in {
-    import ConstHandlers._
+    import ConstImpl._
 
     val alive    = Map(node1 -> time1, node2 -> time1)
     val world    = WorldView(1, 1, managed, alive, Map.empty, time4)
@@ -7540,9 +7534,9 @@ input, e.g. for accounting purposes. Furthermore, we've achieved this with
 compiletime safety.
 
 Let's take this line of thinking a little further and say we want to monitor (in
-production) the nodes that we are stopping in =act=. We can create handlers of
-=Drone= and =Machines= with =Const=, calling it from our wrapped version of
-=act=
+production) the nodes that we are stopping in =act=. We can create
+implementations of =Drone= and =Machines= with =Const=, calling it from our
+wrapped version of =act=
 
 #+BEGIN_SRC scala
 final class Monitored[U[_]: Functor](program: DynAgents[U]) {
@@ -7570,13 +7564,13 @@ final class Monitored[U[_]: Functor](program: DynAgents[U]) {
 We can do this because =monitor= is /pure/ and running it produces no side
 effects.
 
-This runs the program with the =Const= handler, extracting all the calls to
+This runs the program with =ConstImpl=, extracting all the calls to
 =Machines.stop=, then returning it alongside the =WorldView=. We can unit test
 this:
 
 #+BEGIN_SRC scala
   it should "monitor stopped nodes" in {
-    val underlying = new MutableHandlers(needsAgents).program
+    val underlying = new Mutable(needsAgents).program
 
     val alive = Map(node1 -> time1, node2 -> time1)
     val world = WorldView(1, 1, managed, alive, Map.empty, time4)
@@ -7591,9 +7585,9 @@ We have used =Const= to do something that looks like /Aspect Oriented
 Programming/, once popular in Java. We built on top of our business logic to
 support a monitoring concern, without having to complicate the business logic.
 
-It gets even better. We can run the =Const= handler in production to gather what
-we want to =stop=, and then provide an *optimised* implementation of =act= that
-can make use of handler-specific batched calls.
+It gets even better. We can run =ConstImpl= in production to gather what we want
+to =stop=, and then provide an *optimised* implementation of =act= that can make
+use of implementation-specific batched calls.
 
 The silent hero of this story is =Applicative=. =Const= lets us show off what is
 possible. If we need to change our program to require a =Monad=, we can no
@@ -10348,12 +10342,12 @@ object State {
 #+END_SRC
 
 For an example we can return to the business logic tests of
-=drone-dynamic-agents=. Recall from Chapter 3 that we created =MutableHandlers=
-as test interpreters for our application and we stored the number of =started=
-and =stoped= nodes in =var=.
+=drone-dynamic-agents=. Recall from Chapter 3 that we created =Mutable= as test
+interpreters for our application and we stored the number of =started= and
+=stoped= nodes in =var=.
 
 #+BEGIN_SRC scala
-class MutableHandlers(state: WorldView) {
+class Mutable(state: WorldView) {
   var started, stopped: Int = 0
 
   implicit val drone: Drone[Id] = new Drone[Id] { ... }
@@ -10409,7 +10403,7 @@ services, may be implemented like this:
 
 #+BEGIN_SRC scala
 import State.{ get, modify }
-object StateHandlers {
+object StateImpl {
   type F[a] = State[World, a]
 
   implicit val drone: Drone[F] = new Drone[F] {
@@ -10446,7 +10440,7 @@ For example,
     val world1          = World(5, 0, managed, Map(), Set(), Set(), time1)
     val view1           = WorldView(5, 0, managed, Map(), Map(), time1)
 
-    val (world2, view2) = StateHandlers.program.act(view1).run(world1)
+    val (world2, view2) = StateImpl.program.act(view1).run(world1)
 
     view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
     world2.stopped.shouldBe(world1.stopped)
@@ -11503,33 +11497,110 @@ and is the best place to get involved, if performance optimisation is your
 thing.
 #+END_ASIDE
 
-**** TODO Generated Freely
+**** Generated Freely
+
+As a refresher, =Free= is defined as an ADT of three elements
 
 #+BEGIN_SRC scala
 sealed abstract class Free[S[_], A]
 object Free {
-  private final case class Return[S[_], A](a: A)     extends Free[S, A]
   private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  private final case class Return[S[_], A](a: A)     extends Free[S, A]
   private final case class Gosub[S[_], A0, B](
     a: Free[S, A0],
     f: A0 => Free[S, B]
   ) extends Free[S, B] { type A = A0 }
+
+  def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
   ...
 }
 #+END_SRC
 
-TODO: previously we only studied =Free= when =S= was a thunk
+- =Suspend= represents a program that has not yet been interpreted
+- =Return= is =.pure=
+- =Gosub= is =.bind=
+
+Previously we studied =Free= when =S= was a thunk
 
 #+BEGIN_SRC scala
 type Trampoline[A] = Free[() => ?, A]
 #+END_SRC
 
-TODO: but we can create a =Free= for any algebra. Optimise network lookup.
+and made a cryptic comment that =Free= can be /freely generated/ for any
+algebra. To make this explicit with an example, consider our application's
+=Machines= algebra
+
+#+BEGIN_SRC scala
+trait Machines[F[_]] {
+  def getTime: F[Instant]
+  def getManaged: F[NonEmptyList[MachineNode]]
+  def getAlive: F[Map[MachineNode, Instant]]
+  def start(node: MachineNode): F[Unit]
+  def stop(node: MachineNode): F[Unit]
+}
+#+END_SRC
+
+We define a freely generated =Free= for =Machines= by creating an GADT with a
+data type for each element of the algebra. Each data type has the same input
+parameters as its corresponding element, is parameterised over the return type,
+with the convention that it is named the same but capitalised:
+
+#+BEGIN_SRC scala
+object Machines {
+  sealed abstract class Ast[A]
+  final case class GetTime()                extends Ast[Instant]
+  final case class GetManaged()             extends Ast[NonEmptyList[MachineNode]]
+  final case class GetAlive()               extends Ast[Map[MachineNode, Instant]]
+  final case class Start(node: MachineNode) extends Ast[Unit]
+  final case class Stop(node: MachineNode)  extends Ast[Unit]
+  ...
+#+END_SRC
+
+The GADT defines an Abstract Syntax Tree (AST) because each member is
+representing a computation in a program.
+
+Note that the freely generated =Free= for =Machines= is for the AST,
+=Free[Machines.Ast, ?]=, not the algebraic interface.
+
+We then define =Handler=, an implementation of =Machines=, with =Free[Ast, ?]=
+as the context. Every method simply delegates to =Free.liftT= to create a
+=Suspend=
+
+#+BEGIN_SRC scala
+  ...
+  object Handler extends Machines[Free[Ast, ?]] {
+    def getTime = Free.liftF(GetTime())
+    def getManaged = Free.liftF(GetManaged())
+    def getAlive = Free.liftF(GetAlive())
+    def start(node: MachineNode) = Free.liftF(Start(node))
+    def stop(node: MachineNode) = Free.liftF(Stop(node))
+  }
+}
+#+END_SRC
+
+# http://frees.io/docs/core/algebras/
+# https://underscore.io/blog/posts/2015/04/14/free-monads-are-simple.html
+# http://perevillega.com/understanding-free-monads
+# https://www.chrisstucchio.com/blog/2015/free_monads_in_scalaz.html
+
+#+BEGIN_ASIDE
+The [[http://frees.io/docs/core/algebras/][Freestyle]] project introduces a =@free= annotation that automatically
+produces the =Free= for an algebra, along with other conveniences. Unfortunately
+it depends on the [[https://github.com/frees-io/freestyle/issues/539][deprecated =scalameta-macros=]] project and [[https://github.com/frees-io/freestyle/issues/373][does not yet support
+scalaz]].
+
+A compiler plugin to generate the =scalaz.Free= boilerplate for an algebra would
+be greatly appreciated by every scalaz user.
+#+END_ASIDE
+
+TODO: Optimise network lookup.
 
 
 **** TODO Free Applicative
 **** TODO Free anything
 
+# http://degoes.net/articles/effects-without-transformers
+# and John's winter retreat talk...
 
 ** The Infinite Sadness
 

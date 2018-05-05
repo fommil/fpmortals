@@ -1014,8 +1014,8 @@ We'll start with some test data
   import Data._
 ~~~~~~~~
 
-We implement algebras by creating *handlers* that extend `Drone` and
-`Machines` with a specific monadic context, `Id` being the simplest.
+We implement algebras by extending `Drone` and `Machines` with a specific
+monadic context, `Id` being the simplest.
 
 Our "mock" implementations simply play back a fixed `WorldView`. We've
 isolated the state of our system, so we can use `var` to store the
@@ -1023,7 +1023,7 @@ state:
 
 {lang="text"}
 ~~~~~~~~
-  class MutableHandlers(state: WorldView) {
+  class Mutable(state: WorldView) {
     var started, stopped: Int = 0
   
     implicit val drone: Drone[Id] = new Drone[Id] {
@@ -1046,22 +1046,21 @@ state:
 A> We will return to this code later on in the book and replace `var` with a
 A> principled way of managing state.
 
-When we write a unit test (here using `FlatSpec` from scalatest), we
-create an instance of `MutableHandlers` and then import all of its
-members.
+When we write a unit test (here using `FlatSpec` from scalatest), we create an
+instance of `Mutable` and then import all of its members.
 
 Our implicit `drone` and `machines` both use the `Id` execution
 context and therefore interpreting this program with them returns an
 `Id[WorldView]` that we can assert on.
 
 In this trivial case we just check that the `initial` method returns
-the same value that we use in the static handlers:
+the same value that we use in the static implementations:
 
 {lang="text"}
 ~~~~~~~~
   "Business Logic" should "generate an initial world view" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val mutable = new Mutable(needsAgents)
+    import mutable._
   
     program.initial shouldBe needsAgents
   }
@@ -1074,8 +1073,8 @@ helping us flush out bugs and refine the requirements:
 ~~~~~~~~
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
-    val handlers = new MutableHandlers(world)
-    import handlers._
+    val mutable = new Mutable(world)
+    import mutable._
   
     val old = world.copy(alive = Map.empty,
                          pending = Map(node1 -> time2),
@@ -1084,8 +1083,8 @@ helping us flush out bugs and refine the requirements:
   }
   
   it should "request agents when needed" in {
-    val handlers = new MutableHandlers(needsAgents)
-    import handlers._
+    val mutable = new Mutable(needsAgents)
+    import mutable._
   
     val expected = needsAgents.copy(
       pending = Map(node1 -> time1)
@@ -1093,8 +1092,8 @@ helping us flush out bugs and refine the requirements:
   
     program.act(needsAgents) shouldBe expected
   
-    handlers.stopped shouldBe 0
-    handlers.started shouldBe 1
+    mutable.stopped shouldBe 0
+    mutable.started shouldBe 1
   }
 ~~~~~~~~
 
@@ -1193,27 +1192,23 @@ Arguably, this is easier to understand than the sequential version.
 
 ### Parallel Interpretation
 
-Marking something as suitable for parallel execution does not
-guarantee that it will be executed in parallel: that is the
-responsibility of the handler. Not to state the obvious: parallel
-execution is supported by `Future`, but not `Id`.
+Marking something as suitable for parallel execution does not guarantee that it
+will be executed in parallel: that is the responsibility of the implementation.
+Not to state the obvious: parallel execution is supported by `Future`, but not
+`Id`.
 
-Of course, we need to be careful when implementing handlers such that
-they can perform operations safely in parallel, perhaps requiring
-protecting internal state with concurrency locks or actors.
+Of course, we need to be careful when implementing algebras such that they can
+perform operations safely in parallel, perhaps requiring protecting internal
+state with concurrency locks or actors.
 
 
 ## Summary
 
-1.  *algebras* define the interface between systems, implemented by
-    *handlers*.
-2.  *modules* define pure logic and depend on algebras and other
-    modules.
-3.  modules are *interpreted* by handlers
-4.  Test handlers can mock out the side-effecting parts of the system
-    with trivial implementations, enabling a high level of test
-    coverage for the business logic.
-5.  algebraic methods can be performed in parallel by taking their
+1.  *algebras* define the interface between systems.
+2.  *modules* define pure logic and depend on algebras and other modules.
+3.  Test implementations can mock out the side-effecting parts of the system,
+    enabling a high level of test coverage for the business logic.
+4.  algebraic methods can be performed in parallel by taking their
     product or traversing sequences (caveat emptor, revisited later).
 
 
@@ -3243,8 +3238,8 @@ and
   } yield update
 ~~~~~~~~
 
-But this hack pushes unnecessary complexity into the interpreters. It
-is better if we let our algebras return `F[Unit]` and use `as`:
+But this hack pushes unnecessary complexity into the implementations. It is
+better if we let our algebras return `F[Unit]` and use `as`:
 
 {lang="text"}
 ~~~~~~~~
@@ -4383,11 +4378,10 @@ Chapter 3 when we ran these effects in parallel
   (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 ~~~~~~~~
 
-because we know that they are commutative among themselves. When it
-comes to interpreting our application, later in the book, we will have
-to provide evidence that these effects are in fact commutative, or an
-asynchronous interpreter may choose to sequence the operations to be
-on the safe side.
+because we know that they are commutative among themselves. When it comes to
+interpreting our application, later in the book, we will have to provide
+evidence that these effects are in fact commutative, or an asynchronous
+implementation may choose to sequence the operations to be on the safe side.
 
 The subtleties of how we deal with (re)-ordering of effects, and what
 those effects are, deserves a dedicated chapter on Advanced Monads.
@@ -6531,12 +6525,12 @@ wrote `logic.scala` before we learnt about `Applicative` and now we know better:
 ~~~~~~~~
 
 Since our business logic only requires an `Applicative`, we can write mock
-interpreters with `F[a]` as `Const[String, a]`. In each case, we return the name
-of the function that is called:
+implementations with `F[a]` as `Const[String, a]`. In each case, we return the
+name of the function that is called:
 
 {lang="text"}
 ~~~~~~~~
-  object ConstHandlers {
+  object ConstImpl {
     type F[a] = Const[String, a]
   
     implicit val drone: Drone[F] = new Drone[F] {
@@ -6562,7 +6556,7 @@ called:
 {lang="text"}
 ~~~~~~~~
   it should "call the expected methods" in {
-    import ConstHandlers._
+    import ConstImpl._
   
     val alive    = Map(node1 -> time1, node2 -> time1)
     val world    = WorldView(1, 1, managed, alive, Map.empty, time4)
@@ -6581,9 +6575,9 @@ input, e.g. for accounting purposes. Furthermore, we've achieved this with
 compiletime safety.
 
 Let's take this line of thinking a little further and say we want to monitor (in
-production) the nodes that we are stopping in `act`. We can create handlers of
-`Drone` and `Machines` with `Const`, calling it from our wrapped version of
-`act`
+production) the nodes that we are stopping in `act`. We can create
+implementations of `Drone` and `Machines` with `Const`, calling it from our
+wrapped version of `act`
 
 {lang="text"}
 ~~~~~~~~
@@ -6612,14 +6606,14 @@ production) the nodes that we are stopping in `act`. We can create handlers of
 We can do this because `monitor` is *pure* and running it produces no side
 effects.
 
-This runs the program with the `Const` handler, extracting all the calls to
+This runs the program with `ConstImpl`, extracting all the calls to
 `Machines.stop`, then returning it alongside the `WorldView`. We can unit test
 this:
 
 {lang="text"}
 ~~~~~~~~
   it should "monitor stopped nodes" in {
-    val underlying = new MutableHandlers(needsAgents).program
+    val underlying = new Mutable(needsAgents).program
   
     val alive = Map(node1 -> time1, node2 -> time1)
     val world = WorldView(1, 1, managed, alive, Map.empty, time4)
@@ -6634,9 +6628,9 @@ We have used `Const` to do something that looks like *Aspect Oriented
 Programming*, once popular in Java. We built on top of our business logic to
 support a monitoring concern, without having to complicate the business logic.
 
-It gets even better. We can run the `Const` handler in production to gather what
-we want to `stop`, and then provide an **optimised** implementation of `act` that
-can make use of handler-specific batched calls.
+It gets even better. We can run `ConstImpl` in production to gather what we want
+to `stop`, and then provide an **optimised** implementation of `act` that can make
+use of implementation-specific batched calls.
 
 The silent hero of this story is `Applicative`. `Const` lets us show off what is
 possible. If we need to change our program to require a `Monad`, we can no
