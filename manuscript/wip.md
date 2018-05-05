@@ -2145,9 +2145,9 @@ so on.
 
 The JIT does not perform optimisations of our business logic, for example
 batching network calls or parallelising independent tasks. The developer is
-responsible for designing accordingly. However, optimisations make our business
-logic harder to read and maintain. It would be good if optimisation was a
-tangential concern.
+responsible for writing the business logic and optimisations at the same time,
+reducing readability and making it harder to maintain. It would be good if
+optimisation was a tangential concern.
 
 The `Free` monad is a data structure that represents a suspended `Monad`, or in
 other words it is a data structure that describes our business logic, lending
