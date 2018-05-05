@@ -2113,10 +2113,101 @@ A> `Lifted` wrappers, but nobody has done so. This would be a great contribution
 A> the ecosystem!
 
 
-#### TODO Performance
+#### Performance
 
-can be devastating to a high throughput application. However,
-`scalaz.ioeffect.IO` to the rescue...
+The biggest problem with Monad Transformers is their performance overhead.
+`EitherT` has a reasonably low overhead, with every `.flatMap` call generating a
+handful of objects, but this can impact high throughput applications where every
+object allocation matters. Other transformers, such as `StateT`, effectively add
+a trampoline, and `ContT` keeps the entire call-chain retained in memory.
+
+A> Your application might not care about allocations if it is bounded by network or
+A> I/O. Always measure.
+
+If performance becomes a problem, the solution is to not use Monad Transformers.
+At least not the transformer data structures. A big advantage of the `Monad`
+typeclasses, like `MonadState` is that we can create an optimised `F[_]` for our
+application that provides the typeclasses naturally. We will learn how to create
+an optimal `F[_]` over the next two chapters, when we deep dive into two
+structures which we have already seen: `Free` and `IO`.
+
+
+## A `Free` Lunch
+
+Our industry craves safer higher-level languages, gaining developer efficiency
+(time to market) and reliability at the cost of reduced runtime performance.
+
+The Just In Time (JIT) compiler on the JVM performs so well that simple
+functions can have comparable performance characteristics as their C or C++
+equivalents, ignoring the cost of garbage collection. However, the JIT only
+performs *low level optimisations*: branch prediction, inlining methods,
+unrolling loops, and so on.
+
+The JIT does not perform optimisations of our business logic, for example
+batching network calls or parallelising independent tasks. The developer is
+responsible for designing accordingly. However, optimisations make our business
+logic harder to read and maintain. It would be good if optimisation was a
+tangential concern.
+
+The `Free` monad is a data structure that represents a lazily evaluated
+(suspended) `Monad`, or in other words it is a data structure that describes our
+business logic, lending itself to analysis and *high level optimisation*. A
+`Free` monad can be created and transformed at runtime (carrying an overhead)
+allowing us to streamline or de-duplicate expensive work.
+
+In this section we will learn how to create a `Free` monad, how to use it, and
+how to generalise the concept beyond `Monad`.
+
+A> Functional Programming lends itself well to compiletime optimisations, an area
+A> that has not been explored to its full potential for Scala. Consider mapping
+A> over a `Functor` three times:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   xs.map(a).map(b).map(c)
+A> ~~~~~~~~
+A> 
+A> A technique known as *map fusion* allows us to rewrite this expression as
+A> `xs.map(x => c(b(a(x))))`, avoiding intermediate representations. For example,
+A> if `xs` is a `List` of a thousand elements, we save two thousand object
+A> allocations. Such optimisations are not possible if any of the methods are
+A> impure.
+A> 
+A> The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project is attempting to implement these optimisations
+A> and is the best place to get involved, if performance optimisation is your
+A> thing.
+
+
+### TODO Generated Freely
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Free[S[_], A]
+  object Free {
+    private final case class Return[S[_], A](a: A)     extends Free[S, A]
+    private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+    private final case class Gosub[S[_], A0, B](
+      a: Free[S, A0],
+      f: A0 => Free[S, B]
+    ) extends Free[S, B] { type A = A0 }
+    ...
+  }
+~~~~~~~~
+
+TODO: previously we only studied `Free` when `S` was a thunk
+
+{lang="text"}
+~~~~~~~~
+  type Trampoline[A] = Free[() => ?, A]
+~~~~~~~~
+
+TODO: but we can create a `Free` for any algebra. Optimise network lookup.
+
+
+### TODO Free Applicative
+
+
+### TODO Free anything
 
 
 # The Infinite Sadness
@@ -2129,7 +2220,6 @@ You can expect to see chapters covering the following topics:
 -   Advanced Monads (more to come)
 -   Typeclass Derivation
 -   Optics
--   Finish off `drone-dynamic-agents`
 
 while continuing to build out the example application.
 

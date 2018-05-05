@@ -11453,19 +11453,57 @@ application that provides the typeclasses naturally. We will learn how to create
 an optimal =F[_]= over the next two chapters, when we deep dive into two
 structures which we have already seen: =Free= and =IO=.
 
-*** TODO =Free= as in Freedom
+*** A =Free= Lunch
 
 # You are free to use any methods necessary, but I want them alive.
 # Jabba! This is your last chance. Free us or die.
 # But these are my friends. Threepio, tell them they must be set free.
 
-TODO: something about how programming languages behind higher level, and we
-expect the runtime to optimise everything while interpreting our code, but in
-fact there is an opportunity for us to optimise the interpretation before
-handing off to the bytecode.
+Our industry craves safer higher-level languages, gaining developer efficiency
+(time to market) and reliability at the cost of reduced runtime performance.
+
+The Just In Time (JIT) compiler on the JVM performs so well that simple
+functions can have comparable performance characteristics as their C or C++
+equivalents, ignoring the cost of garbage collection. However, the JIT only
+performs /low level optimisations/: branch prediction, inlining methods,
+unrolling loops, and so on.
+
+The JIT does not perform optimisations of our business logic, for example
+batching network calls or parallelising independent tasks. The developer is
+responsible for designing accordingly. However, optimisations make our business
+logic harder to read and maintain. It would be good if optimisation was a
+tangential concern.
 
 The =Free= monad is a data structure that represents a lazily evaluated
-(suspended) =Monad=
+(suspended) =Monad=, or in other words it is a data structure that describes our
+business logic, lending itself to analysis and /high level optimisation/. A
+=Free= monad can be created and transformed at runtime (carrying an overhead)
+allowing us to streamline or de-duplicate expensive work.
+
+In this section we will learn how to create a =Free= monad, how to use it, and
+how to generalise the concept beyond =Monad=.
+
+#+BEGIN_ASIDE
+Functional Programming lends itself well to compiletime optimisations, an area
+that has not been explored to its full potential for Scala. Consider mapping
+over a =Functor= three times:
+
+#+BEGIN_SRC scala
+xs.map(a).map(b).map(c)
+#+END_SRC
+
+A technique known as /map fusion/ allows us to rewrite this expression as
+=xs.map(x => c(b(a(x))))=, avoiding intermediate representations. For example,
+if =xs= is a =List= of a thousand elements, we save two thousand object
+allocations. Such optimisations are not possible if any of the methods are
+impure.
+
+The [[https://github.com/oleg-py/better-monadic-for/issues/6][=better-monadic-for=]] project is attempting to implement these optimisations
+and is the best place to get involved, if performance optimisation is your
+thing.
+#+END_ASIDE
+
+**** TODO Generated Freely
 
 #+BEGIN_SRC scala
 sealed abstract class Free[S[_], A]
