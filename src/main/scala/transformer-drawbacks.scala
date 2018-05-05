@@ -4,7 +4,7 @@
 package transdrawbacks
 
 import scalaz._, Scalaz._
-import scalaz.effect.{ IO, LiftIO }
+import scalaz.effect.{ IO, LiftIO, MonadIO }
 
 final case class Problem(bad: Int)
 final case class Table(last: Int)
@@ -55,6 +55,10 @@ object Logic {
     def look3: Ctx[Int] = io.look.liftCtx
 
     def look: Ctx[Int] = io.look.liftIO[Ctx]
+  }
+
+  final class LookupLifted[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+    def look: F[Int] = io.look.liftIO[F]
   }
 
   def foo[F[_]: Monad](L: Lookup[F])(

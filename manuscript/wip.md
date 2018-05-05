@@ -2082,33 +2082,35 @@ We'll be typing this a **lot**, so it is useful to create some syntax
   }
 ~~~~~~~~
 
-It's important to understand how to convert between contexts if needed, but the
-good news is that we don't typically need to write the converters or syntax.
-Scalaz already provides `scalaz.effect.LiftIO` because lifting an `IO` into a
-transformer stack is so common:
+It's important to understand how to convert between contexts manually as needed,
+as we have done. The good news is that we don't typically need to write the
+converters or syntax. Scalaz already provides `scalaz.effect.LiftIO` because
+lifting an `IO` into a transformer stack is so common:
 
 {lang="text"}
 ~~~~~~~~
   @typeclass trait LiftIO[F[_]] {
     def liftIO[A](ioa: IO[A]): F[A]
   }
+  @typeclass trait MonadIO[F[_]] extends LiftIO[F] with Monad[F]
 ~~~~~~~~
 
-with instances for all the common combinations of transformers.
+with `MonadIO` instances for all the common combinations of transformers.
 
-The boilerplate overhead to lift an `IO` interpreter is therefore two lines of
-code per interpreter, and another one line per element of the algebra:
+The boilerplate overhead to lift an `IO` interpreter to anything with a
+`MonadIO` instance is therefore two lines of code (for the interpreter
+definition) plus one line per element of the algebra:
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
-    def look: Ctx[Int] = io.look.liftIO[Ctx]
+  final class LookupLifted[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+    def look: F[Int] = io.look.liftIO[F]
   }
 ~~~~~~~~
 
-A> It should be possible to write a compiler plugin that can automatically produce
-A> the wrappers, but nobody has done so. This would be a great contribution to the
-A> ecosystem!
+A> It is possible to possible a compiler plugin that automatically produces the
+A> `Lifted` wrappers, but nobody has done so. This would be a great contribution to
+A> the ecosystem!
 
 
 #### TODO Performance

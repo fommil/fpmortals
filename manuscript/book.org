@@ -11398,32 +11398,34 @@ We'll be typing this a *lot*, so it is useful to create some syntax
   }
 #+END_SRC
 
-It's important to understand how to convert between contexts if needed, but the
-good news is that we don't typically need to write the converters or syntax.
-Scalaz already provides =scalaz.effect.LiftIO= because lifting an =IO= into a
-transformer stack is so common:
+It's important to understand how to convert between contexts manually as needed,
+as we have done. The good news is that we don't typically need to write the
+converters or syntax. Scalaz already provides =scalaz.effect.LiftIO= because
+lifting an =IO= into a transformer stack is so common:
 
 #+BEGIN_SRC scala
 @typeclass trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
+@typeclass trait MonadIO[F[_]] extends LiftIO[F] with Monad[F]
 #+END_SRC
 
-with instances for all the common combinations of transformers.
+with =MonadIO= instances for all the common combinations of transformers.
 
-The boilerplate overhead to lift an =IO= interpreter is therefore two lines of
-code per interpreter, and another one line per element of the algebra:
+The boilerplate overhead to lift an =IO= interpreter to anything with a
+=MonadIO= instance is therefore two lines of code (for the interpreter
+definition) plus one line per element of the algebra:
 
 #+BEGIN_SRC scala
-  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
-    def look: Ctx[Int] = io.look.liftIO[Ctx]
+  final class LookupLifted[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+    def look: F[Int] = io.look.liftIO[F]
   }
 #+END_SRC
 
 #+BEGIN_ASIDE
-It should be possible to write a compiler plugin that can automatically produce
-the wrappers, but nobody has done so. This would be a great contribution to the
-ecosystem!
+It is possible to possible a compiler plugin that automatically produces the
+=Lifted= wrappers, but nobody has done so. This would be a great contribution to
+the ecosystem!
 #+END_ASIDE
 
 # https://github.com/kailuowang/mainecoon is almost what we need, but not quite
@@ -11431,10 +11433,65 @@ ecosystem!
 # From Fabio
 # https://hackage.haskell.org/package/layers-0.1/docs/Documentation-Layers-Overview.html
 
-***** TODO Performance
+***** Performance
 
-can be devastating to a high throughput application. However,
-=scalaz.ioeffect.IO= to the rescue...
+The biggest problem with Monad Transformers is their performance overhead.
+=EitherT= has a reasonably low overhead, with every =.flatMap= call generating a
+handful of objects, but this can impact high throughput applications where every
+object allocation matters. Other transformers, such as =StateT=, effectively add
+a trampoline, and =ContT= keeps the entire call-chain retained in memory.
+
+#+BEGIN_ASIDE
+Your application might not care about allocations if it is bounded by network or
+I/O. Always measure.
+#+END_ASIDE
+
+If performance becomes a problem, the solution is to not use Monad Transformers.
+At least not the transformer data structures. A big advantage of the =Monad=
+typeclasses, like =MonadState= is that we can create an optimised =F[_]= for our
+application that provides the typeclasses naturally. We will learn how to create
+an optimal =F[_]= over the next two chapters, when we deep dive into two
+structures which we have already seen: =Free= and =IO=.
+
+*** TODO =Free= as in Freedom
+
+# You are free to use any methods necessary, but I want them alive.
+# Jabba! This is your last chance. Free us or die.
+# But these are my friends. Threepio, tell them they must be set free.
+
+TODO: something about how programming languages behind higher level, and we
+expect the runtime to optimise everything while interpreting our code, but in
+fact there is an opportunity for us to optimise the interpretation before
+handing off to the bytecode.
+
+The =Free= monad is a data structure that represents a lazily evaluated
+(suspended) =Monad=
+
+#+BEGIN_SRC scala
+sealed abstract class Free[S[_], A]
+object Free {
+  private final case class Return[S[_], A](a: A)     extends Free[S, A]
+  private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+  private final case class Gosub[S[_], A0, B](
+    a: Free[S, A0],
+    f: A0 => Free[S, B]
+  ) extends Free[S, B] { type A = A0 }
+  ...
+}
+#+END_SRC
+
+TODO: previously we only studied =Free= when =S= was a thunk
+
+#+BEGIN_SRC scala
+type Trampoline[A] = Free[() => ?, A]
+#+END_SRC
+
+TODO: but we can create a =Free= for any algebra. Optimise network lookup.
+
+
+**** TODO Free Applicative
+**** TODO Free anything
+
 
 ** The Infinite Sadness
 
@@ -11446,7 +11503,6 @@ You can expect to see chapters covering the following topics:
 - Advanced Monads (more to come)
 - Typeclass Derivation
 - Optics
-- Finish off =drone-dynamic-agents=
 
 # Maybe...
 # - Functional Streams
