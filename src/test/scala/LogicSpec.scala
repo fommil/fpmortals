@@ -43,7 +43,7 @@ final case class World(
   time: Instant
 )
 
-object StateHandlers {
+object StateImpl {
   type F[a] = State[World, a]
   import State.{ get, modify }
 
@@ -68,7 +68,7 @@ object StateHandlers {
   val program: DynAgents[F] = new DynAgents[F]
 }
 
-object ConstHandlers {
+object ConstImpl {
   type F[a] = Const[String, a]
 
   implicit val drone: Drone[F] = new Drone[F] {
@@ -89,7 +89,7 @@ object ConstHandlers {
 }
 
 final class LogicSpec extends FlatSpec {
-  import StateHandlers.program.{ act, initial, update }
+  import StateImpl.program.{ act, initial, update }
 
   "Business Logic" should "generate an initial world view" in {
     val world1          = hungry
@@ -206,7 +206,7 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "call the expected methods" in {
-    import ConstHandlers._
+    import ConstImpl._
 
     val world1 = WorldView(1,
                            1,
@@ -227,7 +227,7 @@ final class LogicSpec extends FlatSpec {
                           Map.empty,
                           time4)
 
-    val monitored       = new Monitored(StateHandlers.program)
+    val monitored       = new Monitored(StateImpl.program)
     val (world2, view2) = monitored.act(view1).run(world1)
 
     world2.stopped.shouldBe(Set(node1, node2))
