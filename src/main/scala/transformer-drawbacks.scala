@@ -57,7 +57,7 @@ object Logic {
     def look: Ctx[Int] = io.look.liftIO[Ctx]
   }
 
-  final class LookupLiftIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+  final class LookupMonadIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
     def look: F[Int] = io.look.liftIO[F]
   }
 
@@ -71,6 +71,9 @@ object Logic {
 
   val wrap2: Lookup[Ctx] =
     new LookupTrans[EitherT[IO, Problem, ?], Ctx2](wrap1)
+
+  //val wrap: Lookup[Ctx] =
+  //  new LookupTrans[IO, Ctx0](LookupRandom)
 
   def foo[F[_]: Monad](L: Lookup[F])(
     implicit E: MonadError[F, Problem],
@@ -126,7 +129,7 @@ object Logic {
 
     foo3[Ctx](L)
 
-    val L2: Lookup[Ctx] = new LookupLiftIO(LookupRandom)
+    val L2: Lookup[Ctx] = new LookupMonadIO(LookupRandom)
   }
 
 }

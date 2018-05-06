@@ -11403,11 +11403,11 @@ definition), plus one line per element of the algebra, and a final line to call
 it:
 
 #+BEGIN_SRC scala
-  final class LookupLiftIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+  final class LookupMonadIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
     def look: F[Int] = io.look.liftIO[F]
   }
 
-  val L: Lookup[Ctx] = new LookupLiftIO(LookupRandom)
+  val L: Lookup[Ctx] = new LookupMonadIO(LookupRandom)
 #+END_SRC
 
 #+BEGIN_ASIDE
@@ -11440,7 +11440,7 @@ application that provides the typeclasses naturally. We will learn how to create
 an optimal =F[_]= over the next two chapters, when we deep dive into two
 structures which we have already seen: =Free= and =IO=.
 
-*** A =Free= Lunch
+*** A Free Lunch
 
 # You are free to use any methods necessary, but I want them alive.
 # Jabba! This is your last chance. Free us or die.
@@ -11461,14 +11461,15 @@ responsible for writing the business logic and optimisations at the same time,
 reducing readability and making it harder to maintain. It would be good if
 optimisation was a tangential concern.
 
-The =Free= monad is a data structure that represents a suspended =Monad=, or in
-other words it is a data structure that describes our business logic, lending
-itself to analysis and /high level optimisation/. A =Free= monad can be created
-and transformed at runtime allowing us to streamline or de-duplicate expensive
-work.
+If instead, we have a data structure that describes our business logic in terms
+of high level concepts, not machine instructions, we can perform /high level
+optimisation/. Data structures of this nature are typically called /Free/
+structures and can be generated for free for the members of the algebraic
+interfaces of our program. For example, a /Free Applicative/ can be generated
+that allows us to batch or de-duplicate expensive network I/O.
 
-In this section we will learn how to create a =Free= monad, what it is good for,
-and how to generalise the concept beyond =Monad=.
+In this section we will learn how to create free structures, and what they are
+good for.
 
 #+BEGIN_ASIDE
 Functional Programming lends itself well to compiletime optimisations, an area
@@ -11482,17 +11483,16 @@ xs.map(a).map(b).map(c)
 A technique known as /map fusion/ allows us to rewrite this expression as
 =xs.map(x => c(b(a(x))))=, avoiding intermediate representations. For example,
 if =xs= is a =List= of a thousand elements, we save two thousand object
-allocations. Such optimisations are not possible if any of the methods are
-impure.
+allocations.
 
-The [[https://github.com/oleg-py/better-monadic-for/issues/6][=better-monadic-for=]] project is attempting to implement these optimisations
-and is the best place to get involved, if performance optimisation is your
-thing.
+The [[https://github.com/oleg-py/better-monadic-for/issues/6][=better-monadic-for=]] project is attempting to implement these /middle-level
+optimisations/, which is beyond the scope of this book.
 #+END_ASIDE
 
-**** Generated Freely
+**** =Free Monad=
 
-As a refresher, =Free= is defined as an ADT with three members
+As a refresher, =Free= is the data structure representation of a =Monad= and is
+defined with three members
 
 #+BEGIN_SRC scala
 sealed abstract class Free[S[_], A]
@@ -11505,6 +11505,7 @@ object Free {
   ) extends Free[S, B] { type A = A0 }
 
   def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
+  def foldMap[M[_]](f: S ~> M)(implicit M: Monad[M]): M[A] = ...
   ...
 }
 #+END_SRC
@@ -11571,6 +11572,33 @@ as the context. Every method simply delegates to =Free.liftT= to create a
 }
 #+END_SRC
 
+When we construct our program, parameterised over a =Free=, we run it by
+providing an /interpreter/ (a natural transformation =Ast ~> M=) with the
+=.foldMap= method. For example, if we provide an interpreter that maps to =IO=
+we would interpret the free program with
+
+#+BEGIN_SRC scala
+import Machines.Ast
+
+val interpreter: Ast ~> IO = ...
+val program: Free[Ast, Unit] = ...
+val result: IO[Unit] = program.foldMap(interpreter)
+#+END_SRC
+
+For completeness, an interpreter that delegates to a direct implementation is
+always possible. This might be useful to have if the rest of the application is
+using =Free= as the context but we just have a simple =IO= implementation:
+
+#+BEGIN_SRC scala
+  def unhandle[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+    case GetTime()    => f.getTime
+    case GetManaged() => f.getManaged
+    case GetAlive()   => f.getAlive
+    case Start(node)  => f.start(node)
+    case Stop(node)   => f.stop(node)
+  }
+#+END_SRC
+
 # http://frees.io/docs/core/algebras/
 # https://underscore.io/blog/posts/2015/04/14/free-monads-are-simple.html
 # http://perevillega.com/understanding-free-monads
@@ -11583,8 +11611,16 @@ would be a great contribution to the ecosystem!
 
 TODO: Optimise network lookup.
 
+**** TODO =FreeAp=
+**** TODO =Coyoneda= (=FreeFun=)
 
-**** TODO Free Applicative
+# https://www.youtube.com/watch?v=H28QqxO7Ihc
+# https://www.youtube.com/watch?v=A-lmrvsUi2Y
+
+- Programs that change values
+- Programs that build data
+- Programs that build programs
+
 **** TODO Free anything
 
 # http://degoes.net/articles/effects-without-transformers

@@ -2094,11 +2094,11 @@ it:
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupLiftIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+  final class LookupMonadIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
     def look: F[Int] = io.look.liftIO[F]
   }
   
-  val L: Lookup[Ctx] = new LookupLiftIO(LookupRandom)
+  val L: Lookup[Ctx] = new LookupMonadIO(LookupRandom)
 ~~~~~~~~
 
 A> A compiler plugin that automatically produces the `Lifted` wrappers would be a
@@ -2124,7 +2124,7 @@ an optimal `F[_]` over the next two chapters, when we deep dive into two
 structures which we have already seen: `Free` and `IO`.
 
 
-## A `Free` Lunch
+## A Free Lunch
 
 Our industry craves safe high-level languages, trading developer efficiency and
 reliability for reduced runtime performance.
@@ -2141,14 +2141,15 @@ responsible for writing the business logic and optimisations at the same time,
 reducing readability and making it harder to maintain. It would be good if
 optimisation was a tangential concern.
 
-The `Free` monad is a data structure that represents a suspended `Monad`, or in
-other words it is a data structure that describes our business logic, lending
-itself to analysis and *high level optimisation*. A `Free` monad can be created
-and transformed at runtime allowing us to streamline or de-duplicate expensive
-work.
+If instead, we have a data structure that describes our business logic in terms
+of high level concepts, not machine instructions, we can perform *high level
+optimisation*. Data structures of this nature are typically called *Free*
+structures and can be generated for free for the members of the algebraic
+interfaces of our program. For example, a *Free Applicative* can be generated
+that allows us to batch or de-duplicate expensive network I/O.
 
-In this section we will learn how to create a `Free` monad, what it is good for,
-and how to generalise the concept beyond `Monad`.
+In this section we will learn how to create free structures, and what they are
+good for.
 
 A> Functional Programming lends itself well to compiletime optimisations, an area
 A> that has not been explored to its full potential. Consider mapping over a
@@ -2162,17 +2163,16 @@ A>
 A> A technique known as *map fusion* allows us to rewrite this expression as
 A> `xs.map(x => c(b(a(x))))`, avoiding intermediate representations. For example,
 A> if `xs` is a `List` of a thousand elements, we save two thousand object
-A> allocations. Such optimisations are not possible if any of the methods are
-A> impure.
+A> allocations.
 A> 
-A> The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project is attempting to implement these optimisations
-A> and is the best place to get involved, if performance optimisation is your
-A> thing.
+A> The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project is attempting to implement these *middle-level
+A> optimisations*, which is beyond the scope of this book.
 
 
-### Generated Freely
+### `Free Monad`
 
-As a refresher, `Free` is defined as an ADT with three members
+As a refresher, `Free` is the data structure representation of a `Monad` and is
+defined with three members
 
 {lang="text"}
 ~~~~~~~~
@@ -2186,6 +2186,7 @@ As a refresher, `Free` is defined as an ADT with three members
     ) extends Free[S, B] { type A = A0 }
   
     def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
+    def foldMap[M[_]](f: S ~> M)(implicit M: Monad[M]): M[A] = ...
     ...
   }
 ~~~~~~~~
@@ -2256,13 +2257,49 @@ as the context. Every method simply delegates to `Free.liftT` to create a
   }
 ~~~~~~~~
 
+When we construct our program, parameterised over a `Free`, we run it by
+providing an *interpreter* (a natural transformation `Ast ~> M`) with the
+`.foldMap` method. For example, if we provide an interpreter that maps to `IO`
+we would interpret the free program with
+
+{lang="text"}
+~~~~~~~~
+  import Machines.Ast
+  
+  val interpreter: Ast ~> IO = ...
+  val program: Free[Ast, Unit] = ...
+  val result: IO[Unit] = program.foldMap(interpreter)
+~~~~~~~~
+
+For completeness, an interpreter that delegates to a direct implementation is
+always possible. This might be useful to have if the rest of the application is
+using `Free` as the context but we just have a simple `IO` implementation:
+
+{lang="text"}
+~~~~~~~~
+  def unhandle[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+    case GetTime()    => f.getTime
+    case GetManaged() => f.getManaged
+    case GetAlive()   => f.getAlive
+    case Start(node)  => f.start(node)
+    case Stop(node)   => f.stop(node)
+  }
+~~~~~~~~
+
 A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
 A> would be a great contribution to the ecosystem!
 
 TODO: Optimise network lookup.
 
 
-### TODO Free Applicative
+### TODO `FreeAp`
+
+
+### TODO `Coyoneda` (`FreeFun`)
+
+-   Programs that change values
+-   Programs that build data
+-   Programs that build programs
 
 
 ### TODO Free anything
