@@ -44,6 +44,12 @@ object Drone {
     def getBacklog = Free.liftF(GetBacklog())
     def getAgents  = Free.liftF(GetAgents())
   }
+
+  def unhandle[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
+    case GetBacklog() => f.getBacklog
+    case GetAgents()  => f.getAgents
+  }
+
 }
 
 object Machines {
@@ -80,4 +86,13 @@ object Machines {
     def start(node: MachineNode) = Free.liftF(Start(node))
     def stop(node: MachineNode)  = Free.liftF(Stop(node))
   }
+
+  def unhandle[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+    case GetTime()    => f.getTime
+    case GetManaged() => f.getManaged
+    case GetAlive()   => f.getAlive
+    case Start(node)  => f.start(node)
+    case Stop(node)   => f.stop(node)
+  }
+
 }
