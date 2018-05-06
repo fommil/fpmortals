@@ -210,6 +210,8 @@ package object std {
   type Diev[A]             = scalaz.Diev[A]
   type OneAnd[F[_], A]     = scalaz.OneAnd[F, A]
   type IO[A]               = scalaz.effect.IO[A]
+  type LiftIO[F[_]]        = scalaz.effect.LiftIO[F]
+  type MonadIO[F[_]]       = scalaz.effect.MonadIO[F]
   type Free[S[_], A]       = scalaz.Free[S, A]
   type Trampoline[A]       = scalaz.Free.Trampoline[A]
   @inline final val Maybe: scalaz.Maybe.type               = scalaz.Maybe
@@ -225,20 +227,22 @@ package object std {
     scalaz.CorecursiveList
   @inline final val ImmutableArray: scalaz.ImmutableArray.type =
     scalaz.ImmutableArray
-  @inline final val Dequeue: scalaz.Dequeue.type       = scalaz.Dequeue
-  @inline final val DList: scalaz.DList.type           = scalaz.DList
-  @inline final val ISet: scalaz.ISet.type             = scalaz.ISet
-  @inline final val IMap: scalaz.==>>.type             = scalaz.==>>
-  @inline final val StrictTree: scalaz.StrictTree.type = scalaz.StrictTree
-  @inline final val Tree: scalaz.Tree.type             = scalaz.Tree
-  @inline final val FingerTree: scalaz.FingerTree.type = scalaz.FingerTree
-  @inline final val Cord: scalaz.Cord.type             = scalaz.Cord
-  @inline final val Heap: scalaz.Heap.type             = scalaz.Heap
-  @inline final val Diev: scalaz.Diev.type             = scalaz.Diev
-  @inline final val OneAnd: scalaz.OneAnd.type         = scalaz.OneAnd
-  @inline final val IO: scalaz.effect.IO.type          = scalaz.effect.IO
-  @inline final val Free: scalaz.Free.type             = scalaz.Free
-  @inline final val Trampoline: scalaz.Trampoline.type = scalaz.Trampoline
+  @inline final val Dequeue: scalaz.Dequeue.type        = scalaz.Dequeue
+  @inline final val DList: scalaz.DList.type            = scalaz.DList
+  @inline final val ISet: scalaz.ISet.type              = scalaz.ISet
+  @inline final val IMap: scalaz.==>>.type              = scalaz.==>>
+  @inline final val StrictTree: scalaz.StrictTree.type  = scalaz.StrictTree
+  @inline final val Tree: scalaz.Tree.type              = scalaz.Tree
+  @inline final val FingerTree: scalaz.FingerTree.type  = scalaz.FingerTree
+  @inline final val Cord: scalaz.Cord.type              = scalaz.Cord
+  @inline final val Heap: scalaz.Heap.type              = scalaz.Heap
+  @inline final val Diev: scalaz.Diev.type              = scalaz.Diev
+  @inline final val OneAnd: scalaz.OneAnd.type          = scalaz.OneAnd
+  @inline final val IO: scalaz.effect.IO.type           = scalaz.effect.IO
+  @inline final val LiftIO: scalaz.effect.LiftIO.type   = scalaz.effect.LiftIO
+  @inline final val MonadIO: scalaz.effect.MonadIO.type = scalaz.effect.MonadIO
+  @inline final val Free: scalaz.Free.type              = scalaz.Free
+  @inline final val Trampoline: scalaz.Trampoline.type  = scalaz.Trampoline
 
   // scalaz MTL
   type MaybeT[F[_], A]                = scalaz.MaybeT[F, A]
