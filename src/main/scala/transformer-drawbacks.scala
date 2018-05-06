@@ -13,7 +13,7 @@ trait Lookup[F[_]] {
   def look: F[Int]
 }
 
-final class LookupRandom extends Lookup[IO] {
+object LookupRandom extends Lookup[IO] {
   def look: IO[Int] = IO { util.Random.nextInt }
 }
 
@@ -44,7 +44,7 @@ object Logic {
   type Ctx0[F[_], A] = StateT[EitherT[F, Problem, ?], Table, A]
   type Ctx1[F[_], A] = EitherT[F, Problem, A]
   type Ctx2[F[_], A] = StateT[F, Table, A]
-  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
+  final class LookupIOCtx(io: Lookup[IO]) extends Lookup[Ctx] {
     def look1: Ctx[Int] = io.look.liftM[Ctx1].liftM[Ctx2]
 
     def look2: Ctx[Int] =
@@ -57,9 +57,20 @@ object Logic {
     def look: Ctx[Int] = io.look.liftIO[Ctx]
   }
 
-  final class LookupLifted[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+  final class LookupLiftIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
     def look: F[Int] = io.look.liftIO[F]
   }
+
+  final class LookupTrans[F[_]: Monad, G[_[_], _]: MonadTrans](f: Lookup[F])
+      extends Lookup[G[F, ?]] {
+    def look: G[F, Int] = f.look.liftM[G]
+  }
+
+  val wrap1: Lookup[EitherT[IO, Problem, ?]] =
+    new LookupTrans[IO, Ctx1](LookupRandom)
+
+  val wrap2: Lookup[Ctx] =
+    new LookupTrans[EitherT[IO, Problem, ?], Ctx2](wrap1)
 
   def foo[F[_]: Monad](L: Lookup[F])(
     implicit E: MonadError[F, Problem],
@@ -107,13 +118,15 @@ object Logic {
     } yield i
 
   def main(args: Array[String]): Unit = {
-    val L: Lookup[Ctx] = new LookupRandomCtx(new LookupRandom)
+    val L: Lookup[Ctx] = new LookupIOCtx(LookupRandom)
 
     foo[Ctx](L)
 
     foo2[Ctx](L)
 
     foo3[Ctx](L)
+
+    val L2: Lookup[Ctx] = new LookupLiftIO(LookupRandom)
   }
 
 }

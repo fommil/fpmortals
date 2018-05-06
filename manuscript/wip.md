@@ -2014,7 +2014,7 @@ interpreter
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupRandom extends Lookup[IO] {
+  object LookupRandom extends Lookup[IO] {
     def look: IO[Int] = IO { util.Random.nextInt }
   }
 ~~~~~~~~
@@ -2054,38 +2054,28 @@ of this shape
   type Ctx2[F[_], A] = StateT[F, Table, A]
 ~~~~~~~~
 
-we can write a wrapper implementation of `Lookup` that simply delegates and
-lifts:
+We can abstract over `MonadTrans` to lift a `Lookup[F]` to any `Lookup[G[F, ?]]`
+where `G` is a Monad Transformer:
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupRandomCtx(io: Lookup[IO]) extends Lookup[Ctx] {
-    def look: Ctx[Int] = io.look.liftM[Ctx1].liftM[Ctx2]
+  final class LookupTrans[F[_]: Monad, G[_[_], _]: MonadTrans](
+    f: Lookup[F]
+  ) extends Lookup[G[F, ?]] {
+    def look: G[F, Int] = f.look.liftM[G]
   }
 ~~~~~~~~
 
-We can skip the type aliases and use kind-projector syntax
+Allowing us to wrap once for `EitherT`, and then again for `StateT`
 
 {lang="text"}
 ~~~~~~~~
-  def look: Ctx[Int] =
-    io.look.liftM[EitherT[?[_], Problem, ?]].liftM[StateT[?[_], Table, ?]]
+  val wrap1 = new LookupTrans[IO, Ctx1](LookupRandom)
+  val wrap2: Lookup[Ctx] = new LookupTrans[EitherT[IO, Problem, ?], Ctx2](wrap1)
 ~~~~~~~~
 
-We'll be typing this a **lot**, so it is useful to create some syntax
-
-{lang="text"}
-~~~~~~~~
-  implicit class CtxOps[A](fa: IO[A]) {
-    def liftCtx: Ctx[A] =
-      fa.liftM[EitherT[?[_], Problem, ?]].liftM[StateT[?[_], Table, ?]]
-  }
-~~~~~~~~
-
-It's important to understand how to convert between contexts manually as needed,
-as we have done. The good news is that we don't typically need to write the
-converters or syntax. Scalaz already provides `scalaz.effect.LiftIO` because
-lifting an `IO` into a transformer stack is so common:
+Another way to achieve this, in a single step, is to use `scalaz.effect.LiftIO`
+which enables lifting an `IO` into a transformer stack:
 
 {lang="text"}
 ~~~~~~~~
@@ -2099,18 +2089,20 @@ with `MonadIO` instances for all the common combinations of transformers.
 
 The boilerplate overhead to lift an `IO` interpreter to anything with a
 `MonadIO` instance is therefore two lines of code (for the interpreter
-definition) plus one line per element of the algebra:
+definition), plus one line per element of the algebra, and a final line to call
+it:
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupLifted[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+  final class LookupLiftIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
     def look: F[Int] = io.look.liftIO[F]
   }
+  
+  val L: Lookup[Ctx] = new LookupLiftIO(LookupRandom)
 ~~~~~~~~
 
-A> It is possible to possible a compiler plugin that automatically produces the
-A> `Lifted` wrappers, but nobody has done so. This would be a great contribution to
-A> the ecosystem!
+A> A compiler plugin that automatically produces the `Lifted` wrappers would be a
+A> great contribution to the ecosystem!
 
 
 #### Performance
@@ -2180,7 +2172,7 @@ A> thing.
 
 ### Generated Freely
 
-As a refresher, `Free` is defined as an ADT of three elements
+As a refresher, `Free` is defined as an ADT with three members
 
 {lang="text"}
 ~~~~~~~~
@@ -2224,10 +2216,10 @@ algebra. To make this explicit with an example, consider our application's
   }
 ~~~~~~~~
 
-We define a freely generated `Free` for `Machines` by creating an GADT with a
+We define a freely generated `Free` for `Machines` by creating a GADT with a
 data type for each element of the algebra. Each data type has the same input
 parameters as its corresponding element, is parameterised over the return type,
-with the convention that it is named the same but capitalised:
+and is named the same with capitalisation:
 
 {lang="text"}
 ~~~~~~~~
@@ -2264,13 +2256,8 @@ as the context. Every method simply delegates to `Free.liftT` to create a
   }
 ~~~~~~~~
 
-A> The [Freestyle](http://frees.io/docs/core/algebras/) project introduces a `@free` annotation that automatically
-A> produces the `Free` for an algebra, along with other conveniences. Unfortunately
-A> it depends on the [deprecated `scalameta-macros`](https://github.com/frees-io/freestyle/issues/539) project and [does not yet support
-A> scalaz](https://github.com/frees-io/freestyle/issues/373).
-A> 
-A> A compiler plugin to generate the `scalaz.Free` boilerplate for an algebra would
-A> be greatly appreciated by every scalaz user.
+A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
+A> would be a great contribution to the ecosystem!
 
 TODO: Optimise network lookup.
 
