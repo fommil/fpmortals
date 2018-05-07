@@ -2059,19 +2059,18 @@ where `G` is a Monad Transformer:
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupTrans[F[_]: Monad, G[_[_], _]: MonadTrans](
-    f: Lookup[F]
-  ) extends Lookup[G[F, ?]] {
-    def look: G[F, Int] = f.look.liftM[G]
-  }
+  def liftM[F[_]: Monad, G[_[_], _]: MonadTrans](f: Lookup[F]) =
+    new Lookup[G[F, ?]] {
+      def look: G[F, Int] = f.look.liftM[G]
+    }
 ~~~~~~~~
 
 Allowing us to wrap once for `EitherT`, and then again for `StateT`
 
 {lang="text"}
 ~~~~~~~~
-  val wrap1 = new LookupTrans[IO, Ctx1](LookupRandom)
-  val wrap2: Lookup[Ctx] = new LookupTrans[EitherT[IO, Problem, ?], Ctx2](wrap1)
+  val wrap1 = Lookup.liftM[IO, Ctx1](LookupRandom)
+  val wrap2: Lookup[Ctx] = Lookup.liftM[EitherT[IO, Problem, ?], Ctx2](wrap1)
 ~~~~~~~~
 
 Another way to achieve this, in a single step, is to use `scalaz.effect.LiftIO`
@@ -2094,15 +2093,15 @@ it:
 
 {lang="text"}
 ~~~~~~~~
-  final class LookupMonadIO[F[_]: MonadIO](io: Lookup[IO]) extends Lookup[F] {
+  def liftIO[F[_]: MonadIO](io: Lookup[IO]) = new Lookup[F] {
     def look: F[Int] = io.look.liftIO[F]
   }
   
-  val L: Lookup[Ctx] = new LookupMonadIO(LookupRandom)
+  val L: Lookup[Ctx] = Lookup.liftIO(LookupRandom)
 ~~~~~~~~
 
-A> A compiler plugin that automatically produces the `Lifted` wrappers would be a
-A> great contribution to the ecosystem!
+A> A compiler plugin that automatically produces the `.liftM` and `.liftIO` would
+A> be a great contribution to the ecosystem!
 
 
 #### Performance
@@ -2169,10 +2168,24 @@ A> The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issu
 A> optimisations*, which is beyond the scope of this book.
 
 
-### `Free Monad`
+### `Free` (`Monad`)
+
+Despite its fame, the `Free` monad is the **least** useful of all the free
+structures. Fundamentally, a monad describes a sequential program where every
+step depends on the previous one. There is not much hope for using `Free` to
+optimise an application, because we only know about things that we've already
+run and the next thing we are going to run. However, `Free` can be useful for
+writing tests.
+
+TODO: put like this, it sounds like Free could be used for caching?
+
+It requires a lot of boilerplate to create a free structure. We shall use this
+study of `Free` as an opportunity to learn how to generate the boilerplate and
+get some technical annoyances out of the way before moving on to more useful
+structures.
 
 As a refresher, `Free` is the data structure representation of a `Monad` and is
-defined with three members
+defined by three members
 
 {lang="text"}
 ~~~~~~~~
@@ -2289,13 +2302,17 @@ using `Free` as the context but we just have a simple `IO` implementation:
 A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
 A> would be a great contribution to the ecosystem!
 
-TODO: Optimise network lookup.
-
 
 ### TODO `FreeAp`
 
+TODO: Optimise network lookup.
+
+TODO: include diagram about cache hits vs network lookups
+
 
 ### TODO `Coyoneda` (`FreeFun`)
+
+TODO: can we do map fusion?
 
 -   Programs that change values
 -   Programs that build data

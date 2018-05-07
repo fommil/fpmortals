@@ -12,6 +12,18 @@ final case class Table(last: Int)
 trait Lookup[F[_]] {
   def look: F[Int]
 }
+object Lookup {
+  def liftM[F[_]: Monad, G[_[_], _]: MonadTrans](
+    f: Lookup[F]
+  ): Lookup[G[F, ?]] =
+    new Lookup[G[F, ?]] {
+      def look: G[F, Int] = f.look.liftM[G]
+    }
+
+  def liftIO[F[_]: MonadIO](io: Lookup[IO]): Lookup[F] = new Lookup[F] {
+    def look: F[Int] = io.look.liftIO[F]
+  }
+}
 
 object LookupRandom extends Lookup[IO] {
   def look: IO[Int] = IO { util.Random.nextInt }
@@ -67,10 +79,11 @@ object Logic {
   }
 
   val wrap1: Lookup[EitherT[IO, Problem, ?]] =
-    new LookupTrans[IO, Ctx1](LookupRandom)
+    Lookup.liftM[IO, Ctx1](LookupRandom)
+  //new LookupTrans[IO, Ctx1](LookupRandom)
 
-  val wrap2: Lookup[Ctx] =
-    new LookupTrans[EitherT[IO, Problem, ?], Ctx2](wrap1)
+  val wrap2: Lookup[Ctx] = Lookup.liftM[EitherT[IO, Problem, ?], Ctx2](wrap1)
+  //new LookupTrans[EitherT[IO, Problem, ?], Ctx2](wrap1)
 
   //val wrap: Lookup[Ctx] =
   //  new LookupTrans[IO, Ctx0](LookupRandom)
@@ -130,6 +143,8 @@ object Logic {
     foo3[Ctx](L)
 
     val L2: Lookup[Ctx] = new LookupMonadIO(LookupRandom)
+
+    val L3: Lookup[Ctx] = Lookup.liftIO(LookupRandom)
   }
 
 }
