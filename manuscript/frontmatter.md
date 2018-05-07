@@ -30,7 +30,7 @@ physics.
 
 A computer is not necessary to follow along, although we hope that you will gain
 the confidence to independently study the scalaz source code. Some of the more
-complex code snippets are available with [the book's source code](https://github.com/fommil/fpmortals/tree/master/src/main/scala/) and those who
+complex code snippets are available with [the book's source code](https://bitbucket.org/fommil/fpmortals/src/) and those who
 want practical exercises are encouraged to (re-)implement scalaz (and the
 example application) using the partial descriptions presented in this book.
 
@@ -41,12 +41,11 @@ Learning training course if you can.
 
 # Copyleft Notice
 
-This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you
-can use this book as you like, the [source is available](https://github.com/fommil/fp-scala-mortals), you can
-redistribute this book and you can distribute your own version. That
-means you can print it, photocopy it, e-mail it, upload it to
-websites, change it, translate it, remix it, delete bits, and draw all
-over it.
+This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you can use
+this book as you like, the [source is available](https://bitbucket.org/fommil/fpmortals/src/) you can redistribute this book
+and you can distribute your own version. That means you can print it, photocopy
+it, e-mail it, upload it to websites, change it, translate it, remix it, delete
+bits, and draw all over it.
 
 You can even sell this book or your own version (although, morally,
 you should offer a royalty share to the author). If you received this
@@ -131,26 +130,5 @@ following imports:
   import scalaz._, Scalaz._
   import simulacrum._
 ~~~~~~~~
-
-
-# Giving Feedback
-
-You are reading an Early Access version of this book. You will have
-access to the final version of the book, expected in 2018, at no
-additional cost.
-
-Please help raise awareness of this book by telling your friends,
-especially the most sceptical.
-
-If you would like to give feedback on this book, thank you! Corrections to
-mistakes are greatly appreciated. When giving qualitative feedback, I ask of
-you:
-
-1.  if you understood a concept, but feel that it could be explained in a
-    different way, let's park that thought for now.
-2.  please point out the *exact* part of the text that confused you at
-    [fommil/fpmortals](https://github.com/fommil/fp-scala-mortals/issues) and we can iterate until it makes sense to you.
-3.  grammatical errors and typos will (eventually) be corrected by an editor,
-    they do not need to be reported.
 
 
