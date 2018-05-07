@@ -2148,8 +2148,8 @@ structures and can be generated for free for the members of the algebraic
 interfaces of our program. For example, a *Free Applicative* can be generated
 that allows us to batch or de-duplicate expensive network I/O.
 
-In this section we will learn how to create free structures, and what they are
-good for.
+In this section we will learn how to create free structures, and how they can be
+used.
 
 A> Functional Programming lends itself well to compiletime optimisations, an area
 A> that has not been explored to its full potential. Consider mapping over a
