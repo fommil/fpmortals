@@ -40,10 +40,11 @@ object Drone {
   final case class GetBacklog() extends Ast[Int]
   final case class GetAgents()  extends Ast[Int]
 
-  object Handler extends Drone[Free[Ast, ?]] {
-    def getBacklog = Free.liftF(GetBacklog())
-    def getAgents  = Free.liftF(GetAgents())
-  }
+  def liftF[F[_]](implicit I: Ast :<: F): Drone[Free[F, ?]] =
+    new Drone[Free[F, ?]] {
+      def getBacklog: Free[F, Int] = Free.liftF(I(GetBacklog()))
+      def getAgents: Free[F, Int]  = Free.liftF(I(GetAgents()))
+    }
 
   def unhandle[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
     case GetBacklog() => f.getBacklog
@@ -79,13 +80,14 @@ object Machines {
   final case class Start(node: MachineNode) extends Ast[Unit]
   final case class Stop(node: MachineNode)  extends Ast[Unit]
 
-  object Handler extends Machines[Free[Ast, ?]] {
-    def getTime                  = Free.liftF(GetTime())
-    def getManaged               = Free.liftF(GetManaged())
-    def getAlive                 = Free.liftF(GetAlive())
-    def start(node: MachineNode) = Free.liftF(Start(node))
-    def stop(node: MachineNode)  = Free.liftF(Stop(node))
-  }
+  def liftF[F[_]](implicit I: Ast :<: F): Machines[Free[F, ?]] =
+    new Machines[Free[F, ?]] {
+      def getTime                  = Free.liftF(I(GetTime()))
+      def getManaged               = Free.liftF(I(GetManaged()))
+      def getAlive                 = Free.liftF(I(GetAlive()))
+      def start(node: MachineNode) = Free.liftF(I(Start(node)))
+      def stop(node: MachineNode)  = Free.liftF(I(Stop(node)))
+    }
 
   def unhandle[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime

@@ -213,6 +213,8 @@ package object std {
   type LiftIO[F[_]]        = scalaz.effect.LiftIO[F]
   type MonadIO[F[_]]       = scalaz.effect.MonadIO[F]
   type Free[S[_], A]       = scalaz.Free[S, A]
+  type Inject[F[_], G[_]]  = scalaz.Inject[F, G]
+  type :<:[F[_], G[_]]     = scalaz.Inject[F, G]
   type Trampoline[A]       = scalaz.Free.Trampoline[A]
   @inline final val Maybe: scalaz.Maybe.type               = scalaz.Maybe
   @inline final val Disjunction: scalaz.\/.type            = scalaz.\/
@@ -242,6 +244,7 @@ package object std {
   @inline final val LiftIO: scalaz.effect.LiftIO.type   = scalaz.effect.LiftIO
   @inline final val MonadIO: scalaz.effect.MonadIO.type = scalaz.effect.MonadIO
   @inline final val Free: scalaz.Free.type              = scalaz.Free
+  @inline final val Inject: scalaz.Inject.type          = scalaz.Inject
   @inline final val Trampoline: scalaz.Trampoline.type  = scalaz.Trampoline
 
   // scalaz MTL
