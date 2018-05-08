@@ -46,7 +46,7 @@ object Drone {
       def getAgents: Free[F, Int]  = Free.liftF(I(GetAgents()))
     }
 
-  def unhandle[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpret[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
     case GetBacklog() => f.getBacklog
     case GetAgents()  => f.getAgents
   }
@@ -54,7 +54,7 @@ object Drone {
 }
 
 object Machines {
-  def liftF[F[_]: Monad, G[_[_], _]: MonadTrans](
+  def liftM[F[_]: Monad, G[_[_], _]: MonadTrans](
     f: Machines[F]
   ): Machines[G[F, ?]] =
     new Machines[G[F, ?]] {
@@ -89,7 +89,7 @@ object Machines {
       def stop(node: MachineNode)  = Free.liftF(I(Stop(node)))
     }
 
-  def unhandle[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpret[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime
     case GetManaged() => f.getManaged
     case GetAlive()   => f.getAlive
