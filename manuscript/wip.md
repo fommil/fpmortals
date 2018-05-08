@@ -2177,9 +2177,7 @@ optimise an application, because we only know about things that we've already
 run and the next thing we are going to run. However, `Free` can be useful for
 writing tests.
 
-TODO: put like this, it sounds like Free could be used for caching?
-
-It requires a lot of boilerplate to create a free structure. We shall use this
+There is a lot of boilerplate to create a free structure. We shall use this
 study of `Free` as an opportunity to learn how to generate the boilerplate and
 get some technical annoyances out of the way before moving on to more useful
 structures.
@@ -2216,8 +2214,7 @@ Previously we studied `Free` when `S` was a thunk
 ~~~~~~~~
 
 and made a cryptic comment that `Free` can be *freely generated* for any
-algebra. To make this explicit with an example, consider our application's
-`Machines` algebra
+algebra. To make this explicit, consider our application's `Machines` algebra
 
 {lang="text"}
 ~~~~~~~~
@@ -2233,7 +2230,7 @@ algebra. To make this explicit with an example, consider our application's
 We define a freely generated `Free` for `Machines` by creating a GADT with a
 data type for each element of the algebra. Each data type has the same input
 parameters as its corresponding element, is parameterised over the return type,
-and is named the same with capitalisation:
+and has the same name:
 
 {lang="text"}
 ~~~~~~~~
@@ -2250,8 +2247,8 @@ and is named the same with capitalisation:
 The GADT defines an Abstract Syntax Tree (AST) because each member is
 representing a computation in a program.
 
-Note that the freely generated `Free` for `Machines` is for the AST,
-`Free[Machines.Ast, ?]`, not the algebraic interface.
+The freely generated `Free` for `Machines` is for the AST, `Free[Machines.Ast,
+?]`, not the algebraic interface.
 
 We then define `Handler`, an implementation of `Machines`, with `Free[Ast, ?]`
 as the context. Every method simply delegates to `Free.liftT` to create a
@@ -2285,12 +2282,12 @@ we would interpret the free program with
 ~~~~~~~~
 
 For completeness, an interpreter that delegates to a direct implementation is
-always possible. This might be useful to have if the rest of the application is
-using `Free` as the context but we just have a simple `IO` implementation:
+always possible. This might be useful if the rest of the application is using
+`Free` as the context but we just have a simple `IO` implementation:
 
 {lang="text"}
 ~~~~~~~~
-  def unhandle[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpret[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime
     case GetManaged() => f.getManaged
     case GetAlive()   => f.getAlive
@@ -2299,8 +2296,77 @@ using `Free` as the context but we just have a simple `IO` implementation:
   }
 ~~~~~~~~
 
+Now we can use `Free[Machines.Ast, ?]` as the context of our application, but
+our business logic needs more than just `Machines` to be able to run the core
+business logic. We also need access to the `Drone` algebra, recall defined as
+
+{lang="text"}
+~~~~~~~~
+  trait Drone[F[_]] {
+    def getBacklog: F[Int]
+    def getAgents: F[Int]
+  }
+  object Drone {
+    sealed abstract class Ast[A]
+    ...
+  }
+~~~~~~~~
+
+What we want is for our AST to be a combination of the `Machines` and `Drone`
+ASTs. Recall that `Coproduct` is just a higher kinded disjunction:
+
+{lang="text"}
+~~~~~~~~
+  final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A])
+~~~~~~~~
+
+Letting us use the context `Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]`.
+
+We could manually create the coproduct but we would be swimming in boilerplate,
+and we'd have to do it all again if we wanted to add a third algebra.
+
+The `scalaz.Inject` typeclass helps:
+
+{lang="text"}
+~~~~~~~~
+  type :<:[F[_], G[_]] = Inject[F, G]
+  
+  sealed abstract class Inject[F[_], G[_]] extends (F ~> G) {
+    def inj[A](fa: F[A]): G[A]
+    ...
+  }
+  object Inject {
+    def inject[F[_], G[_], A](ga: G[Free[F, A]])(implicit I: G :<: F): Free[F, A] = ...
+  
+    implicit def refl[F[_]]: F :<: F = ...
+    implicit def left[F[_], G[_]]: F :<: Coproduct[F, G, ?]] = ...
+    implicit def right[F[_], G[_], H[_]](implicit I: F :<: G): F :<: Coproduct[H, G, ?] = ...
+    ...
+  }
+~~~~~~~~
+
+The `implicit def` derivations will generate `Inject` instances for us when we need them.
+
+Letting us rewrite our `liftF` to work for any combination of ASTs:
+
+{lang="text"}
+~~~~~~~~
+  def liftF[F[_]](implicit I: Ast :<: F) = new Machines[Free[F, ?]] {
+    def getTime                  = Free.liftF(I(GetTime()))
+    def getManaged               = Free.liftF(I(GetManaged()))
+    def getAlive                 = Free.liftF(I(GetAlive()))
+    def start(node: MachineNode) = Free.liftF(I(Start(node)))
+    def stop(node: MachineNode)  = Free.liftF(I(Stop(node)))
+  }
+~~~~~~~~
+
+Note that `F :<: G` reads as if our `Ast` is a member of the complete `F`
+instruction set: this is intentional.
+
 A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
-A> would be a great contribution to the ecosystem!
+A> would be a great contribution to the ecosystem! Not only is it painful to write
+A> the boilerplate, but there is the potential for a typo to ruin our day: if two
+A> members of the algebra have the same type signature, we might not notice a typo.
 
 
 ### TODO `FreeAp`
