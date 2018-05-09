@@ -34,11 +34,21 @@ object DummyMachines extends Machines[IO] {
 }
 
 class AlgebraSpec extends FlatSpec {
+
+  implicit class NaturalTransformationOps[F[_], G[_]](self: F ~> G) {
+    def or[H[_]](hg: H ~> G): Coproduct[F, H, ?] ~> G =
+      λ[Coproduct[F, H, ?] ~> G](_.fold(self, hg))
+  }
+
+  def or[F[_], G[_], H[_]](self: F ~> G)(hg: H ~> G): Coproduct[F, H, ?] ~> G =
+    λ[Coproduct[F, H, ?] ~> G](_.fold(self, hg))
+
   "Free Algebra Interpreters" should "combine their powers" in {
 
     val iD: Drone.Ast ~> IO    = Drone.interpret(DummyDrone)
     val iM: Machines.Ast ~> IO = Machines.interpret(DummyMachines)
 
+    val combined = or(iD)(iM)  //iD.or(iM)
     def interpreter: Demo.Ast ~> IO = ???
 
     val result: IO[Int] = Demo.program.foldMap(interpreter)
