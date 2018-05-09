@@ -7367,12 +7367,17 @@ object \&/ {
 
 **** Higher Kinded Either
 
-The =Coproduct= data type (not to be confused with the more general
-concept of a /coproduct/ in an ADT) wraps =Disjunction= for type
+The =Coproduct= data type (not to be confused with the more general concept of a
+/coproduct/ in an ADT, or =shapeless.Coproduct=) wraps =Disjunction= for type
 constructors:
 
 #+BEGIN_SRC scala
 final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A]) { ... }
+object Coproduct {
+  def leftc[F[_], G[_], A](x: F[A]): Coproduct[F, G, A] = Coproduct(-\/(x))
+  def rightc[F[_], G[_], A](x: G[A]): Coproduct[F, G, A] = Coproduct(\/-(x))
+  ...
+}
 #+END_SRC
 
 Typeclass instances simply delegate to those of the =F[_]= and =G[_]=.
@@ -11579,7 +11584,7 @@ always possible. This might be useful if the rest of the application is using
 =Free= as the context but we just have a simple =IO= implementation:
 
 #+BEGIN_SRC scala
-  def interpret[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime
     case GetManaged() => f.getManaged
     case GetAlive()   => f.getAlive
@@ -11648,19 +11653,43 @@ Letting us rewrite our =liftF= to work for any combination of ASTs:
   }
 #+END_SRC
 
-Note that =F :<: G= reads as if our =Ast= is a member of the complete =F=
-instruction set: this is intentional.
+It is nice that =F :<: G= reads as if our =Ast= is a member of the complete =F=
+instruction set: this syntax is intentional.
 
-# FIXME what needs to be done about the `interpret` now?
-#
-# do we generalise it over the Inject?
-# :point_up: [May 8, 2018 11:30 PM](https://gitter.im/scalaz/scalaz?at=5af22512da323a7c0408aa00)
-#
-# def interpret[F[_], G[_], R[_]](in: Ast[A])(drone: Drone[R])(implicit injOut: Inject[R, G]): Free[G, A]
-#
-# or can we just wire together existing `interpret` methods with `or`?
-#
-# https://github.com/scalaz/scalaz/blob/fd8dc635d3d0be63ea3e160a572c3e36c94b086d/core/src/main/scala/scalaz/NaturalTransformation.scala#L32
+We can still use the =interpreter= methods that we wrote, by combining them.
+This helper method
+
+#+BEGIN_SRC scala
+  def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G =
+    λ[Coproduct[F, H, ?] ~> G](_.fold(fg, hg))
+#+END_SRC
+
+# https://github.com/scalaz/scalaz/pull/1753
+
+allows us to write
+
+#+BEGIN_SRC scala
+val iD: Drone.Ast ~> IO         = Drone.interpreter(DroneIO)
+val iM: Machines.Ast ~> IO      = Machines.interpreter(MachinesIO)
+val interpreter: Demo.Ast ~> IO = or(iM, iD)
+
+val result: IO[Unit] = program.foldMap(interpreter)
+#+END_SRC
+
+to create an interpreter for the combined instruction set, delegating to an
+existing =Drone[IO]= and =Machines[IO]= (definition not shown).
+
+But we've gone in circles, we could have just used =IO= as the context for our
+program in the first place and avoided =Free=! So why did we put ourselves
+through all this pain?
+
+The reason is because FIXME (no seriously, this bit is hard, =Free= is really
+not worth the hype...). Ideas
+
+- monitoring, e.g. count invocations, real time between invocations.
+- exception cases? e.g. maybe some special nodes should never be stopped or started according to some tangential business rule.
+- mocking? (need to read smock)
+- converting into another algebra, e.g. for timing use a local clock without touching the =Machines[IO]= impl. Or crossing the algebras.
 
 # http://frees.io/docs/core/algebras/
 # https://underscore.io/blog/posts/2015/04/14/free-monads-are-simple.html
@@ -11707,6 +11736,7 @@ You can expect to see chapters covering the following topics:
 - Advanced Monads (more to come)
 - Typeclass Derivation
 - Optics
+- Appendix: Scalaz source code layout
 
 # Maybe...
 # - Functional Streams

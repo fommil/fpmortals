@@ -6422,13 +6422,18 @@ functions exist on the companion to deal with `EphemeralStream`
 
 ### Higher Kinded Either
 
-The `Coproduct` data type (not to be confused with the more general
-concept of a *coproduct* in an ADT) wraps `Disjunction` for type
+The `Coproduct` data type (not to be confused with the more general concept of a
+*coproduct* in an ADT, or `shapeless.Coproduct`) wraps `Disjunction` for type
 constructors:
 
 {lang="text"}
 ~~~~~~~~
   final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A]) { ... }
+  object Coproduct {
+    def leftc[F[_], G[_], A](x: F[A]): Coproduct[F, G, A] = Coproduct(-\/(x))
+    def rightc[F[_], G[_], A](x: G[A]): Coproduct[F, G, A] = Coproduct(\/-(x))
+    ...
+  }
 ~~~~~~~~
 
 Typeclass instances simply delegate to those of the `F[_]` and `G[_]`.

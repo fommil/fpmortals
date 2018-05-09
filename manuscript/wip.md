@@ -2287,7 +2287,7 @@ always possible. This might be useful if the rest of the application is using
 
 {lang="text"}
 ~~~~~~~~
-  def interpret[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime
     case GetManaged() => f.getManaged
     case GetAlive()   => f.getAlive
@@ -2360,8 +2360,43 @@ Letting us rewrite our `liftF` to work for any combination of ASTs:
   }
 ~~~~~~~~
 
-Note that `F :<: G` reads as if our `Ast` is a member of the complete `F`
-instruction set: this is intentional.
+It is nice that `F :<: G` reads as if our `Ast` is a member of the complete `F`
+instruction set: this syntax is intentional.
+
+We can still use the `interpreter` methods that we wrote, by combining them.
+This helper method
+
+{lang="text"}
+~~~~~~~~
+  def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G =
+    λ[Coproduct[F, H, ?] ~> G](_.fold(fg, hg))
+~~~~~~~~
+
+allows us to write
+
+{lang="text"}
+~~~~~~~~
+  val iD: Drone.Ast ~> IO         = Drone.interpreter(DroneIO)
+  val iM: Machines.Ast ~> IO      = Machines.interpreter(MachinesIO)
+  val interpreter: Demo.Ast ~> IO = or(iM, iD)
+  
+  val result: IO[Unit] = program.foldMap(interpreter)
+~~~~~~~~
+
+to create an interpreter for the combined instruction set, delegating to an
+existing `Drone[IO]` and `Machines[IO]` (definition not shown).
+
+But we've gone in circles, we could have just used `IO` as the context for our
+program in the first place and avoided `Free`! So why did we put ourselves
+through all this pain?
+
+The reason is because FIXME (no seriously, this bit is hard, `Free` is really
+not worth the hype...). Ideas
+
+-   monitoring, e.g. count invocations, real time between invocations.
+-   exception cases? e.g. maybe some special nodes should never be stopped or started according to some tangential business rule.
+-   mocking? (need to read smock)
+-   converting into another algebra, e.g. for timing use a local clock without touching the `Machines[IO]` impl. Or crossing the algebras.
 
 A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
 A> would be a great contribution to the ecosystem! Not only is it painful to write
@@ -2398,6 +2433,7 @@ You can expect to see chapters covering the following topics:
 -   Advanced Monads (more to come)
 -   Typeclass Derivation
 -   Optics
+-   Appendix: Scalaz source code layout
 
 while continuing to build out the example application.
 
