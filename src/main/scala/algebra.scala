@@ -46,7 +46,7 @@ object Drone {
       def getAgents: Free[F, Int]  = Free.liftF(I(GetAgents()))
     }
 
-  def interpret[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpreter[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
     case GetBacklog() => f.getBacklog
     case GetAgents()  => f.getAgents
   }
@@ -89,7 +89,7 @@ object Machines {
       def stop(node: MachineNode)  = Free.liftF(I(Stop(node)))
     }
 
-  def interpret[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+  def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime
     case GetManaged() => f.getManaged
     case GetAlive()   => f.getAlive
