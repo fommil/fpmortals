@@ -33,6 +33,19 @@ object DummyMachines extends Machines[IO] {
   def stop(node: MachineNode): IO[Unit]         = ???
 }
 
+// FIXME: rewrite to use a third AST with a local clock
+object Interceptor extends (Demo.Ast ~> Demo.Ast) {
+  import Machines._
+
+  def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] =
+    Coproduct(
+      fa.run match {
+        case -\/(Stop(node)) => -\/(Stop(node))
+        case other => other
+      }
+    )
+}
+
 class AlgebraSpec extends FlatSpec {
 
   // https://github.com/scalaz/scalaz/pull/1753
@@ -44,6 +57,21 @@ class AlgebraSpec extends FlatSpec {
     val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> IO = or(iM, iD)
 
-    Demo.program.foldMap(interpreter).unsafePerformIO().shouldBe(1)
+    Demo.program
+      .foldMap(interpreter)
+      .unsafePerformIO()
+      .shouldBe(1)
+  }
+
+  it should "support interception" in {
+    val iD: Drone.Ast ~> IO         = Drone.interpreter(DummyDrone)
+    val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
+    val interpreter: Demo.Ast ~> IO = or(iM, iD)
+
+    Demo.program
+      .mapSuspension(Interceptor)
+      .foldMap(interpreter)
+      .unsafePerformIO()
+      .shouldBe(1)
   }
 }
