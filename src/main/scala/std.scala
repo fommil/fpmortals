@@ -183,39 +183,40 @@ package object std {
   @inline final val Memo: scalaz.Memo.type       = scalaz.Memo
 
   // scalaz data types
-  type Maybe[A]            = scalaz.Maybe[A]
-  type \/[A, B]            = scalaz.\/[A, B]
-  type Disjunction[A, B]   = scalaz.\/[A, B]
-  type Validation[A, B]    = scalaz.Validation[A, B]
-  type ValidationNel[E, X] = scalaz.Validation[scalaz.NonEmptyList[E], X]
-  type \?/[A, B]           = scalaz.Validation[A, B]
-  type \&/[A, B]           = scalaz.\&/[A, B]
-  type These[A, B]         = scalaz.\&/[A, B]
-  type Const[A, B]         = scalaz.Const[A, B]
-  type IList[A]            = scalaz.IList[A]
-  type NonEmptyList[A]     = scalaz.NonEmptyList[A]
-  type EStream[A]          = scalaz.EphemeralStream[A]
-  type CorecursiveList[A]  = scalaz.CorecursiveList[A]
-  type ImmutableArray[A]   = scalaz.ImmutableArray[A]
-  type Dequeue[A]          = scalaz.Dequeue[A]
-  type DList[A]            = scalaz.DList[A]
-  type ISet[A]             = scalaz.ISet[A]
-  type ==>>[A, B]          = scalaz.==>>[A, B]
-  type IMap[A, B]          = scalaz.==>>[A, B]
-  type StrictTree[A]       = scalaz.StrictTree[A]
-  type Tree[A]             = scalaz.Tree[A]
-  type FingerTree[V, A]    = scalaz.FingerTree[V, A]
-  type Cord                = scalaz.Cord
-  type Heap[A]             = scalaz.Heap[A]
-  type Diev[A]             = scalaz.Diev[A]
-  type OneAnd[F[_], A]     = scalaz.OneAnd[F, A]
-  type IO[A]               = scalaz.effect.IO[A]
-  type LiftIO[F[_]]        = scalaz.effect.LiftIO[F]
-  type MonadIO[F[_]]       = scalaz.effect.MonadIO[F]
-  type Free[S[_], A]       = scalaz.Free[S, A]
-  type Inject[F[_], G[_]]  = scalaz.Inject[F, G]
-  type :<:[F[_], G[_]]     = scalaz.Inject[F, G]
-  type Trampoline[A]       = scalaz.Free.Trampoline[A]
+  type Maybe[A]                 = scalaz.Maybe[A]
+  type \/[A, B]                 = scalaz.\/[A, B]
+  type Disjunction[A, B]        = scalaz.\/[A, B]
+  type Validation[A, B]         = scalaz.Validation[A, B]
+  type ValidationNel[E, X]      = scalaz.Validation[scalaz.NonEmptyList[E], X]
+  type \?/[A, B]                = scalaz.Validation[A, B]
+  type \&/[A, B]                = scalaz.\&/[A, B]
+  type These[A, B]              = scalaz.\&/[A, B]
+  type Const[A, B]              = scalaz.Const[A, B]
+  type IList[A]                 = scalaz.IList[A]
+  type NonEmptyList[A]          = scalaz.NonEmptyList[A]
+  type EStream[A]               = scalaz.EphemeralStream[A]
+  type CorecursiveList[A]       = scalaz.CorecursiveList[A]
+  type ImmutableArray[A]        = scalaz.ImmutableArray[A]
+  type Dequeue[A]               = scalaz.Dequeue[A]
+  type DList[A]                 = scalaz.DList[A]
+  type ISet[A]                  = scalaz.ISet[A]
+  type ==>>[A, B]               = scalaz.==>>[A, B]
+  type IMap[A, B]               = scalaz.==>>[A, B]
+  type StrictTree[A]            = scalaz.StrictTree[A]
+  type Tree[A]                  = scalaz.Tree[A]
+  type FingerTree[V, A]         = scalaz.FingerTree[V, A]
+  type Cord                     = scalaz.Cord
+  type Heap[A]                  = scalaz.Heap[A]
+  type Diev[A]                  = scalaz.Diev[A]
+  type OneAnd[F[_], A]          = scalaz.OneAnd[F, A]
+  type IO[A]                    = scalaz.effect.IO[A]
+  type LiftIO[F[_]]             = scalaz.effect.LiftIO[F]
+  type MonadIO[F[_]]            = scalaz.effect.MonadIO[F]
+  type Free[S[_], A]            = scalaz.Free[S, A]
+  type Inject[F[_], G[_]]       = scalaz.Inject[F, G]
+  type :<:[F[_], G[_]]          = scalaz.Inject[F, G]
+  type Coproduct[F[_], G[_], A] = scalaz.Coproduct[F, G, A]
+  type Trampoline[A]            = scalaz.Free.Trampoline[A]
   @inline final val Maybe: scalaz.Maybe.type               = scalaz.Maybe
   @inline final val Disjunction: scalaz.\/.type            = scalaz.\/
   @inline final val Validation: scalaz.Validation.type     = scalaz.Validation
@@ -245,6 +246,7 @@ package object std {
   @inline final val MonadIO: scalaz.effect.MonadIO.type = scalaz.effect.MonadIO
   @inline final val Free: scalaz.Free.type              = scalaz.Free
   @inline final val Inject: scalaz.Inject.type          = scalaz.Inject
+  @inline final val Coproduct: scalaz.Coproduct.type    = scalaz.Coproduct
   @inline final val Trampoline: scalaz.Trampoline.type  = scalaz.Trampoline
 
   // scalaz MTL
