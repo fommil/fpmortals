@@ -4,7 +4,7 @@
 package fommil
 package http.encoding
 
-import std._, S._
+import prelude._, S._
 
 import eu.timepit.refined.auto._
 import org.scalatest._

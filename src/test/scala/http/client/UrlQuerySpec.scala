@@ -4,7 +4,7 @@
 package fommil
 package http.client
 
-import std._
+import prelude._
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._

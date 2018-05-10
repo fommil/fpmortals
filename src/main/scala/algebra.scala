@@ -4,7 +4,7 @@
 package fommil
 package algebra
 
-import std._, Z._
+import prelude._, Z._
 
 trait Drone[F[_]] {
   def getBacklog: F[Int]

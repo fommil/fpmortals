@@ -4,7 +4,7 @@
 package fommil
 package algebra
 
-import std._, Z._
+import prelude._, Z._
 
 import org.scalatest._
 import org.scalatest.Matchers._
@@ -41,7 +41,7 @@ object Interceptor extends (Demo.Ast ~> Demo.Ast) {
     Coproduct(
       fa.run match {
         case -\/(Stop(node)) => -\/(Stop(node))
-        case other => other
+        case other           => other
       }
     )
 }

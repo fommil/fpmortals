@@ -4,7 +4,7 @@
 package fommil
 package drone
 
-import std._
+import prelude._
 
 object Main {
   def main(args: Array[String]): Unit = {}

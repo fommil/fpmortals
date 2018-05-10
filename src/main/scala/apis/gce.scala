@@ -4,7 +4,7 @@
 package fommil
 package apis.gce
 
-import std._
+import prelude._
 
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
 final case class NodeConfig(

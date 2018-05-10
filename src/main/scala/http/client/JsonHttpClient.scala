@@ -10,7 +10,7 @@ package http.client
  */
 package algebra
 
-import std._
+import prelude._
 
 import spray.json.JsonReader
 

@@ -108,7 +108,7 @@ package http.oauth2
  */
 package client
 
-import std._, Z._
+import prelude._, Z._
 
 import http.client._
 import http.encoding._

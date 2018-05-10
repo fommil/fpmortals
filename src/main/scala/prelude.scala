@@ -4,7 +4,7 @@
 package fommil
 
 /** The prelude for the project */
-package object std {
+package object prelude {
   // primitive types
   type Any      = scala.Any // scalafix:ok Disable.Any
   type AnyRef   = scala.AnyRef // scalafix:ok Disable.AnyRef

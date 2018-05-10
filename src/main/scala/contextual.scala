@@ -3,7 +3,7 @@
 
 package contextual
 
-import fommil.std._
+import fommil.prelude._
 import java.time._
 
 package object datetime {

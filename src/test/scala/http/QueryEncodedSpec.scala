@@ -4,7 +4,7 @@
 package fommil
 package http.encoding
 
-import std._
+import prelude._
 
 import org.scalatest._
 import org.scalatest.Matchers._

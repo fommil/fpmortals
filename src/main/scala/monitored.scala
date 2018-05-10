@@ -4,7 +4,7 @@
 package fommil
 package logic
 
-import std._, Z._, S._
+import prelude._, Z._, S._
 
 import algebra._
 

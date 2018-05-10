@@ -4,7 +4,7 @@
 package fommil
 package http.client
 
-import std._, Z._, S._
+import prelude._, Z._, S._
 
 import java.net.URI
 
