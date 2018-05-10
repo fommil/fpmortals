@@ -74,4 +74,35 @@ class AlgebraSpec extends FlatSpec {
       .unsafePerformIO()
       .shouldBe(1)
   }
+
+  it should "allow smocking" in {
+    import Mocker._
+
+    val D: Drone.Ast ~> IO = stub[Int] {
+      case Drone.GetBacklog() => IO(1)
+    }
+    val M: Machines.Ast ~> IO = stub[Map[MachineNode, Instant]] {
+      case Machines.GetAlive() => IO(Map.empty)
+    }
+
+    Demo.program
+      .foldMap(or(M, D))
+      .unsafePerformIO()
+      .shouldBe(1)
+  }
+
+}
+
+// inspired by https://github.com/djspiewak/smock
+object Mocker {
+  import scala.PartialFunction
+  final class Stub[A] {
+    def apply[F[_], G[_]](pf: PartialFunction[F[A], G[A]]): F ~> G =
+      new (F ~> G) {
+        override def apply[α](fa: F[α]): G[α] =
+          // safe because F and G share a type parameter
+          pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+      }
+  }
+  def stub[A]: Stub[A] = new Stub[A]
 }
