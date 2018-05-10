@@ -2170,12 +2170,11 @@ A> optimisations*, which is beyond the scope of this book.
 
 ### `Free` (`Monad`)
 
-Despite its fame, the `Free` monad is the **least** useful of all the free
-structures. Fundamentally, a monad describes a sequential program where every
-step depends on the previous one. There is not much hope for using `Free` to
-optimise an application, because we only know about things that we've already
-run and the next thing we are going to run. However, `Free` can be useful for
-writing tests.
+The `Free` monad is the **least** useful of all the free structures.
+Fundamentally, a monad describes a sequential program where every step depends
+on the previous one. There is not much hope for using `Free` to optimise an
+application, because we only know about things that we've already run and the
+next thing we are going to run.
 
 There is a lot of boilerplate to create a free structure. We shall use this
 study of `Free` as an opportunity to learn how to generate the boilerplate and
@@ -2363,6 +2362,11 @@ Letting us rewrite our `liftF` to work for any combination of ASTs:
 It is nice that `F :<: G` reads as if our `Ast` is a member of the complete `F`
 instruction set: this syntax is intentional.
 
+A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
+A> would be a great contribution to the ecosystem! Not only is it painful to write
+A> the boilerplate, but there is the potential for a typo to ruin our day: if two
+A> members of the algebra have the same type signature, we might not notice.
+
 We can still use the `interpreter` methods that we wrote, by combining them.
 This helper method
 
@@ -2399,10 +2403,20 @@ But we've gone in circles! We could have used `IO` as the context for our
 program in the first place and avoided `Free`. So why did we put ourselves
 through all this pain? Let's see some reasons why `Free` might be useful.
 
-A> A compiler plugin that automatically produces the `scalaz.Free` boilerplate
-A> would be a great contribution to the ecosystem! Not only is it painful to write
-A> the boilerplate, but there is the potential for a typo to ruin our day: if two
-A> members of the algebra have the same type signature, we might not notice.
+A> Sorry.
+A> 
+A> There is really no other way to say this... `Free` is not particularly useful.
+A> It is fair to say that its best contribution is the implementation of
+A> `Trampoline`, and to serve as an example to describe programs as data
+A> structures.
+A> 
+A> Unfortunately it was trendy, circa 2015, to write all FP programs in terms of
+A> `Free`. Scala developers used to think the Cake pattern was good, and look how
+A> that turned out.
+A> 
+A> Everything that follows is really scraping the barrel.
+A> 
+A> Sorry, again.
 
 
 #### Testing: Mocks and Stubs
@@ -2510,35 +2524,51 @@ monitoring is an equally unconvincing argument.
 
 #### Monkey Patching
 
-As engineers, we know that our business users can often ask for seemingly
-bizarre rules to be added to the core logic of an application. We might want to
-codify the corner cases as "exceptions to the rule" and be able to handle this
-tangentially to our core logic.
+As engineers, we know that our business users often ask for bizarre workarounds
+to be added to the core logic of the application. We might want to codify such
+corner cases as "exceptions to the rule" and handle them tangentially to our
+core logic.
 
-For example, suppose we get a call from accounting telling us "Bob is using node
-`#c0ffee` to run some year end numbers, so please don't stop it again, because
-reasons". All rational discussion about why they shouldn't be using our CI
-worker nodes for their super-important public accounts is ignored, and we have
-to hack our business logic with an exception case and put out a release to
-production before the end of the day.
+For example, suppose we get a call from accounting telling us "URGENT: Bob is
+using node `#c0ffee` to run the year end. DO NOT STOP THIS NODE!1!". There is no
+possibility to discuss why Bob shouldn't be using our CI worker nodes for his
+super-important accounts, so we have to hack our business logic and put out a
+release to production as soon as possible.
 
-Another `.mapSuspension` to the rescue, we can just special case that message
+`.mapSuspension` to the rescue, we can just special case that message in a
+custom natural transformation
 
 {lang="text"}
 ~~~~~~~~
-  object Interceptor extends (Demo.Ast ~> Demo.Ast) {
-    def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] =
-      Coproduct(
-        fa.run match {
-          case -\/(Machines.Stop(MachineNode("#c0ffee"))) => -\/(Stop("#tea"))
-          case other => other
-        }
-      )
+  val interceptor = λ[Machines.Ast ~> Machines.Ast] {
+    case Machines.Stop(MachineNode("#c0ffee")) => Machines.Stop(MachineNode("#tea"))
+    case other => other
   }
 ~~~~~~~~
 
-eyeball that it works, push it to prod, and set an alarm ping accounts, remove
-it, and revoke Bob's access to our farm.
+eyeball that it works, push it to prod, and set an alarm for next week to remind
+us to remove it, and revoke Bob's access to our servers.
+
+Our unit test could use `State` as the target context, so we can keep track of
+all the nodes we stopped:
+
+{lang="text"}
+~~~~~~~~
+  type S = Set[MachineNode]
+  val M: Machines.Ast ~> State[S, ?] = Mocker.stub[Unit] {
+    case Machines.Stop(node) => State.modify[S](_ + node)
+  }
+  
+  Machines
+    .liftF[Machines.Ast]
+    .stop(MachineNode("#c0ffee"))
+    .mapSuspension(interceptor)
+    .foldMap(M)
+    .run(Set.empty)
+    .shouldBe((Set(MachineNode("#tea")), ()))
+~~~~~~~~
+
+along with a test that "normal" nodes are not affected.
 
 
 #### TODO Premature Optimisations
