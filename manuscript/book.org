@@ -11691,6 +11691,8 @@ not worth the hype...). Ideas
 - mocking? (need to read smock)
 - converting into another algebra, e.g. for timing use a local clock without touching the =Machines[IO]= impl. Or crossing the algebras.
 
+# TODO http://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
+
 # http://frees.io/docs/core/algebras/
 # https://underscore.io/blog/posts/2015/04/14/free-monads-are-simple.html
 # http://perevillega.com/understanding-free-monads
