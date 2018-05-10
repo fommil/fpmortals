@@ -33,17 +33,27 @@ object DummyMachines extends Machines[IO] {
   def stop(node: MachineNode): IO[Unit]         = ???
 }
 
-// FIXME: rewrite to use a third AST with a local clock
 object Interceptor extends (Demo.Ast ~> Demo.Ast) {
-  import Machines._
-
   def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] =
     Coproduct(
       fa.run match {
-        case -\/(Stop(node)) => -\/(Stop(node))
-        case other           => other
+        case -\/(Machines.Stop(MachineNode("#c0ffee"))) =>
+          -\/(Stop("#tea"))
+        case other => other
       }
     )
+}
+
+object Monitor extends (Demo.Ast ~> Demo.Ast) {
+  var backlog: Int = 0
+  def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] = Coproduct(
+    fa.run match {
+      case msg @ \/-(Drone.GetBacklog()) =>
+        backlog += 1
+        msg
+      case other => other
+    }
+  )
 }
 
 class AlgebraSpec extends FlatSpec {
@@ -63,6 +73,23 @@ class AlgebraSpec extends FlatSpec {
       .shouldBe(1)
   }
 
+  it should "support monitoring" in {
+    val iD: Drone.Ast ~> IO         = Drone.interpreter(DummyDrone)
+    val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
+    val interpreter: Demo.Ast ~> IO = or(iM, iD)
+
+    Monitor.backlog = 0
+
+    Demo.program
+      .mapSuspension(Monitor)
+      .foldMap(interpreter)
+      .unsafePerformIO()
+      .shouldBe(1)
+
+    Monitor.backlog.shouldBe(1)
+  }
+
+  // FIXME: write a decent test here
   it should "support interception" in {
     val iD: Drone.Ast ~> IO         = Drone.interpreter(DummyDrone)
     val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
@@ -78,16 +105,15 @@ class AlgebraSpec extends FlatSpec {
   it should "allow smocking" in {
     import Mocker._
 
-    val D: Drone.Ast ~> IO = stub[Int] {
-      case Drone.GetBacklog() => IO(1)
+    val D: Drone.Ast ~> Id = stub[Int] {
+      case Drone.GetBacklog() => 1
     }
-    val M: Machines.Ast ~> IO = stub[Map[MachineNode, Instant]] {
-      case Machines.GetAlive() => IO(Map.empty)
+    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Instant]] {
+      case Machines.GetAlive() => Map.empty
     }
 
     Demo.program
       .foldMap(or(M, D))
-      .unsafePerformIO()
       .shouldBe(1)
   }
 
