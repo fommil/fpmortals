@@ -11669,42 +11669,181 @@ This helper method
 allows us to write
 
 #+BEGIN_SRC scala
-val iD: Drone.Ast ~> IO         = Drone.interpreter(DroneIO)
-val iM: Machines.Ast ~> IO      = Machines.interpreter(MachinesIO)
-val interpreter: Demo.Ast ~> IO = or(iM, iD)
+val MachinesIO: Machines[IO] = ...
+val DroneIO: Drone[IO] = ...
 
-val result: IO[Unit] = program.foldMap(interpreter)
+val M: Machines.Ast ~> IO = Machines.interpreter(MachinesIO)
+val D: Drone.Ast ~> IO    = Drone.interpreter(DroneIO)
 #+END_SRC
 
-to create an interpreter for the combined instruction set, delegating to an
-existing =Drone[IO]= and =Machines[IO]= (definition not shown).
+to create an interpreter for the combined instruction set, delegating to
+existing =DroneIO= and =MachinesIO=. We can run this with
 
-But we've gone in circles, we could have just used =IO= as the context for our
-program in the first place and avoided =Free=! So why did we put ourselves
-through all this pain?
+#+BEGIN_SRC scala
+def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] = ...
 
-The reason is because FIXME (no seriously, this bit is hard, =Free= is really
-not worth the hype...). Ideas
+type Ast[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
+  .foldMap(or(M, D)): IO[Unit]
+#+END_SRC
 
-- monitoring, e.g. count invocations, real time between invocations.
-- exception cases? e.g. maybe some special nodes should never be stopped or started according to some tangential business rule.
-- mocking? (need to read smock)
-- converting into another algebra, e.g. for timing use a local clock without touching the =Machines[IO]= impl. Or crossing the algebras.
+But we've gone in circles! We could have used =IO= as the context for our
+program in the first place and avoided =Free=. So why did we put ourselves
+through all this pain? Let's see some reasons why =Free= might be useful.
 
-# TODO http://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
+#+BEGIN_ASIDE
+A compiler plugin that automatically produces the =scalaz.Free= boilerplate
+would be a great contribution to the ecosystem! Not only is it painful to write
+the boilerplate, but there is the potential for a typo to ruin our day: if two
+members of the algebra have the same type signature, we might not notice.
+#+END_ASIDE
+
+***** Testing: Mocks and Stubs
+
+It might sound hypocritical to propose that =Free= can be used to reduce
+boilerplate, given how much code we have written. However, there is a tipping
+point where the =Ast= pays for itself when we have many tests that require stub
+implementations.
+
+We need the =.Ast= and =.liftF= to be defined for our algebras and then we can
+create partial interpreters for our algebras:
+
+#+BEGIN_SRC scala
+    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Instant]] {
+      case Machines.GetAlive() => Map.empty
+    }
+    val D: Drone.Ast ~> Id = stub[Int] {
+      case Drone.GetBacklog() => 1
+    }
+#+END_SRC
+
+which can be used to test our production code
+
+#+BEGIN_SRC scala
+  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] = ...
+#+END_SRC
+
+with
+
+#+BEGIN_SRC scala
+    type Ast[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+    program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
+      .foldMap(or(M, D))
+      .shouldBe(1)
+#+END_SRC
+
+Of course, by using partial functions, and not total functions, we are exposing
+ourselves to runtime errors. Many teams are happy to accept this risk in their
+unit tests since the test would fail if there is a programmer error.
+
+Arguably we could also achieve the same thing with implementations of our
+algebras that override every method with =???=, overriding what we need on a
+case by case basis.
+
+#+BEGIN_ASIDE
+The library [[https://github.com/djspiewak/smock][smock]] is more powerful, but for the purposes of this short example
+we can define =stub= ourselves using a type inference trick that can be found
+all over the scalaz source code. The reason for =Stub= being a separate class is
+so that we only need to provide the =A= type parameter, with =F= and =G=
+inferred from the left hand side of the expression:
+
+#+BEGIN_SRC scala
+object Mocker {
+  final class Stub[A] {
+    def apply[F[_], G[_]](pf: PartialFunction[F[A], G[A]]): F ~> G = new (F ~> G) {
+      // safe because F and G share a type parameter
+      def apply[α](fa: F[α]): G[α] = pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+    }
+  }
+  def stub[A]: Stub[A] = new Stub[A]
+}
+#+END_SRC
+#+END_ASIDE
+
+***** Monitoring
+
+It is typical for server applications to be monitored by runtime agents that
+manipulate bytecode to insert profilers and extract various kinds of usage or
+performance information. If our application's context is =Free=, we do not need
+to resort to bytecode manipulation, we can instead implement a side-effecting
+monitor as a no-op interpreter that we have complete control over.
+
+For example, consider using this =Ast ~> Ast= "agent"
+
+#+BEGIN_SRC scala
+object Monitor extends (Demo.Ast ~> Demo.Ast) {
+  var backlog: Long = 0
+  def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] = Coproduct(
+    fa.run match {
+      case msg @ \/-(Drone.GetBacklog()) =>
+        backlog += 1
+        msg
+      case other           => other
+    }
+  )
+}
+#+END_SRC
+
+which simply records method invocations. We could also watch for specific
+messages of interest and log them.
+
+We can attach =Monitor= to our production =Free= application with
+=.mapSuspension(Monitor).foldMap(interpreter)=.
+
+This monitor is, of course, side-effecting. A pure solution would wrap the
+existing algebra implementations that perform the monitoring, but we could argue
+that such an invasive approach to monitoring might influence the behaviour of
+the application. Then again, introducing =Free= for the sole purpose of
+monitoring is an equally unconvincing argument.
+
+***** Monkey Patching
+
+As engineers, we know that our business users can often ask for seemingly
+bizarre rules to be added to the core logic of an application. We might want to
+codify the corner cases as "exceptions to the rule" and be able to handle this
+tangentially to our core logic.
+
+For example, suppose we get a call from accounting telling us "Bob is using node
+=#c0ffee= to run some year end numbers, so please don't stop it again, because
+reasons". All rational discussion about why they shouldn't be using our CI
+worker nodes for their super-important public accounts is ignored, and we have
+to hack our business logic with an exception case and put out a release to
+production before the end of the day.
+
+Another =.mapSuspension= to the rescue, we can just special case that message
+
+#+BEGIN_SRC scala
+object Interceptor extends (Demo.Ast ~> Demo.Ast) {
+  def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] =
+    Coproduct(
+      fa.run match {
+        case -\/(Machines.Stop(MachineNode("#c0ffee"))) => -\/(Stop("#tea"))
+        case other => other
+      }
+    )
+}
+#+END_SRC
+
+eyeball that it works, push it to prod, and set an alarm ping accounts, remove
+it, and revoke Bob's access to our farm.
+
+***** TODO Premature Optimisations
+
+converting into another algebra, e.g. for timing use a local clock without
+touching the =Machines[IO]= impl. Or crossing the algebras, or some form of
+batching.
+
+shitty cache
+
+***** TODO Coroutines
+
+TODO http://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
 
 # http://frees.io/docs/core/algebras/
 # https://underscore.io/blog/posts/2015/04/14/free-monads-are-simple.html
 # http://perevillega.com/understanding-free-monads
 # https://www.chrisstucchio.com/blog/2015/free_monads_in_scalaz.html
 # https://underscore.io/blog/posts/2017/03/29/free-inject.html
-
-#+BEGIN_ASIDE
-A compiler plugin that automatically produces the =scalaz.Free= boilerplate
-would be a great contribution to the ecosystem! Not only is it painful to write
-the boilerplate, but there is the potential for a typo to ruin our day: if two
-members of the algebra have the same type signature, we might not notice a typo.
-#+END_ASIDE
 
 **** TODO =FreeAp=
 
