@@ -11858,11 +11858,28 @@ all the nodes we stopped:
 
 along with a test that "normal" nodes are not affected.
 
-***** TODO Premature Optimisations
+***** Scary Optimisations
 
-converting into another algebra, e.g. for timing use a local clock without
-touching the =Machines[IO]= impl. Or crossing the algebras, or some form of
-batching.
+Continuing our theme of weird requirements from the customer, consider the case
+where they say "we're on a cost cutting initiative and you have to try your best
+to only use the new Google Batch API when starting nodes". A
+back-of-the-envelope calculation shows that it will cost more money to implement
+the hack than it will possibly save over the next 1,000 years, but best not to
+question orders.
+
+When we monkey patch, we are not limited to the original algebra: we can
+introduce new ones. Rather than change our core business logic, we might decide
+to introduce
+
+#+BEGIN_SRC scala
+trait BatchMachines[F[_]] {
+  def start(nodes: NonEmptyList[MachineNode]): F[Unit]
+}
+#+END_SRC
+
+with its =Ast= and =.liftF= boilerplate (not shown).
+
+TODO
 
 shitty cache
 
