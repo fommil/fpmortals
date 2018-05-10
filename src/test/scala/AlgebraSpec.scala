@@ -33,17 +33,6 @@ object DummyMachines extends Machines[IO] {
   def stop(node: MachineNode): IO[Unit]         = ???
 }
 
-object Interceptor extends (Demo.Ast ~> Demo.Ast) {
-  def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] =
-    Coproduct(
-      fa.run match {
-        case -\/(Machines.Stop(MachineNode("#c0ffee"))) =>
-          -\/(Stop("#tea"))
-        case other => other
-      }
-    )
-}
-
 object Monitor extends (Demo.Ast ~> Demo.Ast) {
   var backlog: Int = 0
   def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] = Coproduct(
@@ -54,6 +43,18 @@ object Monitor extends (Demo.Ast ~> Demo.Ast) {
       case other => other
     }
   )
+}
+
+trait BatchMachines[F[_]] {
+  def start(nodes: NonEmptyList[MachineNode]): F[Unit]
+}
+object BatchMachines {
+  sealed abstract class Ast[A]
+  final case class Start(nodes: NonEmptyList[MachineNode]) extends Ast[Unit]
+  def liftF[F[_]](implicit I: Ast :<: F): BatchMachines[Free[F, ?]] =
+    new BatchMachines[Free[F, ?]] {
+      def start(nodes: NonEmptyList[MachineNode]) = Free.liftF(I(Start(nodes)))
+    }
 }
 
 class AlgebraSpec extends FlatSpec {
@@ -89,19 +90,6 @@ class AlgebraSpec extends FlatSpec {
     Monitor.backlog.shouldBe(1)
   }
 
-  // FIXME: write a decent test here
-  it should "support interception" in {
-    val iD: Drone.Ast ~> IO         = Drone.interpreter(DummyDrone)
-    val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
-    val interpreter: Demo.Ast ~> IO = or(iM, iD)
-
-    Demo.program
-      .mapSuspension(Interceptor)
-      .foldMap(interpreter)
-      .unsafePerformIO()
-      .shouldBe(1)
-  }
-
   it should "allow smocking" in {
     import Mocker._
 
@@ -115,6 +103,31 @@ class AlgebraSpec extends FlatSpec {
     Demo.program
       .foldMap(or(M, D))
       .shouldBe(1)
+  }
+
+  it should "support monkey patching" in {
+    type S = Set[MachineNode]
+    val M = Mocker.stubAny[Machines.Ast, State[S, ?]] {
+      case Machines.Stop(node) => State.modify[S](_ + node)
+    }
+
+    val interceptor = λ[Machines.Ast ~> Machines.Ast] {
+      case Machines.Stop(MachineNode("#c0ffee")) =>
+        Machines.Stop(MachineNode("#tea"))
+      case other => other
+    }
+
+    Machines
+      .liftF[Machines.Ast]
+      .stop(MachineNode("#c0ffee"))
+      .mapSuspension(interceptor)
+      .foldMap(M)
+      .run(Set.empty)
+      .shouldBe((Set(MachineNode("#tea")), ()))
+  }
+
+  it should "support scary optimisations" in {
+    fail
   }
 
 }
@@ -131,4 +144,13 @@ object Mocker {
       }
   }
   def stub[A]: Stub[A] = new Stub[A]
+
+  // an even less safe variant, but allows more than one return type. The
+  // partially applied trick doesn't seem to work.
+  def stubAny[F[_], G[_]](pf: PartialFunction[F[_], G[_]]): F ~> G =
+    new (F ~> G) {
+      override def apply[α](fa: F[α]): G[α] =
+        // not even nearly safe, but we'll catch mistakes when the test runs
+        pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+    }
 }
