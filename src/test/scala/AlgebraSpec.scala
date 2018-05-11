@@ -224,23 +224,28 @@ class AlgebraSpec extends FlatSpec {
       }
     }
 
-    // feels like it's something general... possibly with MonadTrans....
+    // FIXME: replace with hoist
     def Stateful[F[_], G[_]](
       in: F ~> G
     ): λ[α => Stateful[F[α]]] ~> λ[α => Stateful[G[α]]] = ???
-
     type T_S[a] = Stateful[T[a]]
-    // why is scala not inferring this???!?!?!?
-    implicit def T_S: Monad[T_S] = ???
 
-    val interpreter: Patched_S ~> T_S = Stateful[Patched, T](or(B, or(M, D)))
+    val interpreter: Patched_S ~> T_S = Stateful(or(B, or(M, D)))
+
+    // FIXME: implement
+    def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] = ???
+
+    // FIXME: this feels like some kind of lifter utility that should exist already...
+    def states[S1, S2] =
+      λ[λ[α => State[S1, State[S2, α]]] ~> State[(S1, S2), ?]](united(_))
+
+    val initial: (Waiting, S) = (IList.empty, S(IList.empty, IList.empty))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
       .mapSuspension(safeInterceptor)
-      .foldMap(interpreter)
-      .run(IList.empty) // for the Waiting interceptor
-      ._2
-      .run(S(IList.empty, IList.empty)) // for the app
+      .mapSuspension(interpreter)
+      .foldMap(states)
+      .run(initial)
       .shouldBe(
         S(
           IList.empty,
