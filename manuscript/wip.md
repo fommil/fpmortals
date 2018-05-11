@@ -2196,7 +2196,8 @@ defined by three members
     ) extends Free[S, B] { type A = A0 }
   
     def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
-    def foldMap[M[_]](f: S ~> M)(implicit M: Monad[M]): M[A] = ...
+    def foldMap[M[_]: Monad](f: S ~> M): M[A] = ...
+    def mapSuspension[T[_]](f: S ~> T): Free[T, A] = ...
     ...
   }
 ~~~~~~~~
@@ -2522,7 +2523,7 @@ the application. Then again, introducing `Free` for the sole purpose of
 monitoring is an equally unconvincing argument.
 
 
-#### Monkey Patching
+#### Monkey Patching: Part 1
 
 As engineers, we know that our business users often ask for bizarre workarounds
 to be added to the core logic of the application. We might want to codify such
@@ -2571,31 +2572,148 @@ all the nodes we stopped:
 along with a test that "normal" nodes are not affected.
 
 
-#### Scary Optimisations
+#### Monkey Patching: Part 2
 
-Continuing our theme of weird requirements from the customer, consider the case
-where they say "we're on a cost cutting initiative and you have to try your best
-to only use the new Google Batch API when starting nodes". A
-back-of-the-envelope calculation shows that it will cost more money to implement
-the hack than it will possibly save over the next 1,000 years, but best not to
-question orders.
+Infrastructure sends a memo: "To meet the CEO's vision for this quarter, we are
+on a cost rationalisation and reorientation initiative. Therefore, we paid
+Google a million dollars to develop a Batch API so we can start nodes more cost
+effectively. Your bonus depends on using this new API."
 
-When we monkey patch, we are not limited to the original algebra: we can
-introduce new ones. Rather than change our core business logic, we might decide
-to introduce
+When we monkey patch, we are not limited to the original instruction set: we can
+introduce new ASTs. Rather than change our core business logic, we might decide
+to *translate* the old instructions into the new ones by introducing a new
+algebra:
 
 {lang="text"}
 ~~~~~~~~
   trait BatchMachines[F[_]] {
     def start(nodes: NonEmptyList[MachineNode]): F[Unit]
+    def noop(): F[Unit]
   }
 ~~~~~~~~
 
-with its `Ast` and `.liftF` boilerplate (not shown).
+with `.Ast` and `.liftF` boilerplate (not shown). Let's first set up a test for
+a simple program by defining the AST and target type:
 
-TODO
+{lang="text"}
+~~~~~~~~
+  type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+  type T[a]    = State[S, a]
+~~~~~~~~
 
-shitty cache
+We track the started nodes in a data container so we can assert on them later
+
+{lang="text"}
+~~~~~~~~
+  final case class S(
+    singles: IList[MachineNode],
+    batches: IList[NonEmptyList[MachineNode]]
+  ) {
+    def addSingle(node: MachineNode) = S(node :: singles, batches)
+    def addBatch(nodes: NonEmptyList[MachineNode]) = S(singles, nodes :: batches)
+  }
+~~~~~~~~
+
+and introduce some stub implementations
+
+{lang="text"}
+~~~~~~~~
+  val M: Machines.Ast ~> T = Mocker.stub[Unit] {
+    case Machines.Start(node) => State.modify[S](_.addSingle(node))
+  }
+  val D: Drone.Ast ~> T = Mocker.stub[Int] {
+    case Drone.GetBacklog() => 2.pure[T]
+  }
+~~~~~~~~
+
+We can expect that the following simple program will behave as expected and call
+`Machines.Start` twice:
+
+{lang="text"}
+~~~~~~~~
+  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Unit] =
+    for {
+      todo <- D.getBacklog
+      _    <- (1 |-> todo).traverse(id => M.start(MachineNode(id.shows)))
+    } yield ()
+  
+  program(Machines.liftF[Orig], Drone.liftF[Orig])
+    .foldMap(or(M, D))
+    .run(S(IList.empty, IList.empty))
+    ._1
+    .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
+~~~~~~~~
+
+But we don't want to use `Machines.Start`, we need `BatchMachines.Start` to get
+our bonus. Expand the AST to include `BatchMachines`:
+
+{lang="text"}
+~~~~~~~~
+  type Patched[a] = Coproduct[BatchMachines.Ast, Orig, a]
+~~~~~~~~
+
+along with a stub for the `BatchMachines` algebra
+
+{lang="text"}
+~~~~~~~~
+  val B: BatchMachines.Ast ~> T = Mocker.stub[Unit] {
+    case BatchMachines.Start(nodes) => State.modify[S](_.addBatch(nodes))
+    case BatchMachines.Noop()       => ().pure[T]
+  }
+~~~~~~~~
+
+We can convert from the `Orig` AST into `Patched` by providing a natural
+transformation that batches node starts:
+
+{lang="text"}
+~~~~~~~~
+  val interceptor: Orig ~> Patched = new (Orig ~> Patched) {
+    var saved: Maybe[MachineNode] = Maybe.empty
+  
+    def apply[α](fa: Orig[α]): Patched[α] = fa.run match {
+      case -\/(Machines.Start(node)) =>
+        saved match {
+          case Maybe.Just(also) =>
+            saved = Maybe.empty
+            Coproduct.leftc(BatchMachines.Start(NonEmptyList(node, also)))
+          case Maybe.Empty() =>
+            saved = Maybe.just(node)
+            Coproduct.leftc(BatchMachines.Noop())
+        }
+  
+      case other => Coproduct.rightc(Coproduct(other))
+    }
+  }
+~~~~~~~~
+
+When we run the intercepted program, we can assert that we only call the Batch
+API, with multiple nodes, as mandated by our management overlords
+
+{lang="text"}
+~~~~~~~~
+  program(Machines.liftF[Orig], Drone.liftF[Orig])
+    .mapSuspension(interceptor)
+    .foldMap(or(B, or(M, D)))
+    .run(S(IList.empty, IList.empty))
+    ._1
+    .shouldBe(
+      S(
+        IList.empty,
+        IList(NonEmptyList(MachineNode("2"), MachineNode("1")))
+      )
+    )
+~~~~~~~~
+
+W> This kind of monkey patching is dangerous: we are transforming the meaning of
+W> the program, almost certainly with unintended consequences. In particular,
+W> starting a node is much less reliable than assumed in the production code.
+W> 
+W> This kind of monkey patching is a last resort.
+
+We used a `var` in this interceptor, making it **even harder** to reason about
+this code.
+
+FIXME: do it without the `var`
 
 
 #### TODO Coroutines
