@@ -5,6 +5,7 @@ package fommil
 package algebra
 
 import prelude._, Z._, S._
+import Coproduct.{ leftc, rightc }
 
 import org.scalatest._
 import org.scalatest.Matchers._
@@ -142,8 +143,7 @@ class AlgebraSpec extends FlatSpec {
 
     type T[a] = State[S, a]
 
-    type Orig[a]    = Coproduct[Machines.Ast, Drone.Ast, a]
-    type Patched[a] = Coproduct[BatchMachines.Ast, Orig, a]
+    type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
 
     val M: Machines.Ast ~> T = Mocker.stub[Unit] {
       case Machines.Start(node) => State.modify[S](_.addSingle(node))
@@ -168,87 +168,37 @@ class AlgebraSpec extends FlatSpec {
       ._1
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
-    val interceptor: Orig ~> Patched = new (Orig ~> Patched) {
-      var saved: Maybe[MachineNode] = Maybe.empty
+    type Waiting          = IList[MachineNode]
+    type Patched[a]       = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
 
-      def apply[α](fa: Orig[α]): Patched[α] = fa.run match {
+    // it might be posisble to do this without noop, using flatMapSuspension but
+    // it is beyond my fp-fu.
+    def interceptor(max: Int) = λ[Orig ~> Patched](
+      _.run match {
         case -\/(Machines.Start(node)) =>
-          saved match {
-            case Maybe.Just(also) =>
-              saved = Maybe.empty
-              Coproduct.leftc(BatchMachines.Start(NonEmptyList(node, also)))
-            case Maybe.Empty() =>
-              saved = Maybe.just(node)
-              Coproduct.leftc(BatchMachines.Noop())
-          }
-
-        case other => Coproduct.rightc(Coproduct(other))
-      }
-    }
-
-    program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .mapSuspension(interceptor)
-      .foldMap(or(B, or(M, D)))
-      .run(S(IList.empty, IList.empty))
-      ._1
-      .shouldBe(
-        S(
-          IList.empty,
-          IList(NonEmptyList(MachineNode("2"), MachineNode("1")))
-        )
-      )
-
-    type Waiting = IList[MachineNode]
-
-    type Patched_[a]  = Coproduct[BatchMachines.Ast, Orig, a]
-    type Stateful[a]  = State[Waiting, a]
-    type Patched_S[a] = Stateful[Patched_[a]]
-
-    val safeInterceptor: Orig ~> Patched_S = new (Orig ~> Patched_S) {
-      import Coproduct.{ leftc, rightc }
-
-      // FIXME: kind-projector syntax
-      def apply[α](fa: Orig[α]): Patched_S[α] = fa.run match {
-        case -\/(Machines.Start(node)) =>
-          State.get[Waiting] >>= {
-            case INil() =>
-              State.modify[Waiting](node :: _) >| leftc(BatchMachines.Noop())
-            // FIXME replace noop with flatMap?
-
-            case also =>
+          State.get[Waiting] >>= { waiting =>
+            if (waiting.length >= max)
               State.put[Waiting](IList.empty) >| leftc(
-                BatchMachines.Start(NonEmptyList.nel(node, also))
+                BatchMachines.Start(NonEmptyList.nel(node, waiting))
               )
+            else
+              State.modify[Waiting](node :: _) >| leftc(BatchMachines.Noop())
           }
 
-        case other => rightc(Coproduct(other)).pure[State[Waiting, ?]]
+        case other => State.state(rightc(Coproduct(other)))
       }
-    }
+    )
 
-    type T_S[a] = Stateful[T[a]]
+    type PatchedTarget[a] = State[Waiting, T[a]]
+    val interpreter: Patched ~> PatchedTarget = Hoister.state(or(B, or(M, D)))
 
-    val interpreter: Patched_S ~> T_S = Hoister.state(or(B, or(M, D)))
-
-    def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] =
-      State(
-        ss => {
-          val (s1, s2) = ss
-          val (ns1, g) = s.run(s1)
-          val (ns2, a) = g(s2)
-          ((ns1, ns2), a)
-        }
-      )
-
-    def states[S1, S2] =
-      λ[λ[α => State[S1, State[S2, α]]] ~> State[(S1, S2), ?]](united(_))
-
-    val initial: (Waiting, S) = (IList.empty, S(IList.empty, IList.empty))
+    // we need the target to have a Monad, and nested State does not have a Monad
+    type Target[a] = State[(Waiting, S), a]
+    def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .mapSuspension(safeInterceptor)
-      .mapSuspension(interpreter)
-      .foldMap(states)
-      .run(initial)
+      .foldMap(interceptor(1).andThen(interpreter).andThen(unite))
+      .run((IList.empty, S(IList.empty, IList.empty)))
       ._1
       .shouldBe(
         (
@@ -270,6 +220,19 @@ object Hoister {
     λ[λ[α => H[F[α]]] ~> λ[α => H[G[α]]]](_.map(in))
 
   def state[F[_], G[_], S](in: F ~> G) = nt[F, G, State[S, ?]](in)
+}
+
+// contributed upstream https://github.com/scalaz/scalaz/pull/1766
+object StateUtils {
+  def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] =
+    State(
+      ss => {
+        val (s1, s2) = ss
+        val (ns1, g) = s.run(s1)
+        val (ns2, a) = g(s2)
+        ((ns1, ns2), a)
+      }
+    )
 }
 
 // inspired by https://github.com/djspiewak/smock
