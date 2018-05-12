@@ -110,8 +110,8 @@ package object prelude {
   type MonadState[F[_], S]    = scalaz.MonadState[F, S]
   type MonadTell[F[_], S]     = scalaz.MonadTell[F, S]
   type MonadTrans[T[_[_], _]] = scalaz.MonadTrans[T]
+  type Hoist[T[_[_], _]]      = scalaz.Hoist[T]
   type Monoid[A]              = scalaz.Monoid[A]
-  type Nondeterminism[F[_]]   = scalaz.Nondeterminism[F]
   type Optional[F[_]]         = scalaz.Optional[F]
   type Order[A]               = scalaz.Order[A]
   type Plus[F[_]]             = scalaz.Plus[F]
@@ -153,18 +153,17 @@ package object prelude {
   @inline final val MonadState: scalaz.MonadState.type   = scalaz.MonadState
   @inline final val MonadTell: scalaz.MonadTell.type     = scalaz.MonadTell
   @inline final val MonadTrans: scalaz.MonadTrans.type   = scalaz.MonadTrans
+  @inline final val Hoist: scalaz.Hoist.type             = scalaz.Hoist
   @inline final val Monoid: scalaz.Monoid.type           = scalaz.Monoid
-  @inline final val Nondeterminism: scalaz.Nondeterminism.type =
-    scalaz.Nondeterminism
-  @inline final val Optional: scalaz.Optional.type   = scalaz.Optional
-  @inline final val Order: scalaz.Order.type         = scalaz.Order
-  @inline final val Plus: scalaz.Plus.type           = scalaz.Plus
-  @inline final val Semigroup: scalaz.Semigroup.type = scalaz.Semigroup
-  @inline final val Show: scalaz.Show.type           = scalaz.Show
-  @inline final val Traverse: scalaz.Traverse.type   = scalaz.Traverse
-  @inline final val Traverse1: scalaz.Traverse1.type = scalaz.Traverse1
-  @inline final val Unzip: scalaz.Unzip.type         = scalaz.Unzip
-  @inline final val Zip: scalaz.Zip.type             = scalaz.Zip
+  @inline final val Optional: scalaz.Optional.type       = scalaz.Optional
+  @inline final val Order: scalaz.Order.type             = scalaz.Order
+  @inline final val Plus: scalaz.Plus.type               = scalaz.Plus
+  @inline final val Semigroup: scalaz.Semigroup.type     = scalaz.Semigroup
+  @inline final val Show: scalaz.Show.type               = scalaz.Show
+  @inline final val Traverse: scalaz.Traverse.type       = scalaz.Traverse
+  @inline final val Traverse1: scalaz.Traverse1.type     = scalaz.Traverse1
+  @inline final val Unzip: scalaz.Unzip.type             = scalaz.Unzip
+  @inline final val Zip: scalaz.Zip.type                 = scalaz.Zip
 
   // scalaz utilities
   type <~<[A, B]      = scalaz.Liskov.<~<[A, B]
@@ -259,7 +258,6 @@ package object prelude {
   type StateT[F[_], S, A]             = scalaz.IndexedStateT[F, S, S, A]
   type State[S, A]                    = scalaz.IndexedStateT[scalaz.Id.Id, S, S, A]
   type TheseT[F[_], A, B]             = scalaz.TheseT[F, A, B]
-  type StreamT[M[_], A]               = scalaz.StreamT[M, A]
   type ContT[M[_], R, A]              = scalaz.ContsT[scalaz.Id.Id, M, R, A]
   type IdT[F[_], A]                   = scalaz.IdT[F, A]
   @inline final val MaybeT: scalaz.MaybeT.type   = scalaz.MaybeT
@@ -269,12 +267,11 @@ package object prelude {
   @inline final val WriterT: scalaz.WriterT.type = scalaz.WriterT
   @inline final val IndexedStateT: scalaz.IndexedStateT.type =
     scalaz.IndexedStateT
-  @inline final val StateT: scalaz.StateT.type   = scalaz.StateT
-  @inline final val State: scalaz.State.type     = scalaz.State
-  @inline final val TheseT: scalaz.TheseT.type   = scalaz.TheseT
-  @inline final val StreamT: scalaz.StreamT.type = scalaz.StreamT
-  @inline final val ContT: scalaz.ContT.type     = scalaz.ContT
-  @inline final val IdT: scalaz.IdT.type         = scalaz.IdT
+  @inline final val StateT: scalaz.StateT.type = scalaz.StateT
+  @inline final val State: scalaz.State.type   = scalaz.State
+  @inline final val TheseT: scalaz.TheseT.type = scalaz.TheseT
+  @inline final val ContT: scalaz.ContT.type   = scalaz.ContT
+  @inline final val IdT: scalaz.IdT.type       = scalaz.IdT
 
   // ADT constructors / deconstructors (types not exposed)
   @inline final val Just: scalaz.Maybe.Just.type   = scalaz.Maybe.Just

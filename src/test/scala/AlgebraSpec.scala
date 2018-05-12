@@ -213,6 +213,7 @@ class AlgebraSpec extends FlatSpec {
           State.get[Waiting] >>= {
             case INil() =>
               State.modify[Waiting](node :: _) >| leftc(BatchMachines.Noop())
+            // FIXME replace noop with flatMap?
 
             case also =>
               State.put[Waiting](IList.empty) >| leftc(
@@ -224,18 +225,20 @@ class AlgebraSpec extends FlatSpec {
       }
     }
 
-    // FIXME: replace with hoist
-    def Stateful[F[_], G[_]](
-      in: F ~> G
-    ): λ[α => Stateful[F[α]]] ~> λ[α => Stateful[G[α]]] = ???
     type T_S[a] = Stateful[T[a]]
 
-    val interpreter: Patched_S ~> T_S = Stateful(or(B, or(M, D)))
+    val interpreter: Patched_S ~> T_S = Hoister.state(or(B, or(M, D)))
 
-    // FIXME: implement
-    def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] = ???
+    def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] =
+      State(
+        ss => {
+          val (s1, s2) = ss
+          val (ns1, g) = s.run(s1)
+          val (ns2, a) = g(s2)
+          ((ns1, ns2), a)
+        }
+      )
 
-    // FIXME: this feels like some kind of lifter utility that should exist already...
     def states[S1, S2] =
       λ[λ[α => State[S1, State[S2, α]]] ~> State[(S1, S2), ?]](united(_))
 
@@ -246,15 +249,27 @@ class AlgebraSpec extends FlatSpec {
       .mapSuspension(interpreter)
       .foldMap(states)
       .run(initial)
+      ._1
       .shouldBe(
-        S(
-          IList.empty,
-          IList(NonEmptyList(MachineNode("2"), MachineNode("1")))
+        (
+          IList.empty, // no Waiting
+          S(
+            IList.empty, // no singles
+            IList(NonEmptyList(MachineNode("2"), MachineNode("1")))
+          )
         )
       )
 
   }
 
+}
+
+// contributed upstream https://github.com/scalaz/scalaz/pull/1765
+object Hoister {
+  def nt[F[_], G[_], H[_]: Functor](in: F ~> G) =
+    λ[λ[α => H[F[α]]] ~> λ[α => H[G[α]]]](_.map(in))
+
+  def state[F[_], G[_], S](in: F ~> G) = nt[F, G, State[S, ?]](in)
 }
 
 // inspired by https://github.com/djspiewak/smock
