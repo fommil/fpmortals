@@ -2488,11 +2488,10 @@ messages of interest and log them.
 We can attach `Monitor` to our production `Free` application with
 `.mapSuspension(Monitor).foldMap(interpreter)`.
 
-This monitor is, of course, side-effecting. A pure solution would wrap the
-existing algebra implementations that perform the monitoring, but we could argue
-that such an invasive approach to monitoring might influence the behaviour of
-the application. Then again, introducing `Free` for the sole purpose of
-monitoring is an equally unconvincing argument.
+This monitor is, of course, side-effecting. A pure solution would either use
+`State` to collate the information for later processing (we'll see how to do
+this next), or not use `Free` at all and instead wrap the existing algebra
+implementations with per-algebra monitoring.
 
 
 #### Monkey Patching: Part 1
@@ -2502,10 +2501,10 @@ to be added to the core logic of the application. We might want to codify such
 corner cases as *exceptions to the rule* and handle them tangentially to our
 core logic.
 
-For example, suppose we get a call from accounting telling us
+For example, suppose we get a memo from accounting telling us
 
-> URGENT: Bob is using node `#c0ffee` to run the year end. DO NOT STOP THIS
-> NODE!1!
+> *URGENT: Bob is using node `#c0ffee` to run the year end. DO NOT STOP THIS
+> MACHINE!1!*
 
 There is no possibility to discuss why Bob shouldn't be using our machines for
 his super-important accounts, so we have to hack our business logic and put out
@@ -2516,7 +2515,7 @@ custom natural transformation
 
 {lang="text"}
 ~~~~~~~~
-  val interceptor = λ[Machines.Ast ~> Machines.Ast] {
+  val monkey = λ[Machines.Ast ~> Machines.Ast] {
     case Machines.Stop(MachineNode("#c0ffee")) => Machines.Stop(MachineNode("#tea"))
     case other => other
   }
@@ -2538,7 +2537,7 @@ all the nodes we stopped:
   Machines
     .liftF[Machines.Ast]
     .stop(MachineNode("#c0ffee"))
-    .mapSuspension(interceptor)
+    .mapSuspension(monkey)
     .foldMap(M)
     .run(Set.empty)
     .shouldBe((Set(MachineNode("#tea")), ()))
@@ -2551,10 +2550,13 @@ along with a test that "normal" nodes are not affected.
 
 Infrastructure sends a memo:
 
-> To meet the CEO's vision for this quarter, we are on a cost rationalisation and
-> reorientation initiative. Therefore, we paid Google a million dollars to develop
-> a Batch API so we can start nodes more cost effectively. Your bonus depends on
-> using this new API.
+> *To meet the CEO's vision for this quarter, we are on a cost rationalisation and
+> reorientation initiative.*
+> 
+> *Therefore, we paid Google a million dollars to develop a Batch API so we can
+> start nodes more cost effectively.*
+> 
+> *PS: Your bonus depends on using the new API.*
 
 When we monkey patch, we are not limited to the original instruction set: we can
 introduce new ASTs. Rather than change our core business logic, we might decide
@@ -2646,7 +2648,7 @@ transformation that batches node starts:
 
 {lang="text"}
 ~~~~~~~~
-  def interceptor(max: Int) = λ[Orig ~> Patched](
+  def monkey(max: Int) = λ[Orig ~> Patched](
     _.run match {
       case -\/(Machines.Start(node)) =>
         State.get[Waiting] >>= { waiting =>
@@ -2685,13 +2687,13 @@ solution is pretty simple, we just need to unite the states into one:
 Then we can run the program and assert that there are no nodes in the `Waiting`
 list, no node has been launched using the old API, and both nodes have been
 launched in one call to the batch API. Note that we've chained together the
-`interceptor`, `interpreter` and `unite`. We could equally have used
+`monkey`, `interpreter` and `unite`. We could equally have used
 `.mapSuspension`, but this is to show that it is possible:
 
 {lang="text"}
 ~~~~~~~~
   program(Machines.liftF[Orig], Drone.liftF[Orig])
-    .foldMap(interceptor(1).andThen(interpreter).andThen(unite))
+    .foldMap(monkey(1).andThen(interpreter).andThen(unite))
     .run((IList.empty, S(IList.empty, IList.empty))) // everything starts empty
     ._1
     .shouldBe(
