@@ -168,26 +168,26 @@ class AlgebraSpec extends FlatSpec {
       ._1
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
-    type Waiting          = IList[MachineNode]
-    type Patched[a]       = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
+    type Waiting    = IList[MachineNode]
+    type Patched[a] = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
 
     // it might be posisble to do this without noop, using flatMapSuspension but
     // it is beyond my fp-fu.
-    def monkey(max: Int) = λ[Orig ~> Patched](
-      _.run match {
+    def monkey(max: Int) = new (Orig ~> Free[Patched, ?]) {
+      override def apply[α](fa: Orig[α]): Free[Patched, α] = fa.run match {
         case -\/(Machines.Start(node)) =>
-          State.get[Waiting] >>= { waiting =>
+          val action: Patched[Unit] = State { (waiting: Waiting) =>
             if (waiting.length >= max)
-              State.put[Waiting](IList.empty) >| leftc(
-                BatchMachines.Start(NonEmptyList.nel(node, waiting))
-              )
+              (IList.empty) -> leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting)))
             else
-              State.modify[Waiting](node :: _) >| leftc(BatchMachines.Noop())
+              (node :: waiting) -> leftc(BatchMachines.Noop())
           }
+          Free.liftF(action)
 
-        case other => State.state(rightc(Coproduct(other)))
+        case other =>
+          Free.liftF(State.state(rightc(Coproduct(other))): Patched[α])
       }
-    )
+    }
 
     type PatchedTarget[a] = State[Waiting, T[a]]
     val interpreter: Patched ~> PatchedTarget = Hoister.state(or(B, or(M, D)))
@@ -197,7 +197,8 @@ class AlgebraSpec extends FlatSpec {
     def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .foldMap(monkey(1).andThen(interpreter).andThen(unite))
+      .flatMapSuspension[Patched](monkey(1))
+      .foldMap(interpreter.andThen(unite))
       .run((IList.empty, S(IList.empty, IList.empty)))
       ._1
       .shouldBe(
