@@ -126,8 +126,8 @@ class AlgebraSpec extends FlatSpec {
       .stop(MachineNode("#c0ffee"))
       .mapSuspension(monkey)
       .foldMap(M)
-      .run(Set.empty)
-      .shouldBe((Set(MachineNode("#tea")), ()))
+      .exec(Set.empty)
+      .shouldBe(Set(MachineNode("#tea")))
   }
 
   it should "support monkey patching part 2" in {
@@ -164,8 +164,7 @@ class AlgebraSpec extends FlatSpec {
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
       .foldMap(or(M, D))
-      .run(S(IList.empty, IList.empty))
-      ._1
+      .exec(S(IList.empty, IList.empty))
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
     type Waiting    = IList[MachineNode]
@@ -198,8 +197,7 @@ class AlgebraSpec extends FlatSpec {
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
       .foldMap(monkey(1).andThen(interpreter).andThen(unite))
-      .run((IList.empty, S(IList.empty, IList.empty)))
-      ._1
+      .exec((IList.empty, S(IList.empty, IList.empty)))
       .shouldBe(
         (
           IList.empty, // no Waiting
