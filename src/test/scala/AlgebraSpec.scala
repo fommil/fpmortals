@@ -192,11 +192,11 @@ class AlgebraSpec extends FlatSpec {
     )
 
     type PatchedTarget[a] = State[Waiting, T[a]]
-    import Hoister.stateOut
+    val withWaiting = λ[T ~> PatchedTarget](State.state(_))
 
     val interpreter: Patched ~> PatchedTarget = or(
       Hoister.state(B): Extension ~> PatchedTarget,
-      or(M, D).andThen[PatchedTarget](stateOut)
+      or(M, D).andThen(withWaiting)
     )
 
     // we need the target to have a Monad, and nested State does not have a Monad
@@ -226,10 +226,6 @@ object Hoister {
     λ[λ[α => H[F[α]]] ~> λ[α => H[G[α]]]](_.map(in))
 
   def state[F[_], G[_], S](in: F ~> G) = nt[F, G, State[S, ?]](in)
-
-  def stateOut[F[_], S] = λ[F ~> λ[α => State[S, F[α]]]] { fa =>
-    State.state(fa)
-  }
 }
 
 // contributed upstream https://github.com/scalaz/scalaz/pull/1766
