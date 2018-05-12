@@ -2629,8 +2629,9 @@ delaying, and add the `BatchMachines` instructions:
 
 {lang="text"}
 ~~~~~~~~
-  type Waiting    = IList[MachineNode]
-  type Patched[a] = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
+  type Waiting      = IList[MachineNode]
+  type Extension[a] = State[Waiting, BatchMachines.Ast[a]]
+  type Patched[a]   = Coproduct[Extension, Orig, a]
 ~~~~~~~~
 
 along with a stub for the `BatchMachines` algebra
@@ -2651,30 +2652,39 @@ transformation that batches node starts:
   def monkey(max: Int) = λ[Orig ~> Patched](
     _.run match {
       case -\/(Machines.Start(node)) =>
-        State { waiting =>
+        val extension: Extension[Unit] = State { waiting =>
           if (waiting.length >= max)
-            IList.empty -> leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting)))
+            IList.empty -> BatchMachines.Start(NonEmptyList.nel(node, waiting))
           else
-            (node :: waiting) -> leftc(BatchMachines.Noop())
+            (node :: waiting) -> BatchMachines.Noop()
         }
+        leftc(extension)
   
-      case other => State.state(rightc(Coproduct(other)))
+      case other => rightc(Coproduct(other))
     }
   )
 ~~~~~~~~
 
-We only need to make a small change to the interpreter, adding `B` and wrapping
-everything with the `Waiting` state:
+When interpreting, we need to have `Waiting` state on both the input and output
+for `B`, the batched API, to match the `Extension` type. But we only need
+`Waiting` state on the output for the `Orig` part. We create the correct shape
+by wrapping `B` with `State.hoist`, and composing the `Orig` interpreter with a
+simple natural transformation adding the state:
 
 {lang="text"}
 ~~~~~~~~
   type PatchedTarget[a] = State[Waiting, T[a]]
-  val interpreter: Patched ~> PatchedTarget = State.hoist(or(B, or(M, D)))
+  val withWaiting = λ[T ~> PatchedTarget](State.state(_))
+  
+  val interpreter: Patched ~> PatchedTarget = or(
+    State.hoist(B): Extension ~> PatchedTarget,
+    or(M, D).andThen(withWaiting)
+  )
 ~~~~~~~~
 
-There is one small inconvenience at this point: `PatchedTarget` is of shape
+There is a small inconvenience at this point: `PatchedTarget` is of shape
 `State[_, State[_, _]]` and nested `State` types do not have a `Monad`. The
-solution is pretty simple, we just need to unite the states into one:
+solution is to unite the states into one:
 
 {lang="text"}
 ~~~~~~~~
