@@ -167,44 +167,44 @@ class AlgebraSpec extends FlatSpec {
       .exec(S(IList.empty, IList.empty))
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
-    type Waiting    = IList[MachineNode]
-    type Extended[a] = Coproduct[BatchMachines.Ast, Orig, a]
-    type Patched[a] = State[Waiting, Extended[a]]
+    type Waiting      = IList[MachineNode]
+    type Extension[a] = State[Waiting, BatchMachines.Ast[a]]
+    type Patched[a]   = Coproduct[Extension, Orig, a]
 
-    // it might be posisble to do this without noop, using flatMapSuspension but
-    // it is beyond my fp-fu.
-    def monkey(max: Int) = new (Orig ~> Free[Patched, ?]) {
-      override def apply[α](fa: Orig[α]): Free[Patched, α] = fa.run match {
+    // it might be possible to do this without noop, using flatMapSuspension but
+    // it is beyond both my, and Lord Tagless's, fp-fu. It boils down to needing
+    // a way to distribute Free or to .sequence State, neither is possible.
+    def monkey(max: Int) = λ[Orig ~> Patched](
+      _.run match {
         case -\/(Machines.Start(node)) =>
-          val update: State[Waiting, Free[Extended, Unit]] = State { (waiting: Waiting) =>
+          val extension: Extension[Unit] = State { waiting =>
             if (waiting.length >= max)
-              IList.empty[MachineNode] -> Free.liftF[Extended, Unit](leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting))))
+              IList.empty -> BatchMachines.Start(
+                NonEmptyList.nel(node, waiting)
+              )
             else
-              (node :: waiting) -> Free.point[Extended, Unit](())
+              (node :: waiting) -> BatchMachines.Noop()
           }
+          leftc(extension)
 
-          //have: State[Waiting, Free[Extended, Unit]]
-          //want: Free[State[Waiting, Extended], Unit]
-
-          //have: G[Free[F, Unit]]
-          //want: Free[G[F], Unit]
-          ???
-
-        case other =>
-          Free.liftF(State.state(rightc(Coproduct(other))): Patched[α])
+        case other => rightc(Coproduct(other))
       }
-    }
+    )
 
     type PatchedTarget[a] = State[Waiting, T[a]]
-    val interpreter: Patched ~> PatchedTarget = Hoister.state(or(B, or(M, D)))
+    import Hoister.stateOut
+
+    val interpreter: Patched ~> PatchedTarget = or(
+      Hoister.state(B): Extension ~> PatchedTarget,
+      or(M, D).andThen[PatchedTarget](stateOut)
+    )
 
     // we need the target to have a Monad, and nested State does not have a Monad
     type Target[a] = State[(Waiting, S), a]
     def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .flatMapSuspension[Patched](monkey(1))
-      .foldMap(interpreter.andThen(unite))
+      .foldMap(monkey(1).andThen(interpreter).andThen(unite))
       .exec((IList.empty, S(IList.empty, IList.empty)))
       .shouldBe(
         (
@@ -226,6 +226,10 @@ object Hoister {
     λ[λ[α => H[F[α]]] ~> λ[α => H[G[α]]]](_.map(in))
 
   def state[F[_], G[_], S](in: F ~> G) = nt[F, G, State[S, ?]](in)
+
+  def stateOut[F[_], S] = λ[F ~> λ[α => State[S, F[α]]]] { fa =>
+    State.state(fa)
+  }
 }
 
 // contributed upstream https://github.com/scalaz/scalaz/pull/1766
