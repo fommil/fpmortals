@@ -169,25 +169,25 @@ class AlgebraSpec extends FlatSpec {
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
     type Waiting    = IList[MachineNode]
-    type Extended[a] = Coproduct[BatchMachines.Ast, Orig, a]
-    type Patched[a] = State[Waiting, Extended[a]]
+    type Patched[a] = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
 
-    // it might be posisble to do this without noop, using flatMapSuspension but
+    // it might be possible to do this without noop, using flatMapSuspension but
     // it is beyond my fp-fu.
-    def monkey(max: Int) = new (Orig ~> Free[Patched, ?]) {
-      override def apply[α](fa: Orig[α]): Free[Patched, α] = fa.run match {
+    def monkey(max: Int) = λ[Orig ~> Patched](
+      _.run match {
         case -\/(Machines.Start(node)) =>
-          State { (waiting: Waiting) =>
+          State { waiting =>
             if (waiting.length >= max)
-              IList.empty[MachineNode] -> Free.liftF[Extended, Unit](leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting))))
+              IList.empty -> leftc(
+                BatchMachines.Start(NonEmptyList.nel(node, waiting))
+              )
             else
-              (node :: waiting) -> Free.point[Extended, Unit](())
+              (node :: waiting) -> leftc(BatchMachines.Noop())
           }
 
-        case other =>
-          Free.liftF(State.state(rightc(Coproduct(other))): Patched[α])
+        case other => State.state(rightc(Coproduct(other)))
       }
-    }
+    )
 
     type PatchedTarget[a] = State[Waiting, T[a]]
     val interpreter: Patched ~> PatchedTarget = Hoister.state(or(B, or(M, D)))
@@ -197,8 +197,7 @@ class AlgebraSpec extends FlatSpec {
     def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .flatMapSuspension[Patched](monkey(1))
-      .foldMap(interpreter.andThen(unite))
+      .foldMap(monkey(1).andThen(interpreter).andThen(unite))
       .run((IList.empty, S(IList.empty, IList.empty)))
       ._1
       .shouldBe(
