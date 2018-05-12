@@ -2651,13 +2651,11 @@ transformation that batches node starts:
   def monkey(max: Int) = λ[Orig ~> Patched](
     _.run match {
       case -\/(Machines.Start(node)) =>
-        State.get[Waiting] >>= { waiting =>
+        State { waiting =>
           if (waiting.length >= max)
-            State.put[Waiting](IList.empty) >| leftc(
-              BatchMachines.Start(NonEmptyList.nel(node, waiting))
-            )
+            IList.empty -> leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting)))
           else
-            State.modify[Waiting](node :: _) >| leftc(BatchMachines.Noop())
+            (node :: waiting) -> leftc(BatchMachines.Noop())
         }
   
       case other => State.state(rightc(Coproduct(other)))
