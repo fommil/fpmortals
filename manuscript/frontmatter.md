@@ -42,30 +42,23 @@ Learning training course if you can.
 # Copyleft Notice
 
 This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you can use
-this book as you like, the [source is available](https://bitbucket.org/fommil/fpmortals/src/) you can redistribute this book
+this book as you like, the [source is available](https://bitbucket.org/fommil/fpmortals/src/), you can redistribute this book
 and you can distribute your own version. That means you can print it, photocopy
-it, e-mail it, upload it to websites, change it, translate it, remix it, delete
-bits, and draw all over it.
+it, e-mail it, upload it to websites, change it, translate it, charge for it,
+remix it, delete bits, and draw all over it.
 
-You can even sell this book or your own version (although, morally,
-you should offer a royalty share to the author). If you received this
-book without paying for it, I would appreciate it if you donated what
-you feel it is worth at <https://leanpub.com/fpmortals>.
+This book is **Copyleft**: if you change the book and distribute your own version,
+you must also pass these freedoms to its recipients.
 
-This book is **Copyleft**: if you change the book and distribute your
-own version, you must also pass these freedoms to its recipients.
+This book uses the [Creative Commons Attribution ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC
+BY-SA 4.0) license.
 
-This book uses the [Creative Commons Attribution ShareAlike 4.0
-International](https://creativecommons.org/licenses/by-sa/4.0/legalcode) (CC BY-SA 4.0) license.
+All original code snippets in this book are separately [CC0](https://wiki.creativecommons.org/wiki/CC0) licensed, you may use
+them without restriction. Excerpts from `scalaz` and related libraries maintain
+their license, reproduced in full in the appendix.
 
-All original code snippets in this book are separately [CC0](https://wiki.creativecommons.org/wiki/CC0) licensed,
-you may use them without restriction. Excerpts from `scalaz` and
-related libraries maintain their license, reproduced in full in the
-appendix.
-
-The example application `drone-dynamic-agents` is distributed under
-the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html): only the snippets in this book are available
-without restriction.
+The example application `drone-dynamic-agents` is distributed under the terms of
+the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html): only the snippets in this book are available without restriction.
 
 
 # Thanks

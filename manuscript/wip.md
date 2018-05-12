@@ -364,12 +364,16 @@ explain each of the transformers, why they are useful, and how they work.
 ### `MonadTrans`
 
 Each transformer has the general shape `T[F[_], A]`, providing at least an
-instance of `Monad` and the `MonadTrans` typeclass:
+instance of `Monad` and `Hoist` (and therefore `MonadTrans`):
 
 {lang="text"}
 ~~~~~~~~
   @typeclass trait MonadTrans[T[_[_], _]] {
     def liftM[F[_]: Monad, A](a: F[A]): T[F, A]
+  }
+  
+  @typeclass trait Hoist[F[_[_], _]] extends MonadTrans[F] {
+    def hoist[M[_]: Monad, N[_]](f: M ~> N): F[M, ?] ~> F[N, ?]
   }
 ~~~~~~~~
 
@@ -380,6 +384,8 @@ A> the second does not take any type parameters, written `_`.
 `.liftM` lets us create a monad transformer if we have an `F[A]`. For example,
 we can create an `OptionT[IO, String]` by calling `.liftM[OptionT]` on an
 `IO[String]`.
+
+`.hoist` is the same idea, but for natural transformations.
 
 Generally, there are three ways to create a monad transformer:
 
@@ -2150,36 +2156,20 @@ that allows us to batch or de-duplicate expensive network I/O.
 In this section we will learn how to create free structures, and how they can be
 used.
 
-A> Functional Programming lends itself well to compiletime optimisations, an area
-A> that has not been explored to its full potential. Consider mapping over a
-A> `Functor` three times:
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   xs.map(a).map(b).map(c)
-A> ~~~~~~~~
-A> 
-A> A technique known as *map fusion* allows us to rewrite this expression as
-A> `xs.map(x => c(b(a(x))))`, avoiding intermediate representations. For example,
-A> if `xs` is a `List` of a thousand elements, we save two thousand object
-A> allocations.
-A> 
-A> The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project is attempting to implement these *middle-level
-A> optimisations*, which is beyond the scope of this book.
-
 
 ### `Free` (`Monad`)
 
-The `Free` monad is the **least** useful of all the free structures.
 Fundamentally, a monad describes a sequential program where every step depends
-on the previous one. There is not much hope for using `Free` to optimise an
-application, because we only know about things that we've already run and the
-next thing we are going to run.
+on the previous one. We are therefore limited to modifications that only know
+about things that we've already run and the next thing we are going to run.
 
-There is a lot of boilerplate to create a free structure. We shall use this
-study of `Free` as an opportunity to learn how to generate the boilerplate and
-get some technical annoyances out of the way before moving on to more useful
-structures.
+A> It was trendy, circa 2015, to write FP programs in terms of `Free` so this is as
+A> much an exercise in how to understand `Free` code as it is to be able to write
+A> or use it.
+A> 
+A> There is a lot of boilerplate to create a free structure. We shall use this
+A> study of `Free` to learn how to generate the boilerplate, which we will reuse
+A> for the other free structures.
 
 As a refresher, `Free` is the data structure representation of a `Monad` and is
 defined by three members
@@ -2206,15 +2196,8 @@ defined by three members
 -   `Return` is `.pure`
 -   `Gosub` is `.bind`
 
-Previously we studied `Free` when `S` was a thunk
-
-{lang="text"}
-~~~~~~~~
-  type Trampoline[A] = Free[() => ?, A]
-~~~~~~~~
-
-and made a cryptic comment that `Free` can be *freely generated* for any
-algebra. To make this explicit, consider our application's `Machines` algebra
+A `Free[S, A]` can be *freely generated* for any algebra `S`. To make this
+explicit, consider our application's `Machines` algebra
 
 {lang="text"}
 ~~~~~~~~
@@ -2247,17 +2230,17 @@ and has the same name:
 The GADT defines an Abstract Syntax Tree (AST) because each member is
 representing a computation in a program.
 
-The freely generated `Free` for `Machines` is for the AST, `Free[Machines.Ast,
-?]`, not the algebraic interface.
+W> The freely generated `Free` for `Machines` is `Free[Machines.Ast, ?]`, i.e. for
+W> the AST, not `Free[Machines, ?]`. It is easy to make a mistake, since the latter
+W> will compile, but is meaningless.
 
-We then define `Handler`, an implementation of `Machines`, with `Free[Ast, ?]`
-as the context. Every method simply delegates to `Free.liftT` to create a
-`Suspend`
+We then define `.liftF`, an implementation of `Machines`, with `Free[Ast, ?]` as
+the context. Every method simply delegates to `Free.liftT` to create a `Suspend`
 
 {lang="text"}
 ~~~~~~~~
   ...
-    object Handler extends Machines[Free[Ast, ?]] {
+    def liftF = new Machines[Free[Ast, ?]] {
       def getTime = Free.liftF(GetTime())
       def getManaged = Free.liftF(GetManaged())
       def getAlive = Free.liftF(GetAlive())
@@ -2268,9 +2251,9 @@ as the context. Every method simply delegates to `Free.liftT` to create a
 ~~~~~~~~
 
 When we construct our program, parameterised over a `Free`, we run it by
-providing an *interpreter* (a natural transformation `Ast ~> M`) with the
-`.foldMap` method. For example, if we provide an interpreter that maps to `IO`
-we would interpret the free program with
+providing an *interpreter* (a natural transformation `Ast ~> M`) to the
+`.foldMap` method. For example, if could provide an interpreter that maps to
+`IO`
 
 {lang="text"}
 ~~~~~~~~
@@ -2282,8 +2265,9 @@ we would interpret the free program with
 ~~~~~~~~
 
 For completeness, an interpreter that delegates to a direct implementation is
-always possible. This might be useful if the rest of the application is using
-`Free` as the context but we just have a simple `IO` implementation:
+easy to write. This might be useful if the rest of the application is using
+`Free` as the context and we already have an `IO` implementation that we want to
+use:
 
 {lang="text"}
 ~~~~~~~~
@@ -2309,18 +2293,20 @@ business logic. We also need access to the `Drone` algebra, recall defined as
   object Drone {
     sealed abstract class Ast[A]
     ...
+    def liftF = ...
+    def interpreter = ...
   }
 ~~~~~~~~
 
 What we want is for our AST to be a combination of the `Machines` and `Drone`
-ASTs. Recall that `Coproduct` is just a higher kinded disjunction:
+ASTs. We studied `Coproduct` in Chapter 6, a higher kinded disjunction:
 
 {lang="text"}
 ~~~~~~~~
   final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A])
 ~~~~~~~~
 
-Letting us use the context `Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]`.
+Now we can use the context `Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]`.
 
 We could manually create the coproduct but we would be swimming in boilerplate,
 and we'd have to do it all again if we wanted to add a third algebra.
@@ -2345,9 +2331,8 @@ The `scalaz.Inject` typeclass helps:
   }
 ~~~~~~~~
 
-The `implicit def` derivations will generate `Inject` instances for us when we need them.
-
-Letting us rewrite our `liftF` to work for any combination of ASTs:
+The `implicit def` derivations generate `Inject` instances for us when we need
+them, letting us rewrite our `liftF` to work for any combination of ASTs:
 
 {lang="text"}
 ~~~~~~~~
@@ -2369,12 +2354,14 @@ A> the boilerplate, but there is the potential for a typo to ruin our day: if tw
 A> members of the algebra have the same type signature, we might not notice.
 
 We can still use the `interpreter` methods that we wrote, by combining them.
-This helper method
+This helper method on `NaturalTransformation`
 
 {lang="text"}
 ~~~~~~~~
-  def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G =
-    λ[Coproduct[F, H, ?] ~> G](_.fold(fg, hg))
+  object NaturalTransformation {
+    def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G = ...
+    ...
+  }
 ~~~~~~~~
 
 allows us to write
@@ -2403,21 +2390,6 @@ existing `DroneIO` and `MachinesIO`. We can run this with
 But we've gone in circles! We could have used `IO` as the context for our
 program in the first place and avoided `Free`. So why did we put ourselves
 through all this pain? Let's see some reasons why `Free` might be useful.
-
-A> Sorry.
-A> 
-A> There is really no other way to say this... `Free` is not particularly useful.
-A> It is fair to say that its best contribution is the implementation of
-A> `Trampoline`, and to serve as an example to describe programs as data
-A> structures.
-A> 
-A> Unfortunately it was trendy, circa 2015, to write all FP programs in terms of
-A> `Free`. Scala developers used to think the Cake pattern was good, and look how
-A> that turned out.
-A> 
-A> Everything that follows is really scraping the barrel.
-A> 
-A> Sorry, again.
 
 
 #### Testing: Mocks and Stubs
@@ -2462,7 +2434,7 @@ ourselves to runtime errors. Many teams are happy to accept this risk in their
 unit tests since the test would fail if there is a programmer error.
 
 Arguably we could also achieve the same thing with implementations of our
-algebras that override every method with `???`, overriding what we need on a
+algebras that implement every method with `???`, overriding what we need on a
 case by case basis.
 
 A> The library [smock](https://github.com/djspiewak/smock) is more powerful, but for the purposes of this short example
@@ -2527,14 +2499,17 @@ monitoring is an equally unconvincing argument.
 
 As engineers, we know that our business users often ask for bizarre workarounds
 to be added to the core logic of the application. We might want to codify such
-corner cases as "exceptions to the rule" and handle them tangentially to our
+corner cases as *exceptions to the rule* and handle them tangentially to our
 core logic.
 
-For example, suppose we get a call from accounting telling us "URGENT: Bob is
-using node `#c0ffee` to run the year end. DO NOT STOP THIS NODE!1!". There is no
-possibility to discuss why Bob shouldn't be using our CI worker nodes for his
-super-important accounts, so we have to hack our business logic and put out a
-release to production as soon as possible.
+For example, suppose we get a call from accounting telling us
+
+> URGENT: Bob is using node `#c0ffee` to run the year end. DO NOT STOP THIS
+> NODE!1!
+
+There is no possibility to discuss why Bob shouldn't be using our machines for
+his super-important accounts, so we have to hack our business logic and put out
+a release to production as soon as possible.
 
 `.mapSuspension` to the rescue, we can just special case that message in a
 custom natural transformation
@@ -2574,10 +2549,12 @@ along with a test that "normal" nodes are not affected.
 
 #### Monkey Patching: Part 2
 
-Infrastructure sends a memo: "To meet the CEO's vision for this quarter, we are
-on a cost rationalisation and reorientation initiative. Therefore, we paid
-Google a million dollars to develop a Batch API so we can start nodes more cost
-effectively. Your bonus depends on using this new API."
+Infrastructure sends a memo:
+
+> To meet the CEO's vision for this quarter, we are on a cost rationalisation and
+> reorientation initiative. Therefore, we paid Google a million dollars to develop
+> a Batch API so we can start nodes more cost effectively. Your bonus depends on
+> using this new API.
 
 When we monkey patch, we are not limited to the original instruction set: we can
 introduce new ASTs. Rather than change our core business logic, we might decide
@@ -2645,11 +2622,13 @@ We can expect that the following simple program will behave as expected and call
 ~~~~~~~~
 
 But we don't want to use `Machines.Start`, we need `BatchMachines.Start` to get
-our bonus. Expand the AST to include `BatchMachines`:
+our bonus. Expand the AST to keep track of the `Waiting` nodes that we are
+delaying, and add the `BatchMachines` instructions:
 
 {lang="text"}
 ~~~~~~~~
-  type Patched[a] = Coproduct[BatchMachines.Ast, Orig, a]
+  type Waiting    = IList[MachineNode]
+  type Patched[a] = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
 ~~~~~~~~
 
 along with a stub for the `BatchMachines` algebra
@@ -2667,53 +2646,79 @@ transformation that batches node starts:
 
 {lang="text"}
 ~~~~~~~~
-  val interceptor: Orig ~> Patched = new (Orig ~> Patched) {
-    var saved: Maybe[MachineNode] = Maybe.empty
-  
-    def apply[α](fa: Orig[α]): Patched[α] = fa.run match {
+  def interceptor(max: Int) = λ[Orig ~> Patched](
+    _.run match {
       case -\/(Machines.Start(node)) =>
-        saved match {
-          case Maybe.Just(also) =>
-            saved = Maybe.empty
-            Coproduct.leftc(BatchMachines.Start(NonEmptyList(node, also)))
-          case Maybe.Empty() =>
-            saved = Maybe.just(node)
-            Coproduct.leftc(BatchMachines.Noop())
+        State.get[Waiting] >>= { waiting =>
+          if (waiting.length >= max)
+            State.put[Waiting](IList.empty) >| leftc(
+              BatchMachines.Start(NonEmptyList.nel(node, waiting))
+            )
+          else
+            State.modify[Waiting](node :: _) >| leftc(BatchMachines.Noop())
         }
   
-      case other => Coproduct.rightc(Coproduct(other))
+      case other => State.state(rightc(Coproduct(other)))
     }
-  }
+  )
 ~~~~~~~~
 
-When we run the intercepted program, we can assert that we only call the Batch
-API, with multiple nodes, as mandated by our management overlords
+We only need to make a small change to the interpreter, adding `B` and wrapping
+everything with the `Waiting` state:
+
+{lang="text"}
+~~~~~~~~
+  type PatchedTarget[a] = State[Waiting, T[a]]
+  val interpreter: Patched ~> PatchedTarget = State.hoist(or(B, or(M, D)))
+~~~~~~~~
+
+There is one small inconvenience at this point: `PatchedTarget` is of shape
+`State[_, State[_, _]]` and nested `State` types do not have a `Monad`. The
+solution is pretty simple, we just need to unite the states into one:
+
+{lang="text"}
+~~~~~~~~
+  type Target[a] = State[(Waiting, S), a]
+  def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
+~~~~~~~~
+
+Then we can run the program and assert that there are no nodes in the `Waiting`
+list, no node has been launched using the old API, and both nodes have been
+launched in one call to the batch API. Note that we've chained together the
+`interceptor`, `interpreter` and `unite`. We could equally have used
+`.mapSuspension`, but this is to show that it is possible:
 
 {lang="text"}
 ~~~~~~~~
   program(Machines.liftF[Orig], Drone.liftF[Orig])
-    .mapSuspension(interceptor)
-    .foldMap(or(B, or(M, D)))
-    .run(S(IList.empty, IList.empty))
+    .foldMap(interceptor(1).andThen(interpreter).andThen(unite))
+    .run((IList.empty, S(IList.empty, IList.empty))) // everything starts empty
     ._1
     .shouldBe(
-      S(
-        IList.empty,
-        IList(NonEmptyList(MachineNode("2"), MachineNode("1")))
+      (
+        IList.empty, // nothing in the Waiting list
+        S(
+          IList.empty, // the old API was not used
+          IList(NonEmptyList(MachineNode("2"), MachineNode("1"))) // bonus time!
+        )
       )
     )
 ~~~~~~~~
 
-W> This kind of monkey patching is dangerous: we are transforming the meaning of
-W> the program, almost certainly with unintended consequences. In particular,
-W> starting a node is much less reliable than assumed in the production code.
-W> 
-W> This kind of monkey patching is a last resort.
+Congratulations, we've saved the company $50 every month, and it only cost a
+million dollars. But that was some other team's budget, so it is OK.
 
-We used a `var` in this interceptor, making it **even harder** to reason about
-this code.
+Of course, we could have done the same monkey patch by hardcoding this into our
+algebra implementations. In the defence of `Free`, we have decoupled the patch
+from the implementation, which means we can test it more thoroughly.
 
-FIXME: do it without the `var`
+W> With great power comes great responsibility: we are transforming the meaning of
+W> the program, almost certainly with unintended consequences: if we launched three
+W> nodes, one would be left in the queue. Is this something we can live with?
+W> Depending on context, it can definitely be worth the trade off. Consider an
+W> algebra for writing log messages to the network, or persisting unimportant
+W> messages: we trade a huge network performance gain for the risk of dropping a
+W> few unimportant messages.
 
 
 #### TODO Coroutines
@@ -2731,6 +2736,23 @@ TODO: include diagram about cache hits vs network lookups
 ### TODO `Coyoneda` (`FreeFun`)
 
 TODO: can we do map fusion?
+
+Functional Programming lends itself well to compiletime optimisations, an area
+that has not been explored to its full potential. Consider mapping over a
+`Functor` three times:
+
+{lang="text"}
+~~~~~~~~
+  xs.map(a).map(b).map(c)
+~~~~~~~~
+
+A technique known as *map fusion* allows us to rewrite this expression as
+`xs.map(x => c(b(a(x))))`, avoiding intermediate representations. For example,
+if `xs` is a `List` of a thousand elements, we save two thousand object
+allocations.
+
+The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project is attempting to implement these *middle-level
+optimisations*, which is beyond the scope of this book.
 
 -   Programs that change values
 -   Programs that build data
