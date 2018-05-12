@@ -173,7 +173,10 @@ class AlgebraSpec extends FlatSpec {
 
     // it might be possible to do this without noop, using flatMapSuspension but
     // it is beyond both my, and Lord Tagless's, fp-fu. It boils down to needing
-    // a way to distribute Free or to .sequence State, neither is possible.
+    // a way to distribute Free or to .sequence State, neither is possible. To
+    // see what that means, try changing the type signature to `Orig ~>
+    // Free[Patched, ?]`, replacing `Noop` with `.pure`, and try converting your
+    // `State[Waiting, Free[BatchMachines.Ast, Unit]]` into a `Free[Extension]`.
     def monkey(max: Int) = λ[Orig ~> Patched](
       _.run match {
         case -\/(Machines.Start(node)) =>
