@@ -169,20 +169,20 @@ class AlgebraSpec extends FlatSpec {
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
     type Waiting    = IList[MachineNode]
-    type Patched[a] = State[Waiting, Coproduct[BatchMachines.Ast, Orig, a]]
+    type Extended[a] = Coproduct[BatchMachines.Ast, Orig, a]
+    type Patched[a] = State[Waiting, Extended[a]]
 
     // it might be posisble to do this without noop, using flatMapSuspension but
     // it is beyond my fp-fu.
     def monkey(max: Int) = new (Orig ~> Free[Patched, ?]) {
       override def apply[α](fa: Orig[α]): Free[Patched, α] = fa.run match {
         case -\/(Machines.Start(node)) =>
-          val action: Patched[Unit] = State { (waiting: Waiting) =>
+          State { (waiting: Waiting) =>
             if (waiting.length >= max)
-              (IList.empty) -> leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting)))
+              IList.empty[MachineNode] -> Free.liftF[Extended, Unit](leftc(BatchMachines.Start(NonEmptyList.nel(node, waiting))))
             else
-              (node :: waiting) -> leftc(BatchMachines.Noop())
+              (node :: waiting) -> Free.point[Extended, Unit](())
           }
-          Free.liftF(action)
 
         case other =>
           Free.liftF(State.state(rightc(Coproduct(other))): Patched[α])
