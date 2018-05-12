@@ -115,7 +115,7 @@ class AlgebraSpec extends FlatSpec {
       case Machines.Stop(node) => State.modify[S](_ + node)
     }
 
-    val interceptor = λ[Machines.Ast ~> Machines.Ast] {
+    val monkey = λ[Machines.Ast ~> Machines.Ast] {
       case Machines.Stop(MachineNode("#c0ffee")) =>
         Machines.Stop(MachineNode("#tea"))
       case other => other
@@ -124,7 +124,7 @@ class AlgebraSpec extends FlatSpec {
     Machines
       .liftF[Machines.Ast]
       .stop(MachineNode("#c0ffee"))
-      .mapSuspension(interceptor)
+      .mapSuspension(monkey)
       .foldMap(M)
       .run(Set.empty)
       .shouldBe((Set(MachineNode("#tea")), ()))
@@ -173,7 +173,7 @@ class AlgebraSpec extends FlatSpec {
 
     // it might be posisble to do this without noop, using flatMapSuspension but
     // it is beyond my fp-fu.
-    def interceptor(max: Int) = λ[Orig ~> Patched](
+    def monkey(max: Int) = λ[Orig ~> Patched](
       _.run match {
         case -\/(Machines.Start(node)) =>
           State.get[Waiting] >>= { waiting =>
@@ -197,7 +197,7 @@ class AlgebraSpec extends FlatSpec {
     def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .foldMap(interceptor(1).andThen(interpreter).andThen(unite))
+      .foldMap(monkey(1).andThen(interpreter).andThen(unite))
       .run((IList.empty, S(IList.empty, IList.empty)))
       ._1
       .shouldBe(
