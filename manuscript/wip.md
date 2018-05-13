@@ -2252,16 +2252,17 @@ the context. Every method simply delegates to `Free.liftT` to create a `Suspend`
 
 When we construct our program, parameterised over a `Free`, we run it by
 providing an *interpreter* (a natural transformation `Ast ~> M`) to the
-`.foldMap` method. For example, if could provide an interpreter that maps to
-`IO`
+`.foldMap` method. For example, if we could provide an interpreter that maps to
+`IO` we can construct an `IO[Unit]` program via the free AST
 
 {lang="text"}
 ~~~~~~~~
-  import Machines.Ast
+  def program[F[_]: Monad](M: Machines[F]): F[Unit] = ...
   
-  val interpreter: Ast ~> IO = ...
-  val program: Free[Ast, Unit] = ...
-  val result: IO[Unit] = program.foldMap(interpreter)
+  val interpreter: Machines.Ast ~> IO = ...
+  
+  val app: IO[Unit] = program[Free[Machines.Ast, ?]](Machines.liftF)
+                        .foldMap(interpreter)
 ~~~~~~~~
 
 For completeness, an interpreter that delegates to a direct implementation is
@@ -2280,9 +2281,8 @@ use:
   }
 ~~~~~~~~
 
-Now we can use `Free[Machines.Ast, ?]` as the context of our application, but
-our business logic needs more than just `Machines` to be able to run the core
-business logic. We also need access to the `Drone` algebra, recall defined as
+But our business logic needs more than just `Machines`, we also need access to
+the `Drone` algebra, recall defined as
 
 {lang="text"}
 ~~~~~~~~
@@ -2316,23 +2316,15 @@ The `scalaz.Inject` typeclass helps:
 {lang="text"}
 ~~~~~~~~
   type :<:[F[_], G[_]] = Inject[F, G]
-  
-  sealed abstract class Inject[F[_], G[_]] extends (F ~> G) {
-    def inj[A](fa: F[A]): G[A]
-    ...
-  }
+  sealed abstract class Inject[F[_], G[_]] extends (F ~> G)
   object Inject {
-    def inject[F[_], G[_], A](ga: G[Free[F, A]])(implicit I: G :<: F): Free[F, A] = ...
-  
-    implicit def refl[F[_]]: F :<: F = ...
     implicit def left[F[_], G[_]]: F :<: Coproduct[F, G, ?]] = ...
-    implicit def right[F[_], G[_], H[_]](implicit I: F :<: G): F :<: Coproduct[H, G, ?] = ...
     ...
   }
 ~~~~~~~~
 
-The `implicit def` derivations generate `Inject` instances for us when we need
-them, letting us rewrite our `liftF` to work for any combination of ASTs:
+The `implicit` derivations generate `Inject` instances when we need them,
+letting us rewrite our `liftF` to work for any combination of ASTs:
 
 {lang="text"}
 ~~~~~~~~
@@ -2353,8 +2345,27 @@ A> would be a great contribution to the ecosystem! Not only is it painful to wri
 A> the boilerplate, but there is the potential for a typo to ruin our day: if two
 A> members of the algebra have the same type signature, we might not notice.
 
-We can still use the `interpreter` methods that we wrote, by combining them.
-This helper method on `NaturalTransformation`
+Putting it all together, lets say we have a program that we wrote abstracting over `Monad`
+
+{lang="text"}
+~~~~~~~~
+  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] = ...
+~~~~~~~~
+
+and we have some existing implementations of `Machines` and `Drone`, we can
+create interpreters from them:
+
+{lang="text"}
+~~~~~~~~
+  val MachinesIO: Machines[IO] = ...
+  val DroneIO: Drone[IO]       = ...
+  
+  val M: Machines.Ast ~> IO = Machines.interpreter(MachinesIO)
+  val D: Drone.Ast ~> IO    = Drone.interpreter(DroneIO)
+~~~~~~~~
+
+and combine them into the larger instruction set using a convenience method from
+the `NaturalTransformation` companion
 
 {lang="text"}
 ~~~~~~~~
@@ -2362,29 +2373,18 @@ This helper method on `NaturalTransformation`
     def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G = ...
     ...
   }
-~~~~~~~~
-
-allows us to write
-
-{lang="text"}
-~~~~~~~~
-  val MachinesIO: Machines[IO] = ...
-  val DroneIO: Drone[IO] = ...
-  
-  val M: Machines.Ast ~> IO = Machines.interpreter(MachinesIO)
-  val D: Drone.Ast ~> IO    = Drone.interpreter(DroneIO)
-~~~~~~~~
-
-to create an interpreter for the combined instruction set, delegating to
-existing `DroneIO` and `MachinesIO`. We can run this with
-
-{lang="text"}
-~~~~~~~~
-  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] = ...
   
   type Ast[a] = Coproduct[Machines.Ast, Drone.Ast, a]
-  program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
-    .foldMap(or(M, D)): IO[Unit]
+  
+  val interpreter: Ast ~> IO = NaturalTransformation.or(M, D)
+~~~~~~~~
+
+Then use it to run our program
+
+{lang="text"}
+~~~~~~~~
+  val app: IO[Unit] = program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
+                        .foldMap(interpreter)
 ~~~~~~~~
 
 But we've gone in circles! We could have used `IO` as the context for our
@@ -2412,18 +2412,10 @@ create partial interpreters for our algebras:
   }
 ~~~~~~~~
 
-which can be used to test our production code
+which can be used to test our `program` with
 
 {lang="text"}
 ~~~~~~~~
-  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] = ...
-~~~~~~~~
-
-with
-
-{lang="text"}
-~~~~~~~~
-  type Ast[a] = Coproduct[Machines.Ast, Drone.Ast, a]
   program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
     .foldMap(or(M, D))
     .shouldBe(1)
@@ -2448,8 +2440,7 @@ A> ~~~~~~~~
 A>   object Mocker {
 A>     final class Stub[A] {
 A>       def apply[F[_], G[_]](pf: PartialFunction[F[A], G[A]]): F ~> G = new (F ~> G) {
-A>         // safe because F and G share a type parameter
-A>         def apply[α](fa: F[α]): G[α] = pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+A>         def apply[α](fa: F[α]) = pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
 A>       }
 A>     }
 A>     def stub[A]: Stub[A] = new Stub[A]
@@ -2464,29 +2455,28 @@ manipulate bytecode to insert profilers and extract various kinds of usage or
 performance information.
 
 If our application's context is `Free`, we do not need to resort to bytecode
-manipulation, we can instead implement a side-effecting monitor as a no-op
+manipulation, we can instead implement a side-effecting monitor as an
 interpreter that we have complete control over.
 
 A> Runtime introspection is one of the few cases that can justify use of a
-A> side-effect. So long as the monitoring is not visible to the program itself,
-A> referential transparency may still hold. This is also the argument used by teams
-A> that use side-effecting debug logging, and our argument for allowing mutation in
-A> the implementation of `Memo`.
+A> side-effect. If the monitoring is not visible to the program itself, referential
+A> transparency will still hold. This is also the argument used by teams that use
+A> side-effecting debug logging, and our argument for allowing mutation in the
+A> implementation of `Memo`.
 
 For example, consider using this `Ast ~> Ast` "agent"
 
 {lang="text"}
 ~~~~~~~~
-  object Monitor extends (Demo.Ast ~> Demo.Ast) {
-    def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] = Coproduct(
-      fa.run match {
-        case msg @ \/-(Drone.GetBacklog()) =>
-          JmxAbstractFactoryBeanSingletonUtil.count("backlog")
-          msg
-        case other => other
-      }
-    )
-  }
+  val Monitor = λ[Demo.Ast ~> Demo.Ast](
+    _.run match {
+      case \/-(m @ Drone.GetBacklog()) =>
+        JmxAbstractFactoryBeanSingletonUtil.count("backlog")
+        Coproduct.rightc(m)
+      case other =>
+        Coproduct(other)
+    }
+  )
 ~~~~~~~~
 
 which records method invocations: we would use a vendor-specific routine in real
@@ -2494,8 +2484,18 @@ code. We could also watch for specific messages of interest and log them as a
 debugging aid.
 
 We can attach `Monitor` to our production `Free` application with
-`.mapSuspension(Monitor).foldMap(interpreter)` or combine the natural
-transformations and run with a single `.foldMap(Monitor andThen interpreter)`.
+
+{lang="text"}
+~~~~~~~~
+  .mapSuspension(Monitor).foldMap(interpreter)
+~~~~~~~~
+
+or combine the natural transformations and run with a single
+
+{lang="text"}
+~~~~~~~~
+  .foldMap(Monitor.andThen(interpreter))
+~~~~~~~~
 
 
 #### Monkey Patching: Part 1
@@ -2549,8 +2549,19 @@ all the nodes we stopped:
 
 along with a test that "normal" nodes are not affected.
 
+An advantage of using `Free` to avoid stopping the `#c0ffee` nodes is that we
+can be sure to catch all the usages instead of having to go through the business
+logic and look for all usages of `.stop`. If our application context is just an
+`IO` we could, of course, implement this logic in the `Machines[IO]`
+implementation but an advantage of using `Free` is that we don't need to touch
+the existing code and can instead isolate and test this (temporary) behaviour,
+without being tied to the `IO` implementations.
+
 
 #### Monkey Patching: Part 2
+
+I> This example is advanced. It is possible to read the remainder of the book
+I> without understanding this example: you may safely skip it if your brain hurts.
 
 Infrastructure sends a memo:
 
@@ -2564,8 +2575,7 @@ Infrastructure sends a memo:
 
 When we monkey patch, we are not limited to the original instruction set: we can
 introduce new ASTs. Rather than change our core business logic, we might decide
-to *translate* the old instructions into the new ones by introducing a new
-algebra:
+to *translate* existing instructions into an extended set, introducing `Batch`:
 
 {lang="text"}
 ~~~~~~~~
@@ -2573,10 +2583,15 @@ algebra:
     def start(nodes: NonEmptyList[MachineNode]): F[Unit]
     def noop(): F[Unit]
   }
+  object Batch {
+    sealed abstract class Ast[A]
+    ...
+    def liftF = ...
+  }
 ~~~~~~~~
 
-with `.Ast` and `.liftF` boilerplate (not shown). Let's first set up a test for
-a simple program by defining the AST and target type:
+Let's first set up a test for a simple program by defining the AST and target
+type:
 
 {lang="text"}
 ~~~~~~~~
@@ -2670,75 +2685,85 @@ transformation that batches node starts:
 ~~~~~~~~
 
 Now that we have `State` to consider, we have to interpret to a type where we
-can provide the initial state, let's add the state to the previous target
+can provide the initial state. Let's define our new target type to be the old
+type plus the `Waiting` state
 
 {lang="text"}
 ~~~~~~~~
   type PatchedT[a] = State[Waiting, T[a]]
 ~~~~~~~~
 
-If we were to use `or` to combine the three stub interpreters
+If we were to use `NaturalTransformation.or` to combine the three stub
+interpreters
 
 {lang="text"}
 ~~~~~~~~
   or(B, or(M, D))
 ~~~~~~~~
 
-we get an interpreter of type
+we would get an interpreter of type
 
 {lang="text"}
 ~~~~~~~~
   Coproduct[Batch.Ast, Orig, ?] ~> T
 ~~~~~~~~
 
-But we need
+But this won't work, because we need
 
 {lang="text"}
 ~~~~~~~~
   Coproduct[Extension, Orig, ?] ~> PatchedT
 ~~~~~~~~
 
-We only need two steps to get us to the types we need. Firstly, we can *hoist*
-our `B: Batch.Ast ~> T` (recall hoisting from the *Monad Transformer Library*)
+where `Extension` is `Batch.Ast` wrapped in `State[Waiting, ?]`.
+
+We only need to perform two steps to get us to the types we need. First we
+*hoist* our `B: Batch.Ast ~> T` (recall hoisting from *Monad Transformer
+Library*) adding `State[Waiting, ?]` around both the input and output types
 
 {lang="text"}
 ~~~~~~~~
-  State.hoist(B): Extension ~> PatchedT
+  val extension: Extension ~> PatchedT = State.hoist(B)
 ~~~~~~~~
 
-and we can compose our `Orig` interpreter with a natural transformation to add
+then we compose our `Orig` interpreter with a natural transformation to add
 support for tracking the `Waiting` state
 
 {lang="text"}
 ~~~~~~~~
-  val withWaiting = λ[T ~> PatchedT](State.state(_))
+  val orig: Orig ~> PatchedT = or(M, D).andThen(λ[T ~> PatchedT](State.state(_)))
+~~~~~~~~
+
+Recall that `andThen` is to combine an `F ~> G` and a `G ~> H` into a single
+natural transformation `F ~> H`, and the `λ` syntax is `kind-projector` syntax
+to define a `new (T ~> PatchedT)`.
+
+Finally, we can `NaturalTransformation.or` the two parts
+
+{lang="text"}
+~~~~~~~~
+  val interpreter: Patched ~> PatchedT = or(extension, orig)
+~~~~~~~~
+
+Unfortunately, there is a small inconvenience that we must deal with: `PatchedT`
+is of shape `State[_, State[_, _]]` and nested `State` types do not have a
+`Monad` (we need one for `.foldMap`). The solution is to unite the states into
+one using a convenience method from the `State` companion:
+
+{lang="text"}
+~~~~~~~~
+  object State {
+    def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] = ...
+    ...
+  }
   
-  or(M, D).andThen(withWaiting): Orig ~> PatchedT
-~~~~~~~~
-
-Now we can `.or` the two parts
-
-{lang="text"}
-~~~~~~~~
-  val interpreter: Patched ~> PatchedT = or(
-    State.hoist(B): Extension ~> PatchedT,
-    or(M, D).andThen(withWaiting): Orig ~> PatchedT
-  )
-~~~~~~~~
-
-There is now a small inconvenience: `PatchedT` is of shape `State[_,
-State[_, _]]` and nested `State` types do not have a `Monad`. The solution is to
-unite the states into one:
-
-{lang="text"}
-~~~~~~~~
   type Target[a] = State[(Waiting, S), a]
-  def unite = λ[PatchedT ~> Target](StateUtils.united(_))
+  def unite = λ[PatchedT ~> Target](State.united(_))
 ~~~~~~~~
 
-Then we can run the program and assert that there are no nodes in the `Waiting`
-list, no node has been launched using the old API, and both nodes have been
-launched in one call to the batch API:
+Then we can run the program and assert: that there are no nodes in the `Waiting`
+list, no node has been launched using the old API, and all nodes have been
+launched in one call to the batch API.
 
 {lang="text"}
 ~~~~~~~~
@@ -2760,9 +2785,9 @@ launched in one call to the batch API:
 Congratulations, we've saved the company $50 every month, and it only cost a
 million dollars. But that was some other team's budget, so it is OK.
 
-Of course, we could have done the same monkey patch by hardcoding this into our
-algebra implementations. In the defence of `Free`, we have decoupled the patch
-from the implementation, which means we can test it more thoroughly.
+We could have done the same monkey patch by hard coding the batching logic into
+our algebra implementations. In the defence of `Free`, we have decoupled the
+patch from the implementation, which means we can test it more thoroughly.
 
 W> With great power comes great responsibility: we are transforming the meaning of
 W> the program, almost certainly with unintended consequences: if we launched three
