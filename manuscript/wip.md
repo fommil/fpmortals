@@ -2461,37 +2461,41 @@ A> ~~~~~~~~
 
 It is typical for server applications to be monitored by runtime agents that
 manipulate bytecode to insert profilers and extract various kinds of usage or
-performance information. If our application's context is `Free`, we do not need
-to resort to bytecode manipulation, we can instead implement a side-effecting
-monitor as a no-op interpreter that we have complete control over.
+performance information.
+
+If our application's context is `Free`, we do not need to resort to bytecode
+manipulation, we can instead implement a side-effecting monitor as a no-op
+interpreter that we have complete control over.
+
+A> Runtime introspection is one of the few cases that can justify use of a
+A> side-effect. So long as the monitoring is not visible to the program itself,
+A> referential transparency may still hold. This is also the argument used by teams
+A> that use side-effecting debug logging, and our argument for allowing mutation in
+A> the implementation of `Memo`.
 
 For example, consider using this `Ast ~> Ast` "agent"
 
 {lang="text"}
 ~~~~~~~~
   object Monitor extends (Demo.Ast ~> Demo.Ast) {
-    var backlog: Long = 0
     def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] = Coproduct(
       fa.run match {
         case msg @ \/-(Drone.GetBacklog()) =>
-          backlog += 1
+          JmxAbstractFactoryBeanSingletonUtil.count("backlog")
           msg
-        case other           => other
+        case other => other
       }
     )
   }
 ~~~~~~~~
 
-which simply records method invocations. We could also watch for specific
-messages of interest and log them.
+which records method invocations: we would use a vendor-specific routine in real
+code. We could also watch for specific messages of interest and log them as a
+debugging aid.
 
 We can attach `Monitor` to our production `Free` application with
-`.mapSuspension(Monitor).foldMap(interpreter)`.
-
-This monitor is, of course, side-effecting. A pure solution would either use
-`State` to collate the information for later processing (we'll see how to do
-this next), or not use `Free` at all and instead wrap the existing algebra
-implementations with per-algebra monitoring.
+`.mapSuspension(Monitor).foldMap(interpreter)` or combine the natural
+transformations and run with a single `.foldMap(Monitor andThen interpreter)`.
 
 
 #### Monkey Patching: Part 1
@@ -2565,7 +2569,7 @@ algebra:
 
 {lang="text"}
 ~~~~~~~~
-  trait BatchMachines[F[_]] {
+  trait Batch[F[_]] {
     def start(nodes: NonEmptyList[MachineNode]): F[Unit]
     def noop(): F[Unit]
   }
@@ -2623,24 +2627,24 @@ We can expect that the following simple program will behave as expected and call
     .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 ~~~~~~~~
 
-But we don't want to use `Machines.Start`, we need `BatchMachines.Start` to get
+But we don't want to use `Machines.Start`, we need `Batch.Start` to get
 our bonus. Expand the AST to keep track of the `Waiting` nodes that we are
-delaying, and add the `BatchMachines` instructions:
+delaying, and add the `Batch` instructions:
 
 {lang="text"}
 ~~~~~~~~
   type Waiting      = IList[MachineNode]
-  type Extension[a] = State[Waiting, BatchMachines.Ast[a]]
+  type Extension[a] = State[Waiting, Batch.Ast[a]]
   type Patched[a]   = Coproduct[Extension, Orig, a]
 ~~~~~~~~
 
-along with a stub for the `BatchMachines` algebra
+along with a stub for the `Batch` algebra
 
 {lang="text"}
 ~~~~~~~~
-  val B: BatchMachines.Ast ~> T = Mocker.stub[Unit] {
-    case BatchMachines.Start(nodes) => State.modify[S](_.addBatch(nodes))
-    case BatchMachines.Noop()       => ().pure[T]
+  val B: Batch.Ast ~> T = Mocker.stub[Unit] {
+    case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
+    case Batch.Noop()       => ().pure[T]
   }
 ~~~~~~~~
 
@@ -2654,9 +2658,9 @@ transformation that batches node starts:
       case -\/(Machines.Start(node)) =>
         val extension: Extension[Unit] = State { waiting =>
           if (waiting.length >= max)
-            IList.empty -> BatchMachines.Start(NonEmptyList.nel(node, waiting))
+            IList.empty -> Batch.Start(NonEmptyList.nel(node, waiting))
           else
-            (node :: waiting) -> BatchMachines.Noop()
+            (node :: waiting) -> Batch.Noop()
         }
         leftc(extension)
   
@@ -2665,38 +2669,76 @@ transformation that batches node starts:
   )
 ~~~~~~~~
 
-When interpreting, we need to have `Waiting` state on both the input and output
-for `B`, the batched API, to match the `Extension` type. But we only need
-`Waiting` state on the output for the `Orig` part. We create the correct shape
-by wrapping `B` with `State.hoist`, and composing the `Orig` interpreter with a
-simple natural transformation adding the state:
+Now that we have `State` to consider, we have to interpret to a type where we
+can provide the initial state, let's add the state to the previous target
 
 {lang="text"}
 ~~~~~~~~
-  type PatchedTarget[a] = State[Waiting, T[a]]
-  val withWaiting = λ[T ~> PatchedTarget](State.state(_))
+  type PatchedT[a] = State[Waiting, T[a]]
+~~~~~~~~
+
+If we were to use `or` to combine the three stub interpreters
+
+{lang="text"}
+~~~~~~~~
+  or(B, or(M, D))
+~~~~~~~~
+
+we get an interpreter of type
+
+{lang="text"}
+~~~~~~~~
+  Coproduct[Batch.Ast, Orig, ?] ~> T
+~~~~~~~~
+
+But we need
+
+{lang="text"}
+~~~~~~~~
+  Coproduct[Extension, Orig, ?] ~> PatchedT
+~~~~~~~~
+
+We only need two steps to get us to the types we need. Firstly, we can *hoist*
+our `B: Batch.Ast ~> T` (recall hoisting from the *Monad Transformer Library*)
+
+{lang="text"}
+~~~~~~~~
+  State.hoist(B): Extension ~> PatchedT
+~~~~~~~~
+
+and we can compose our `Orig` interpreter with a natural transformation to add
+support for tracking the `Waiting` state
+
+{lang="text"}
+~~~~~~~~
+  val withWaiting = λ[T ~> PatchedT](State.state(_))
   
-  val interpreter: Patched ~> PatchedTarget = or(
-    State.hoist(B): Extension ~> PatchedTarget,
-    or(M, D).andThen(withWaiting)
+  or(M, D).andThen(withWaiting): Orig ~> PatchedT
+~~~~~~~~
+
+Now we can `.or` the two parts
+
+{lang="text"}
+~~~~~~~~
+  val interpreter: Patched ~> PatchedT = or(
+    State.hoist(B): Extension ~> PatchedT,
+    or(M, D).andThen(withWaiting): Orig ~> PatchedT
   )
 ~~~~~~~~
 
-There is a small inconvenience at this point: `PatchedTarget` is of shape
-`State[_, State[_, _]]` and nested `State` types do not have a `Monad`. The
-solution is to unite the states into one:
+There is now a small inconvenience: `PatchedT` is of shape `State[_,
+State[_, _]]` and nested `State` types do not have a `Monad`. The solution is to
+unite the states into one:
 
 {lang="text"}
 ~~~~~~~~
   type Target[a] = State[(Waiting, S), a]
-  def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
+  def unite = λ[PatchedT ~> Target](StateUtils.united(_))
 ~~~~~~~~
 
 Then we can run the program and assert that there are no nodes in the `Waiting`
 list, no node has been launched using the old API, and both nodes have been
-launched in one call to the batch API. Note that we've chained together the
-`monkey`, `interpreter` and `unite`. We could equally have used
-`.mapSuspension`, but this is to show that it is possible:
+launched in one call to the batch API:
 
 {lang="text"}
 ~~~~~~~~
@@ -2729,11 +2771,6 @@ W> Depending on context, it can definitely be worth the trade off. Consider an
 W> algebra for writing log messages to the network, or persisting unimportant
 W> messages: we trade a huge network performance gain for the risk of dropping a
 W> few unimportant messages.
-
-
-#### TODO Coroutines
-
-TODO <http://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html>
 
 
 ### TODO `FreeAp`
