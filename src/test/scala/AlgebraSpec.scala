@@ -34,18 +34,6 @@ object DummyMachines extends Machines[IO] {
   def stop(node: MachineNode): IO[Unit]         = ???
 }
 
-object Monitor extends (Demo.Ast ~> Demo.Ast) {
-  var backlog: Int = 0
-  def apply[A](fa: Demo.Ast[A]): Demo.Ast[A] = Coproduct(
-    fa.run match {
-      case msg @ \/-(Drone.GetBacklog()) =>
-        backlog += 1
-        msg
-      case other => other
-    }
-  )
-}
-
 trait Batch[F[_]] {
   def start(nodes: NonEmptyList[MachineNode]): F[Unit]
   def noop(): F[Unit]
@@ -83,7 +71,16 @@ class AlgebraSpec extends FlatSpec {
     val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> IO = or(iM, iD)
 
-    Monitor.backlog = 0
+    var count = 0
+    val Monitor = λ[Demo.Ast ~> Demo.Ast](
+      _.run match {
+        case \/-(m @ Drone.GetBacklog()) =>
+          count += 1
+          Coproduct.rightc(m)
+        case other =>
+          Coproduct(other)
+      }
+    )
 
     Demo.program
       .mapSuspension(Monitor)
@@ -91,7 +88,7 @@ class AlgebraSpec extends FlatSpec {
       .unsafePerformIO()
       .shouldBe(1)
 
-    Monitor.backlog.shouldBe(1)
+    count.shouldBe(1)
   }
 
   it should "allow smocking" in {
