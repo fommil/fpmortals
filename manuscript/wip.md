@@ -2349,7 +2349,7 @@ Putting it all together, lets say we have a program that we wrote abstracting ov
 
 {lang="text"}
 ~~~~~~~~
-  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] = ...
+  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Unit] = ...
 ~~~~~~~~
 
 and we have some existing implementations of `Machines` and `Drone`, we can
@@ -2379,7 +2379,7 @@ the `NaturalTransformation` companion
   val interpreter: Ast ~> IO = NaturalTransformation.or(M, D)
 ~~~~~~~~
 
-Then use it to run our program
+Then use it to produce an `IO`
 
 {lang="text"}
 ~~~~~~~~
@@ -2399,8 +2399,8 @@ boilerplate, given how much code we have written. However, there is a tipping
 point where the `Ast` pays for itself when we have many tests that require stub
 implementations.
 
-We need the `.Ast` and `.liftF` to be defined for our algebras and then we can
-create partial interpreters for our algebras:
+If the `.Ast` and `.liftF` is defined for an algebra, we can create *partial
+interpreters*
 
 {lang="text"}
 ~~~~~~~~
@@ -2412,7 +2412,7 @@ create partial interpreters for our algebras:
   }
 ~~~~~~~~
 
-which can be used to test our `program` with
+which can be used to test our `program`
 
 {lang="text"}
 ~~~~~~~~
@@ -2421,9 +2421,9 @@ which can be used to test our `program` with
     .shouldBe(1)
 ~~~~~~~~
 
-Of course, by using partial functions, and not total functions, we are exposing
-ourselves to runtime errors. Many teams are happy to accept this risk in their
-unit tests since the test would fail if there is a programmer error.
+By using partial functions, and not total functions, we are exposing ourselves
+to runtime errors. Many teams are happy to accept this risk in their unit tests
+since the test would fail if there is a programmer error.
 
 Arguably we could also achieve the same thing with implementations of our
 algebras that implement every method with `???`, overriding what we need on a
