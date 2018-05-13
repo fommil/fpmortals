@@ -46,16 +46,16 @@ object Monitor extends (Demo.Ast ~> Demo.Ast) {
   )
 }
 
-trait BatchMachines[F[_]] {
+trait Batch[F[_]] {
   def start(nodes: NonEmptyList[MachineNode]): F[Unit]
   def noop(): F[Unit]
 }
-object BatchMachines {
+object Batch {
   sealed abstract class Ast[A]
   final case class Start(nodes: NonEmptyList[MachineNode]) extends Ast[Unit]
   final case class Noop()                                  extends Ast[Unit]
-  def liftF[F[_]](implicit I: Ast :<: F): BatchMachines[Free[F, ?]] =
-    new BatchMachines[Free[F, ?]] {
+  def liftF[F[_]](implicit I: Ast :<: F): Batch[Free[F, ?]] =
+    new Batch[Free[F, ?]] {
       def start(nodes: NonEmptyList[MachineNode]) = Free.liftF(I(Start(nodes)))
       def noop()                                  = Free.liftF(I(Noop()))
     }
@@ -151,9 +151,9 @@ class AlgebraSpec extends FlatSpec {
     val D: Drone.Ast ~> T = Mocker.stub[Int] {
       case Drone.GetBacklog() => 2.pure[T]
     }
-    val B: BatchMachines.Ast ~> T = Mocker.stub[Unit] {
-      case BatchMachines.Start(nodes) => State.modify[S](_.addBatch(nodes))
-      case BatchMachines.Noop()       => ().pure[T]
+    val B: Batch.Ast ~> T = Mocker.stub[Unit] {
+      case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
+      case Batch.Noop()       => ().pure[T]
     }
 
     def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Unit] =
@@ -168,7 +168,7 @@ class AlgebraSpec extends FlatSpec {
       .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
 
     type Waiting      = IList[MachineNode]
-    type Extension[a] = State[Waiting, BatchMachines.Ast[a]]
+    type Extension[a] = State[Waiting, Batch.Ast[a]]
     type Patched[a]   = Coproduct[Extension, Orig, a]
 
     // it might be possible to do this without noop, using flatMapSuspension but
@@ -176,17 +176,17 @@ class AlgebraSpec extends FlatSpec {
     // a way to distribute Free or to .sequence State, neither is possible. To
     // see what that means, try changing the type signature to `Orig ~>
     // Free[Patched, ?]`, replacing `Noop` with `.pure`, and try converting your
-    // `State[Waiting, Free[BatchMachines.Ast, Unit]]` into a `Free[Extension]`.
+    // `State[Waiting, Free[Batch.Ast, Unit]]` into a `Free[Extension]`.
     def monkey(max: Int) = λ[Orig ~> Patched](
       _.run match {
         case -\/(Machines.Start(node)) =>
           val extension: Extension[Unit] = State { waiting =>
             if (waiting.length >= max)
-              IList.empty -> BatchMachines.Start(
+              IList.empty -> Batch.Start(
                 NonEmptyList.nel(node, waiting)
               )
             else
-              (node :: waiting) -> BatchMachines.Noop()
+              (node :: waiting) -> Batch.Noop()
           }
           leftc(extension)
 
@@ -194,17 +194,17 @@ class AlgebraSpec extends FlatSpec {
       }
     )
 
-    type PatchedTarget[a] = State[Waiting, T[a]]
-    val withWaiting = λ[T ~> PatchedTarget](State.state(_))
+    type PatchedT[a] = State[Waiting, T[a]]
+    val withWaiting = λ[T ~> PatchedT](State.state(_))
 
-    val interpreter: Patched ~> PatchedTarget = or(
-      Hoister.state(B): Extension ~> PatchedTarget,
+    val interpreter: Patched ~> PatchedT = or(
+      Hoister.state(B): Extension ~> PatchedT,
       or(M, D).andThen(withWaiting)
     )
 
     // we need the target to have a Monad, and nested State does not have a Monad
     type Target[a] = State[(Waiting, S), a]
-    def unite = λ[PatchedTarget ~> Target](StateUtils.united(_))
+    def unite = λ[PatchedT ~> Target](StateUtils.united(_))
 
     program(Machines.liftF[Orig], Drone.liftF[Orig])
       .foldMap(monkey(1).andThen(interpreter).andThen(unite))
