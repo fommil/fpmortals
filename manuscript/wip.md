@@ -2188,6 +2188,7 @@ defined by three members
     def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
     def foldMap[M[_]: Monad](f: S ~> M): M[A] = ...
     def mapSuspension[T[_]](f: S ~> T): Free[T, A] = ...
+    def flatMapSuspension[T[_]](f: S ~> Free[T, ?]): Free[T, A] = ...
     ...
   }
 ~~~~~~~~
@@ -2514,14 +2515,16 @@ There is no possibility to discuss why Bob shouldn't be using our machines for
 his super-important accounts, so we have to hack our business logic and put out
 a release to production as soon as possible.
 
-`.mapSuspension` to the rescue, we can just special case that message in a
-custom natural transformation
+`.flatMapSuspension` to the rescue, which is like `.mapSuspension` but we can
+also return a pre-canned result (`Free.pure`) instead of scheduling the
+instruction. We special case the instruction in a custom natural transformation
+with its return value:
 
 {lang="text"}
 ~~~~~~~~
-  val monkey = λ[Machines.Ast ~> Machines.Ast] {
-    case Machines.Stop(MachineNode("#c0ffee")) => Machines.Stop(MachineNode("#tea"))
-    case other => other
+  val monkey = λ[Machines.Ast ~> Free[Machines.Ast, ?]] {
+    case Machines.Stop(MachineNode("#c0ffee")) => Free.pure(())
+    case other                                 => Free.liftF(other)
   }
 ~~~~~~~~
 
@@ -2541,10 +2544,10 @@ all the nodes we stopped:
   Machines
     .liftF[Machines.Ast]
     .stop(MachineNode("#c0ffee"))
-    .mapSuspension(monkey)
+    .flatMapSuspension(monkey)
     .foldMap(M)
-    .run(Set.empty)
-    .shouldBe((Set(MachineNode("#tea")), ()))
+    .exec(Set.empty)
+    .shouldBe(Set.empty)
 ~~~~~~~~
 
 along with a test that "normal" nodes are not affected.
@@ -2683,6 +2686,11 @@ transformation that batches node starts:
     }
   )
 ~~~~~~~~
+
+A> Ideally we'd not have to introduce `Noop()` and instead could use `Free.pure`
+A> like in the previous example. However, because we are doing our work with
+A> `State` we can't `.sequence` the types, so we had to introduce this dummy
+A> instruction to represent the "do nothing" case.
 
 Now that we have `State` to consider, we have to interpret to a type where we
 can provide the initial state. Let's define our new target type to be the old

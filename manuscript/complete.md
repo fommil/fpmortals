@@ -6438,6 +6438,9 @@ constructors:
 
 Typeclass instances simply delegate to those of the `F[_]` and `G[_]`.
 
+The most popular use case for `Coproduct` is when we want to create an anonymous
+coproduct for a GADT.
+
 
 ### Not So Eager
 
