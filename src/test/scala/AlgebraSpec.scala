@@ -44,8 +44,9 @@ object Batch {
   final case class Noop()                                  extends Ast[Unit]
   def liftF[F[_]](implicit I: Ast :<: F): Batch[Free[F, ?]] =
     new Batch[Free[F, ?]] {
-      def start(nodes: NonEmptyList[MachineNode]) = Free.liftF(I(Start(nodes)))
-      def noop()                                  = Free.liftF(I(Noop()))
+      def start(nodes: NonEmptyList[MachineNode]) =
+        Free.liftF(I.inj(Start(nodes)))
+      def noop() = Free.liftF(I.inj(Noop()))
     }
 }
 

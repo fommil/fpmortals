@@ -42,8 +42,8 @@ object Drone {
 
   def liftF[F[_]](implicit I: Ast :<: F): Drone[Free[F, ?]] =
     new Drone[Free[F, ?]] {
-      def getBacklog: Free[F, Int] = Free.liftF(I(GetBacklog()))
-      def getAgents: Free[F, Int]  = Free.liftF(I(GetAgents()))
+      def getBacklog: Free[F, Int] = Free.liftF(I.inj(GetBacklog()))
+      def getAgents: Free[F, Int]  = Free.liftF(I.inj(GetAgents()))
     }
 
   def interpreter[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
@@ -82,11 +82,11 @@ object Machines {
 
   def liftF[F[_]](implicit I: Ast :<: F): Machines[Free[F, ?]] =
     new Machines[Free[F, ?]] {
-      def getTime                  = Free.liftF(I(GetTime()))
-      def getManaged               = Free.liftF(I(GetManaged()))
-      def getAlive                 = Free.liftF(I(GetAlive()))
-      def start(node: MachineNode) = Free.liftF(I(Start(node)))
-      def stop(node: MachineNode)  = Free.liftF(I(Stop(node)))
+      def getTime                  = Free.liftF(I.inj(GetTime()))
+      def getManaged               = Free.liftF(I.inj(GetManaged()))
+      def getAlive                 = Free.liftF(I.inj(GetAlive()))
+      def start(node: MachineNode) = Free.liftF(I.inj(Start(node)))
+      def stop(node: MachineNode)  = Free.liftF(I.inj(Stop(node)))
     }
 
   def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
