@@ -112,19 +112,18 @@ class AlgebraSpec extends FlatSpec {
       case Machines.Stop(node) => State.modify[S](_ + node)
     }
 
-    val monkey = λ[Machines.Ast ~> Machines.Ast] {
-      case Machines.Stop(MachineNode("#c0ffee")) =>
-        Machines.Stop(MachineNode("#tea"))
-      case other => other
+    val monkey = λ[Machines.Ast ~> Free[Machines.Ast, ?]] {
+      case Machines.Stop(MachineNode("#c0ffee")) => Free.pure(())
+      case other                                 => Free.liftF(other)
     }
 
     Machines
       .liftF[Machines.Ast]
       .stop(MachineNode("#c0ffee"))
-      .mapSuspension(monkey)
+      .flatMapSuspension(monkey)
       .foldMap(M)
       .exec(Set.empty)
-      .shouldBe(Set(MachineNode("#tea")))
+      .shouldBe(Set.empty)
   }
 
   it should "support monkey patching part 2" in {
