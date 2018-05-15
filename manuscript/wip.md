@@ -2176,7 +2176,12 @@ defined by three members
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class Free[S[_], A]
+  sealed abstract class Free[S[_], A] {
+    def mapSuspension[T[_]](f: S ~> T): Free[T, A] = ...
+    def flatMapSuspension[T[_]](f: S ~> Free[T, ?]): Free[T, A] = ...
+    def foldMap[M[_]: Monad](f: S ~> M): M[A] = ...
+    ...
+  }
   object Free {
     private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
     private final case class Return[S[_], A](a: A)     extends Free[S, A]
@@ -2186,9 +2191,6 @@ defined by three members
     ) extends Free[S, B] { type A = A0 }
   
     def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
-    def foldMap[M[_]: Monad](f: S ~> M): M[A] = ...
-    def mapSuspension[T[_]](f: S ~> T): Free[T, A] = ...
-    def flatMapSuspension[T[_]](f: S ~> Free[T, ?]): Free[T, A] = ...
     ...
   }
 ~~~~~~~~
@@ -2741,15 +2743,58 @@ our algebra implementations. In the defence of `Free`, we have decoupled the
 patch from the implementation, which means we can test it more thoroughly.
 
 W> With great power comes great responsibility: we are transforming the meaning of
-W> the program, almost certainly with unintended consequences: if we launched three
-W> nodes, one would be left in the queue. Is this something we can live with?
-W> Depending on context, it can definitely be worth the trade off. Consider an
-W> algebra for writing log messages to the network, or persisting unimportant
-W> messages: we trade a huge network performance gain for the risk of dropping a
-W> few unimportant messages.
+W> the program, almost certainly with unintended consequences.
+W> 
+W> Consider an algebra for writing debug messages to the network: we trade a
+W> network performance gain for the risk of dropping some messages. However if we
+W> are relying on the Monad laws in our business logic, and we mess with that, we
+W> may as well be flipping bits in RAM.
 
 
-### TODO `FreeAp`
+### `FreeAp`
+
+Despite this chapter being called **Advanced Monads**, the takeaway is: *don't use
+monads unless you really **really** have to*. In this section, we will see why
+`FreeAp` (free applicative) is preferable to `Free` monads.
+
+In the previous `Free` example, we used the power of the dark side to batch
+sequential operations. When our context is `Applicative`, grouping of work is
+both easier and mathematically correct.
+
+`FreeAp` is defined as the data structure representation of the `ap` and `pure`
+methods from the `Applicative` typeclass:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class FreeAp[S[_], A] {
+    def hoist[G[_]](f: S ~> G): FreeAp[G,A] = ...
+    def foldMap[G[_]: Applicative](f: S ~> G): G[A] = ...
+    def monadic: Free[S, A] = ...
+    def analyze[M: Monoid](f: S ~> λ[α => M]): M = ...
+    ...
+  }
+  object FreeAp {
+    private final case class Pure[S[_], A](a: A) extends FreeAp[S, A]
+    private final case class Ap[S[_], A, B](
+      value: () => S[B],
+      function: () => FreeAp[S, B => A]
+    ) extends FreeAp[S, A]
+  
+    def apply[S[_], A, B](v: =>F[A], f: =>FreeAp[S, A => B]): FreeAp[S, B] = ...
+    def pure[S[_], A](a: A): FreeAp[S, A] = Pure(a)
+    def lift[S[_], A](x: => S[A]): FreeAp[S, A] = apply(x, Pure((a: A) => a))
+    ...
+  }
+~~~~~~~~
+
+The ADT specific methods `.hoist` and `.foldMap` are like their `Free` analogues
+`.mapSuspension` and `.foldMap`.
+
+As a convenience, we can generate a `Free[S, A]` from our `FreeAp[S, A]` with
+`.monadic`. This is especially useful to optimise smaller `Applicative`
+subsystems yet use them as part of a larger `Free` program.
+
+`.analyze` is a TODO (reference previous `Const` example)
 
 TODO: Optimise network lookup.
 
