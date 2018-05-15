@@ -212,6 +212,7 @@ package object prelude {
   type LiftIO[F[_]]             = scalaz.effect.LiftIO[F]
   type MonadIO[F[_]]            = scalaz.effect.MonadIO[F]
   type Free[S[_], A]            = scalaz.Free[S, A]
+  type FreeAp[S[_], A]          = scalaz.FreeAp[S, A]
   type Inject[F[_], G[_]]       = scalaz.Inject[F, G]
   type :<:[F[_], G[_]]          = scalaz.Inject[F, G]
   type Coproduct[F[_], G[_], A] = scalaz.Coproduct[F, G, A]
@@ -244,6 +245,7 @@ package object prelude {
   @inline final val LiftIO: scalaz.effect.LiftIO.type   = scalaz.effect.LiftIO
   @inline final val MonadIO: scalaz.effect.MonadIO.type = scalaz.effect.MonadIO
   @inline final val Free: scalaz.Free.type              = scalaz.Free
+  @inline final val FreeAp: scalaz.FreeAp.type          = scalaz.FreeAp
   @inline final val Inject: scalaz.Inject.type          = scalaz.Inject
   @inline final val Coproduct: scalaz.Coproduct.type    = scalaz.Coproduct
   @inline final val Trampoline: scalaz.Trampoline.type  = scalaz.Trampoline

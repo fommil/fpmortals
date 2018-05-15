@@ -92,6 +92,20 @@ object Machines {
       def stop(node: MachineNode): Free[F, Unit] = Free.liftF(I.inj(Stop(node)))
     }
 
+  // FIXME: boilerplate with Free
+  def liftA[F[_]](implicit I: Ast :<: F): Machines[FreeAp[F, ?]] =
+    new Machines[FreeAp[F, ?]] {
+      def getTime: FreeAp[F, Instant] = FreeAp.lift(I.inj(GetTime()))
+      def getManaged: FreeAp[F, NonEmptyList[MachineNode]] =
+        FreeAp.lift(I.inj(GetManaged()))
+      def getAlive: FreeAp[F, Map[MachineNode, Instant]] =
+        FreeAp.lift(I.inj(GetAlive()))
+      def start(node: MachineNode): FreeAp[F, Unit] =
+        FreeAp.lift(I.inj(Start(node)))
+      def stop(node: MachineNode): FreeAp[F, Unit] =
+        FreeAp.lift(I.inj(Stop(node)))
+    }
+
   def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime: F[Instant]
     case GetManaged() => f.getManaged: F[NonEmptyList[MachineNode]]
