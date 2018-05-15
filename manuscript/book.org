@@ -91,14 +91,14 @@ Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][O
 What is it Good For?]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]],
 Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Sukant Hajra for [[https://www.youtube.com/watch?v=QtZJATIPB0k][Classy Monad Transformers]],
 Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Vincent Marquez for [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your
-State]], [[http://www.haskellforall.com/2012/12/the-continuation-monad.html][The Continuation Monad]] by Gabriel Gonzalez, Yi Lin Wei and Zainab Ali for
-their tutorials at Hack The Tower meetups.
+State]], Gabriel Gonzalez for [[http://www.haskellforall.com/2012/12/the-continuation-monad.html][The Continuation Monad]], and Yi Lin Wei / Zainab Ali
+for their tutorials at Hack The Tower meetups.
 
 The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmund
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
 Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
-A. Baker.
+A. Baker and Alexander Konovalov.
 
 ** Practicalities
 
@@ -107,7 +107,7 @@ this book, you will need to use a recent version of Scala with
 FP-specific features enabled (e.g. in =build.sbt=):
 
 #+BEGIN_SRC scala
-scalaVersion in ThisBuild := "2.12.4"
+scalaVersion in ThisBuild := "2.12.6"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-Ypartial-unification",
@@ -116,14 +116,11 @@ scalacOptions in ThisBuild ++= Seq(
 
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
-  "com.chuusai"          %% "shapeless"      % "2.3.3" ,
-  "org.scalaz"           %% "scalaz-core"    % "7.2.21"
+  "org.scalaz"           %% "scalaz-core"    % "7.2.22"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
-addCompilerPlugin(
-  "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
-)
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 #+END_SRC
 
 In order to keep our snippets short, we will omit the =import=

@@ -26,7 +26,7 @@ object Main {
   type Extension[a] = State[S, Improved[a]]
 
   // requires Noop :-(
-  val hacky = λ[Orig ~> Extension] {
+  val hacky = Lambda[Orig ~> Extension] {
     case Old(i) =>
       State {
         case Maybe.Just(s) => Maybe.empty   -> New(s, i)
@@ -35,7 +35,7 @@ object Main {
   }
 
   // this is the signature we want to write
-  val better = λ[Orig ~> Free[Extension, ?]] {
+  val better = Lambda[Orig ~> Free[Extension, ?]] {
     case Old(i) =>
       val extension: State[S, Free[Improved, Unit]] = State {
         case Maybe.Just(s) => Maybe.empty   -> Free.liftF(New(s, i))
@@ -44,5 +44,24 @@ object Main {
 
       ??? // :-(
   }
+
+  // the solution winner!
+  type Alex[a] = StateT[Free[Improved, ?], S, a]
+  val alex = Lambda[Orig ~> Alex] {
+    case Old(i) =>
+      StateT {
+        case Maybe.Just(s) =>
+          Free.liftF(New(s, i)).map(x => (Maybe.empty, x))
+        case Maybe.Empty() =>
+          Free.pure(()).map(x => (Maybe.just(i), x))
+      }
+  }
+
+  def program: Free[Orig, Unit] = ???
+
+  val step1: Free[Improved, (Maybe[Int], Unit)] =
+    program
+      .foldMap(alex)
+      .run(Maybe.empty)
 
 }
