@@ -6,4 +6,4 @@ addSbtPlugin("com.geirsson" % "sbt-scalafmt" % "1.5.1")
 
 // https://oss.sonatype.org/content/repositories/snapshots/ch/epfl/scala/scalafix-core_2.12/
 resolvers += Resolver.sonatypeRepo("snapshots")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.6.0-M5-6-57061f72-SNAPSHOT")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.6.0-M5-27-ef2fdb9d-SNAPSHOT")

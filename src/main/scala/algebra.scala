@@ -27,13 +27,13 @@ object Drone {
 
   def liftM[F[_]: Monad, G[_[_], _]: MonadTrans](f: Drone[F]): Drone[G[F, ?]] =
     new Drone[G[F, ?]] {
-      def getBacklog = f.getBacklog.liftM[G]
-      def getAgents  = f.getAgents.liftM[G]
+      def getBacklog: G[F, Int] = f.getBacklog.liftM[G]
+      def getAgents: G[F, Int]  = f.getAgents.liftM[G]
     }
 
   def liftIO[F[_]: MonadIO](io: Drone[IO]): Drone[F] = new Drone[F] {
-    def getBacklog = io.getBacklog.liftIO[F]
-    def getAgents  = io.getAgents.liftIO[F]
+    def getBacklog: F[Int] = io.getBacklog.liftIO[F]
+    def getAgents: F[Int]  = io.getAgents.liftIO[F]
   }
 
   sealed abstract class Ast[A]
@@ -58,19 +58,19 @@ object Machines {
     f: Machines[F]
   ): Machines[G[F, ?]] =
     new Machines[G[F, ?]] {
-      def getTime                  = f.getTime.liftM[G]
-      def getManaged               = f.getManaged.liftM[G]
-      def getAlive                 = f.getAlive.liftM[G]
-      def start(node: MachineNode) = f.start(node).liftM[G]
-      def stop(node: MachineNode)  = f.stop(node).liftM[G]
+      def getTime: G[F, Instant]                      = f.getTime.liftM[G]
+      def getManaged: G[F, NonEmptyList[MachineNode]] = f.getManaged.liftM[G]
+      def getAlive: G[F, Map[MachineNode, Instant]]   = f.getAlive.liftM[G]
+      def start(node: MachineNode): G[F, Unit]        = f.start(node).liftM[G]
+      def stop(node: MachineNode): G[F, Unit]         = f.stop(node).liftM[G]
     }
 
   def liftIO[F[_]: MonadIO](io: Machines[IO]): Machines[F] = new Machines[F] {
-    def getTime                  = io.getTime.liftIO[F]
-    def getManaged               = io.getManaged.liftIO[F]
-    def getAlive                 = io.getAlive.liftIO[F]
-    def start(node: MachineNode) = io.start(node).liftIO[F]
-    def stop(node: MachineNode)  = io.stop(node).liftIO[F]
+    def getTime: F[Instant]                      = io.getTime.liftIO[F]
+    def getManaged: F[NonEmptyList[MachineNode]] = io.getManaged.liftIO[F]
+    def getAlive: F[Map[MachineNode, Instant]]   = io.getAlive.liftIO[F]
+    def start(node: MachineNode): F[Unit]        = io.start(node).liftIO[F]
+    def stop(node: MachineNode): F[Unit]         = io.stop(node).liftIO[F]
   }
 
   sealed abstract class Ast[A]
@@ -82,11 +82,14 @@ object Machines {
 
   def liftF[F[_]](implicit I: Ast :<: F): Machines[Free[F, ?]] =
     new Machines[Free[F, ?]] {
-      def getTime                  = Free.liftF(I.inj(GetTime()))
-      def getManaged               = Free.liftF(I.inj(GetManaged()))
-      def getAlive                 = Free.liftF(I.inj(GetAlive()))
-      def start(node: MachineNode) = Free.liftF(I.inj(Start(node)))
-      def stop(node: MachineNode)  = Free.liftF(I.inj(Stop(node)))
+      def getTime: Free[F, Instant] = Free.liftF(I.inj(GetTime()))
+      def getManaged: Free[F, NonEmptyList[MachineNode]] =
+        Free.liftF(I.inj(GetManaged()))
+      def getAlive: Free[F, Map[MachineNode, Instant]] =
+        Free.liftF(I.inj(GetAlive()))
+      def start(node: MachineNode): Free[F, Unit] =
+        Free.liftF(I.inj(Start(node)))
+      def stop(node: MachineNode): Free[F, Unit] = Free.liftF(I.inj(Stop(node)))
     }
 
   def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {

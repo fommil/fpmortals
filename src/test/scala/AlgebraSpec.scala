@@ -1,4 +1,4 @@
-// Copyright: 2018 Sam Halliday
+// Copyright: 2017 - 2018 Sam Halliday
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
@@ -42,7 +42,7 @@ object Batch {
   final case class Start(nodes: NonEmptyList[MachineNode]) extends Ast[Unit]
   def liftF[F[_]](implicit I: Ast :<: F): Batch[Free[F, ?]] =
     new Batch[Free[F, ?]] {
-      def start(nodes: NonEmptyList[MachineNode]) =
+      def start(nodes: NonEmptyList[MachineNode]): Free[F, Unit] =
         Free.liftF(I.inj(Start(nodes)))
     }
 }
@@ -69,7 +69,7 @@ class AlgebraSpec extends FlatSpec {
     val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> IO = or(iM, iD)
 
-    var count = 0
+    var count = 0 // scalafix:ok
     val Monitor = λ[Demo.Ast ~> Demo.Ast](
       _.run match {
         case \/-(m @ Drone.GetBacklog()) =>
@@ -125,7 +125,7 @@ class AlgebraSpec extends FlatSpec {
   }
 
   it should "support monkey patching part 2" in {
-    case class S(
+    final case class S(
       singles: IList[MachineNode],
       batches: IList[NonEmptyList[MachineNode]]
     ) {
@@ -208,27 +208,6 @@ class AlgebraSpec extends FlatSpec {
 
 }
 
-// contributed upstream https://github.com/scalaz/scalaz/pull/1765
-object Hoister {
-  def nt[F[_], G[_], H[_]: Functor](in: F ~> G) =
-    λ[λ[α => H[F[α]]] ~> λ[α => H[G[α]]]](_.map(in))
-
-  def state[F[_], G[_], S](in: F ~> G) = nt[F, G, State[S, ?]](in)
-}
-
-// contributed upstream https://github.com/scalaz/scalaz/pull/1766
-object StateUtils {
-  def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] =
-    State(
-      ss => {
-        val (s1, s2) = ss
-        val (ns1, g) = s.run(s1)
-        val (ns2, a) = g(s2)
-        ((ns1, ns2), a)
-      }
-    )
-}
-
 // inspired by https://github.com/djspiewak/smock
 object Mocker {
   import scala.PartialFunction
@@ -237,7 +216,7 @@ object Mocker {
       new (F ~> G) {
         override def apply[α](fa: F[α]): G[α] =
           // safe because F and G share a type parameter
-          pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+          pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa) // scalafix:ok
       }
   }
   def stub[A]: Stub[A] = new Stub[A]
@@ -248,6 +227,6 @@ object Mocker {
     new (F ~> G) {
       override def apply[α](fa: F[α]): G[α] =
         // not even nearly safe, but we'll catch mistakes when the test runs
-        pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+        pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa) // scalafix:ok
     }
 }
