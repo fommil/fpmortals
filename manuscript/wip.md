@@ -2587,7 +2587,6 @@ to *translate* existing instructions into an extended set, introducing `Batch`:
 ~~~~~~~~
   trait Batch[F[_]] {
     def start(nodes: NonEmptyList[MachineNode]): F[Unit]
-    def noop(): F[Unit]
   }
   object Batch {
     sealed abstract class Ast[A]
@@ -2655,8 +2654,8 @@ delaying, and add the `Batch` instructions:
 {lang="text"}
 ~~~~~~~~
   type Waiting      = IList[MachineNode]
-  type Extension[a] = State[Waiting, Batch.Ast[a]]
-  type Patched[a]   = Coproduct[Extension, Orig, a]
+  type Extension[a] = Coproduct[Batch.Ast, Orig, a]
+  type Patched[a]   = StateT[Free[Extension, ?], Waiting, a]
 ~~~~~~~~
 
 along with a stub for the `Batch` algebra
@@ -2665,7 +2664,6 @@ along with a stub for the `Batch` algebra
 ~~~~~~~~
   val B: Batch.Ast ~> T = Mocker.stub[Unit] {
     case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
-    case Batch.Noop()       => ().pure[T]
   }
 ~~~~~~~~
 
@@ -2674,123 +2672,65 @@ transformation that batches node starts:
 
 {lang="text"}
 ~~~~~~~~
-  def monkey(max: Int) = λ[Orig ~> Patched](
-    _.run match {
+  def monkey(max: Int) = new (Orig ~> Patched) {
+    def apply[α](fa: Orig[α]): Patched[α] = fa.run match {
       case -\/(Machines.Start(node)) =>
-        val extension: Extension[Unit] = State { waiting =>
-          if (waiting.length >= max)
-            IList.empty -> Batch.Start(NonEmptyList.nel(node, waiting))
-          else
-            (node :: waiting) -> Batch.Noop()
+        StateT { waiting =>
+          if (waiting.length >= max) {
+            val start = Batch.Start(NonEmptyList.nel(node, waiting))
+            Free
+              .liftF[Extension, Unit](leftc(start))
+              .strengthL(IList.empty)
+          } else
+            Free
+              .pure[Extension, Unit](())
+              .strengthL(node :: waiting)
         }
-        leftc(extension)
   
-      case other => rightc(Coproduct(other))
+      case _ =>
+        Free
+          .liftF[Extension, α](rightc(fa))
+          .liftM[StateT[?[_], Waiting, ?]]
     }
-  )
-~~~~~~~~
-
-A> Ideally we'd not have to introduce `Noop()` and instead could use `Free.pure`
-A> like in the previous example. However, because we are doing our work with
-A> `State` we can't `.sequence` the types, so we had to introduce this dummy
-A> instruction to represent the "do nothing" case.
-
-Now that we have `State` to consider, we have to interpret to a type where we
-can provide the initial state. Let's define our new target type to be the old
-type plus the `Waiting` state
-
-{lang="text"}
-~~~~~~~~
-  type PatchedT[a] = State[Waiting, T[a]]
-~~~~~~~~
-
-If we were to use `NaturalTransformation.or` to combine the three stub
-interpreters
-
-{lang="text"}
-~~~~~~~~
-  or(B, or(M, D))
-~~~~~~~~
-
-we would get an interpreter of type
-
-{lang="text"}
-~~~~~~~~
-  Coproduct[Batch.Ast, Orig, ?] ~> T
-~~~~~~~~
-
-But this won't work, because we need
-
-{lang="text"}
-~~~~~~~~
-  Coproduct[Extension, Orig, ?] ~> PatchedT
-~~~~~~~~
-
-where `Extension` is `Batch.Ast` wrapped in `State[Waiting, ?]`.
-
-We only need to perform two steps to get us to the types we need. First we
-*hoist* our `B: Batch.Ast ~> T` (recall hoisting from *Monad Transformer
-Library*) adding `State[Waiting, ?]` around both the input and output types
-
-{lang="text"}
-~~~~~~~~
-  val extension: Extension ~> PatchedT = State.hoist(B)
-~~~~~~~~
-
-then we compose our `Orig` interpreter with a natural transformation to add
-support for tracking the `Waiting` state
-
-{lang="text"}
-~~~~~~~~
-  val orig: Orig ~> PatchedT = or(M, D).andThen(λ[T ~> PatchedT](State.state(_)))
-~~~~~~~~
-
-Recall that `andThen` is to combine an `F ~> G` and a `G ~> H` into a single
-natural transformation `F ~> H`, and the `λ` syntax is `kind-projector` syntax
-to define a `new (T ~> PatchedT)`.
-
-Finally, we can `NaturalTransformation.or` the two parts
-
-{lang="text"}
-~~~~~~~~
-  val interpreter: Patched ~> PatchedT = or(extension, orig)
-~~~~~~~~
-
-Unfortunately, there is a small inconvenience that we must deal with: `PatchedT`
-is of shape `State[_, State[_, _]]` and nested `State` types do not have a
-`Monad` (we need one for `.foldMap`). The solution is to unite the states into
-one using a convenience method from the `State` companion:
-
-{lang="text"}
-~~~~~~~~
-  object State {
-    def united[S1, S2, A](s: State[S1, State[S2, A]]): State[(S1, S2), A] = ...
-    ...
   }
-  
-  type Target[a] = State[(Waiting, S), a]
-  def unite = λ[PatchedT ~> Target](State.united(_))
 ~~~~~~~~
 
-Then we can run the program and assert: that there are no nodes in the `Waiting`
+A> The Scala compiler struggles a bit to infer all the types in this code, so we
+A> provide a lot of type annotations to help it along.
+
+We're using `.strengthL` to set the value of the `Waiting` state, with `.pure`
+again letting us avoid sending an instruction in this code branch.
+
+We `.foldMap` **twice** because of the state, and combine the stubs again with
+`.or`:
+
+{lang="text"}
+~~~~~~~~
+  program(Machines.liftF[Orig], Drone.liftF[Orig])
+    .foldMap(monkey(1))
+    .run(IList.empty) // starting Waiting list
+    .foldMap(or(B, or(M, D)))
+~~~~~~~~
+
+Then we run the program and assert: that there are no nodes in the `Waiting`
 list, no node has been launched using the old API, and all nodes have been
 launched in one call to the batch API.
 
 {lang="text"}
 ~~~~~~~~
-  program(Machines.liftF[Orig], Drone.liftF[Orig])
-    .foldMap(monkey(1).andThen(interpreter).andThen(unite))
-    .run((IList.empty, S(IList.empty, IList.empty))) // everything starts empty
-    ._1
-    .shouldBe(
+  .run(S(IList.empty, IList.empty))
+  .shouldBe(
+    (
+      S(
+        IList.empty, // no singles
+        IList(NonEmptyList(MachineNode("2"), MachineNode("1"))) // bonus time!
+      ),
       (
-        IList.empty, // nothing in the Waiting list
-        S(
-          IList.empty, // the old API was not used
-          IList(NonEmptyList(MachineNode("2"), MachineNode("1"))) // bonus time!
-        )
+        IList.empty, // no Waiting
+        () // the program output
       )
     )
+  )
 ~~~~~~~~
 
 Congratulations, we've saved the company $50 every month, and it only cost a
