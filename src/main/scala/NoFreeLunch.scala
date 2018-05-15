@@ -3,7 +3,16 @@
 
 package nofreelunch
 
-// minimisation of issue encountered in drone-dynamic-agents' AlgebraSpec
+// Minimisation of issue encountered in drone-dynamic-agents' AlgebraSpec
+//
+// We have an `Orig` AST and an `Improved` AST. We want to write `Orig ~>
+// Patched` where `Patched` is `Orig` plus `Improved`, wrapped with some
+// `State`.
+//
+// The problem is that to do this, we must introduce a fake `Noop` element. A
+// better solution would be to write `Orig ~> Free[Patched, ?]`. But I don't
+// think it is possible to `State.sequence` or `Free.distribute`. Maybe it's
+// possible for these specific types?
 
 import scalaz._, Scalaz._
 
@@ -21,8 +30,8 @@ object Main {
   type Extension[a] = State[S, Improved[a]]
   type Patched[a]   = Coproduct[Extension, Orig, a]
 
-  // this is a hacky patch because it requires the Noop
-  val patch = λ[Orig ~> Patched] {
+  // requires Noop :-(
+  val hacky = λ[Orig ~> Patched] {
     case Old(i) =>
       val extension: Extension[Unit] = State {
         case Maybe.Just(s) => Maybe.empty   -> New(s, i)
@@ -34,29 +43,17 @@ object Main {
       Coproduct.rightc(other)
   }
 
-  // this is the patch we want to write
+  // this is the signature we want to write
   val better = λ[Orig ~> Free[Patched, ?]] {
     case Old(i) =>
       val extension: State[S, Free[Improved, Unit]] = State {
         case Maybe.Just(s) => Maybe.empty   -> Free.liftF(New(s, i))
         case Maybe.Empty() => Maybe.just(i) -> Free.pure(())
       }
-      // but this requires sequencing State, or distributing Free... :-(
-      ???
+      ??? // :-(
 
     case other =>
       Free.liftF(Coproduct.right[Extension](other))
   }
 
-}
-
-// ADT (not subtype) constructors...
-object Old {
-  def apply(i: Int): Orig[Unit] = new Old(i)
-}
-object New {
-  def apply(a: Int, b: Int): Improved[Unit] = new New(a, b)
-}
-object Noop {
-  def apply(): Improved[Unit] = new Noop()
 }
