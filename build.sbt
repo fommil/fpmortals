@@ -37,3 +37,4 @@ initialCommands in (Compile, console) := Seq(
 
 //scalafmtOnCompile in ThisBuild := true
 scalafmtConfig in ThisBuild := Some(file("project/scalafmt.conf"))
+scalafmtOnCompile in ThisBuild := true
