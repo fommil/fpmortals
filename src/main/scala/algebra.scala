@@ -47,8 +47,8 @@ object Drone {
     }
 
   def interpreter[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
-    case GetBacklog() => f.getBacklog
-    case GetAgents()  => f.getAgents
+    case GetBacklog() => f.getBacklog: F[Int]
+    case GetAgents()  => f.getAgents: F[Int]
   }
 
 }
@@ -93,11 +93,11 @@ object Machines {
     }
 
   def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
-    case GetTime()    => f.getTime
-    case GetManaged() => f.getManaged
-    case GetAlive()   => f.getAlive
-    case Start(node)  => f.start(node)
-    case Stop(node)   => f.stop(node)
+    case GetTime()    => f.getTime: F[Instant]
+    case GetManaged() => f.getManaged: F[NonEmptyList[MachineNode]]
+    case GetAlive()   => f.getAlive: F[Map[MachineNode, Instant]]
+    case Start(node)  => f.start(node): F[Unit]
+    case Stop(node)   => f.stop(node): F[Unit]
   }
 
 }
