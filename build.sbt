@@ -1,7 +1,7 @@
 inThisBuild(
   Seq(
     startYear := Some(2017),
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.12.6",
     sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
     sonatypeDevelopers := List("Sam Halliday"),
     licenses := Seq(GPL3),
@@ -22,9 +22,9 @@ val derivingVersion = "0.13.1"
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
-  "xyz.driver"           %% "spray-json-derivation" % "0.4.3",
+  "xyz.driver"           %% "spray-json-derivation" % "0.4.5",
   "eu.timepit"           %% "refined-scalaz"        % "0.9.0",
-  "org.scalaz"           %% "scalaz-effect"         % "7.2.22",
+  "org.scalaz"           %% "scalaz-effect"         % "7.2.23",
   "com.fommil"           %% "deriving-macro"        % derivingVersion % "provided",
   "com.fommil"           %% "scalaz-deriving"       % derivingVersion,
   "com.propensive"       %% "magnolia"              % "0.7.1",
@@ -50,7 +50,9 @@ scalacOptions ++= Seq(
   "-opt-inline-from:scalaz.**"
 )
 
-addCompilerPlugin(scalafixSemanticdb)
+addCompilerPlugin(
+  ("org.scalameta" % "semanticdb-scalac" % "4.0.0-M1").cross(CrossVersion.full)
+)
 
 addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
 
@@ -60,7 +62,7 @@ managedClasspath in Compile := {
   Attributed.blank(res) +: old
 }
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
