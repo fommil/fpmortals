@@ -2765,7 +2765,6 @@ methods from the `Applicative` typeclass:
   sealed abstract class FreeAp[S[_], A] {
     def hoist[G[_]](f: S ~> G): FreeAp[G,A] = ...
     def foldMap[G[_]: Applicative](f: S ~> G): G[A] = ...
-    def retract(implicit F: Applicative[F]): F[A] = ...
     def monadic: Free[S, A] = ...
     def analyze[M:Monoid](f: F ~> λ[α => M]): M = ...
     ...
@@ -2777,16 +2776,14 @@ methods from the `Applicative` typeclass:
       function: () => FreeAp[S, B => A]
     ) extends FreeAp[S, A]
   
-    def apply[S[_], A, B](v: =>F[A], f: =>FreeAp[S, A => B]): FreeAp[S, B] = ...
     def pure[S[_], A](a: A): FreeAp[S, A] = Pure(a)
-    def lift[S[_], A](x: => S[A]): FreeAp[S, A] = apply(x, Pure((a: A) => a))
+    def lift[S[_], A](x: => S[A]): FreeAp[S, A] = ...
     ...
   }
 ~~~~~~~~
 
 The methods `.hoist` and `.foldMap` are like their `Free` analogues
-`.mapSuspension` and `.foldMap`, with `.retract` being a shortcut for `.foldMap`
-over the identity.
+`.mapSuspension` and `.foldMap`.
 
 As a convenience, we can generate a `Free[S, A]` from our `FreeAp[S, A]` with
 `.monadic`. This is especially useful to optimise smaller `Applicative`
@@ -2822,8 +2819,8 @@ application:
 | Send 2K bytes over 1Gbps network  | 5.5 hr          | Train London to Edinburgh      |
 | SSD random read                   | 1.7 days        | Weekend                        |
 | Read 1MB sequentially from memory | 2.9 days        | Long weekend                   |
-| Round trip within same datacenter | 5.8 days        | Short holiday                  |
-| Read 1MB sequentially from SSD    | 11.6 days       | Holiday                        |
+| Round trip within same datacenter | 5.8 days        | Long US Vacation               |
+| Read 1MB sequentially from SSD    | 11.6 days       | Short EU Holiday               |
 | Disk seek                         | 16.5 weeks      | Term of university             |
 | Read 1MB sequentially from disk   | 7.8 months      | Fully paid maternity in Norway |
 | Send packet CA->Netherlands->CA   | 4.8 years       | Government's term              |
