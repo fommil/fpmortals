@@ -36,10 +36,10 @@ final case class WorldView(
   time: Instant
 )
 
-final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
+final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
 
   def initial: F[WorldView] =
-    (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime) {
+    (D.getBacklog |@| D.getAgents |@| M.getManaged |@| M.getAlive |@| M.getTime) {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 
@@ -57,11 +57,11 @@ final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
 
   def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>
-      m.start(node) >| world.copy(pending = Map(node -> world.time))
+      M.start(node) >| world.copy(pending = Map(node -> world.time))
 
     case Stale(nodes) =>
       nodes.traverse { node =>
-        m.stop(node) >| node
+        M.stop(node) >| node
       }.map { stopped =>
         val updates = stopped.strengthR(world.time).toList.toMap
         world.copy(pending = world.pending ++ updates)

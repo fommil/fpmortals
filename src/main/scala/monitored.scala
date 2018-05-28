@@ -11,12 +11,12 @@ import algebra._
 final class Monitored[U[_]: Functor](program: DynAgents[U]) {
   type F[a] = Const[Set[MachineNode], a]
 
-  implicit val drone: Drone[F] = new Drone[F] {
+  val D: Drone[F] = new Drone[F] {
     def getBacklog: F[Int] = Const(Set.empty)
     def getAgents: F[Int]  = Const(Set.empty)
   }
 
-  implicit val machines: Machines[F] = new Machines[F] {
+  val M: Machines[F] = new Machines[F] {
     def getAlive: F[Map[MachineNode, Instant]]   = Const(Set.empty)
     def getManaged: F[NonEmptyList[MachineNode]] = Const(Set.empty)
     def getTime: F[Instant]                      = Const(Set.empty)
@@ -24,7 +24,7 @@ final class Monitored[U[_]: Functor](program: DynAgents[U]) {
     def stop(node: MachineNode): F[Unit]         = Const(Set(node))
   }
 
-  val monitor: DynAgents[F] = new DynAgents[F]
+  val monitor: DynAgents[F] = new DynAgents[F](D, M)
 
   def act(world: WorldView): U[(WorldView, Set[MachineNode])] = {
     val stopped = monitor.act(world).getConst

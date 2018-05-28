@@ -40,6 +40,12 @@ object Drone {
   final case class GetBacklog() extends Ast[Int]
   final case class GetAgents()  extends Ast[Int]
 
+  def liftA[F[_]](implicit I: Ast :<: F): Drone[FreeAp[F, ?]] =
+    new Drone[FreeAp[F, ?]] {
+      def getBacklog: FreeAp[F, Int] = FreeAp.lift(I.inj(GetBacklog()))
+      def getAgents: FreeAp[F, Int]  = FreeAp.lift(I.inj(GetAgents()))
+    }
+
   def liftF[F[_]](implicit I: Ast :<: F): Drone[Free[F, ?]] =
     new Drone[Free[F, ?]] {
       def getBacklog: Free[F, Int] = Free.liftF(I.inj(GetBacklog()))
@@ -92,7 +98,6 @@ object Machines {
       def stop(node: MachineNode): Free[F, Unit] = Free.liftF(I.inj(Stop(node)))
     }
 
-  // FIXME: boilerplate with Free
   def liftA[F[_]](implicit I: Ast :<: F): Machines[FreeAp[F, ?]] =
     new Machines[FreeAp[F, ?]] {
       def getTime: FreeAp[F, Instant] = FreeAp.lift(I.inj(GetTime()))

@@ -45,6 +45,11 @@ object Batch {
       def start(nodes: NonEmptyList[MachineNode]): Free[F, Unit] =
         Free.liftF(I.inj(Start(nodes)))
     }
+  def liftA[F[_]](implicit I: Ast :<: F): Batch[FreeAp[F, ?]] =
+    new Batch[FreeAp[F, ?]] {
+      def start(nodes: NonEmptyList[MachineNode]): FreeAp[F, Unit] =
+        FreeAp.lift(I.inj(Start(nodes)))
+    }
 }
 
 class AlgebraSpec extends FlatSpec {
@@ -118,7 +123,7 @@ class AlgebraSpec extends FlatSpec {
     Machines
       .liftF[Machines.Ast]
       .stop(MachineNode("#c0ffee"))
-      .flatMapSuspension(monkey)
+      .foldMap(monkey)
       .foldMap(M)
       .exec(Set.empty)
       .shouldBe(Set.empty)
@@ -206,6 +211,66 @@ class AlgebraSpec extends FlatSpec {
 
   }
 
+  it should "batch calls without any crazy hacks" in {
+    type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+
+    // pretend this is the DynAgents.act method...
+    def act[F[_]: Applicative](M: Machines[F],
+                               @unused D: Drone[F])(todo: Int): F[Unit] =
+      (1 |-> todo).traverse(id => M.start(MachineNode(id.shows))).void
+
+    val freeap = act(Machines.liftA[Orig], Drone.liftA[Orig])(2)
+
+    val gather = λ[Orig ~> λ[α => IList[MachineNode]]] {
+      case Coproduct(-\/(Machines.Start(node))) => IList.single(node)
+      case _                                    => IList.empty
+    }
+    val gathered: IList[MachineNode] = freeap.analyze(gather)
+
+    type Extended[a] = Coproduct[Batch.Ast, Orig, a]
+    type Patched[a]  = FreeAp[Extended, a]
+    val nostart = λ[Orig ~> Patched] {
+      case Coproduct(-\/(Machines.Start(_))) => FreeAp.pure(())
+      case other                             => FreeAp.lift(Coproduct.rightc(other))
+    }
+    val batch: FreeAp[Extended, Unit] = gathered.toNel match {
+      case None        => FreeAp.pure(())
+      case Some(nodes) => FreeAp.lift(Coproduct.leftc(Batch.Start(nodes)))
+    }
+    val patched = batch *> freeap.foldMap(nostart)
+
+    final case class S(
+      singles: IList[MachineNode],
+      batches: IList[NonEmptyList[MachineNode]]
+    ) {
+      def addSingle(node: MachineNode): S =
+        S(node :: singles, batches)
+      def addBatch(nodes: NonEmptyList[MachineNode]): S =
+        S(singles, nodes :: batches)
+    }
+    type T[a] = State[S, a]
+    val M: Machines.Ast ~> T = Mocker.stub[Unit] {
+      case Machines.Start(node) => State.modify[S](_.addSingle(node))
+    }
+    val D: Drone.Ast ~> T = Mocker.stub[Int] {
+      case Drone.GetBacklog() => 2.pure[T]
+    }
+    val B: Batch.Ast ~> T = Mocker.stub[Unit] {
+      case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
+    }
+
+    patched
+      .foldMap(or(B, or(M, D)))
+      .run(S(IList.empty, IList.empty))
+      ._1
+      .shouldBe(
+        S(
+          IList.empty, // no singles
+          IList(NonEmptyList(MachineNode("2"), MachineNode("1")))
+        )
+      )
+
+  }
 }
 
 // inspired by https://github.com/djspiewak/smock

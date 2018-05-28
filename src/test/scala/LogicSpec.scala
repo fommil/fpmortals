@@ -48,12 +48,12 @@ object StateImpl {
   import State.{ get, modify }
 
   // could also increment the time on every call
-  implicit val drone: Drone[F] = new Drone[F] {
+  private val D: Drone[F] = new Drone[F] {
     def getBacklog: F[Int] = get.map(_.backlog)
     def getAgents: F[Int]  = get.map(_.agents)
   }
 
-  implicit val machines: Machines[F] = new Machines[F] {
+  private val M: Machines[F] = new Machines[F] {
     def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
     def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
     def getTime: F[Instant]                      = get.map(_.time)
@@ -65,18 +65,18 @@ object StateImpl {
       modify(w => w.copy(stopped = w.stopped + node))
   }
 
-  val program: DynAgents[F] = new DynAgents[F]
+  val program: DynAgents[F] = new DynAgents[F](D, M)
 }
 
 object ConstImpl {
   type F[a] = Const[String, a]
 
-  implicit val drone: Drone[F] = new Drone[F] {
+  private val D: Drone[F] = new Drone[F] {
     def getBacklog: F[Int] = Const("backlog")
     def getAgents: F[Int]  = Const("agents")
   }
 
-  implicit val machines: Machines[F] = new Machines[F] {
+  private val M: Machines[F] = new Machines[F] {
     def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
     def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
     def getTime: F[Instant]                      = Const("time")
@@ -84,7 +84,7 @@ object ConstImpl {
     def stop(node: MachineNode): F[Unit]         = Const("stop")
   }
 
-  val program: DynAgents[F] = new DynAgents[F]
+  val program: DynAgents[F] = new DynAgents[F](D, M)
 
 }
 
