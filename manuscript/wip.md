@@ -1271,12 +1271,12 @@ services, may be implemented like this:
   object StateImpl {
     type F[a] = State[World, a]
   
-    implicit val drone: Drone[F] = new Drone[F] {
+    private val D = new Drone[F] {
       def getBacklog: F[Int] = get.map(_.backlog)
       def getAgents: F[Int]  = get.map(_.agents)
     }
   
-    implicit val machines: Machines[F] = new Machines[F] {
+    private val M = new Machines[F] {
       def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
       def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
       def getTime: F[Instant]                      = get.map(_.time)
@@ -1287,7 +1287,7 @@ services, may be implemented like this:
         modify(w => w.copy(stopped = w.stopped + node))
     }
   
-    val program: DynAgents[F] = new DynAgents[F]
+    val program = new DynAgents[F](D, M)
   }
 ~~~~~~~~
 
@@ -2178,7 +2178,6 @@ defined by three members
 ~~~~~~~~
   sealed abstract class Free[S[_], A] {
     def mapSuspension[T[_]](f: S ~> T): Free[T, A] = ...
-    def flatMapSuspension[T[_]](f: S ~> Free[T, ?]): Free[T, A] = ...
     def foldMap[M[_]: Monad](f: S ~> M): M[A] = ...
     ...
   }
@@ -2477,7 +2476,7 @@ For example, consider using this `Ast ~> Ast` "agent"
   val Monitor = λ[Demo.Ast ~> Demo.Ast](
     _.run match {
       case \/-(m @ Drone.GetBacklog()) =>
-        JmxAbstractFactoryBeanSingletonUtil.count("backlog")
+        JmxAbstractFactoryBeanSingletonProviderUtilImpl.count("backlog")
         Coproduct.rightc(m)
       case other =>
         Coproduct(other)
@@ -2520,10 +2519,10 @@ There is no possibility to discuss why Bob shouldn't be using our machines for
 his super-important accounts, so we have to hack our business logic and put out
 a release to production as soon as possible.
 
-`.flatMapSuspension` to the rescue, which is like `.mapSuspension` but we can
-also return a pre-canned result (`Free.pure`) instead of scheduling the
-instruction. We special case the instruction in a custom natural transformation
-with its return value:
+Our monkey patch can map into a `Free` structure, allowing us to return a
+pre-canned result (`Free.pure`) instead of scheduling the instruction. We
+special case the instruction in a custom natural transformation with its return
+value:
 
 {lang="text"}
 ~~~~~~~~
@@ -2549,7 +2548,7 @@ all the nodes we stopped:
   Machines
     .liftF[Machines.Ast]
     .stop(MachineNode("#c0ffee"))
-    .flatMapSuspension(monkey)
+    .foldMap(monkey)
     .foldMap(M)
     .exec(Set.empty)
     .shouldBe(Set.empty)
@@ -2567,9 +2566,6 @@ without being tied to the `IO` implementations.
 
 
 #### Monkey Patching: Part 2
-
-I> This example is advanced. It is possible to read the remainder of the book
-I> without understanding this example: you may safely skip it if your brain hurts.
 
 Infrastructure sends a memo:
 
@@ -2669,6 +2665,10 @@ along with a stub for the `Batch` algebra
   }
 ~~~~~~~~
 
+A> This example is advanced. It is possible to read the remainder of the book
+A> without understanding how this example works: you may safely skim the rest of
+A> this section if your brain hurts.
+
 We can convert from the `Orig` AST into `Patched` by providing a natural
 transformation that batches node starts:
 
@@ -2757,10 +2757,6 @@ Despite this chapter being called **Advanced Monads**, the takeaway is: *don't u
 monads unless you really **really** have to*. In this section, we will see why
 `FreeAp` (free applicative) is preferable to `Free` monads.
 
-In the previous `Free` example, we used the power of the dark side to batch
-sequential operations. When our context is `Applicative`, grouping of work is
-both easier and mathematically correct.
-
 `FreeAp` is defined as the data structure representation of the `ap` and `pure`
 methods from the `Applicative` typeclass:
 
@@ -2769,8 +2765,9 @@ methods from the `Applicative` typeclass:
   sealed abstract class FreeAp[S[_], A] {
     def hoist[G[_]](f: S ~> G): FreeAp[G,A] = ...
     def foldMap[G[_]: Applicative](f: S ~> G): G[A] = ...
+    def retract(implicit F: Applicative[F]): F[A] = ...
     def monadic: Free[S, A] = ...
-    def analyze[M: Monoid](f: S ~> λ[α => M]): M = ...
+    def analyze[M:Monoid](f: F ~> λ[α => M]): M = ...
     ...
   }
   object FreeAp {
@@ -2787,18 +2784,162 @@ methods from the `Applicative` typeclass:
   }
 ~~~~~~~~
 
-The ADT specific methods `.hoist` and `.foldMap` are like their `Free` analogues
-`.mapSuspension` and `.foldMap`.
+The methods `.hoist` and `.foldMap` are like their `Free` analogues
+`.mapSuspension` and `.foldMap`, with `.retract` being a shortcut for `.foldMap`
+over the identity.
 
 As a convenience, we can generate a `Free[S, A]` from our `FreeAp[S, A]` with
 `.monadic`. This is especially useful to optimise smaller `Applicative`
 subsystems yet use them as part of a larger `Free` program.
 
-`.analyze` is a TODO (reference previous `Const` example)
+Like `Free`, we must create a `FreeAp` for our ASTs, more boilerplate...
 
-TODO: Optimise network lookup.
+{lang="text"}
+~~~~~~~~
+  def liftA[F[_]](implicit I: Ast :<: F) = new Machines[FreeAp[F, ?]] {
+    def getTime: FreeAp[F, Instant] = FreeAp.lift(I.inj(GetTime()))
+    ...
+  }
+~~~~~~~~
 
-TODO: include diagram about cache hits vs network lookups
+
+#### Batching Network Calls
+
+We opened this chapter with grand claims about performance. Time to deliver.
+
+[Philip Stark](https://gist.github.com/hellerbarde/2843375#file-latency_humanized-markdown)'s Humanised version of [Peter Norvig's Latency Numbers](http://norvig.com/21-days.html#answers) serve as
+motivation for why we should focus on reducing network calls to optimise an
+application:
+
+| Computer                          | Human Timescale | Human Analogy                  |
+|--------------------------------- |--------------- |------------------------------ |
+| L1 cache reference                | 0.5 secs        | One heart beat                 |
+| Branch mispredict                 | 5 secs          | Yawn                           |
+| L2 cache reference                | 7 secs          | Long yawn                      |
+| Mutex lock/unlock                 | 25 secs         | Making a cup of tea            |
+| Main memory reference             | 100 secs        | Brushing your teeth            |
+| Compress 1K bytes with Zippy      | 50 min          | Scala compiler CI pipeline     |
+| Send 2K bytes over 1Gbps network  | 5.5 hr          | Train London to Edinburgh      |
+| SSD random read                   | 1.7 days        | Weekend                        |
+| Read 1MB sequentially from memory | 2.9 days        | Long weekend                   |
+| Round trip within same datacenter | 5.8 days        | Short holiday                  |
+| Read 1MB sequentially from SSD    | 11.6 days       | Holiday                        |
+| Disk seek                         | 16.5 weeks      | Term of university             |
+| Read 1MB sequentially from disk   | 7.8 months      | Fully paid maternity in Norway |
+| Send packet CA->Netherlands->CA   | 4.8 years       | Government's term              |
+
+Although `Free` and `FreeAp` incur a memory allocation overhead, the equivalent
+of 100 seconds in the humanised chart, every time we can turn two sequential
+network calls into one batch call, we save nearly 5 years.
+
+When we are in a `Applicative` context, we can safely optimise our application
+without breaking any of the expectations of the original program, and without
+cluttering the business logic.
+
+Luckily, our main business logic only requires an `Applicative`, recall
+
+{lang="text"}
+~~~~~~~~
+  final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
+    def act(world: WorldView): F[WorldView] = ...
+    ...
+  }
+~~~~~~~~
+
+To begin, we create the `lift` boilerplate for the `Batch` algebra
+
+{lang="text"}
+~~~~~~~~
+  trait Batch[F[_]] {
+    def start(nodes: NonEmptyList[MachineNode]): F[Unit]
+  }
+  object Batch {
+    sealed abstract class Ast[A]
+    final case class Start(nodes: NonEmptyList[MachineNode]) extends Ast[Unit]
+  
+    def liftA[F[_]](implicit I: Ast :<: F) = new Batch[FreeAp[F, ?]] {
+      def start(nodes: NonEmptyList[MachineNode]) = FreeAp.lift(I.inj(Start(nodes)))
+    }
+  }
+~~~~~~~~
+
+and then we'll create an instance of `DynAgents` with `FreeAp` as the context
+
+{lang="text"}
+~~~~~~~~
+  type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+  
+  val world: WorldView = ...
+  val program = new DynAgents(Drone.liftA[Orig], Machines.liftA[Orig])
+  val freeap  = program.act(world)
+~~~~~~~~
+
+In Chapter 6, we studied the `Const` data type, which allows us to analyse a
+program. It should not be surprising that `FreeAp.analyze` is implemented in
+terms of `Const`:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class FreeAp[S[_], A] {
+    ...
+    def analyze[M: Monoid](f: S ~> λ[α => M]): M =
+      foldMap(λ[S ~> Const[M, ?]](x => Const(f(x)))).getConst
+  }
+~~~~~~~~
+
+We provide a natural transformation to record all node starts and `.analyze` our
+program to get all the nodes that need to be started:
+
+{lang="text"}
+~~~~~~~~
+  val gather = λ[Orig ~> λ[α => IList[MachineNode]]] {
+    case Coproduct(-\/(Machines.Start(node))) => IList.single(node)
+    case _                                    => IList.empty
+  }
+  val gathered: IList[MachineNode] = freeap.analyze(gather)
+~~~~~~~~
+
+The next step is to extend the instruction set from `Orig` to `Extended`, which
+includes the `Batch.Ast` and write a `FreeAp` program that starts all our
+`gathered` nodes in a single network call
+
+{lang="text"}
+~~~~~~~~
+  type Extended[a] = Coproduct[Batch.Ast, Orig, a]
+  def batch(nodes: IList[MachineNode]): FreeAp[Extended, Unit] =
+    nodes.toNel match {
+      case None        => FreeAp.pure(())
+      case Some(nodes) => FreeAp.lift(Coproduct.leftc(Batch.Start(nodes)))
+    }
+~~~~~~~~
+
+We also need to remove all the calls to `Machines.Start`, which we can do with a natural transformation
+
+{lang="text"}
+~~~~~~~~
+  val nostart = λ[Orig ~> FreeAp[Extended, ?]] {
+    case Coproduct(-\/(Machines.Start(_))) => FreeAp.pure(())
+    case other                             => FreeAp.lift(Coproduct.rightc(other))
+  }
+~~~~~~~~
+
+Now we have two programs, and need to combine them. Recall the `*>` syntax for `Functor`
+
+{lang="text"}
+~~~~~~~~
+  val patched = batch(gathered) *> freeap.foldMap(nostart)
+~~~~~~~~
+
+Putting it all together under a single method:
+
+{lang="text"}
+~~~~~~~~
+  def optimise[A](orig: FreeAp[Orig, A]): FreeAp[Extended, A] =
+    (batch(orig.analyze(gather)) *> orig.foldMap(nostart))
+~~~~~~~~
+
+That's it! We `.optimise` every time we call `act` in our main loop, which is
+just a matter of plumbing.
 
 
 ### TODO `Coyoneda` (`FreeFun`)

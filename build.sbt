@@ -14,11 +14,11 @@ libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
   "com.fommil"           %% "deriving-macro"        % derivingVersion,
-  "org.scalaz"           %% "scalaz-effect"         % "7.2.22",
+  "org.scalaz"           %% "scalaz-effect"         % "7.2.23",
   "org.scalaz"           %% "scalaz-ioeffect"       % "1.0.0",
   "eu.timepit"           %% "refined-scalaz"        % "0.9.0",
   "com.lihaoyi"          %% "sourcecode"            % "0.1.4",
-  "xyz.driver"           %% "spray-json-derivation" % "0.4.3",
+  "xyz.driver"           %% "spray-json-derivation" % "0.4.5",
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")

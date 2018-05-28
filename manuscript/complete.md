@@ -800,18 +800,16 @@ pure and depends only on other modules, algebras and pure functions.
 
 {lang="text"}
 ~~~~~~~~
-  final class DynAgents[F[_]](implicit
-                              M: Monad[F],
-                              d: Drone[F],
-                              m: Machines[F]) {
+  final class DynAgents[F[_]](D: Drone[F], M: Machines[F])
+                             (implicit F: Monad[F]) {
 ~~~~~~~~
 
 The implicit `Monad[F]` means that `F` is *monadic*, allowing us to
 use `map`, `pure` and, of course, `flatMap` via `for` comprehensions.
 
-We have access to the algebra of `Drone` and `Machines` as `d` and
-`m`, respectively. Declaring injected dependencies this way should be
-familiar if you've ever used Spring's `@Autowired`.
+We have access to the algebra of `Drone` and `Machines` as `D` and `M`,
+respectively. Using a single capital letter name is a common naming convention
+for monad and algebra implementations.
 
 Our business logic will run in an infinite loop (pseudocode)
 
@@ -835,11 +833,11 @@ into a `WorldView`. We default the `pending` field to an empty `Map`.
 {lang="text"}
 ~~~~~~~~
   def initial: F[WorldView] = for {
-    db <- d.getBacklog
-    da <- d.getAgents
-    mm <- m.getManaged
-    ma <- m.getAlive
-    mt <- m.getTime
+    db <- D.getBacklog
+    da <- D.getAgents
+    mm <- M.getManaged
+    ma <- M.getAlive
+    mt <- M.getTime
   } yield WorldView(db, da, mm, ma, Map.empty, mt)
 ~~~~~~~~
 
@@ -951,14 +949,14 @@ add it to `pending` noting the time that we scheduled the action.
   def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
-        _ <- m.start(node)
+        _ <- M.start(node)
         update = world.copy(pending = Map(node -> world.time))
       } yield update
   
     case Stale(nodes) =>
       nodes.foldLeftM(world) { (world, n) =>
         for {
-          _ <- m.stop(n)
+          _ <- M.stop(n)
           update = world.copy(pending = world.pending + (n -> world.time))
         } yield update
       }
@@ -1026,12 +1024,12 @@ state:
   class Mutable(state: WorldView) {
     var started, stopped: Int = 0
   
-    implicit val drone: Drone[Id] = new Drone[Id] {
+    private val D: Drone[Id] = new Drone[Id] {
       def getBacklog: Int = state.backlog
       def getAgents: Int = state.agents
     }
   
-    implicit val machines: Machines[Id] = new Machines[Id] {
+    private val M: Machines[Id] = new Machines[Id] {
       def getAlive: Map[MachineNode, Instant] = state.alive
       def getManaged: NonEmptyList[MachineNode] = state.managed
       def getTime: Instant = state.time
@@ -1039,7 +1037,7 @@ state:
       def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
     }
   
-    val program = new DynAgents[Id]
+    val program = new DynAgents[Id](D, M)
   }
 ~~~~~~~~
 
@@ -1137,14 +1135,14 @@ As opposed to `flatMap` for sequential operations, scalaz uses
 
 {lang="text"}
 ~~~~~~~~
-  ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+  ^^^^(D.getBacklog, D.getAgents, M.getManaged, M.getAlive, M.getTime)
 ~~~~~~~~
 
 which can also use infix notation:
 
 {lang="text"}
 ~~~~~~~~
-  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+  (D.getBacklog |@| D.getAgents |@| M.getManaged |@| M.getAlive |@| M.getTime)
 ~~~~~~~~
 
 If each of the parallel operations returns a value in the same monadic
@@ -1154,7 +1152,7 @@ Rewriting `update` to take advantage of this:
 {lang="text"}
 ~~~~~~~~
   def initial: F[WorldView] =
-    ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime) {
+    ^^^^(D.getBacklog, D.getAgents, M.getManaged, M.getAlive, M.getTime) {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
 ~~~~~~~~
@@ -1181,7 +1179,7 @@ can deal with in a simple way:
 {lang="text"}
 ~~~~~~~~
   for {
-    stopped <- nodes.traverse(m.stop)
+    stopped <- nodes.traverse(M.stop)
     updates = stopped.map(_ -> world.time).toList.toMap
     update = world.copy(pending = world.pending ++ updates)
   } yield update
@@ -1873,6 +1871,21 @@ lives in a *typeclass*. A typeclass is a trait that:
 -   has at least one abstract method
 -   may contain *generalised* methods
 -   may extend other typeclasses
+
+There can only be one implementation of a typeclass for any given type
+parameter, a property known as *typeclass coherence*. Typeclasses look
+superficially similar to algebraic interfaces from the previous chapter, but
+algebras do not have to be coherent.
+
+A> Typeclass coherence is primarily about consistency, and the consistency gives us
+A> the confidence to use `implicit` parameters. It would be difficult to reason
+A> about code that performs differently depending on the implicit imports that are
+A> in scope. Typeclass coherence effectively says that imports should not impact
+A> the behaviour of the code.
+A> 
+A> Additionally, typeclass coherence allows us to globally cache implicits at
+A> runtime and save memory allocations, gaining performance improvements from
+A> reduced pressure on the garbage collector.
 
 Typeclasses are used in the Scala stdlib. We'll explore a simplified
 version of `scala.math.Numeric` to demonstrate the principle:
@@ -2955,20 +2968,10 @@ polymorphism we can have a different implementation of `append`
 depending on the `E` in `List[E]`, not just the base runtime class
 `List`.
 
-A> Scalaz follows the school of thought that typeclass instances should be unique,
-A> e.g. there is only one `Monoid[Option[Boolean]]` in the program. This is called
-A> *typeclass coherence* and *orphan instances* such as `lastWins` are the easiest
-A> way to break coherence.
-A> 
-A> Typeclass coherence is primarily about consistency. It is difficult to reason
-A> about code that performs differently depending on the implicit imports that are
-A> in scope. Typeclass coherence effectively says that imports should not impact
-A> the behaviour of the code: either the code does what it says it does, or it does
-A> not compile.
-A> 
-A> If we can assume typeclass coherence, we can globally cache implicits at runtime
-A> and save memory allocations, gaining performance improvements from reduced
-A> pressure on the garbage collector.
+A> When we introduced typeclasses in Chapter 4 we said that there can only be one
+A> implementation of a typeclass for a given type parameter, e.g. there is only one
+A> `Monoid[Option[Boolean]]` in the application. *Orphan instances* such as
+A> `lastWins` are the easiest way to break coherence.
 A> 
 A> We could try to justify locally breaking typeclass coherence by making
 A> `lastWins` private, but when we get to the `Plus` typeclass we will see a better
@@ -6512,15 +6515,15 @@ wrote `logic.scala` before we learnt about `Applicative` and now we know better:
 
 {lang="text"}
 ~~~~~~~~
-  final class DynAgents[F[_]: Applicative](implicit d: Drone[F], m: Machines[F]) {
+  final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
     ...
     def act(world: WorldView): F[WorldView] = world match {
       case NeedsAgent(node) =>
-        m.start(node) >| world.copy(pending = Map(node -> world.time))
+        M.start(node) >| world.copy(pending = Map(node -> world.time))
   
       case Stale(nodes) =>
         nodes.traverse { node =>
-          m.stop(node) >| node
+          M.stop(node) >| node
         }.map { stopped =>
           val updates = stopped.strengthR(world.time).toList.toMap
           world.copy(pending = world.pending ++ updates)
@@ -6541,12 +6544,12 @@ name of the function that is called:
   object ConstImpl {
     type F[a] = Const[String, a]
   
-    implicit val drone: Drone[F] = new Drone[F] {
+    private val D = new Drone[F] {
       def getBacklog: F[Int] = Const("backlog")
       def getAgents: F[Int]  = Const("agents")
     }
   
-    implicit val machines: Machines[F] = new Machines[F] {
+    private val M = new Machines[F] {
       def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
       def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
       def getTime: F[Instant]                      = Const("time")
@@ -6554,7 +6557,7 @@ name of the function that is called:
       def stop(node: MachineNode): F[Unit]         = Const("stop")
     }
   
-    val program = new DynAgents[F]
+    val program = new DynAgents[F](D, M)
   }
 ~~~~~~~~
 
@@ -6591,18 +6594,18 @@ wrapped version of `act`
 ~~~~~~~~
   final class Monitored[U[_]: Functor](program: DynAgents[U]) {
     type F[a] = Const[Set[MachineNode], a]
-    implicit val drone: Drone[F] = new Drone[F] {
+    private val D = new Drone[F] {
       def getBacklog: F[Int] = Const(Set.empty)
       def getAgents: F[Int]  = Const(Set.empty)
     }
-    implicit val machines: Machines[F] = new Machines[F] {
+    private val M = new Machines[F] {
       def getAlive: F[Map[MachineNode, Instant]]   = Const(Set.empty)
       def getManaged: F[NonEmptyList[MachineNode]] = Const(Set.empty)
       def getTime: F[Instant]                      = Const(Set.empty)
       def start(node: MachineNode): F[Unit]        = Const(Set.empty)
       def stop(node: MachineNode): F[Unit]         = Const(Set(node))
     }
-    val monitor = new DynAgents[F]
+    val monitor = new DynAgents[F](D, M)
   
     def act(world: WorldView): U[(WorldView, Set[MachineNode])] = {
       val stopped = monitor.act(world).getConst
