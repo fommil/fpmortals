@@ -57,8 +57,7 @@ we wrote in the introduction:
   
     implicit val monad: Monad[IO] = new Monad[IO] {
       def point[A](a: =>A): IO[A] = IO(a)
-      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
-        IO(f(fa.interpret()).interpret())
+      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] = f(fa.interpret())
     }
   }
 ~~~~~~~~
@@ -2751,7 +2750,7 @@ W> are relying on the Monad laws in our business logic, and we mess with that, w
 W> may as well be flipping bits in RAM.
 
 
-### `FreeAp`
+### `FreeAp` (`Applicative`)
 
 Despite this chapter being called **Advanced Monads**, the takeaway is: *don't use
 monads unless you really **really** have to*. In this section, we will see why
@@ -2794,7 +2793,7 @@ Like `Free`, we must create a `FreeAp` for our ASTs, more boilerplate...
 {lang="text"}
 ~~~~~~~~
   def liftA[F[_]](implicit I: Ast :<: F) = new Machines[FreeAp[F, ?]] {
-    def getTime: FreeAp[F, Instant] = FreeAp.lift(I.inj(GetTime()))
+    def getTime = FreeAp.lift(I.inj(GetTime()))
     ...
   }
 ~~~~~~~~
@@ -2939,7 +2938,44 @@ That's it! We `.optimise` every time we call `act` in our main loop, which is
 just a matter of plumbing.
 
 
-### TODO `Coyoneda` (`FreeFun`)
+### `Coyoneda` (`Functor`)
+
+Named after mathematician Nobuo Yoneda, we can freely generate a `Functor` data
+structure for any algebra `S[_]`
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Coyoneda[S[_], A] {
+    final def run(implicit S: Functor[S]): S[A] = ...
+    ...
+  }
+  object Coyoneda {
+    private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
+  
+    def apply[S[_], A, B](sa: S[A])(f: A => B) = Map[S, A, B](sa, f)
+    def lift[S[_], A](sa: S[A]): Coyoneda[S, A] = Map[S, A, A](sa, identity)
+    ...
+  }
+~~~~~~~~
+
+A> The colloquial for `Coyoneda` is *coyo*. Don't go wasting all the ****Free Fun****.
+
+If we want to optimise a program via `Coyoneda` we have to provide the expected
+boilerplate for each algebra:
+
+{lang="text"}
+~~~~~~~~
+  def liftCoyo[F[_]](implicit I: Ast :<: F) = new Machines[Coyoneda[F, ?]] {
+    def getTime = Coyoneda.lift(I.inj(GetTime()))
+    ...
+  }
+~~~~~~~~
+
+However, programs that make use of `Functor`, as opposed to `Applicative` or
+`Monad`, are quite rare, so any kind of optimisations we can apply are limited
+in scope.
+
+TODO: does this help with encoders / decoders / typeclasses?
 
 TODO: can we do map fusion?
 
