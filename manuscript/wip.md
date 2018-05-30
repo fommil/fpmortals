@@ -86,7 +86,7 @@ A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) l
 A> compiletime, unless called from inside a deferred `Monad` like `IO`.
 
 
-## Stack Safety with the `Free` Monad
+## Stack Safety
 
 On the JVM, every method call adds an entry to the call stack of the `Thread`,
 like adding to the front of a `List`. When the method completes, the method at
@@ -1025,9 +1025,9 @@ The `WriterT` implementation is
   }
 ~~~~~~~~
 
-The most obvious example is to use `MonadWriter` for logging, or audit
-reporting. Reusing `Meta` from our error reporting we could imagine creating a
-log structure like
+The most obvious example is to use `MonadTell` for logging, or audit reporting.
+Reusing `Meta` from our error reporting we could imagine creating a log
+structure like
 
 {lang="text"}
 ~~~~~~~~
@@ -2181,6 +2181,8 @@ defined by three members
     ...
   }
   object Free {
+    implicit def monad[S[_], A]: Monad[Free[S, A]] = ...
+  
     private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
     private final case class Return[S[_], A](a: A)     extends Free[S, A]
     private final case class Gosub[S[_], A0, B](
@@ -2769,6 +2771,8 @@ methods from the `Applicative` typeclass:
     ...
   }
   object FreeAp {
+    implicit def applicative[S[_], A]: Applicative[FreeAp[S, A]] = ...
+  
     private final case class Pure[S[_], A](a: A) extends FreeAp[S, A]
     private final case class Ap[S[_], A, B](
       value: () => S[B],
@@ -2946,22 +2950,55 @@ structure for any algebra `S[_]`
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Coyoneda[S[_], A] {
-    final def run(implicit S: Functor[S]): S[A] = ...
+    def run(implicit S: Functor[S]): S[A] = ...
+    def trans[G[_]](f: F ~> G): Coyoneda[G, A] = ...
     ...
   }
   object Coyoneda {
-    private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
+    implicit def functor[S[_], A]: Functor[Coyoneda[S, A]] = ...
   
+    private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
     def apply[S[_], A, B](sa: S[A])(f: A => B) = Map[S, A, B](sa, f)
-    def lift[S[_], A](sa: S[A]): Coyoneda[S, A] = Map[S, A, A](sa, identity)
+    def lift[S[_], A](sa: S[A]) = Map[S, A, A](sa, identity)
     ...
   }
 ~~~~~~~~
 
-A> The colloquial for `Coyoneda` is *coyo*. Don't go wasting all the ****Free Fun****.
+and there is also a contravariant version
 
-If we want to optimise a program via `Coyoneda` we have to provide the expected
-boilerplate for each algebra:
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ContravariantCoyoneda[S[_], A] {
+    def run(implicit S: Contravariant[S]): S[A] = ...
+    def trans[G[_]](f: F ~> G): ContravariantCoyoneda[G, A] = ...
+    ...
+  }
+  object ContravariantCoyoneda {
+    implicit def contravariant[S[_], A]: Contravariant[ContravariantCoyoneda[S, A]] = ...
+  
+    private final case class Contramap[F[_], A, B](fa: F[A], f: B => A)
+      extends ContravariantCoyoneda[F, A]
+    def apply[S[_], A, B](sa: S[A])(f: B => A) = Contramap[S, A, B](sa, f)
+    def lift[S[_], A](sa: S[A]) = Contramap[S, A, A](sa, identity)
+    ...
+  }
+~~~~~~~~
+
+A> The colloquial for `Coyoneda` is *coyo* and `ContravariantCoyoneda` is *cocoyo*.
+A> Just some Free Fun.
+
+The API is somewhat simpler than `Free` and `FreeAp`, allowing a natural
+transformation with `.trans` and a `.run` (taking an actual `Functor` or
+`Contravariant`, respectively) to escape the free structure.
+
+Coyo and cocoyo can be a useful utility if we want to `.map` or `.contramap`
+over a type, and we know that we can convert into a data type that has a Functor
+but we don't want to commit to the final data structure too early. For example,
+we create a `Coyoneda[ISet, ?]` (recall `ISet` does not have a `Functor`) to use
+methods that require a `Functor`, then convert into `IList` later on.
+
+If we want to optimise a program with coyo or cocoyo we have to provide the
+expected boilerplate for each algebra:
 
 {lang="text"}
 ~~~~~~~~
@@ -2969,39 +3006,94 @@ boilerplate for each algebra:
     def getTime = Coyoneda.lift(I.inj(GetTime()))
     ...
   }
+  def liftCocoyo[F[_]](implicit I: Ast :<: F) = new Machines[ContravariantCoyoneda[F, ?]] {
+    def getTime = ContravariantCoyoneda.lift(I.inj(GetTime()))
+    ...
+  }
 ~~~~~~~~
 
-However, programs that make use of `Functor`, as opposed to `Applicative` or
-`Monad`, are quite rare, so any kind of optimisations we can apply are limited
-in scope.
-
-TODO: does this help with encoders / decoders / typeclasses?
-
-TODO: can we do map fusion?
-
-Functional Programming lends itself well to compiletime optimisations, an area
-that has not been explored to its full potential. Consider mapping over a
-`Functor` three times:
+An optimisation we get by using `Coyoneda` is *map fusion* (and *contramap
+fusion*), which allows us to rewrite
 
 {lang="text"}
 ~~~~~~~~
   xs.map(a).map(b).map(c)
 ~~~~~~~~
 
-A technique known as *map fusion* allows us to rewrite this expression as
-`xs.map(x => c(b(a(x))))`, avoiding intermediate representations. For example,
-if `xs` is a `List` of a thousand elements, we save two thousand object
-allocations.
+into
 
-The [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project is attempting to implement these *middle-level
-optimisations*, which is beyond the scope of this book.
+{lang="text"}
+~~~~~~~~
+  xs.map(x => c(b(a(x))))
+~~~~~~~~
 
--   Programs that change values
--   Programs that build data
--   Programs that build programs
+avoiding intermediate representations. For example, if `xs` is a `List` of a
+thousand elements, we save two thousand object allocations because we only map
+over the data structure once.
+
+However it is arguably a lot easier to just make this kind of change in the
+original function by hand, or to wait for the [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project to
+automatically perform these optimisations across our codebase.
 
 
-### TODO Free anything
+### Extensible Effects
+
+Programs are just data: free structures help to make this explicit and give us
+the ability to rearrange and optimise that data.
+
+`Free` turns out to be more special than it appears, if we want to implement
+anything beyond `Monad`, `Applicative` and `Functor`, we just need to create
+ASTs and add them to the instruction set: we don't need to create `FreeState`,
+`FreeError`, etc structures for all the MTL effects.
+
+For example, say we want to have a free structure for `MonadState`, not just
+`Monad`, we can implement an AST and its `.liftF` boilerplate:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Ast[S, A]
+  final case class Get[S]()     extends Ast[S, S]
+  final case class Put[S](s: S) extends Ast[S, Unit]
+  
+  def liftF[F[_], S](implicit I: Ast[S, ?] :<: F) =
+    new MonadState[Free[F, ?], S] with BindRec[Free[F, ?]] {
+      def get       = Free.liftF(I.inj(Get[S]()))
+      def put(s: S) = Free.liftF(I.inj(Put[S](s)))
+  
+      val delegate         = Free.freeMonad[F]
+      def point[A](a: =>A) = delegate.point(a)
+      ...
+    }
+~~~~~~~~
+
+Both the `Ast` and the `.liftF` are more complicated than usual because we have
+to account for the additional `S` type parameter on `MonadState`, and the
+inheritance from `Monad`.
+
+We could create a `.liftF` for each of the MTL typeclasses allowing us to get
+free structures instead of using monad transformers. This gives us the
+opportunity to use optimised interpreters. For example, we could store the `S`
+in an atomic field instead of building up a nested `StateT` trampoline.
+
+However, as the AST of a free program grows, performance degrades because the
+interpreter must match over instruction sets with an `O(n)` cost. An alternative
+to `Coproduct` is [iotaz](https://github.com/frees-io/iota)'s encoding, which uses an optimised data structure to
+perform `O(1)` dynamic dispatch (using integers that are assigned to each
+coproduct at compiletime).
+
+For historical reasons a free AST for an algebra or typeclass is called *Initial
+Encoding*, and a direct implementation is called *Finally Tagless*.
+
+Although we've explored interesting ideas with `Free`, it is generally accepted
+that finally tagless is superior. But to use finally tagless style, we need a
+high performance effect type that provides all the monad typeclasses we've
+covered in this chapter. We also still need to be able to run our `Applicative`
+code in parallel. This is exactly what we will cover next.
+
+
+## `IO`
+
+TODO: this will cover the backport of John de Goes' bifunctor IO.
 
 
 # The Infinite Sadness

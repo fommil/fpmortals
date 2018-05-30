@@ -9257,7 +9257,7 @@ unsafe code blocks. The [[https://scalacenter.github.io/scalafix/][scalafix]] li
 compiletime, unless called from inside a deferred =Monad= like =IO=.
 #+END_ASIDE
 
-*** Stack Safety with the =Free= Monad
+*** Stack Safety
 
 On the JVM, every method call adds an entry to the call stack of the =Thread=,
 like adding to the front of a =List=. When the method completes, the method at
@@ -12321,16 +12321,58 @@ automatically perform these optimisations across our codebase.
 # - Programs that build data
 # - Programs that build programs
 
-**** Freer Monads
+**** Extensible Effects
 
-By now it should be sinking in that programs can be treated as data structures.
-Free structures help to make this explicit and give us the ability to optimise,
-but it doesn't stop with =Monad=, =Applicative= and =Functor=, we can create
-free structures for almost any typeclass in our application and indeed this is
-exactly what we can turn to if we find ourselves with a performance problem due
-to a
+Programs are just data: free structures help to make this explicit and give us
+the ability to rearrange and optimise that data.
 
-FIXME
+=Free= turns out to be more special than it appears, if we want to implement
+anything beyond =Monad=, =Applicative= and =Functor=, we just need to create
+ASTs and add them to the instruction set: we don't need to create =FreeState=,
+=FreeError=, etc structures for all the MTL effects.
+
+For example, say we want to have a free structure for =MonadState=, not just
+=Monad=, we can implement an AST and its =.liftF= boilerplate:
+
+#+BEGIN_SRC scala
+  sealed abstract class Ast[S, A]
+  final case class Get[S]()     extends Ast[S, S]
+  final case class Put[S](s: S) extends Ast[S, Unit]
+
+  def liftF[F[_], S](implicit I: Ast[S, ?] :<: F) =
+    new MonadState[Free[F, ?], S] with BindRec[Free[F, ?]] {
+      def get       = Free.liftF(I.inj(Get[S]()))
+      def put(s: S) = Free.liftF(I.inj(Put[S](s)))
+
+      val delegate         = Free.freeMonad[F]
+      def point[A](a: =>A) = delegate.point(a)
+      ...
+    }
+#+END_SRC
+
+Both the =Ast= and the =.liftF= are more complicated than usual because we have
+to account for the additional =S= type parameter on =MonadState=, and the
+inheritance from =Monad=.
+
+We could create a =.liftF= for each of the MTL typeclasses allowing us to get
+free structures instead of using monad transformers. This gives us the
+opportunity to use optimised interpreters. For example, we could store the =S=
+in an atomic field instead of building up a nested =StateT= trampoline.
+
+However, as the AST of a free program grows, performance degrades because the
+interpreter must match over instruction sets with an =O(n)= cost. An alternative
+to =Coproduct= is [[https://github.com/frees-io/iota][iotaz]]'s encoding, which uses an optimised data structure to
+perform =O(1)= dynamic dispatch (using integers that are assigned to each
+coproduct at compiletime).
+
+For historical reasons a free AST for an algebra or typeclass is called /Initial
+Encoding/, and a direct implementation is called /Finally Tagless/.
+
+Although we've explored interesting ideas with =Free=, it is generally accepted
+that finally tagless is superior. But to use finally tagless style, we need a
+high performance effect type that provides all the monad typeclasses we've
+covered in this chapter. We also still need to be able to run our =Applicative=
+code in parallel. This is exactly what we will cover next.
 
 # http://okmij.org/ftp/Haskell/extensible/more.pdf
 # http://okmij.org/ftp/Computation/free-monad.html
@@ -12338,6 +12380,10 @@ FIXME
 
 # http://degoes.net/articles/effects-without-transformers
 # and John's winter retreat talk...
+
+*** =IO=
+
+TODO: this will cover the backport of John de Goes' bifunctor IO.
 
 ** The Infinite Sadness
 
