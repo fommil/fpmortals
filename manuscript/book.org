@@ -10158,9 +10158,9 @@ implicit def monad[F[_]: Monad, W: Monoid] = new MonadListen[WriterT[F, W, ?], W
 }
 #+END_SRC
 
-The most obvious example is to use =MonadWriter= for logging, or audit
-reporting. Reusing =Meta= from our error reporting we could imagine creating a
-log structure like
+The most obvious example is to use =MonadTell= for logging, or audit reporting.
+Reusing =Meta= from our error reporting we could imagine creating a log
+structure like
 
 #+BEGIN_SRC scala
 sealed trait Log
@@ -11483,6 +11483,8 @@ sealed abstract class Free[S[_], A] {
   ...
 }
 object Free {
+  implicit def monad[S[_], A]: Monad[Free[S, A]] = ...
+
   private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
   private final case class Return[S[_], A](a: A)     extends Free[S, A]
   private final case class Gosub[S[_], A0, B](
@@ -12063,6 +12065,8 @@ sealed abstract class FreeAp[S[_], A] {
   ...
 }
 object FreeAp {
+  implicit def applicative[S[_], A]: Applicative[FreeAp[S, A]] = ...
+
   private final case class Pure[S[_], A](a: A) extends FreeAp[S, A]
   private final case class Ap[S[_], A, B](
     value: () => S[B],
@@ -12227,65 +12231,110 @@ structure for any algebra =S[_]=
 
 #+BEGIN_SRC scala
 sealed abstract class Coyoneda[S[_], A] {
-  final def run(implicit S: Functor[S]): S[A] = ...
+  def run(implicit S: Functor[S]): S[A] = ...
+  def trans[G[_]](f: F ~> G): Coyoneda[G, A] = ...
   ...
 }
 object Coyoneda {
-  private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
+  implicit def functor[S[_], A]: Functor[Coyoneda[S, A]] = ...
 
+  private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
   def apply[S[_], A, B](sa: S[A])(f: A => B) = Map[S, A, B](sa, f)
-  def lift[S[_], A](sa: S[A]): Coyoneda[S, A] = Map[S, A, A](sa, identity)
+  def lift[S[_], A](sa: S[A]) = Map[S, A, A](sa, identity)
+  ...
+}
+#+END_SRC
+
+and there is also a contravariant version
+
+#+BEGIN_SRC scala
+sealed abstract class ContravariantCoyoneda[S[_], A] {
+  def run(implicit S: Contravariant[S]): S[A] = ...
+  def trans[G[_]](f: F ~> G): ContravariantCoyoneda[G, A] = ...
+  ...
+}
+object ContravariantCoyoneda {
+  implicit def contravariant[S[_], A]: Contravariant[ContravariantCoyoneda[S, A]] = ...
+
+  private final case class Contramap[F[_], A, B](fa: F[A], f: B => A)
+    extends ContravariantCoyoneda[F, A]
+  def apply[S[_], A, B](sa: S[A])(f: B => A) = Contramap[S, A, B](sa, f)
+  def lift[S[_], A](sa: S[A]) = Contramap[S, A, A](sa, identity)
   ...
 }
 #+END_SRC
 
 #+BEGIN_ASIDE
-The colloquial for =Coyoneda= is /coyo/. Don't go wasting all the **Free Fun**.
+The colloquial for =Coyoneda= is /coyo/ and =ContravariantCoyoneda= is /cocoyo/.
+Just some Free Fun.
 #+END_ASIDE
 
-If we want to optimise a program via =Coyoneda= we have to provide the expected
-boilerplate for each algebra:
+The API is somewhat simpler than =Free= and =FreeAp=, allowing a natural
+transformation with =.trans= and a =.run= (taking an actual =Functor= or
+=Contravariant=, respectively) to escape the free structure.
+
+Coyo and cocoyo can be a useful utility if we want to =.map= or =.contramap=
+over a type, and we know that we can convert into a data type that has a Functor
+but we don't want to commit to the final data structure too early. For example,
+we create a =Coyoneda[ISet, ?]= (recall =ISet= does not have a =Functor=) to use
+methods that require a =Functor=, then convert into =IList= later on.
+
+If we want to optimise a program with coyo or cocoyo we have to provide the
+expected boilerplate for each algebra:
 
 #+BEGIN_SRC scala
   def liftCoyo[F[_]](implicit I: Ast :<: F) = new Machines[Coyoneda[F, ?]] {
     def getTime = Coyoneda.lift(I.inj(GetTime()))
     ...
   }
+  def liftCocoyo[F[_]](implicit I: Ast :<: F) = new Machines[ContravariantCoyoneda[F, ?]] {
+    def getTime = ContravariantCoyoneda.lift(I.inj(GetTime()))
+    ...
+  }
 #+END_SRC
 
-However, programs that make use of =Functor=, as opposed to =Applicative= or
-=Monad=, are quite rare, so any kind of optimisations we can apply are limited
-in scope.
-
-TODO: does this help with encoders / decoders / typeclasses?
-
-TODO: can we do map fusion?
-
-Functional Programming lends itself well to compiletime optimisations, an area
-that has not been explored to its full potential. Consider mapping over a
-=Functor= three times:
+An optimisation we get by using =Coyoneda= is /map fusion/ (and /contramap
+fusion/), which allows us to rewrite
 
 #+BEGIN_SRC scala
 xs.map(a).map(b).map(c)
 #+END_SRC
 
-A technique known as /map fusion/ allows us to rewrite this expression as
-=xs.map(x => c(b(a(x))))=, avoiding intermediate representations. For example,
-if =xs= is a =List= of a thousand elements, we save two thousand object
-allocations.
+into
 
-The [[https://github.com/oleg-py/better-monadic-for/issues/6][=better-monadic-for=]] project is attempting to implement these /middle-level
-optimisations/, which is beyond the scope of this book.
+#+BEGIN_SRC scala
+xs.map(x => c(b(a(x))))
+#+END_SRC
 
+avoiding intermediate representations. For example, if =xs= is a =List= of a
+thousand elements, we save two thousand object allocations because we only map
+over the data structure once.
+
+However it is arguably a lot easier to just make this kind of change in the
+original function by hand, or to wait for the [[https://github.com/oleg-py/better-monadic-for/issues/6][=better-monadic-for=]] project to
+automatically perform these optimisations across our codebase.
 
 # https://www.youtube.com/watch?v=H28QqxO7Ihc
 # https://www.youtube.com/watch?v=A-lmrvsUi2Y
 
-- Programs that change values
-- Programs that build data
-- Programs that build programs
+# - Programs that change values
+# - Programs that build data
+# - Programs that build programs
 
-**** TODO Free anything
+**** Freer Monads
+
+By now it should be sinking in that programs can be treated as data structures.
+Free structures help to make this explicit and give us the ability to optimise,
+but it doesn't stop with =Monad=, =Applicative= and =Functor=, we can create
+free structures for almost any typeclass in our application and indeed this is
+exactly what we can turn to if we find ourselves with a performance problem due
+to a
+
+FIXME
+
+# http://okmij.org/ftp/Haskell/extensible/more.pdf
+# http://okmij.org/ftp/Computation/free-monad.html
+# http://atnos-org.github.io/eff/
 
 # http://degoes.net/articles/effects-without-transformers
 # and John's winter retreat talk...
