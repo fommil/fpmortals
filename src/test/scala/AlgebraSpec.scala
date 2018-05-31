@@ -225,19 +225,21 @@ class AlgebraSpec extends FlatSpec {
       case Coproduct(-\/(Machines.Start(node))) => IList.single(node)
       case _                                    => IList.empty
     }
-    val gathered: IList[MachineNode] = freeap.analyze(gather)
 
     type Extended[a] = Coproduct[Batch.Ast, Orig, a]
-    type Patched[a]  = FreeAp[Extended, a]
-    val nostart = λ[Orig ~> Patched] {
+    def batch(nodes: IList[MachineNode]): FreeAp[Extended, Unit] =
+      nodes.toNel match {
+        case None        => FreeAp.pure(())
+        case Some(nodes) => FreeAp.lift(Coproduct.leftc(Batch.Start(nodes)))
+      }
+
+    val nostart = λ[Orig ~> FreeAp[Extended, ?]] {
       case Coproduct(-\/(Machines.Start(_))) => FreeAp.pure(())
       case other                             => FreeAp.lift(Coproduct.rightc(other))
     }
-    val batch: FreeAp[Extended, Unit] = gathered.toNel match {
-      case None        => FreeAp.pure(())
-      case Some(nodes) => FreeAp.lift(Coproduct.leftc(Batch.Start(nodes)))
-    }
-    val patched = batch *> freeap.foldMap(nostart)
+
+    def optimise[A](orig: FreeAp[Orig, A]): FreeAp[Extended, A] =
+      (batch(orig.analyze(gather)) *> orig.foldMap(nostart))
 
     final case class S(
       singles: IList[MachineNode],
@@ -259,7 +261,7 @@ class AlgebraSpec extends FlatSpec {
       case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
     }
 
-    patched
+    optimise(freeap)
       .foldMap(or(B, or(M, D)))
       .run(S(IList.empty, IList.empty))
       ._1

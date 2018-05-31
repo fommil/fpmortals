@@ -40,16 +40,22 @@ object Drone {
   final case class GetBacklog() extends Ast[Int]
   final case class GetAgents()  extends Ast[Int]
 
+  def liftF[F[_]](implicit I: Ast :<: F): Drone[Free[F, ?]] =
+    new Drone[Free[F, ?]] {
+      def getBacklog: Free[F, Int] = Free.liftF(I.inj(GetBacklog()))
+      def getAgents: Free[F, Int]  = Free.liftF(I.inj(GetAgents()))
+    }
+
   def liftA[F[_]](implicit I: Ast :<: F): Drone[FreeAp[F, ?]] =
     new Drone[FreeAp[F, ?]] {
       def getBacklog: FreeAp[F, Int] = FreeAp.lift(I.inj(GetBacklog()))
       def getAgents: FreeAp[F, Int]  = FreeAp.lift(I.inj(GetAgents()))
     }
 
-  def liftF[F[_]](implicit I: Ast :<: F): Drone[Free[F, ?]] =
-    new Drone[Free[F, ?]] {
-      def getBacklog: Free[F, Int] = Free.liftF(I.inj(GetBacklog()))
-      def getAgents: Free[F, Int]  = Free.liftF(I.inj(GetAgents()))
+  def liftCoyo[F[_]](implicit I: Ast :<: F): Drone[Coyoneda[F, ?]] =
+    new Drone[Coyoneda[F, ?]] {
+      def getBacklog: Coyoneda[F, Int] = Coyoneda.lift(I.inj(GetBacklog()))
+      def getAgents: Coyoneda[F, Int]  = Coyoneda.lift(I.inj(GetAgents()))
     }
 
   def interpreter[F[_]](f: Drone[F]): Ast ~> F = λ[Ast ~> F] {
@@ -109,6 +115,19 @@ object Machines {
         FreeAp.lift(I.inj(Start(node)))
       def stop(node: MachineNode): FreeAp[F, Unit] =
         FreeAp.lift(I.inj(Stop(node)))
+    }
+
+  def liftCoyo[F[_]](implicit I: Ast :<: F): Machines[Coyoneda[F, ?]] =
+    new Machines[Coyoneda[F, ?]] {
+      def getTime: Coyoneda[F, Instant] = Coyoneda.lift(I.inj(GetTime()))
+      def getManaged: Coyoneda[F, NonEmptyList[MachineNode]] =
+        Coyoneda.lift(I.inj(GetManaged()))
+      def getAlive: Coyoneda[F, Map[MachineNode, Instant]] =
+        Coyoneda.lift(I.inj(GetAlive()))
+      def start(node: MachineNode): Coyoneda[F, Unit] =
+        Coyoneda.lift(I.inj(Start(node)))
+      def stop(node: MachineNode): Coyoneda[F, Unit] =
+        Coyoneda.lift(I.inj(Stop(node)))
     }
 
   def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
