@@ -3,11 +3,12 @@
 
 package parallel
 
-import scalaz._, Tags.Parallel, Scalaz._, ioeffect._
+import scalaz._, Scalaz._, ioeffect._
+import scalaz.Tags.Parallel
+import scalaz.Leibniz.===
 
 class Work[F[_]] {
-  type ParF[a] = F[a] @@ Parallel
-  def par[A](fa: F[A]): ParF[A] = Parallel(fa)
+  import Par._
 
   def slow(in: String): F[Unit] = ???
 
@@ -15,9 +16,26 @@ class Work[F[_]] {
     fins: IList[String]
   )(
     implicit F: Monad[F],
-    P: Applicative[ParF]
+    P: Applicative[λ[α => F[α] @@ Parallel]]
   ): F[IList[Unit]] =
-    Parallel.unwrap(fins.traverse(s => par(slow(s))))
-  //   def traverse[G[_]:Applicative,A,B](fa: F[A])(f: A => G[B]): G[F[B]] =
+    fins.parTraverse(s => slow(s))
+
+}
+
+object Par {
+
+  // TODO: parApply2
+
+  implicit final class ParTraverseOps[F[_], A](private val fa: F[A])
+      extends AnyVal {
+    final def parTraverse[G[_], B](f: A => G[B])(
+      implicit
+      F: Traverse[F],
+      G: Applicative[λ[α => G[α] @@ Parallel]]
+    ): G[F[B]] = {
+      type ParG[C] = G[C] @@ Parallel
+      Parallel.unwrap(F.traverse(fa)(a => Parallel(f(a)): ParG[B]))
+    }
+  }
 
 }
