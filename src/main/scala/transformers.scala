@@ -102,9 +102,11 @@ object WithEitherT {
 object BetterErrors {
   final case class Meta(fqn: String, file: String, line: Int)
   object Meta {
-    implicit def gen(implicit fqn: sourcecode.FullName,
-                     file: sourcecode.File,
-                     line: sourcecode.Line): Meta =
+    implicit def gen(
+      implicit fqn: sourcecode.FullName,
+      file: sourcecode.File,
+      line: sourcecode.Line
+    ): Meta =
       new Meta(fqn.value, file.value, line.value)
   }
 

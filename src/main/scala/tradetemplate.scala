@@ -32,9 +32,11 @@ object TradeTemplate {
 
   implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
     (a, b) =>
-      TradeTemplate(a.payments |+| b.payments,
-                    a.ccy |+| b.ccy,
-                    a.otc |+| b.otc),
+      TradeTemplate(
+        a.payments |+| b.payments,
+        a.ccy |+| b.ccy,
+        a.otc |+| b.otc
+      ),
     TradeTemplate(Nil, Tag(None), Tag(None))
   )
 }

@@ -60,7 +60,7 @@ object Directives {
     a =>
       ContT { next =>
         next(a).handleError(e => action >> F.raiseError(e)) <* action
-    }
+      }
 
   final case class A0() // we can create one if we have an A3
   final case class A1() // we have one of these (or can create one)
