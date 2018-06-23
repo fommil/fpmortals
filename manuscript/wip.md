@@ -2106,7 +2106,8 @@ it:
 ~~~~~~~~
 
 A> A compiler plugin that automatically produces the `.liftM` and `.liftIO` would
-A> be a great contribution to the ecosystem!
+A> be a great contribution to the ecosystem! A work in progress can be seen at
+A> <https://gitlab.com/fommil/scalaz-free> and welcomes contributors.
 
 
 #### Performance
@@ -3041,54 +3042,90 @@ automatically perform these optimisations across our codebase.
 Programs are just data: free structures help to make this explicit and give us
 the ability to rearrange and optimise that data.
 
-`Free` turns out to be more special than it appears, if we want to implement
-anything beyond `Monad`, `Applicative` and `Functor`, we just need to create
-ASTs and add them to the instruction set: we don't need to create `FreeState`,
-`FreeError`, etc structures for all the MTL effects.
+`Free` is more special than it appears: it can sequence arbitrary algebras and
+typeclasses.
 
-For example, say we want to have a free structure for `MonadState`, not just
-`Monad`, we can implement an AST and its `.liftF` boilerplate:
+For example, a free structure for `MonadState` is available. The `Ast` and
+`.liftF` are more complicated than usual because we have to account for the `S`
+type parameter on `MonadState`, and the inheritance from `Monad`:
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class Ast[S, A]
-  final case class Get[S]()     extends Ast[S, S]
-  final case class Put[S](s: S) extends Ast[S, Unit]
+  object MonadState {
+    sealed abstract class Ast[S, A]
+    final case class Get[S]()     extends Ast[S, S]
+    final case class Put[S](s: S) extends Ast[S, Unit]
   
-  def liftF[F[_], S](implicit I: Ast[S, ?] :<: F) =
-    new MonadState[Free[F, ?], S] with BindRec[Free[F, ?]] {
-      def get       = Free.liftF(I.inj(Get[S]()))
-      def put(s: S) = Free.liftF(I.inj(Put[S](s)))
+    def liftF[F[_], S](implicit I: Ast[S, ?] :<: F) =
+      new MonadState[Free[F, ?], S] with BindRec[Free[F, ?]] {
+        def get       = Free.liftF(I.inj(Get[S]()))
+        def put(s: S) = Free.liftF(I.inj(Put[S](s)))
   
-      val delegate         = Free.freeMonad[F]
-      def point[A](a: =>A) = delegate.point(a)
-      ...
-    }
+        val delegate         = Free.freeMonad[F]
+        def point[A](a: =>A) = delegate.point(a)
+        ...
+      }
+    ...
+  }
 ~~~~~~~~
 
-Both the `Ast` and the `.liftF` are more complicated than usual because we have
-to account for the additional `S` type parameter on `MonadState`, and the
-inheritance from `Monad`.
+This gives us the opportunity to use optimised interpreters. For example, we
+could store the `S` in an atomic field instead of building up a nested `StateT`
+trampoline.
 
-We could create a `.liftF` for each of the MTL typeclasses allowing us to get
-free structures instead of using monad transformers. This gives us the
-opportunity to use optimised interpreters. For example, we could store the `S`
-in an atomic field instead of building up a nested `StateT` trampoline.
+We can create an `Ast` and `.liftF` for almost any algebra or typeclass! The
+only restriction is that the `F[_]` does not appear as a parameter to any of the
+instructions, i.e. it must be possible for the algebra to have an instance of
+`Functor`. This unfortunately rules out `MonadError` and `Monoid`.
 
-However, as the AST of a free program grows, performance degrades because the
-interpreter must match over instruction sets with an `O(n)` cost. An alternative
-to `Coproduct` is [iotaz](https://github.com/frees-io/iota)'s encoding, which uses an optimised data structure to
-perform `O(1)` dynamic dispatch (using integers that are assigned to each
+A> The reason why free encodings do not work for all algebras and typeclasses is
+A> quite subtle.
+A> 
+A> Consider what happens if we create an Ast for `MonadError`, with `F[_]` in
+A> contravariant position, i.e. as a parameter.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   object MonadError {
+A>     sealed abstract class Ast[F[_], E, A]
+A>     final case class RaiseError[E, A](e: E) extends Ast[E, A]
+A>     final case class HandleError[F[_], E, A](fa: F[A], f: E => F[A]) extends Ast[E, A]
+A>   
+A>     def liftF[F[_], E](implicit I: Ast[F, E, ?] :<: F): MonadError[F, E] = ...
+A>     ...
+A>   }
+A> ~~~~~~~~
+A> 
+A> When we come to interpret a program that uses `MonadError.Ast` we must construct
+A> the coproduct of instructions. Let's say we extend a `Drone` program:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   type Ast[a] = Coproduct[MonadError.Ast[Ast, String, ?], Drone.Ast, a]
+A> ~~~~~~~~
+A> 
+A> This fails to compile because `Ast` refers to itself!
+A> 
+A> Algebras that are not entirely made of covariant functor signatures, i.e. `F[_]`
+A> in return position, are impossible to interpret because the resulting type of
+A> the program is self-referential. Indeed the name *algebra* that we have been
+A> using has its roots in [F-Algebras](https://en.wikipedia.org/wiki/F-algebra), where the F is for Functor.
+A> 
+A> *Thanks to Edmund Noble for initiating this discussion.*
+
+As the AST of a free program grows, performance degrades because the interpreter
+must match over instruction sets with an `O(n)` cost. An alternative to
+`scalaz.Coproduct` is [iotaz](https://github.com/frees-io/iota)'s encoding, which uses an optimised data structure
+to perform `O(1)` dynamic dispatch (using integers that are assigned to each
 coproduct at compiletime).
 
 For historical reasons a free AST for an algebra or typeclass is called *Initial
-Encoding*, and a direct implementation is called *Finally Tagless*.
-
-Although we've explored interesting ideas with `Free`, it is generally accepted
-that finally tagless is superior. But to use finally tagless style, we need a
-high performance effect type that provides all the monad typeclasses we've
-covered in this chapter. We also still need to be able to run our `Applicative`
-code in parallel. This is exactly what we will cover next.
+Encoding*, and a direct implementation (e.g. with `IO`) is called *Finally
+Tagless*. Although we have explored interesting ideas with `Free`, it is
+generally accepted that finally tagless is superior. But to use finally tagless
+style, we need a high performance effect type that provides all the monad
+typeclasses we've covered in this chapter. We also still need to be able to run
+our `Applicative` code in parallel. This is exactly what we will cover next.
 
 
 ## `IO`
