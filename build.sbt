@@ -4,6 +4,7 @@
 scalaVersion in ThisBuild := "2.12.6"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
+  //"-Xsource:2.13",
   "-Ypartial-unification",
   "-deprecation"
 )
@@ -19,6 +20,7 @@ libraryDependencies ++= Seq(
   "eu.timepit"           %% "refined-scalaz"        % "0.9.0",
   "com.lihaoyi"          %% "sourcecode"            % "0.1.4",
   "xyz.driver"           %% "spray-json-derivation" % "0.4.5",
+  "io.estatico"          %% "newtype"               % "0.4.2"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
@@ -27,7 +29,7 @@ addCompilerPlugin(
 )
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4")
-addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
+addCompilerPlugin("com.fommil" %% "deriving-plugin"    % derivingVersion)
 
 scalacOptions in (Compile, console) -= "-Xfatal-warnings"
 initialCommands in (Compile, console) := Seq(

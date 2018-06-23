@@ -2,6 +2,8 @@
 // License: https://creativecommons.org/publicdomain/zero/1.0/
 package brokenfuture
 
+import scala.io.StdIn
+
 import scalaz._, Scalaz._
 
 import scala.concurrent._
@@ -13,7 +15,7 @@ trait Terminal[C[_]] {
 }
 
 class TerminalAsync(implicit EC: ExecutionContext) extends Terminal[Future] {
-  def read: Future[String]           = Future { io.StdIn.readLine }
+  def read: Future[String]           = Future { StdIn.readLine }
   def write(t: String): Future[Unit] = Future { println(t) }
 }
 

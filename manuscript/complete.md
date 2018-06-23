@@ -4321,6 +4321,10 @@ that all the methods are consistent:
 -   **Associativity**: `fa.bind(f).bind(g) === fa.bind(a => f(a).bind(g))` where
     `fa` is an `F[A]`, `f` is an `A => F[B]` and `g` is a `B => F[C]`.
 
+along with laws to assert that the implementations of `.ap` and `.apply2` must
+use `.bind`, such that `F[A]` is evaluated before `F[A => B]` and `F[B]`,
+respectively.
+
 Associativity says that chained `bind` calls must agree with nested
 `bind`. However, it does not mean that we can rearrange the order,
 which would be *commutativity*. For example, recalling that `flatMap`

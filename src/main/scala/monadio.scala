@@ -3,6 +3,8 @@
 
 package monadio
 
+import scala.io.StdIn
+
 import scalaz._, Scalaz._
 
 final class IO[A] private (val interpret: () => A)
@@ -27,7 +29,7 @@ object Runner {
   import brokenfuture.Runner.echo
 
   implicit val TerminalIO: Terminal[IO] = new Terminal[IO] {
-    def read: IO[String]           = IO { io.StdIn.readLine }
+    def read: IO[String]           = IO { StdIn.readLine }
     def write(t: String): IO[Unit] = IO { println(t) }
   }
 

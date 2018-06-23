@@ -3128,7 +3128,155 @@ typeclasses we've covered in this chapter. We also still need to be able to run
 our `Applicative` code in parallel. This is exactly what we will cover next.
 
 
+## `Parallel`
+
+There are typically two effectful operations that we almost always want to run
+in parallel:
+
+1.  `.map` over a collection of effects, returning a single effect, i.e.
+    `.traverse`. The collection typically delegates to the effect's `.apply2`.
+2.  running a fixed number of effects with the *scream operator* `|@|`, and
+    combining their output, again delegating to `.apply2`.
+
+However, in practice, neither of these operations will execute in parallel by
+default. The reason is that if our `F[_]` is provided by `IO`, then the laws of
+`Monad` must be satisfied. Recall from Scalaz Typeclasses (paraphrased):
+
+> `Monad` has laws to assert that the implementation of `.apply2` must use `.bind`
+> such that `F[A]` is evaluated before `F[B]`.
+
+**In other words, `Monad` is explicitly forbidden from running effects in
+parallel.**
+
+However, if we have an `F[_]` that is **not** monadic, then it may implement
+`.apply2` in parallel. The `Applicative[IO]` must be coherent with `Monad[IO]`,
+but we can use the tag typeclass disambiguation mechanism to create an instance
+for
+
+{lang="text"}
+~~~~~~~~
+  import scalaz.Tags.Parallel
+  
+  type ParIO[a] = IO[a] @@ Parallel
+~~~~~~~~
+
+which is more often written in `kind-projector` syntax to give us
+
+{lang="text"}
+~~~~~~~~
+  Applicative[λ[α => IO[α] @@ Parallel]]
+~~~~~~~~
+
+Typically this means that methods must be written as
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]: Monad](implicit P: Applicative[λ[α => F[α] @@ Parallel]]): F[Unit] = ...
+~~~~~~~~
+
+Convenient syntax is provided that allows us to call `.parTraverse` instead of
+`.traverse` if such an implicit is available:
+
+{lang="text"}
+~~~~~~~~
+  val input: IList[String] = ...
+  def network(in: String): IO[Int] = ...
+  
+  input.traverse(network): IO[IList[Int]] // one at a time
+  input.parTraverse(network): IO[IList[Int]] // all in parallel
+~~~~~~~~
+
+Similarly, we can call `.parApply` or `.parTupled`
+
+{lang="text"}
+~~~~~~~~
+  val fa: IO[String] = ...
+  val fb: IO[String] = ...
+  
+  (fa |@| fb).parTupled: IO[(String, String)]
+  
+  (fa |@| fb).parApply {
+    case (a, b) => a + b
+  }: IO[String]
+~~~~~~~~
+
+A> Unfortunately because of binary compatibility, `.parApply` and `.parTupled` are
+A> not available for more than 2 parameters. This is fixed in Scala 7.3, but as a
+A> workaround we can nest pairs:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   (fa |@| (fb |@| fc).parTupled).parTupled: Task[(String, (String, String))]
+A> ~~~~~~~~
+
+It is worth nothing that when we have `Applicative` programs, such as
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]: Applicative]: F[Unit] = ...
+~~~~~~~~
+
+we can use `λ[α => F[α] @@ Parallel]` as our program's context and get
+parallelism as the default when we call `.traverse` or `|@|`. But converting
+between the raw and `@@ Parallel` versions of `F[_]` must be handled manually in
+the glue code, which can be painful.
+
+
+### Breaking the Law
+
+We can take a far more daring approach to parallelism: opt-out of the law that
+`.apply2` must be sequential for `Monad`. This is highly controversial, but
+works great for the vast majority of real world applications.
+
+We need to wrap `IO`
+
+{lang="text"}
+~~~~~~~~
+  final class MyIO[A](val io: IO[A]) extends AnyVal
+~~~~~~~~
+
+and provide our own implementation of `Monad` which runs `.apply2` in parallel
+by delegating to the `@@ Parallel` variant
+
+{lang="text"}
+~~~~~~~~
+  object MyIO {
+    implicit val monad: Monad[MyIO] = new Monad[MyIO] {
+      def apply2[A, B, C](fa: MyIO[A], fb: MyIO[B])(f: (A, B) => C): IO[C] =
+        Applicative[λ[α => F[α] @@ Parallel]].apply2(fa, fb)(f)
+      ...
+    }
+  }
+~~~~~~~~
+
+We can now use `MyIO` as our application's context instead of `IO`, and **get
+parallelism by default**.
+
+A> Wrapping an existing type and providing custom typeclass instances is known as
+A> *newtyping*.
+A> 
+A> `@@` and newtyping are complementary: `@@` allows us to request specific
+A> typeclass variants on our domain model, but newtyping allow us to define the
+A> instances on the implementation and hide the detail from the business logic.
+A> 
+A> The `@newtype` macro [by Cary Robbins](https://github.com/estatico/scala-newtype) has an optimised runtime representation
+A> (more efficient than `extends AnyVal`), that makes it easy to delegate
+A> typeclasses that we do not wish to customise. e.g. we can customise `Monad` but
+A> delegate the `Plus`:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   @newtype class MyIO[A](io: IO[A])
+A>   object MyIO {
+A>     implicit val monad: Monad[MyIO] = ...
+A>     implicit val plus: Plus[MyIO] = derived
+A>   }
+A> ~~~~~~~~
+
+
 ## `IO`
+
+We have, so far, written two implementations of `IO`.
 
 TODO: this will cover the backport of John de Goes' bifunctor IO.
 

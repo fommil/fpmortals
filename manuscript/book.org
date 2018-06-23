@@ -5046,6 +5046,10 @@ that all the methods are consistent:
 - *Associativity*: ~fa.bind(f).bind(g) === fa.bind(a => f(a).bind(g))~ where
   ~fa~ is an ~F[A]~, ~f~ is an ~A => F[B]~ and ~g~ is a ~B => F[C]~.
 
+along with laws to assert that the implementations of =.ap= and =.apply2= must
+use =.bind=, such that =F[A]= is evaluated before ~F[A => B]~ and =F[B]=,
+respectively.
+
 Associativity says that chained =bind= calls must agree with nested
 =bind=. However, it does not mean that we can rearrange the order,
 which would be /commutativity/. For example, recalling that =flatMap=
@@ -12420,7 +12424,149 @@ our =Applicative= code in parallel. This is exactly what we will cover next.
 # http://degoes.net/articles/effects-without-transformers
 # and John's winter retreat talk...
 
+*** =Parallel=
+
+There are typically two effectful operations that we almost always want to run
+in parallel:
+
+1. =.map= over a collection of effects, returning a single effect, i.e.
+   =.traverse=. The collection typically delegates to the effect's =.apply2=.
+2. running a fixed number of effects with the /scream operator/ =|@|=, and
+   combining their output, again delegating to =.apply2=.
+
+However, in practice, neither of these operations will execute in parallel by
+default. The reason is that if our =F[_]= is provided by =IO=, then the laws of
+=Monad= must be satisfied. Recall from Scalaz Typeclasses (paraphrased):
+
+#+BEGIN_QUOTE
+=Monad= has laws to assert that the implementation of =.apply2= must use =.bind=
+such that =F[A]= is evaluated before =F[B]=.
+#+END_QUOTE
+
+*In other words, =Monad= is explicitly forbidden from running effects in
+parallel.*
+
+However, if we have an =F[_]= that is *not* monadic, then it may implement
+=.apply2= in parallel. The =Applicative[IO]= must be coherent with =Monad[IO]=,
+but we can use the tag typeclass disambiguation mechanism to create an instance
+for
+
+#+BEGIN_SRC scala
+import scalaz.Tags.Parallel
+
+type ParIO[a] = IO[a] @@ Parallel
+#+END_SRC
+
+which is more often written in =kind-projector= syntax to give us
+
+#+BEGIN_SRC scala
+Applicative[λ[α => IO[α] @@ Parallel]]
+#+END_SRC
+
+Typically this means that methods must be written as
+
+#+BEGIN_SRC scala
+def foo[F[_]: Monad](implicit P: Applicative[λ[α => F[α] @@ Parallel]]): F[Unit] = ...
+#+END_SRC
+
+Convenient syntax is provided that allows us to call =.parTraverse= instead of
+=.traverse= if such an implicit is available:
+
+#+BEGIN_SRC scala
+  val input: IList[String] = ...
+  def network(in: String): IO[Int] = ...
+
+  input.traverse(network): IO[IList[Int]] // one at a time
+  input.parTraverse(network): IO[IList[Int]] // all in parallel
+#+END_SRC
+
+Similarly, we can call =.parApply= or =.parTupled=
+
+#+BEGIN_SRC scala
+  val fa: IO[String] = ...
+  val fb: IO[String] = ...
+
+  (fa |@| fb).parTupled: IO[(String, String)]
+
+  (fa |@| fb).parApply {
+    case (a, b) => a + b
+  }: IO[String]
+#+END_SRC
+
+#+BEGIN_ASIDE
+Unfortunately because of binary compatibility, =.parApply= and =.parTupled= are
+not available for more than 2 parameters. This is fixed in Scala 7.3, but as a
+workaround we can nest pairs:
+
+#+BEGIN_SRC scala
+  (fa |@| (fb |@| fc).parTupled).parTupled: Task[(String, (String, String))]
+#+END_SRC
+#+END_ASIDE
+
+It is worth nothing that when we have =Applicative= programs, such as
+
+#+BEGIN_SRC scala
+def foo[F[_]: Applicative]: F[Unit] = ...
+#+END_SRC
+
+we can use =λ[α => F[α] @@ Parallel]= as our program's context and get
+parallelism as the default when we call =.traverse= or =|@|=. But converting
+between the raw and =@@ Parallel= versions of =F[_]= must be handled manually in
+the glue code, which can be painful.
+
+**** Breaking the Law
+
+We can take a far more daring approach to parallelism: opt-out of the law that
+=.apply2= must be sequential for =Monad=. This is highly controversial, but
+works great for the vast majority of real world applications.
+
+We need to wrap =IO=
+
+#+BEGIN_SRC scala
+final class MyIO[A](val io: IO[A]) extends AnyVal
+#+END_SRC
+
+and provide our own implementation of =Monad= which runs =.apply2= in parallel
+by delegating to the =@@ Parallel= variant
+
+#+BEGIN_SRC scala
+object MyIO {
+  implicit val monad: Monad[MyIO] = new Monad[MyIO] {
+    def apply2[A, B, C](fa: MyIO[A], fb: MyIO[B])(f: (A, B) => C): IO[C] =
+      Applicative[λ[α => F[α] @@ Parallel]].apply2(fa, fb)(f)
+    ...
+  }
+}
+#+END_SRC
+
+We can now use =MyIO= as our application's context instead of =IO=, and *get
+parallelism by default*.
+
+#+BEGIN_ASIDE
+Wrapping an existing type and providing custom typeclass instances is known as
+/newtyping/.
+
+=@@= and newtyping are complementary: =@@= allows us to request specific
+typeclass variants on our domain model, but newtyping allow us to define the
+instances on the implementation and hide the detail from the business logic.
+
+The =@newtype= macro [[https://github.com/estatico/scala-newtype][by Cary Robbins]] has an optimised runtime representation
+(more efficient than =extends AnyVal=), that makes it easy to delegate
+typeclasses that we do not wish to customise. e.g. we can customise =Monad= but
+delegate the =Plus=:
+
+#+BEGIN_SRC scala
+@newtype class MyIO[A](io: IO[A])
+object MyIO {
+  implicit val monad: Monad[MyIO] = ...
+  implicit val plus: Plus[MyIO] = derived
+}
+#+END_SRC
+#+END_ASIDE
+
 *** =IO=
+
+We have, so far, written two implementations of =IO=.
 
 TODO: this will cover the backport of John de Goes' bifunctor IO.
 
