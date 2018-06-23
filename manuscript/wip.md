@@ -3242,8 +3242,8 @@ by delegating to the `@@ Parallel` variant
 ~~~~~~~~
   object MyIO {
     implicit val monad: Monad[MyIO] = new Monad[MyIO] {
-      def apply2[A, B, C](fa: MyIO[A], fb: MyIO[B])(f: (A, B) => C): IO[C] =
-        Applicative[λ[α => F[α] @@ Parallel]].apply2(fa, fb)(f)
+      override def apply2[A, B, C](fa: MyIO[A], fb: MyIO[B])(f: (A, B) => C): MyIO[C] =
+        Applicative[λ[α => IO[α] @@ Parallel]].apply2(fa.io, fb.io)(f)
       ...
     }
   }
