@@ -3028,7 +3028,7 @@ to:
   @typeclass trait Order[F] extends Equal[F] {
     @op("?|?") def order(x: F, y: F): Ordering
   
-    override  def equal(x: F, y: F): Boolean = ...
+    override  def equal(x: F, y: F): Boolean = order(x, y) == Ordering.EQ
     @op("<" ) def lt(x: F, y: F): Boolean = ...
     @op("<=") def lte(x: F, y: F): Boolean = ...
     @op(">" ) def gt(x: F, y: F): Boolean = ...
@@ -3046,6 +3046,12 @@ to:
     case object GT extends Ordering
   }
 ~~~~~~~~
+
+`Order` implements `.equal` in terms of the new primitive `.order`. When a
+typeclass implements (or overrides) a method on a parent, we call it a *derived
+combinator*: an **implied law of substitution** for the typeclass. If an instance
+of `Order` were to override `.equal` for performance reasons, it must behave
+identically to the derived combinator.
 
 Things that have an order may also be discrete, allowing us to walk
 successors and predecessors:
@@ -4209,6 +4215,11 @@ structures that are then joined.
     @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
     def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = bind(fa)(f)
   
+    override def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] =
+      bind(f)(x => map(fa)(x))
+    override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+      bind(fa)(a => map(fb)(b => f(a, b)))
+  
     def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
   
     def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
@@ -4227,6 +4238,10 @@ Although not necessarily implemented as such, we can think of `.bind` as being a
 ~~~~~~~~
   def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
 ~~~~~~~~
+
+Derived combinators are introduced for `.ap` and `.apply2` that require
+consistency with `.bind`. We will see later that this law has consequences for
+parallelisation strategies.
 
 `mproduct` is like `Functor.fproduct` and pairs the function's input
 with its output, inside the `F`.
@@ -4320,10 +4335,6 @@ that all the methods are consistent:
 -   **Right Identity**: `a.bind(pure(_)) === a`
 -   **Associativity**: `fa.bind(f).bind(g) === fa.bind(a => f(a).bind(g))` where
     `fa` is an `F[A]`, `f` is an `A => F[B]` and `g` is a `B => F[C]`.
-
-along with laws to assert that the implementations of `.ap` and `.apply2` must
-use `.bind`, such that `F[A]` is evaluated before `F[A => B]` and `F[B]`,
-respectively.
 
 Associativity says that chained `bind` calls must agree with nested
 `bind`. However, it does not mean that we can rearrange the order,

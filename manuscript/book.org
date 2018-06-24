@@ -3546,7 +3546,7 @@ to:
 @typeclass trait Order[F] extends Equal[F] {
   @op("?|?") def order(x: F, y: F): Ordering
 
-  override  def equal(x: F, y: F): Boolean = ...
+  override  def equal(x: F, y: F): Boolean = order(x, y) == Ordering.EQ
   @op("<" ) def lt(x: F, y: F): Boolean = ...
   @op("<=") def lte(x: F, y: F): Boolean = ...
   @op(">" ) def gt(x: F, y: F): Boolean = ...
@@ -3564,6 +3564,12 @@ object Ordering {
   case object GT extends Ordering
 }
 #+END_SRC
+
+=Order= implements =.equal= in terms of the new primitive =.order=. When a
+typeclass implements (or overrides) a method on a parent, we call it a /derived
+combinator/: an *implied law of substitution* for the typeclass. If an instance
+of =Order= were to override =.equal= for performance reasons, it must behave
+identically to the derived combinator.
 
 Things that have an order may also be discrete, allowing us to walk
 successors and predecessors:
@@ -4870,6 +4876,11 @@ structures that are then joined.
   @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = bind(fa)(f)
 
+  override def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] =
+    bind(f)(x => map(fa)(x))
+  override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+    bind(fa)(a => map(fb)(b => f(a, b)))
+
   def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
 
   def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
@@ -4887,6 +4898,10 @@ Although not necessarily implemented as such, we can think of =.bind= as being a
 #+BEGIN_SRC scala
 def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
 #+END_SRC
+
+Derived combinators are introduced for =.ap= and =.apply2= that require
+consistency with =.bind=. We will see later that this law has consequences for
+parallelisation strategies.
 
 =mproduct= is like =Functor.fproduct= and pairs the function's input
 with its output, inside the =F=.
@@ -5045,10 +5060,6 @@ that all the methods are consistent:
 - *Right Identity*: ~a.bind(pure(_)) === a~
 - *Associativity*: ~fa.bind(f).bind(g) === fa.bind(a => f(a).bind(g))~ where
   ~fa~ is an ~F[A]~, ~f~ is an ~A => F[B]~ and ~g~ is a ~B => F[C]~.
-
-along with laws to assert that the implementations of =.ap= and =.apply2= must
-use =.bind=, such that =F[A]= is evaluated before ~F[A => B]~ and =F[B]=,
-respectively.
 
 Associativity says that chained =bind= calls must agree with nested
 =bind=. However, it does not mean that we can rearrange the order,
@@ -12435,42 +12446,54 @@ in parallel:
    combining their output, again delegating to =.apply2=.
 
 However, in practice, neither of these operations will execute in parallel by
-default. The reason is that if our =F[_]= is provided by =IO=, then the laws of
-=Monad= must be satisfied. Recall from Scalaz Typeclasses (paraphrased):
+default. The reason is that if our =F[_]= is implemented by a =Monad=, then the
+derived combinator laws for =.apply2= must be satisfied, which say
 
-#+BEGIN_QUOTE
-=Monad= has laws to assert that the implementation of =.apply2= must use =.bind=
-such that =F[A]= is evaluated before =F[B]=.
-#+END_QUOTE
+#+BEGIN_SRC scala
+@typeclass trait Bind[F[_]] extends Apply[F] {
+  ...
+  override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+    bind(fa)(a => map(fb)(b => f(a, b)))
+  ...
+}
+#+END_SRC
 
 *In other words, =Monad= is explicitly forbidden from running effects in
 parallel.*
 
 However, if we have an =F[_]= that is *not* monadic, then it may implement
-=.apply2= in parallel. The =Applicative[IO]= must be coherent with =Monad[IO]=,
-but we can use the tag typeclass disambiguation mechanism to create an instance
-for
+=.apply2= in parallel. We can use the =@@= (tag) mechanism to create an instance
+of =Applicative= for =F[_] @@ Parallel=, which is conveniently assigned to the
+type alias =Applicative.Par=
 
 #+BEGIN_SRC scala
-import scalaz.Tags.Parallel
-
-type ParIO[a] = IO[a] @@ Parallel
+object Applicative {
+  type Par[F[_]] = Applicative[λ[α => F[α] @@ Tags.Parallel]]
+  ...
+}
 #+END_SRC
 
-which is more often written in =kind-projector= syntax to give us
+Monadic programs can then request an implicit =Par= in addition to their =Monad=
 
 #+BEGIN_SRC scala
-Applicative[λ[α => IO[α] @@ Parallel]]
+def foo[F[_]: Monad](implicit P: Applicative.Par[F]): F[Unit] = ...
 #+END_SRC
 
-Typically this means that methods must be written as
+When using the methods on =Applicative.Par= we must wrap and unwrap our values,
+but the most common use case of parallel traversing is already provided:
 
 #+BEGIN_SRC scala
-def foo[F[_]: Monad](implicit P: Applicative[λ[α => F[α] @@ Parallel]]): F[Unit] = ...
+implicit class TraverseSyntax[F[_], A](self: F[A]) {
+  ...
+  def parTraverse[G[_], B](f: A => G[B])(
+    implicit F: Traverse[F], G: Applicative.Par[G]
+  ): G[F[B]] =
+    Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
+}
 #+END_SRC
 
-Convenient syntax is provided that allows us to call =.parTraverse= instead of
-=.traverse= if such an implicit is available:
+If the implicit =Applicative.Par[IO]= is in scope, we can choose between
+sequential and parallel traversal:
 
 #+BEGIN_SRC scala
   val input: IList[String] = ...
@@ -12494,8 +12517,8 @@ Similarly, we can call =.parApply= or =.parTupled=
 #+END_SRC
 
 #+BEGIN_ASIDE
-Unfortunately because of binary compatibility, =.parApply= and =.parTupled= are
-not available for more than 2 parameters. This is fixed in Scala 7.3, but as a
+Unfortunately, due to binary compatibility, =.parApply= and =.parTupled= are not
+available for more than 2 parameters. This is fixed in Scala 7.3, but as a
 workaround we can nest pairs:
 
 #+BEGIN_SRC scala
@@ -12516,9 +12539,11 @@ the glue code, which can be painful.
 
 **** Breaking the Law
 
-We can take a far more daring approach to parallelism: opt-out of the law that
+We can take a more daring approach to parallelism: opt-out of the law that
 =.apply2= must be sequential for =Monad=. This is highly controversial, but
-works great for the vast majority of real world applications.
+works well for the vast majority of real world applications. You must first
+audit your codebase and dependencies to ensure that nothing is making use of the
+=.ap= or =.apply2= derived combinator implied law.
 
 We need to wrap =IO=
 
@@ -12548,7 +12573,8 @@ Wrapping an existing type and providing custom typeclass instances is known as
 
 =@@= and newtyping are complementary: =@@= allows us to request specific
 typeclass variants on our domain model, but newtyping allow us to define the
-instances on the implementation and hide the detail from the business logic.
+instances on the implementation. They achieve the same thing but are applied
+in different places.
 
 The =@newtype= macro [[https://github.com/estatico/scala-newtype][by Cary Robbins]] has an optimised runtime representation
 (more efficient than =extends AnyVal=), that makes it easy to delegate

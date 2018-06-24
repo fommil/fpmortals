@@ -3139,43 +3139,58 @@ in parallel:
     combining their output, again delegating to `.apply2`.
 
 However, in practice, neither of these operations will execute in parallel by
-default. The reason is that if our `F[_]` is provided by `IO`, then the laws of
-`Monad` must be satisfied. Recall from Scalaz Typeclasses (paraphrased):
+default. The reason is that if our `F[_]` is implemented by a `Monad`, then the
+derived combinator laws for `.apply2` must be satisfied, which say
 
-> `Monad` has laws to assert that the implementation of `.apply2` must use `.bind`
-> such that `F[A]` is evaluated before `F[B]`.
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bind[F[_]] extends Apply[F] {
+    ...
+    override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+      bind(fa)(a => map(fb)(b => f(a, b)))
+    ...
+  }
+~~~~~~~~
 
 **In other words, `Monad` is explicitly forbidden from running effects in
 parallel.**
 
 However, if we have an `F[_]` that is **not** monadic, then it may implement
-`.apply2` in parallel. The `Applicative[IO]` must be coherent with `Monad[IO]`,
-but we can use the tag typeclass disambiguation mechanism to create an instance
-for
+`.apply2` in parallel. We can use the `@@` (tag) mechanism to create an instance
+of `Applicative` for `F[_] @@ Parallel`, which is conveniently assigned to the
+type alias `Applicative.Par`
 
 {lang="text"}
 ~~~~~~~~
-  import scalaz.Tags.Parallel
-  
-  type ParIO[a] = IO[a] @@ Parallel
+  object Applicative {
+    type Par[F[_]] = Applicative[λ[α => F[α] @@ Tags.Parallel]]
+    ...
+  }
 ~~~~~~~~
 
-which is more often written in `kind-projector` syntax to give us
-
-{lang="text"}
-~~~~~~~~
-  Applicative[λ[α => IO[α] @@ Parallel]]
-~~~~~~~~
-
-Typically this means that methods must be written as
+Monadic programs can then request an implicit `Par` in addition to their `Monad`
 
 {lang="text"}
 ~~~~~~~~
-  def foo[F[_]: Monad](implicit P: Applicative[λ[α => F[α] @@ Parallel]]): F[Unit] = ...
+  def foo[F[_]: Monad](implicit P: Applicative.Par[F]): F[Unit] = ...
 ~~~~~~~~
 
-Convenient syntax is provided that allows us to call `.parTraverse` instead of
-`.traverse` if such an implicit is available:
+When using the methods on `Applicative.Par` we must wrap and unwrap our values,
+but the most common use case of parallel traversing is already provided:
+
+{lang="text"}
+~~~~~~~~
+  implicit class TraverseSyntax[F[_], A](self: F[A]) {
+    ...
+    def parTraverse[G[_], B](f: A => G[B])(
+      implicit F: Traverse[F], G: Applicative.Par[G]
+    ): G[F[B]] =
+      Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
+  }
+~~~~~~~~
+
+If the implicit `Applicative.Par[IO]` is in scope, we can choose between
+sequential and parallel traversal:
 
 {lang="text"}
 ~~~~~~~~
@@ -3200,8 +3215,8 @@ Similarly, we can call `.parApply` or `.parTupled`
   }: IO[String]
 ~~~~~~~~
 
-A> Unfortunately because of binary compatibility, `.parApply` and `.parTupled` are
-A> not available for more than 2 parameters. This is fixed in Scala 7.3, but as a
+A> Unfortunately, due to binary compatibility, `.parApply` and `.parTupled` are not
+A> available for more than 2 parameters. This is fixed in Scala 7.3, but as a
 A> workaround we can nest pairs:
 A> 
 A> {lang="text"}
@@ -3224,9 +3239,11 @@ the glue code, which can be painful.
 
 ### Breaking the Law
 
-We can take a far more daring approach to parallelism: opt-out of the law that
+We can take a more daring approach to parallelism: opt-out of the law that
 `.apply2` must be sequential for `Monad`. This is highly controversial, but
-works great for the vast majority of real world applications.
+works well for the vast majority of real world applications. You must first
+audit your codebase and dependencies to ensure that nothing is making use of the
+`.ap` or `.apply2` derived combinator implied law.
 
 We need to wrap `IO`
 
@@ -3257,7 +3274,8 @@ A> *newtyping*.
 A> 
 A> `@@` and newtyping are complementary: `@@` allows us to request specific
 A> typeclass variants on our domain model, but newtyping allow us to define the
-A> instances on the implementation and hide the detail from the business logic.
+A> instances on the implementation. They achieve the same thing but are applied
+A> in different places.
 A> 
 A> The `@newtype` macro [by Cary Robbins](https://github.com/estatico/scala-newtype) has an optimised runtime representation
 A> (more efficient than `extends AnyVal`), that makes it easy to delegate
