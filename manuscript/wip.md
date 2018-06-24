@@ -3248,7 +3248,7 @@ We need to wrap `IO`
 ~~~~~~~~
 
 and provide our own implementation of `Monad` which runs `.apply2` in parallel
-by delegating to the `@@ Parallel` variant
+by delegating to a `@@ Parallel` instance
 
 {lang="text"}
 ~~~~~~~~
@@ -3286,12 +3286,220 @@ A>     implicit val plus: Plus[MyIO] = derived
 A>   }
 A> ~~~~~~~~
 
+For completeness: a naive and inefficient implementation of `Applicative.Par`
+for our toy `IO` could use `Future`:
+
+{lang="text"}
+~~~~~~~~
+  object IO {
+    ...
+    type Par[a] = IO[a] @@ Parallel
+    implicit val ParApplicative = new Applicative[Par] {
+      override def apply2[A, B, C](fa: =>Par[A], fb: =>Par[B])(f: (A, B) => C): Par[C] =
+        Tag(
+          IO {
+            val a_ = Future { Tag.unwrap(fa).interpret() }
+            val b_ = Future { Tag.unwrap(fb).interpret() }
+            val a = Await.result(a_, Duration.Inf)
+            val b = Await.result(b_, Duration.Inf)
+            f(a, b)
+          }
+        )
+  }
+~~~~~~~~
+
+and due to [a bug in the scala compiler](https://github.com/scala/bug/issues/10954) when using `@@`, we must
+
+{lang="text"}
+~~~~~~~~
+  import IO.ParApplicative
+~~~~~~~~
+
+to see it in the implicit scope.
+
+We started this book with a naive implementation of `IO` that could stack
+overflow, which we fixed by rewriting it to use `Free.Trampoline`. We have now
+added inefficient parallelism by spawning `Future` and blocking the thread
+during interpretation. In the final section of this chapter we will see how
+scalaz's `IO` is actually implemented.
+
 
 ## `IO`
 
-We have, so far, written two implementations of `IO`.
+Scalaz's `IO` is the fastest asynchronous programming construct in the Scala
+ecosystem: up to 50 times faster than `Future` and 20% faster than Monix.
 
-TODO: this will cover the backport of John de Goes' bifunctor IO.
+A> `scalaz.ioeffect.IO` is a high performance `IO` by John de Goes. Do not use the
+A> unsupported `scalaz-effect` or `scalaz-concurrency` packages.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.5.0"
+A> ~~~~~~~~
+
+`IO` is a free data structure specialised for use as a general effect monad.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class IO[E, A] { ... }
+  object IO {
+    final class FlatMap         ... extends IO[E, A]
+    final class Point           ... extends IO[E, A]
+    final class Strict          ... extends IO[E, A]
+    final class SyncEffect      ... extends IO[E, A]
+    final class Fail            ... extends IO[E, A]
+    final class AsyncEffect     ... extends IO[E, A]
+    final class AsyncIOEffect   ... extends IO[E, A]
+    final class Attempt         ... extends IO[E2, E1 \/ A]
+    final class Fork            ... extends IO[E2, Fiber[E1, A]]
+    final class Race            ... extends IO[E, A]
+    final class Suspend         ... extends IO[E, A]
+    final class Bracket         ... extends IO[E, B]
+    final class Uninterruptible ... extends IO[E, A]
+    final class Sleep           ... extends IO[E, Unit]
+    final class Supervise       ... extends IO[E, A]
+    final class Terminate       ... extends IO[E, A]
+    final class Supervisor      ... extends IO[E, Throwable => IO[Void, Unit]]
+    final class Run             ... extends IO[E2, ExitResult[E1, A]]
+    ...
+  }
+~~~~~~~~
+
+`IO` has **two** type parameters: it is a `Bifunctor` allowing the error type to
+be an application specific ADT. Since we are on the JVM, and must interact with
+legacy libraries, a convenient type alias is provided that uses exceptions for
+the error type:
+
+{lang="text"}
+~~~~~~~~
+  type Task[A] = IO[Throwable, A]
+~~~~~~~~
+
+
+### Creating
+
+There are multiple ways to create an `IO` that cover a variety of eager, lazy,
+safe and unsafe code blocks:
+
+{lang="text"}
+~~~~~~~~
+  object IO {
+    // eager evaluation of an existing value
+    def now[E, A](a: A): IO[E, A] = ...
+    // lazy evaluation of a pure calculation
+    def point[E, A](a: => A): IO[E, A] = ...
+    // lazy evaluation of a side-effecting, yet Total, code block
+    def sync[E, A](effect: => A): IO[E, A] = ...
+    // lazy evaluation of a side-effecting code block that may fail
+    def syncThrowable[A](effect: => A): IO[Throwable, A] = ...
+  
+    // create a failed IO
+    def fail[E, A](error: E): IO[E, A] = ...
+    // asynchronously sleeps for a specific period of time
+    def sleep[E](duration: Duration): IO[E, Unit] = ...
+    ...
+  }
+~~~~~~~~
+
+with convenient `Task` constructors:
+
+{lang="text"}
+~~~~~~~~
+  object Task {
+    def apply[A](effect: => A): Task[A] = IO.syncThrowable(effect)
+    def now[A](effect: A): Task[A] = IO.now(effect)
+    def fail[A](error: Throwable): Task[A] = IO.fail(error)
+    def fromFuture[E, A](io: Task[Future[A]])(ec: ExecutionContext): Task[A] = ...
+  }
+~~~~~~~~
+
+The most common constructors, by far, when dealing with legacy code are
+`Task.apply` and `Task.fromFuture`:
+
+{lang="text"}
+~~~~~~~~
+  val fa: Task[Future[String]] = Task { ... impure code here ... }
+  
+  Task.fromFuture(fa)(ExecutionContext.global): Task[String]
+~~~~~~~~
+
+We can't pass around raw `Future`, because it eagerly evaluates, so must always
+be constructed inside a safe block.
+
+Note that the `ExecutionContext` is **not** `implicit`, contrary to the
+convention. Recall that in scalaz we reserve the `implicit` keyword for
+typeclass derivation, to simplify the language: `ExecutionContext` is
+configuration that must be provided explicitly.
+
+
+### Running
+
+The `IO` interpreter is called `RTS`, for *runtime system*. Its implementation
+is beyond the scope of this book. We will instead focus on the features that
+`IO` provides.
+
+`IO` is just a data structure, and is interpreted *at the end of the world* by
+extending `SafeApp` and implementing `.run`
+
+{lang="text"}
+~~~~~~~~
+  trait SafeApp extends RTS {
+  
+    sealed trait ExitStatus
+    object ExitStatus {
+      case class ExitNow(code: Int)                         extends ExitStatus
+      case class ExitWhenDone(code: Int, timeout: Duration) extends ExitStatus
+      case object DoNotExit                                 extends ExitStatus
+    }
+  
+    def run(args: List[String]): IO[Void, ExitStatus]
+  
+    final def main(args0: Array[String]): Unit = ... calls run ...
+  }
+~~~~~~~~
+
+A> `Void` is a type that has no values, like `scala.Nothing`. However, the scala
+A> compiler infers `Nothing` when it fails to correctly infer a type parameter,
+A> causing confusing error messages, whereas `Void` will fail fast during
+A> compilation.
+A> 
+A> A `Void` error type means that the effect **cannot fail**, which is to say that we
+A> have handled all errors by this point.
+
+If we are integration with legacy system and are not in control of the entry
+point of the application, we can extend the `RTS` and gain access to unsafe
+methods for evaluating the `IO` at the entry point to our principled FP code.
+
+For example, if we have a typeclass that canonicalises values, and may hit disk
+or network to resolve filenames and URLs:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Canon[A] {
+    def canon(a: A): Task[A]
+  }
+~~~~~~~~
+
+we can write a scalatest that extends `RTS` and call `unsafePerformIO` to
+interpret the `IO`
+
+{lang="text"}
+~~~~~~~~
+  import org.scalatest._
+  import scalaz.ioeffect.{ RTS, Task }
+  
+  class CanonSpec extends FlatSpec with RTS {
+    "Canon" should "canon File" in {
+      unsafePerformIO((new File(".")).canon) shouldBe ...
+    }
+  }
+~~~~~~~~
+
+
+### TODO Features
+
+
+### TODO MonadState
 
 
 # The Infinite Sadness

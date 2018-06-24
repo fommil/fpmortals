@@ -4,8 +4,11 @@
 package monadio
 
 import scala.io.StdIn
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.duration.Duration
 
 import scalaz._, Scalaz._
+import Tags.Parallel
 
 final class IO[A] private (val interpret: () => A)
 object IO {
@@ -22,6 +25,36 @@ object IO {
       override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
         IO(f(fa.interpret()))
     }
+
+  type Par[a] = IO[a] @@ Parallel
+  implicit val ParApplicative: Applicative[Par] = new Applicative[Par] {
+
+    def point[A](a: =>A): Par[A] = Tag(IO(a))
+
+    override def map[A, B](fa: Par[A])(f: A => B): Par[B] =
+      Tag(IO(f(Tag.unwrap(fa).interpret())))
+
+    override def ap[A, B](fa: =>Par[A])(f: =>Par[A => B]): Par[B] =
+      apply2(fa, f)((a, abc) => abc(a))
+
+    override def apply2[A, B, C](fa: =>Par[A], fb: =>Par[B])(
+      f: (A, B) => C
+    ): Par[C] =
+      Tag(
+        IO {
+          import ExecutionContext.Implicits._
+
+          val a_ = Future { Tag.unwrap(fa).interpret() }
+          val b_ = Future { Tag.unwrap(fb).interpret() }
+
+          val a = Await.result(a_, Duration.Inf)
+          val b = Await.result(b_, Duration.Inf)
+
+          f(a, b)
+        }
+      )
+  }
+
 }
 
 object Runner {
