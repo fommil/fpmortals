@@ -119,130 +119,14 @@ is not really worth mentioning, except for a few things.
 -   Property Testing (as a case study for Arbitrary)
 
 
-# TODO Refinement
-
--   contextual vs refined
--   Consider using refined's `String Refined Url` as an alternative to my contextual `Url`
-
-<https://github.com/fthomas/refined/blob/master/modules/core/jvm/src/test/scala/eu/timepit/refined/StringValidateSpecJvm.scala>
- <https://github.com/fthomas/refined/blob/master/modules/jsonpath/jvm/src/main/scala/eu/timepit/refined/jsonpath/string.scala>
-
-
-# TODO Testing / Laws
-
-needs to come after scalaz-deriving, to understand `Arbitrary`
-
-
-# TODO FS2
-
-Task, Stream
-
-The basics, and covering the Effect, which can be our free monad.
-
-Why streams are so awesome. I'd like a simple example here of reading
-from a huge data source, doing parallel work and then writing out in
-order to a (slower) device to demonstrate backpressure and constant
-memory overhead. Maybe compare this vs hand rolled and akka streams
-for a perf test?
-
-Rewrite our business logic to be streaming, convert our GET api into a
-`Stream` by polling.
-
-
-# TODO Dependent Types
-
-Jons talks are usually good for this <https://www.youtube.com/watch?v=a1whaMzrtsY>
-
-
-# TODO Type Refinement
-
-instead of needing those `error` calls in the first place, just don't
-allow them to happen at your layer if you can get away with it.
-
-Protect yourself from mistyping
-
-
-# TODO Recursion Schemes
-
-
-# TODO Optics
-
-not sure what the relevance to this project would be yet.
-
-
 # TODO Implementing the Application
 
 Pad out the application implementation with everything we've learnt.
-
-May need union types, see <https://github.com/propensive/totalitarian>
 
 Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
 
-## TODO Spotting patterns, refactoring
-
-Note that some of our algebras are actually common things and can be
-rewritten: reader / writer / state / error / indexed monad. It is ok
-that this is a step you can do later.
-
-
-### RESEARCH perf numbers
-
-
-# TODO Category Theory
-
-Just some of the high level concepts, where to get started if you're interested.
-Not needed to write FP but it is needed if you want to read any academic papers.
-
-<https://twitter.com/ctford/status/887216797421842433>
-
-"These dynamic langs are so sloppy. We should be more rigorous, like maths."
-"Cool! What does maths use to indicate types?"
-"Fonts, mostly." -- Chris Ford
-
-
-## Reality Check
-
-In this chapter we've experienced some of the practical benefits of FP
-when designing and testing applications:
-
-1.  clean separation of components
-2.  isolated, fast and reproducible tests of business logic: extreme mocking
-3.  easy parallelisation
-
-However, even if we look past the learning curve of FP, there are
-still some real challenges that remain:
-
-1.  trampolining has a performance impact due to increased memory churn
-    and garbage collection pressure.
-2.  there is not always IDE support for the advanced language features,
-    macros or compiler plugins.
-3.  implementation details --- as we have already seen with `for`
-    syntax sugar, `@module`, and `Free` --- can introduce mental
-    overhead and become a blocker when they don't work.
-4.  the distinction between pure / side-effecting code, or stack-safe /
-    stack-unsafe, is not enforced by the scala compiler. This requires
-    developer discipline.
-5.  the developer community is still small. Getting help from the
-    community can often be a slow process.
-
-As with any new technology, there are rough edges that will be fixed
-with time. Most of the problems are because there is a lack of
-commercially-funded tooling in FP scala. If you see the benefit of FP,
-you can help out by getting involved.
-
-Although FP Scala cannot be as fast as streamlined Java using
-mutation, the performance impact is unlikely to affect you if you're
-already considering targetting the JVM. Measure the impact before
-making a decision if it is important to you.
-
-In the following chapters we are going to learn some of the vast
-library of functionality provided by the ecosystem, how it is
-organised and how you can find what you need (e.g. how did we know to
-use `foldM` or `traverse` when we implemented `act`?). This will allow
-us to complete the implementation of our application by building
-additional layers of `@module`, use better alternatives to `Future`,
-and remove redundancy that we've accidentally introduced.
+# TODO Spoofing Haskell
 
 

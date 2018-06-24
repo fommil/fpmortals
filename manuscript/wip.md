@@ -3176,7 +3176,7 @@ Monadic programs can then request an implicit `Par` in addition to their `Monad`
 ~~~~~~~~
 
 When using the methods on `Applicative.Par` we must wrap and unwrap our values,
-but the most common use case of parallel traversing is already provided:
+but the most common use case is already provided:
 
 {lang="text"}
 ~~~~~~~~
@@ -3184,8 +3184,7 @@ but the most common use case of parallel traversing is already provided:
     ...
     def parTraverse[G[_], B](f: A => G[B])(
       implicit F: Traverse[F], G: Applicative.Par[G]
-    ): G[F[B]] =
-      Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
+    ): G[F[B]] = Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
   }
 ~~~~~~~~
 
@@ -3207,22 +3206,12 @@ Similarly, we can call `.parApply` or `.parTupled`
 ~~~~~~~~
   val fa: IO[String] = ...
   val fb: IO[String] = ...
+  val fc: IO[String] = ...
   
   (fa |@| fb).parTupled: IO[(String, String)]
   
-  (fa |@| fb).parApply {
-    case (a, b) => a + b
-  }: IO[String]
+  (fa |@| fb |@| fc).parApply { case (a, b, c) => a + b + c }: IO[String]
 ~~~~~~~~
-
-A> Unfortunately, due to binary compatibility, `.parApply` and `.parTupled` are not
-A> available for more than 2 parameters. This is fixed in Scala 7.3, but as a
-A> workaround we can nest pairs:
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   (fa |@| (fb |@| fc).parTupled).parTupled: Task[(String, (String, String))]
-A> ~~~~~~~~
 
 It is worth nothing that when we have `Applicative` programs, such as
 
@@ -3231,10 +3220,16 @@ It is worth nothing that when we have `Applicative` programs, such as
   def foo[F[_]: Applicative]: F[Unit] = ...
 ~~~~~~~~
 
-we can use `λ[α => F[α] @@ Parallel]` as our program's context and get
-parallelism as the default when we call `.traverse` or `|@|`. But converting
-between the raw and `@@ Parallel` versions of `F[_]` must be handled manually in
-the glue code, which can be painful.
+we can use `F[A] @@ Parallel` as our program's context and get parallelism as
+the default when we call `.traverse` or `|@|`. But converting between the raw
+and `@@ Parallel` versions of `F[_]` must be handled manually in the glue code,
+which can be painful. Therefore it is often easier to request both forms of
+`Applicative`
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]: Applicative: Applicative.Par]: F[Unit] = ...
+~~~~~~~~
 
 
 ### Breaking the Law

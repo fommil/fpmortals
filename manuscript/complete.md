@@ -1868,8 +1868,8 @@ lives in a *typeclass*. A typeclass is a trait that:
 
 -   holds no state
 -   has a type parameter
--   has at least one abstract method
--   may contain *generalised* methods
+-   has at least one abstract method (*primitive combinators*)
+-   may contain *generalised* methods (*derived combinators*)
 -   may extend other typeclasses
 
 There can only be one implementation of a typeclass for any given type
@@ -2693,8 +2693,7 @@ and then write an OAuth2 client:
 -   data types are defined as *products* (`final case class`) and
     *coproducts* (`sealed abstract class`).
 -   `Refined` types can enforce constraints on values
--   specific functions are defined on `object` or `implicit class`,
-    according to personal taste.
+-   specific functions are defined on `implicit class`
 -   polymorphic functions are defined as *typeclasses*. Functionality is
     provided via "has a" *context bounds*, rather than "is a" class
     hierarchies.
@@ -2772,9 +2771,10 @@ look for more information.
 Notably absent are typeclasses that extend `Monad`, which get their
 own chapter later.
 
-Scalaz uses code generation, not simulacrum. However, for brevity, we
-present code snippets with `@typeclass`. Equivalent syntax is
-available when we `import scalaz._, Scalaz._`
+Scalaz uses code generation, not simulacrum. However, for brevity, we present
+code snippets with `@typeclass`. Equivalent syntax is available when we `import
+scalaz._, Scalaz._` and is available under the `scalaz.syntax` package in the
+scalaz source code.
 
 {width=100%}
 ![](images/scalaz-core-tree.png)
@@ -3048,10 +3048,10 @@ to:
 ~~~~~~~~
 
 `Order` implements `.equal` in terms of the new primitive `.order`. When a
-typeclass implements (or overrides) a method on a parent, we call it a *derived
-combinator*: an **implied law of substitution** for the typeclass. If an instance
-of `Order` were to override `.equal` for performance reasons, it must behave
-identically to the derived combinator.
+typeclass implements a parent's *primitive combinator* with a *derived
+combinator*, an **implied law of substitution** for the typeclass is added. If an
+instance of `Order` were to override `.equal` for performance reasons, it must
+behave identically the same as the original.
 
 Things that have an order may also be discrete, allowing us to walk
 successors and predecessors:

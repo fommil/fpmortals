@@ -2293,8 +2293,8 @@ lives in a /typeclass/. A typeclass is a trait that:
 
 - holds no state
 - has a type parameter
-- has at least one abstract method
-- may contain /generalised/ methods
+- has at least one abstract method (/primitive combinators/)
+- may contain /generalised/ methods (/derived combinators/)
 - may extend other typeclasses
 
 There can only be one implementation of a typeclass for any given type
@@ -3085,8 +3085,7 @@ class OAuth2Client[F[_]: Monad](
 - data types are defined as /products/ (=final case class=) and
   /coproducts/ (=sealed abstract class=).
 - =Refined= types can enforce constraints on values
-- specific functions are defined on =object= or =implicit class=,
-  according to personal taste.
+- specific functions are defined on =implicit class=
 - polymorphic functions are defined as /typeclasses/. Functionality is
   provided via "has a" /context bounds/, rather than "is a" class
   hierarchies.
@@ -3162,9 +3161,10 @@ look for more information.
 Notably absent are typeclasses that extend =Monad=, which get their
 own chapter later.
 
-Scalaz uses code generation, not simulacrum. However, for brevity, we
-present code snippets with =@typeclass=. Equivalent syntax is
-available when we =import scalaz._, Scalaz._=
+Scalaz uses code generation, not simulacrum. However, for brevity, we present
+code snippets with =@typeclass=. Equivalent syntax is available when we =import
+scalaz._, Scalaz._= and is available under the =scalaz.syntax= package in the
+scalaz source code.
 
 #+BEGIN_SRC dot :file images/scalaz-core-tree.png :exports results
 digraph G {
@@ -3566,10 +3566,10 @@ object Ordering {
 #+END_SRC
 
 =Order= implements =.equal= in terms of the new primitive =.order=. When a
-typeclass implements (or overrides) a method on a parent, we call it a /derived
-combinator/: an *implied law of substitution* for the typeclass. If an instance
-of =Order= were to override =.equal= for performance reasons, it must behave
-identically to the derived combinator.
+typeclass implements a parent's /primitive combinator/ with a /derived
+combinator/, an *implied law of substitution* for the typeclass is added. If an
+instance of =Order= were to override =.equal= for performance reasons, it must
+behave identically the same as the original.
 
 Things that have an order may also be discrete, allowing us to walk
 successors and predecessors:
@@ -12480,15 +12480,14 @@ def foo[F[_]: Monad](implicit P: Applicative.Par[F]): F[Unit] = ...
 #+END_SRC
 
 When using the methods on =Applicative.Par= we must wrap and unwrap our values,
-but the most common use case of parallel traversing is already provided:
+but the most common use case is already provided:
 
 #+BEGIN_SRC scala
 implicit class TraverseSyntax[F[_], A](self: F[A]) {
   ...
   def parTraverse[G[_], B](f: A => G[B])(
     implicit F: Traverse[F], G: Applicative.Par[G]
-  ): G[F[B]] =
-    Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
+  ): G[F[B]] = Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
 }
 #+END_SRC
 
@@ -12508,23 +12507,12 @@ Similarly, we can call =.parApply= or =.parTupled=
 #+BEGIN_SRC scala
   val fa: IO[String] = ...
   val fb: IO[String] = ...
+  val fc: IO[String] = ...
 
   (fa |@| fb).parTupled: IO[(String, String)]
 
-  (fa |@| fb).parApply {
-    case (a, b) => a + b
-  }: IO[String]
+  (fa |@| fb |@| fc).parApply { case (a, b, c) => a + b + c }: IO[String]
 #+END_SRC
-
-#+BEGIN_ASIDE
-Unfortunately, due to binary compatibility, =.parApply= and =.parTupled= are not
-available for more than 2 parameters. This is fixed in Scala 7.3, but as a
-workaround we can nest pairs:
-
-#+BEGIN_SRC scala
-  (fa |@| (fb |@| fc).parTupled).parTupled: Task[(String, (String, String))]
-#+END_SRC
-#+END_ASIDE
 
 It is worth nothing that when we have =Applicative= programs, such as
 
@@ -12532,10 +12520,15 @@ It is worth nothing that when we have =Applicative= programs, such as
 def foo[F[_]: Applicative]: F[Unit] = ...
 #+END_SRC
 
-we can use =λ[α => F[α] @@ Parallel]= as our program's context and get
-parallelism as the default when we call =.traverse= or =|@|=. But converting
-between the raw and =@@ Parallel= versions of =F[_]= must be handled manually in
-the glue code, which can be painful.
+we can use =F[A] @@ Parallel= as our program's context and get parallelism as
+the default when we call =.traverse= or =|@|=. But converting between the raw
+and =@@ Parallel= versions of =F[_]= must be handled manually in the glue code,
+which can be painful. Therefore it is often easier to request both forms of
+=Applicative=
+
+#+BEGIN_SRC scala
+def foo[F[_]: Applicative: Applicative.Par]: F[Unit] = ...
+#+END_SRC
 
 **** Breaking the Law
 
@@ -12739,125 +12732,14 @@ is not really worth mentioning, except for a few things.
 - export-hook
 - Property Testing (as a case study for Arbitrary)
 
-** TODO Refinement
-
-- contextual vs refined
-- Consider using refined's `String Refined Url` as an alternative to my contextual =Url=
-
-https://github.com/fthomas/refined/blob/master/modules/core/jvm/src/test/scala/eu/timepit/refined/StringValidateSpecJvm.scala
- https://github.com/fthomas/refined/blob/master/modules/jsonpath/jvm/src/main/scala/eu/timepit/refined/jsonpath/string.scala
-
-** TODO Testing / Laws
-
-needs to come after scalaz-deriving, to understand =Arbitrary=
-
-** TODO FS2
-
-Task, Stream
-
-The basics, and covering the Effect, which can be our free monad.
-
-Why streams are so awesome. I'd like a simple example here of reading
-from a huge data source, doing parallel work and then writing out in
-order to a (slower) device to demonstrate backpressure and constant
-memory overhead. Maybe compare this vs hand rolled and akka streams
-for a perf test?
-
-Rewrite our business logic to be streaming, convert our GET api into a
-=Stream= by polling.
-
-** TODO Dependent Types
-
-Jons talks are usually good for this https://www.youtube.com/watch?v=a1whaMzrtsY
-
-** TODO Type Refinement
-instead of needing those =error= calls in the first place, just don't
-allow them to happen at your layer if you can get away with it.
-
-Protect yourself from mistyping
-
-** TODO Recursion Schemes
-** TODO Optics
-
-not sure what the relevance to this project would be yet.
-
 ** TODO Implementing the Application
 
 Pad out the application implementation with everything we've learnt.
 
-May need union types, see https://github.com/propensive/totalitarian
-
 Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
-*** TODO Spotting patterns, refactoring
-
-Note that some of our algebras are actually common things and can be
-rewritten: reader / writer / state / error / indexed monad. It is ok
-that this is a step you can do later.
-
-**** RESEARCH perf numbers
-
-** TODO Category Theory
-
-Just some of the high level concepts, where to get started if you're interested.
-Not needed to write FP but it is needed if you want to read any academic papers.
-
-https://twitter.com/ctford/status/887216797421842433
-
-"These dynamic langs are so sloppy. We should be more rigorous, like maths."
-"Cool! What does maths use to indicate types?"
-"Fonts, mostly." -- Chris Ford
-
-# Edmund...
-# "Hey, I want a Contravariant/Functor instance, but I have some occurrences of
-# the type parameter in the wrong position so all I have is Invariant" ==>
-# "Whoa, I can split the occurrences into negative and positive occurrences and
-# get a profunctor"
-
-
-*** Reality Check
-
-In this chapter we've experienced some of the practical benefits of FP
-when designing and testing applications:
-
-1. clean separation of components
-2. isolated, fast and reproducible tests of business logic: extreme mocking
-3. easy parallelisation
-
-However, even if we look past the learning curve of FP, there are
-still some real challenges that remain:
-
-1. trampolining has a performance impact due to increased memory churn
-   and garbage collection pressure.
-2. there is not always IDE support for the advanced language features,
-   macros or compiler plugins.
-3. implementation details --- as we have already seen with =for=
-   syntax sugar, =@module=, and =Free= --- can introduce mental
-   overhead and become a blocker when they don't work.
-4. the distinction between pure / side-effecting code, or stack-safe /
-   stack-unsafe, is not enforced by the scala compiler. This requires
-   developer discipline.
-5. the developer community is still small. Getting help from the
-   community can often be a slow process.
-
-As with any new technology, there are rough edges that will be fixed
-with time. Most of the problems are because there is a lack of
-commercially-funded tooling in FP scala. If you see the benefit of FP,
-you can help out by getting involved.
-
-Although FP Scala cannot be as fast as streamlined Java using
-mutation, the performance impact is unlikely to affect you if you're
-already considering targetting the JVM. Measure the impact before
-making a decision if it is important to you.
-
-In the following chapters we are going to learn some of the vast
-library of functionality provided by the ecosystem, how it is
-organised and how you can find what you need (e.g. how did we know to
-use =foldM= or =traverse= when we implemented =act=?). This will allow
-us to complete the implementation of our application by building
-additional layers of =@module=, use better alternatives to =Future=,
-and remove redundancy that we've accidentally introduced.
+** TODO Spoofing Haskell
 
 * Backmatter                                                          :final:
 :PROPERTIES:
