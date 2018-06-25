@@ -31,7 +31,7 @@ object Drone {
       def getAgents: G[F, Int]  = f.getAgents.liftM[G]
     }
 
-  def liftIO[E, F[_]: Monad](
+  def liftIO[F[_]: Monad, E](
     io: Drone[IO[E, ?]]
   )(implicit M: MonadIO[F, E]): Drone[F] =
     new Drone[F] {
