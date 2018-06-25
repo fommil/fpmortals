@@ -12821,7 +12821,99 @@ class CanonSpec extends FlatSpec with RTS {
 }
 #+END_SRC
 
-**** TODO Features
+**** Features
+
+=IO= provides typeclass instances for =Bifunctor= =MonadError[E, ?]=, =BindRec=,
+=Plus=, =MonadPlus= (if =E= forms a =Monoid=), and an =Applicative[IO.Par[E,
+?]]=.
+
+In addition to the functionality from the typeclasses, there are implementation
+specific methods:
+
+#+BEGIN_SRC scala
+sealed abstract class IO[E, A] {
+  // retries an action N times, until success
+  def retryN(n: Int): IO[E, A] = ...
+  // ... with exponential backoff
+  def retryBackoff(n: Int, factor: Double, duration: Duration): IO[E, A] = ...
+
+  // repeats an action with a pause between invocations, until it fails
+  def repeat[B](interval: Duration): IO[E, B] = ...
+
+  // cancel the action if it does not complete within the timeframe
+  def timeout(duration: Duration): IO[E, Maybe[A]] = ...
+
+  // runs `release` on success or failure.
+  // Note that IO[Void, Unit] cannot fail.
+  def bracket[B](release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] = ...
+  // alternative syntax for bracket
+  def ensuring(finalizer: IO[Void, Unit]): IO[E, A] =
+  // ignore failure and success, e.g. to ignore the result of a cleanup action
+  def ignore: IO[Void, Unit] = ...
+
+  // runs two effects in parallel
+  def par[B](that: IO[E, B]): IO[E, (A, B)] = ...
+  ...
+#+END_SRC
+
+It is possible for an =IO= to be in a /terminated/ state, which represents work
+that is intended to be discarded (it is neither an error nor a success). The
+utilities related to termination are:
+
+#+BEGIN_SRC scala
+...
+  // terminate whatever actions are running with the given throwable.
+  // bracket / ensuring is honoured.
+  def terminate[E, A](t: Throwable): IO[E, A] = ...
+
+  // runs two effects in parallel, return the winner and terminate the loser
+  def race(that: IO[E, A]): IO[E, A] = ...
+
+  // ignores terminations
+  def uninterruptibly: IO[E, A] = ...
+...
+#+END_SRC
+
+**** Fibers
+
+An =IO= may spawn /fibers/, a lightweight abstraction over a JVM =Thread=. We
+can =.fork= an =IO=, and =.supervise= any incomplete fibers to ensure that they
+are terminated when the =IO= action completes
+
+#+BEGIN_SRC scala
+...
+  def fork[E2]: IO[E2, Fiber[E, A]] = ...
+  def supervised(error: Throwable): IO[E, A] = ...
+...
+#+END_SRC
+
+When we have a =Fiber= we can =.join= back into the =IO=, or =interrupt= the
+underlying work.
+
+#+BEGIN_SRC scala
+trait Fiber[E, A] {
+  def join: IO[E, A]
+  def interrupt[E2](t: Throwable): IO[E2, Unit]
+}
+#+END_SRC
+
+We can use fibers to achieve a form of optimistic concurrency control. Consider
+the case where we have =data= that we need to analyse, but we also need to
+validate it. We can optimistically begin the analysis and cancel the work if the
+validation fails, which is performed in parallel.
+
+#+BEGIN_SRC scala
+  final class BadData(data: Data) extends Throwable with NoStackTrace
+
+  for {
+    fiber1   <- analysis(data).fork
+    fiber2   <- validate(data).fork
+    valid    <- fiber2.join
+    _        <- if (!valid) fiber1.interrupt(BadData(data))
+                else IO.unit
+    result   <- fiber1.join
+  } yield result
+#+END_SRC
 
 **** TODO MonadState
 
