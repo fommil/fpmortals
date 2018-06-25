@@ -31,10 +31,13 @@ object Drone {
       def getAgents: G[F, Int]  = f.getAgents.liftM[G]
     }
 
-  def liftIO[F[_]: MonadIO](io: Drone[IO]): Drone[F] = new Drone[F] {
-    def getBacklog: F[Int] = io.getBacklog.liftIO[F]
-    def getAgents: F[Int]  = io.getAgents.liftIO[F]
-  }
+  def liftIO[E, F[_]: Monad](
+    io: Drone[IO[E, ?]]
+  )(implicit M: MonadIO[F, E]): Drone[F] =
+    new Drone[F] {
+      def getBacklog: F[Int] = M.liftIO(io.getBacklog)
+      def getAgents: F[Int]  = M.liftIO(io.getAgents)
+    }
 
   sealed abstract class Ast[A]
   final case class GetBacklog() extends Ast[Int]
@@ -77,12 +80,14 @@ object Machines {
       def stop(node: MachineNode): G[F, Unit]         = f.stop(node).liftM[G]
     }
 
-  def liftIO[F[_]: MonadIO](io: Machines[IO]): Machines[F] = new Machines[F] {
-    def getTime: F[Instant]                      = io.getTime.liftIO[F]
-    def getManaged: F[NonEmptyList[MachineNode]] = io.getManaged.liftIO[F]
-    def getAlive: F[Map[MachineNode, Instant]]   = io.getAlive.liftIO[F]
-    def start(node: MachineNode): F[Unit]        = io.start(node).liftIO[F]
-    def stop(node: MachineNode): F[Unit]         = io.stop(node).liftIO[F]
+  def liftIO[F[_]: Monad, E](
+    io: Machines[IO[E, ?]]
+  )(implicit M: MonadIO[F, E]): Machines[F] = new Machines[F] {
+    def getTime: F[Instant]                      = M.liftIO(io.getTime)
+    def getManaged: F[NonEmptyList[MachineNode]] = M.liftIO(io.getManaged)
+    def getAlive: F[Map[MachineNode, Instant]]   = M.liftIO(io.getAlive)
+    def start(node: MachineNode): F[Unit]        = M.liftIO(io.start(node))
+    def stop(node: MachineNode): F[Unit]         = M.liftIO(io.stop(node))
   }
 
   sealed abstract class Ast[A]

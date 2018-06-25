@@ -209,9 +209,9 @@ package object prelude {
   type Heap[A]                  = scalaz.Heap[A]
   type Diev[A]                  = scalaz.Diev[A]
   type OneAnd[F[_], A]          = scalaz.OneAnd[F, A]
-  type IO[A]                    = scalaz.effect.IO[A]
-  type LiftIO[F[_]]             = scalaz.effect.LiftIO[F]
-  type MonadIO[F[_]]            = scalaz.effect.MonadIO[F]
+  type IO[E, A]                 = scalaz.ioeffect.IO[E, A]
+  type Task[A]                  = scalaz.ioeffect.Task[A]
+  type MonadIO[F[_], E]         = scalaz.ioeffect.MonadIO[F, E]
   type Free[S[_], A]            = scalaz.Free[S, A]
   type FreeAp[S[_], A]          = scalaz.FreeAp[S, A]
   type Coyoneda[S[_], A]        = scalaz.Coyoneda[S, A]
@@ -232,26 +232,27 @@ package object prelude {
     scalaz.CorecursiveList
   @inline final val ImmutableArray: scalaz.ImmutableArray.type =
     scalaz.ImmutableArray
-  @inline final val Dequeue: scalaz.Dequeue.type        = scalaz.Dequeue
-  @inline final val DList: scalaz.DList.type            = scalaz.DList
-  @inline final val ISet: scalaz.ISet.type              = scalaz.ISet
-  @inline final val IMap: scalaz.==>>.type              = scalaz.==>>
-  @inline final val StrictTree: scalaz.StrictTree.type  = scalaz.StrictTree
-  @inline final val Tree: scalaz.Tree.type              = scalaz.Tree
-  @inline final val FingerTree: scalaz.FingerTree.type  = scalaz.FingerTree
-  @inline final val Cord: scalaz.Cord.type              = scalaz.Cord
-  @inline final val Heap: scalaz.Heap.type              = scalaz.Heap
-  @inline final val Diev: scalaz.Diev.type              = scalaz.Diev
-  @inline final val OneAnd: scalaz.OneAnd.type          = scalaz.OneAnd
-  @inline final val IO: scalaz.effect.IO.type           = scalaz.effect.IO
-  @inline final val LiftIO: scalaz.effect.LiftIO.type   = scalaz.effect.LiftIO
-  @inline final val MonadIO: scalaz.effect.MonadIO.type = scalaz.effect.MonadIO
-  @inline final val Free: scalaz.Free.type              = scalaz.Free
-  @inline final val FreeAp: scalaz.FreeAp.type          = scalaz.FreeAp
-  @inline final val Coyoneda: scalaz.Coyoneda.type      = scalaz.Coyoneda
-  @inline final val Inject: scalaz.Inject.type          = scalaz.Inject
-  @inline final val Coproduct: scalaz.Coproduct.type    = scalaz.Coproduct
-  @inline final val Trampoline: scalaz.Trampoline.type  = scalaz.Trampoline
+  @inline final val Dequeue: scalaz.Dequeue.type       = scalaz.Dequeue
+  @inline final val DList: scalaz.DList.type           = scalaz.DList
+  @inline final val ISet: scalaz.ISet.type             = scalaz.ISet
+  @inline final val IMap: scalaz.==>>.type             = scalaz.==>>
+  @inline final val StrictTree: scalaz.StrictTree.type = scalaz.StrictTree
+  @inline final val Tree: scalaz.Tree.type             = scalaz.Tree
+  @inline final val FingerTree: scalaz.FingerTree.type = scalaz.FingerTree
+  @inline final val Cord: scalaz.Cord.type             = scalaz.Cord
+  @inline final val Heap: scalaz.Heap.type             = scalaz.Heap
+  @inline final val Diev: scalaz.Diev.type             = scalaz.Diev
+  @inline final val OneAnd: scalaz.OneAnd.type         = scalaz.OneAnd
+  @inline final val IO: scalaz.ioeffect.IO.type        = scalaz.ioeffect.IO
+  @inline final val Task: scalaz.ioeffect.Task.type    = scalaz.ioeffect.Task
+  @inline final val MonadIO: scalaz.ioeffect.MonadIO.type =
+    scalaz.ioeffect.MonadIO
+  @inline final val Free: scalaz.Free.type             = scalaz.Free
+  @inline final val FreeAp: scalaz.FreeAp.type         = scalaz.FreeAp
+  @inline final val Coyoneda: scalaz.Coyoneda.type     = scalaz.Coyoneda
+  @inline final val Inject: scalaz.Inject.type         = scalaz.Inject
+  @inline final val Coproduct: scalaz.Coproduct.type   = scalaz.Coproduct
+  @inline final val Trampoline: scalaz.Trampoline.type = scalaz.Trampoline
 
   // scalaz MTL
   type MaybeT[F[_], A]                = scalaz.MaybeT[F, A]

@@ -208,24 +208,28 @@ final class LogicSpec extends FlatSpec {
   it should "call the expected methods" in {
     import ConstImpl._
 
-    val world1 = WorldView(1,
-                           1,
-                           managed,
-                           Map(node1 -> time1, node2 -> time1),
-                           Map.empty,
-                           time4)
+    val world1 = WorldView(
+      1,
+      1,
+      managed,
+      Map(node1 -> time1, node2 -> time1),
+      Map.empty,
+      time4
+    )
 
     program.act(world1).getConst.shouldBe("stopstop")
   }
 
   it should "monitor stopped nodes" in {
     val world1 = hungry
-    val view1 = WorldView(1,
-                          1,
-                          managed,
-                          Map(node1 -> time1, node2 -> time1),
-                          Map.empty,
-                          time4)
+    val view1 = WorldView(
+      1,
+      1,
+      managed,
+      Map(node1 -> time1, node2 -> time1),
+      Map.empty,
+      time4
+    )
 
     val monitored       = new Monitored(StateImpl.program)
     val (world2, view2) = monitored.act(view1).run(world1)

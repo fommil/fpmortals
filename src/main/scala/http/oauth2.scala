@@ -192,10 +192,12 @@ package logic {
 
     def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
       for {
-        request <- AccessRequest(code.token,
-                                 code.redirect_uri,
-                                 config.clientId,
-                                 config.clientSecret).pure[F]
+        request <- AccessRequest(
+                    code.token,
+                    code.redirect_uri,
+                    config.clientId,
+                    config.clientSecret
+                  ).pure[F]
         response <- server
                      .postUrlEncoded[AccessRequest, AccessResponse](
                        config.access,
@@ -210,9 +212,11 @@ package logic {
 
     def bearer(refresh: RefreshToken): F[BearerToken] =
       for {
-        request <- RefreshRequest(config.clientSecret,
-                                  refresh.token,
-                                  config.clientId).pure[F]
+        request <- RefreshRequest(
+                    config.clientSecret,
+                    refresh.token,
+                    config.clientId
+                  ).pure[F]
         response <- server
                      .postUrlEncoded[RefreshRequest, RefreshResponse](
                        config.refresh,

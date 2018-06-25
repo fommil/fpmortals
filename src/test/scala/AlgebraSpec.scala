@@ -10,6 +10,8 @@ import Coproduct.{ leftc, rightc }
 import org.scalatest._
 import org.scalatest.Matchers._
 
+import scalaz.ioeffect.RTS
+
 object Demo {
   def todo[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] =
     for {
@@ -22,16 +24,16 @@ object Demo {
   val program: Ctx[Int] = todo[Ctx](Machines.liftF, Drone.liftF)
 }
 
-object DummyDrone extends Drone[IO] {
-  def getAgents: IO[Int]  = ???
-  def getBacklog: IO[Int] = IO(1)
+object DummyDrone extends Drone[Task] {
+  def getAgents: Task[Int]  = ???
+  def getBacklog: Task[Int] = Task(1)
 }
-object DummyMachines extends Machines[IO] {
-  def getAlive: IO[Map[MachineNode, Instant]]   = IO(Map.empty)
-  def getManaged: IO[NonEmptyList[MachineNode]] = ???
-  def getTime: IO[Instant]                      = ???
-  def start(node: MachineNode): IO[Unit]        = ???
-  def stop(node: MachineNode): IO[Unit]         = ???
+object DummyMachines extends Machines[Task] {
+  def getAlive: Task[Map[MachineNode, Instant]]   = Task(Map.empty)
+  def getManaged: Task[NonEmptyList[MachineNode]] = ???
+  def getTime: Task[Instant]                      = ???
+  def start(node: MachineNode): Task[Unit]        = ???
+  def stop(node: MachineNode): Task[Unit]         = ???
 }
 
 trait Batch[F[_]] {
@@ -52,27 +54,27 @@ object Batch {
     }
 }
 
-class AlgebraSpec extends FlatSpec {
+class AlgebraSpec extends FlatSpec with RTS {
 
   // https://github.com/scalaz/scalaz/pull/1753
   def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G =
     λ[Coproduct[F, H, ?] ~> G](_.fold(fg, hg))
 
   "Free Algebra Interpreters" should "combine their powers" in {
-    val iD: Drone.Ast ~> IO         = Drone.interpreter(DummyDrone)
-    val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
-    val interpreter: Demo.Ast ~> IO = or(iM, iD)
+    val iD: Drone.Ast ~> Task         = Drone.interpreter(DummyDrone)
+    val iM: Machines.Ast ~> Task      = Machines.interpreter(DummyMachines)
+    val interpreter: Demo.Ast ~> Task = or(iM, iD)
 
-    Demo.program
-      .foldMap(interpreter)
-      .unsafePerformIO()
-      .shouldBe(1)
+    unsafePerformIO(
+      Demo.program
+        .foldMap(interpreter)
+    ).shouldBe(1)
   }
 
   it should "support monitoring" in {
-    val iD: Drone.Ast ~> IO         = Drone.interpreter(DummyDrone)
-    val iM: Machines.Ast ~> IO      = Machines.interpreter(DummyMachines)
-    val interpreter: Demo.Ast ~> IO = or(iM, iD)
+    val iD: Drone.Ast ~> Task         = Drone.interpreter(DummyDrone)
+    val iM: Machines.Ast ~> Task      = Machines.interpreter(DummyMachines)
+    val interpreter: Demo.Ast ~> Task = or(iM, iD)
 
     var count = 0 // scalafix:ok
     val Monitor = λ[Demo.Ast ~> Demo.Ast](
@@ -85,11 +87,11 @@ class AlgebraSpec extends FlatSpec {
       }
     )
 
-    Demo.program
-      .mapSuspension(Monitor)
-      .foldMap(interpreter)
-      .unsafePerformIO()
-      .shouldBe(1)
+    unsafePerformIO(
+      Demo.program
+        .mapSuspension(Monitor)
+        .foldMap(interpreter)
+    ).shouldBe(1)
 
     count.shouldBe(1)
   }
@@ -215,8 +217,9 @@ class AlgebraSpec extends FlatSpec {
     type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
 
     // pretend this is the DynAgents.act method...
-    def act[F[_]: Applicative](M: Machines[F],
-                               @unused D: Drone[F])(todo: Int): F[Unit] =
+    def act[F[_]: Applicative](M: Machines[F], @unused D: Drone[F])(
+      todo: Int
+    ): F[Unit] =
       (1 |-> todo).traverse(id => M.start(MachineNode(id.shows))).void
 
     val freeap = act(Machines.liftA[Orig], Drone.liftA[Orig])(2)
