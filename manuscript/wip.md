@@ -3130,15 +3130,15 @@ our `Applicative` code in parallel. This is exactly what we will cover next.
 
 ## `Parallel`
 
-There are typically two effectful operations that we almost always want to run
-in parallel:
+There are two effectful operations that we almost always want to run in
+parallel:
 
-1.  `.map` over a collection of effects, returning a single effect, i.e.
-    `.traverse`. The collection typically delegates to the effect's `.apply2`.
+1.  `.map` over a collection of effects, returning a single effect. This is
+    achieved by `.traverse`, which delegates to the effect's `.apply2`.
 2.  running a fixed number of effects with the *scream operator* `|@|`, and
     combining their output, again delegating to `.apply2`.
 
-However, in practice, neither of these operations will execute in parallel by
+However, in practice, neither of these operations execute in parallel by
 default. The reason is that if our `F[_]` is implemented by a `Monad`, then the
 derived combinator laws for `.apply2` must be satisfied, which say
 
@@ -3152,7 +3152,7 @@ derived combinator laws for `.apply2` must be satisfied, which say
   }
 ~~~~~~~~
 
-**In other words, `Monad` is explicitly forbidden from running effects in
+In other words, **`Monad` is explicitly forbidden from running effects in
 parallel.**
 
 However, if we have an `F[_]` that is **not** monadic, then it may implement
@@ -3172,11 +3172,10 @@ Monadic programs can then request an implicit `Par` in addition to their `Monad`
 
 {lang="text"}
 ~~~~~~~~
-  def foo[F[_]: Monad](implicit P: Applicative.Par[F]): F[Unit] = ...
+  def foo[F[_]: Monad: Applicative.Par]: F[Unit] = ...
 ~~~~~~~~
 
-When using the methods on `Applicative.Par` we must wrap and unwrap our values,
-but the most common use case is already provided:
+Scalaz's `Traverse` syntax supports parallelism:
 
 {lang="text"}
 ~~~~~~~~
@@ -3200,7 +3199,7 @@ sequential and parallel traversal:
   input.parTraverse(network): IO[IList[Int]] // all in parallel
 ~~~~~~~~
 
-Similarly, we can call `.parApply` or `.parTupled`
+Similarly, we can call `.parApply` or `.parTupled` after using scream operators
 
 {lang="text"}
 ~~~~~~~~
@@ -3221,9 +3220,9 @@ It is worth nothing that when we have `Applicative` programs, such as
 ~~~~~~~~
 
 we can use `F[A] @@ Parallel` as our program's context and get parallelism as
-the default when we call `.traverse` or `|@|`. But converting between the raw
-and `@@ Parallel` versions of `F[_]` must be handled manually in the glue code,
-which can be painful. Therefore it is often easier to request both forms of
+the default on `.traverse` and `|@|`. Converting between the raw and `@@
+Parallel` versions of `F[_]` must be handled manually in the glue code, which
+can be painful. Therefore it is often easier to simply request both forms of
 `Applicative`
 
 {lang="text"}
@@ -3236,11 +3235,11 @@ which can be painful. Therefore it is often easier to request both forms of
 
 We can take a more daring approach to parallelism: opt-out of the law that
 `.apply2` must be sequential for `Monad`. This is highly controversial, but
-works well for the vast majority of real world applications. You must first
-audit your codebase and dependencies to ensure that nothing is making use of the
-`.ap` or `.apply2` derived combinator implied law.
+works well for the majority of real world applications. we must first audit our
+codebase (including third party dependencies) to ensure that nothing is making
+use of the `.apply2` implied law.
 
-We need to wrap `IO`
+We wrap `IO`
 
 {lang="text"}
 ~~~~~~~~
@@ -3255,7 +3254,7 @@ by delegating to a `@@ Parallel` instance
   object MyIO {
     implicit val monad: Monad[MyIO] = new Monad[MyIO] {
       override def apply2[A, B, C](fa: MyIO[A], fb: MyIO[B])(f: (A, B) => C): MyIO[C] =
-        Applicative.Par[IO].apply2(fa.io, fb.io)(f)
+        Applicative[IO.Par].apply2(fa.io, fb.io)(f)
       ...
     }
   }
@@ -3268,14 +3267,13 @@ A> Wrapping an existing type and providing custom typeclass instances is known a
 A> *newtyping*.
 A> 
 A> `@@` and newtyping are complementary: `@@` allows us to request specific
-A> typeclass variants on our domain model, but newtyping allow us to define the
-A> instances on the implementation. They achieve the same thing but are applied
-A> in different places.
+A> typeclass variants on our domain model, whereas newtyping allow us to define the
+A> instances on the implementation. Same thing, different insertion points.
 A> 
 A> The `@newtype` macro [by Cary Robbins](https://github.com/estatico/scala-newtype) has an optimised runtime representation
 A> (more efficient than `extends AnyVal`), that makes it easy to delegate
-A> typeclasses that we do not wish to customise. e.g. we can customise `Monad` but
-A> delegate the `Plus`:
+A> typeclasses that we do not wish to customise. For example, we can customise
+A> `Monad` but delegate the `Plus`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -3308,34 +3306,22 @@ for our toy `IO` could use `Future`:
   }
 ~~~~~~~~
 
-and due to [a bug in the scala compiler](https://github.com/scala/bug/issues/10954) when using `@@`, we must
+and due to [a bug in the scala compiler](https://github.com/scala/bug/issues/10954) that treats all `@@` instances as
+orphans, we must explicitly import the implicit:
 
 {lang="text"}
 ~~~~~~~~
   import IO.ParApplicative
 ~~~~~~~~
 
-to see it in the implicit scope.
-
-We started this book with a naive implementation of `IO` that could stack
-overflow, which we fixed by rewriting it to use `Free.Trampoline`. We have now
-added inefficient parallelism by spawning `Future` and blocking the thread
-during interpretation. In the final section of this chapter we will see how
-scalaz's `IO` is actually implemented.
+In the final section of this chapter we will see how scalaz's `IO` is actually
+implemented.
 
 
 ## `IO`
 
 Scalaz's `IO` is the fastest asynchronous programming construct in the Scala
 ecosystem: up to 50 times faster than `Future` and 20% faster than Monix.
-
-A> `scalaz.ioeffect.IO` is a high performance `IO` by John de Goes. Do not use the
-A> unsupported `scalaz-effect` or `scalaz-concurrency` packages.
-A> 
-A> {lang="text"}
-A> ~~~~~~~~
-A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.5.0"
-A> ~~~~~~~~
 
 `IO` is a free data structure specialised for use as a general effect monad.
 
@@ -3374,6 +3360,17 @@ the error type:
 ~~~~~~~~
   type Task[A] = IO[Throwable, A]
 ~~~~~~~~
+
+A> `scalaz.ioeffect.IO` is a high performance `IO` by John de Goes, which we can
+A> add to our `build.sbt`
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.6.0"
+A> ~~~~~~~~
+A> 
+A> Do not use the unsupported `scalaz-effect` or `scalaz-concurrency` packages,
+A> preferring the `scalaz.ioeffect` variants of all typeclasses and data types.
 
 
 ### Creating
