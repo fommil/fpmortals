@@ -11386,14 +11386,13 @@ Allowing us to wrap once for =EitherT=, and then again for =StateT=
   val wrap2: Lookup[Ctx] = Lookup.liftM[EitherT[IO, Problem, ?], Ctx2](wrap1)
 #+END_SRC
 
-Another way to achieve this, in a single step, is to use =scalaz.effect.LiftIO=
-which enables lifting an =IO= into a transformer stack:
+Another way to achieve this, in a single step, is to use =MonadIO= which enables
+lifting an =IO= into a transformer stack:
 
 #+BEGIN_SRC scala
-@typeclass trait LiftIO[F[_]] {
+@typeclass trait MonadIO[F[_]] extends Monad[F] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
-@typeclass trait MonadIO[F[_]] extends LiftIO[F] with Monad[F]
 #+END_SRC
 
 with =MonadIO= instances for all the common combinations of transformers.
@@ -12644,25 +12643,26 @@ object IO {
 }
 #+END_SRC
 
-=IO= has *two* type parameters: it is a =Bifunctor= allowing the error type to
-be an application specific ADT. Since we are on the JVM, and must interact with
-legacy libraries, a convenient type alias is provided that uses exceptions for
-the error type:
+=IO= has *two* type parameters: it has a =Bifunctor= allowing the error type to
+be an application specific ADT. But because we are on the JVM, and must interact
+with legacy libraries, a convenient type alias is provided that uses exceptions
+for the error type:
 
 #+BEGIN_SRC scala
   type Task[A] = IO[Throwable, A]
 #+END_SRC
 
 #+BEGIN_ASIDE
-=scalaz.ioeffect.IO= is a high performance =IO= by John de Goes, which we can
-add to our =build.sbt=
+=scalaz.ioeffect.IO= is a high performance =IO= by John de Goes. It has a
+separate lifecycle to the core scalaz library and must be manually added to our
+=build.sbt= with
 
 #+BEGIN_SRC scala
-libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.6.0"
+libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.8.0"
 #+END_SRC
 
-Do not use the unsupported =scalaz-effect= or =scalaz-concurrency= packages,
-preferring the =scalaz.ioeffect= variants of all typeclasses and data types.
+Do not use the deprecated =scalaz-effect= and =scalaz-concurrency= packages.
+Prefer the =scalaz.ioeffect= variants of all typeclasses and data types.
 #+END_ASIDE
 
 # https://www.youtube.com/watch?v=Eihz7kqn6mU
@@ -12823,9 +12823,9 @@ class CanonSpec extends FlatSpec with RTS {
 
 **** Features
 
-=IO= provides typeclass instances for =Bifunctor= =MonadError[E, ?]=, =BindRec=,
-=Plus=, =MonadPlus= (if =E= forms a =Monoid=), and an =Applicative[IO.Par[E,
-?]]=.
+=IO= provides typeclass instances for =Bifunctor=, =MonadError[E, ?]=,
+=BindRec=, =Plus=, =MonadPlus= (if =E= forms a =Monoid=), and an
+=Applicative[IO.Par[E, ?]]=.
 
 In addition to the functionality from the typeclasses, there are implementation
 specific methods:
@@ -12874,7 +12874,7 @@ utilities related to termination are:
 ...
 #+END_SRC
 
-**** Fibers
+**** =Fiber=
 
 An =IO= may spawn /fibers/, a lightweight abstraction over a JVM =Thread=. We
 can =.fork= an =IO=, and =.supervise= any incomplete fibers to ensure that they
@@ -12915,10 +12915,145 @@ validation fails, which is performed in parallel.
   } yield result
 #+END_SRC
 
-**** TODO MonadState
+Another usecase for fibers is when we need to perform a /fire and forget/
+action. For example, low priority logging over a network.
+
+**** =Promise=
+
+A promise represents an asynchronous variable that can be set exactly once (with
+=complete= or =error=). An unbounded number of listeners can =get= the variable.
+
+#+BEGIN_SRC scala
+final class Promise[E, A] private (ref: AtomicReference[State[E, A]]) {
+  def complete[E2](a: A): IO[E2, Boolean] = ...
+  def error[E2](e: E): IO[E2, Boolean] = ...
+  def get: IO[E, A] = ...
+
+  // interrupts all listeners
+  def interrupt[E2](t: Throwable): IO[E2, Boolean] = ...
+}
+object Promise {
+  def make[E, A]: IO[E, Promise[E, A]] = ...
+}
+#+END_SRC
+
+=Promise= is not something that we typically use in application code. It is a
+building block for high level concurrency frameworks.
+
+#+BEGIN_ASIDE
+When an operation is guaranteed to succeed, the error type =E= is left as a free
+type parameter so that the caller can specify their preference.
+#+END_ASIDE
+
+**** =IORef=
+
+=IORef= is the =IO= equivalent of an atomic mutable variable.
+
+We can read the variable and we have a variety of ways to write or update it.
+
+#+BEGIN_SRC scala
+final class IORef[A] private (ref: AtomicReference[A]) {
+  def read[E]: IO[E, A] = ...
+
+  // write with immediate consistency guarantees
+  def write[E](a: A): IO[E, Unit] = ...
+  // write with eventual consistency guarantees
+  def writeLater[E](a: A): IO[E, Unit] = ...
+  // return true if an immediate write succeeded, false if not (and abort)
+  def tryWrite[E](a: A): IO[E, Boolean] = ...
+
+  // atomic primitives for updating the value
+  def compareAndSet[E](prev: A, next: A): IO[E, Boolean] = ...
+  def modify[E](f: A => A): IO[E, A] = ...
+  def modifyFold[E, B](f: A => (B, A)): IO[E, B] = ...
+}
+object IORef {
+  def apply[E, A](a: A): IO[E, IORef[A]] = ...
+}
+#+END_SRC
 
 # MonadState example...
 # http://degoes.net/articles/effects-without-transformers
+
+=IORef= is another building block and can be used to provide a high performance
+=MonadState=. For example, create a newtype specialised to =Task=
+
+#+BEGIN_SRC scala
+final class StateTask[A](val io: Task[A]) extends AnyVal
+object StateTask {
+  def create[S](initial: S): Task[MonadState[StateTask, S]] =
+    for {
+      ref <- IORef(initial)
+    } yield
+      new MonadState[StateTask, S] {
+        override def get       = new StateTask(ref.read)
+        override def put(s: S) = new StateTask(ref.write(s))
+        ...
+      }
+}
+#+END_SRC
+
+We can make use of this optimised =StateMonad= implementation in a =SafeApp=,
+where our =.program= depends on optimised MTL typeclasses:
+
+#+BEGIN_SRC scala
+object FastState extends SafeApp {
+  def program[F[_]](implicit F: MonadState[F, Int]): F[ExitStatus] = ...
+
+  def run(@unused args: List[String]): IO[Void, ExitStatus] =
+    for {
+      stateMonad <- StateTask.create(10)
+      output     <- program(stateMonad).io
+    } yield output
+}
+#+END_SRC
+
+A more realistic application would take a variety of algebras and typeclasses as
+input.
+
+#+BEGIN_ASIDE
+This optimised =MonadState= is constructed in a way that breaks typeclass
+coherence. Two instances having the same types may be managing different state.
+It would be prudent to isolate the construction of all such instances to the
+application's entrypoint.
+#+END_ASIDE
+
+***** =MonadIO=
+
+The =MonadIO= that we previously studied was simplified to hide the =E=
+parameter. The actual typeclass is
+
+#+BEGIN_SRC scala
+trait MonadIO[M[_], E] {
+  def liftIO[A](io: IO[E, A])(implicit M: Monad[M]): M[A]
+}
+#+END_SRC
+
+with a minor change to the boilerplate on the companion of our algebra,
+accounting for the extra =E=:
+
+#+BEGIN_SRC scala
+trait Lookup[F[_]] {
+  def look: F[Int]
+}
+object Lookup {
+  def liftIO[F[_]: Monad, E](io: Lookup[IO[E, ?]])(implicit M: MonadIO[F, E]) =
+    new Lookup[F] {
+      def look: F[Int] = M.liftIO(io.look)
+    }
+  ...
+}
+#+END_SRC
+
+*** Summary
+
+1. The =Future= is broke, don't go there.
+2. Manage stack safety with a =Trampoline=.
+3. The Monad Transformer Library (MTL) abstracts over common effects.
+4. Monad Transformers provide default implementations of the MTL.
+5. =Free= data structures let us analyse, optimise and easily test our programs.
+6. =IO= gives us the ability to implement algebras as effects on the outside world and interact with legacy systems.
+7. =IO= can perform effects in parallel and provides a high performance implementation of the MTL.
 
 ** The Infinite Sadness
 
@@ -12927,9 +13062,8 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
-- Advanced Monads (more to come)
 - Typeclass Derivation
-- Optics
+- =drone-dynamic-agents=
 - Appendix: Scalaz source code layout
 
 # Maybe...
@@ -12939,120 +13073,10 @@ You can expect to see chapters covering the following topics:
 # - Category Theory
 # - Dependent Types
 
-while continuing to build out the example application.
-
 * TODO Remaining
   :PROPERTIES:
   :EXPORT_FILE_NAME: remaining.md
   :END:
-
-
-*** TODO The =Free Monad=
-
-=Free= as the algebra for Terminal.
-
-=Free[S[_], A]= can be /generated freely/ for any choice of =S=, hence
-the name. However, from a practical point of view, there needs to be a
-=Monad[S]= in order to interpret it --- so it is more like an interest
-only mortgage where you still have to buy the house at the end.
-
-introduce =FreeAp= and =Cofree=
-
-Trampolining is expensive, what does it buy us? Move onto Drone / Machines and
-optimise for bulk read / write. Analogous to bytecode instrumentation.
-
-And for testing: [[https://github.com/djspiewak/smock][smock]]
-
-**** TODO Initial vs Final Encoding
-
-# "initial" vs "final" encodings
-# https://gist.github.com/OlivierBlanvillain/48bb5c66dbb0557da50465809564ee80
-
-Then (much more complicated) optimisation for final encoding of our drone app.
-
- # useful (yet broken) example:
- # https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html
- # https://github.com/facebook/Haxl
-
- Try this with the =act= in our example app. It is tricky because we have two algebras.
-
- #+BEGIN_SRC scala
- trait Program[Alg[_[_]], A] {
-   def apply[F[_]: Applicative](interpreter: Alg[F]) : F[A]
- }
-
- trait Optimizer[Alg[_[_]], F[_]] {
-   type M
-
-   def monoidM: Monoid[M]
-   def monadF: Monad[F]
-
-   def extract: Alg[Const[M, ?]]
-   def rebuild(m: M, interpreter: Alg[F]): F[Alg[F]]
-
-   def optimize[A](p: Program[Alg, Applicative, A]): Alg[F] => F[A] = { interpreter =>
-     implicit val M: Monoid[M] = monoidM
-     implicit val F: Monad[F] = monadF
-
-     val m: M = p(extract).getConst
-
-     rebuild(m, interpreter).flatMap(interp => p(interp))
-   }
- }
- #+END_SRC
-
-*** TODO Parallelism and =scalaz.ioeffect.IO=
-
-The issue of parallelisation of applicatives vs the sequential nature of Monad.
-
-Can use this to motivate the scalaz8 typeclass design.
-
-
-** TODO Utilities
-
-I'm not sure about this chapter. It may be the case that everything listed here
-is not really worth mentioning, except for a few things.
-
-*** TODO stdlib helpers
-*** TODO Refinements
-
-(kick to later)
-
-- Alpha (represents an alphabetic character), maybe save for generators / laws
-- Digit (0-9)
-- CaseInsensitive
-- Endo (just wraps A => A)
-
-*** TODO Missed typeclasses
-
-- Semilattice (added recently, commutative Band)
-- Distributive (dual of Traverse)
-- Zap (Functors that destroy each other)
-
-*** TODO weird shit (mostly type tricks)
-
-- Adjunction (two functors =F= and =G= that give rise to a monad / comonad)
-- Codensity (seems to be a monad of some kind)
-- Zipper / TreeLoc (as discussed earlier)
-- Unapply (workaround for type inference) ... maybe one for data types?
-- Kan / Coyoneda / Yoneda / ContravariantCoyoneda
-- Endomorphic / Isomorphism (will need arrows)
-- Forall (universal quantification)
-- Injective (proof stuff)
-- Inject (something about data types a la carte... seems important)
-- Lens / PLens ... tricky, we really want to use monocle
-- MonoidCoproduct lists of disjunction of monoidal things
-- NotNothing (mini version of shapeless' equivalent)
-- NullArgument (?=> ... drugged up elvis)
-- NullResult
-- Representable (should probably be a typeclass, X => A implies F[A]: Functor)
-- Dual
-
-*** TODO Conversions
-
-- Alter (utility to get a Monoid rather than the Plus for what it wraps)
-- Ap (Derive a Semigroup or Monoid instance from an Apply or Applicative)
-- Generator
 
 ** TODO Typeclass Derivation
 
@@ -13070,7 +13094,7 @@ Pad out the application implementation with everything we've learnt.
 Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
-** TODO Spoofing Haskell
+** TODO Haskell
 
 * Backmatter                                                          :final:
 :PROPERTIES:

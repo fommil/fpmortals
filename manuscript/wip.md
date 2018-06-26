@@ -2078,15 +2078,14 @@ Allowing us to wrap once for `EitherT`, and then again for `StateT`
   val wrap2: Lookup[Ctx] = Lookup.liftM[EitherT[IO, Problem, ?], Ctx2](wrap1)
 ~~~~~~~~
 
-Another way to achieve this, in a single step, is to use `scalaz.effect.LiftIO`
-which enables lifting an `IO` into a transformer stack:
+Another way to achieve this, in a single step, is to use `MonadIO` which enables
+lifting an `IO` into a transformer stack:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait LiftIO[F[_]] {
+  @typeclass trait MonadIO[F[_]] extends Monad[F] {
     def liftIO[A](ioa: IO[A]): F[A]
   }
-  @typeclass trait MonadIO[F[_]] extends LiftIO[F] with Monad[F]
 ~~~~~~~~
 
 with `MonadIO` instances for all the common combinations of transformers.
@@ -3351,26 +3350,27 @@ ecosystem: up to 50 times faster than `Future` and 20% faster than Monix.
   }
 ~~~~~~~~
 
-`IO` has **two** type parameters: it is a `Bifunctor` allowing the error type to
-be an application specific ADT. Since we are on the JVM, and must interact with
-legacy libraries, a convenient type alias is provided that uses exceptions for
-the error type:
+`IO` has **two** type parameters: it has a `Bifunctor` allowing the error type to
+be an application specific ADT. But because we are on the JVM, and must interact
+with legacy libraries, a convenient type alias is provided that uses exceptions
+for the error type:
 
 {lang="text"}
 ~~~~~~~~
   type Task[A] = IO[Throwable, A]
 ~~~~~~~~
 
-A> `scalaz.ioeffect.IO` is a high performance `IO` by John de Goes, which we can
-A> add to our `build.sbt`
+A> `scalaz.ioeffect.IO` is a high performance `IO` by John de Goes. It has a
+A> separate lifecycle to the core scalaz library and must be manually added to our
+A> `build.sbt` with
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.6.0"
+A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.8.0"
 A> ~~~~~~~~
 A> 
-A> Do not use the unsupported `scalaz-effect` or `scalaz-concurrency` packages,
-A> preferring the `scalaz.ioeffect` variants of all typeclasses and data types.
+A> Do not use the deprecated `scalaz-effect` and `scalaz-concurrency` packages.
+A> Prefer the `scalaz.ioeffect` variants of all typeclasses and data types.
 
 
 ### Creating
@@ -3495,9 +3495,9 @@ interpret the `IO`
 
 ### Features
 
-`IO` provides typeclass instances for `Bifunctor` `MonadError[E, ?]`, `BindRec`,
-`Plus`, `MonadPlus` (if `E` forms a `Monoid`), and an `Applicative[IO.Par[E,
-?]]`.
+`IO` provides typeclass instances for `Bifunctor`, `MonadError[E, ?]`,
+`BindRec`, `Plus`, `MonadPlus` (if `E` forms a `Monoid`), and an
+`Applicative[IO.Par[E, ?]]`.
 
 In addition to the functionality from the typeclasses, there are implementation
 specific methods:
@@ -3549,7 +3549,7 @@ utilities related to termination are:
 ~~~~~~~~
 
 
-### Fibers
+### `Fiber`
 
 An `IO` may spawn *fibers*, a lightweight abstraction over a JVM `Thread`. We
 can `.fork` an `IO`, and `.supervise` any incomplete fibers to ensure that they
@@ -3593,8 +3593,148 @@ validation fails, which is performed in parallel.
   } yield result
 ~~~~~~~~
 
+Another usecase for fibers is when we need to perform a *fire and forget*
+action. For example, low priority logging over a network.
 
-### TODO MonadState
+
+### `Promise`
+
+A promise represents an asynchronous variable that can be set exactly once (with
+`complete` or `error`). An unbounded number of listeners can `get` the variable.
+
+{lang="text"}
+~~~~~~~~
+  final class Promise[E, A] private (ref: AtomicReference[State[E, A]]) {
+    def complete[E2](a: A): IO[E2, Boolean] = ...
+    def error[E2](e: E): IO[E2, Boolean] = ...
+    def get: IO[E, A] = ...
+  
+    // interrupts all listeners
+    def interrupt[E2](t: Throwable): IO[E2, Boolean] = ...
+  }
+  object Promise {
+    def make[E, A]: IO[E, Promise[E, A]] = ...
+  }
+~~~~~~~~
+
+`Promise` is not something that we typically use in application code. It is a
+building block for high level concurrency frameworks.
+
+A> When an operation is guaranteed to succeed, the error type `E` is left as a free
+A> type parameter so that the caller can specify their preference.
+
+
+### `IORef`
+
+`IORef` is the `IO` equivalent of an atomic mutable variable.
+
+We can read the variable and we have a variety of ways to write or update it.
+
+{lang="text"}
+~~~~~~~~
+  final class IORef[A] private (ref: AtomicReference[A]) {
+    def read[E]: IO[E, A] = ...
+  
+    // write with immediate consistency guarantees
+    def write[E](a: A): IO[E, Unit] = ...
+    // write with eventual consistency guarantees
+    def writeLater[E](a: A): IO[E, Unit] = ...
+    // return true if an immediate write succeeded, false if not (and abort)
+    def tryWrite[E](a: A): IO[E, Boolean] = ...
+  
+    // atomic primitives for updating the value
+    def compareAndSet[E](prev: A, next: A): IO[E, Boolean] = ...
+    def modify[E](f: A => A): IO[E, A] = ...
+    def modifyFold[E, B](f: A => (B, A)): IO[E, B] = ...
+  }
+  object IORef {
+    def apply[E, A](a: A): IO[E, IORef[A]] = ...
+  }
+~~~~~~~~
+
+`IORef` is another building block and can be used to provide a high performance
+`MonadState`. For example, create a newtype specialised to `Task`
+
+{lang="text"}
+~~~~~~~~
+  final class StateTask[A](val io: Task[A]) extends AnyVal
+  object StateTask {
+    def create[S](initial: S): Task[MonadState[StateTask, S]] =
+      for {
+        ref <- IORef(initial)
+      } yield
+        new MonadState[StateTask, S] {
+          override def get       = new StateTask(ref.read)
+          override def put(s: S) = new StateTask(ref.write(s))
+          ...
+        }
+  }
+~~~~~~~~
+
+We can make use of this optimised `StateMonad` implementation in a `SafeApp`,
+where our `.program` depends on optimised MTL typeclasses:
+
+{lang="text"}
+~~~~~~~~
+  object FastState extends SafeApp {
+    def program[F[_]](implicit F: MonadState[F, Int]): F[ExitStatus] = ...
+  
+    def run(@unused args: List[String]): IO[Void, ExitStatus] =
+      for {
+        stateMonad <- StateTask.create(10)
+        output     <- program(stateMonad).io
+      } yield output
+  }
+~~~~~~~~
+
+A more realistic application would take a variety of algebras and typeclasses as
+input.
+
+A> This optimised `MonadState` is constructed in a way that breaks typeclass
+A> coherence. Two instances having the same types may be managing different state.
+A> It would be prudent to isolate the construction of all such instances to the
+A> application's entrypoint.
+
+
+#### `MonadIO`
+
+The `MonadIO` that we previously studied was simplified to hide the `E`
+parameter. The actual typeclass is
+
+{lang="text"}
+~~~~~~~~
+  trait MonadIO[M[_], E] {
+    def liftIO[A](io: IO[E, A])(implicit M: Monad[M]): M[A]
+  }
+~~~~~~~~
+
+with a minor change to the boilerplate on the companion of our algebra,
+accounting for the extra `E`:
+
+{lang="text"}
+~~~~~~~~
+  trait Lookup[F[_]] {
+    def look: F[Int]
+  }
+  object Lookup {
+    def liftIO[F[_]: Monad, E](io: Lookup[IO[E, ?]])(implicit M: MonadIO[F, E]) =
+      new Lookup[F] {
+        def look: F[Int] = M.liftIO(io.look)
+      }
+    ...
+  }
+~~~~~~~~
+
+
+## Summary
+
+1.  The `Future` is broke, don't go there.
+2.  Manage stack safety with a `Trampoline`.
+3.  The Monad Transformer Library (MTL) abstracts over common effects.
+4.  Monad Transformers provide default implementations of the MTL.
+5.  `Free` data structures let us analyse, optimise and easily test our programs.
+6.  `IO` gives us the ability to implement algebras as effects on the outside world and interact with legacy systems.
+7.  `IO` can perform effects in parallel and provides a high performance implementation of the MTL.
 
 
 # The Infinite Sadness
@@ -3604,11 +3744,8 @@ website regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
--   Advanced Monads (more to come)
 -   Typeclass Derivation
--   Optics
+-   `drone-dynamic-agents`
 -   Appendix: Scalaz source code layout
-
-while continuing to build out the example application.
 
 
