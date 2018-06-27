@@ -12591,10 +12591,9 @@ object IO {
     override def apply2[A, B, C](fa: =>Par[A], fb: =>Par[B])(f: (A, B) => C): Par[C] =
       Tag(
         IO {
-          val a_ = Future { Tag.unwrap(fa).interpret() }
-          val b_ = Future { Tag.unwrap(fb).interpret() }
-          val a = Await.result(a_, Duration.Inf)
-          val b = Await.result(b_, Duration.Inf)
+          val forked = Future { Tag.unwrap(fa).interpret() }
+          val b      = Tag.unwrap(fb).interpret()
+          val a      = Await.result(forked, Duration.Inf)
           f(a, b)
         }
       )
@@ -12794,16 +12793,16 @@ A =Void= error type means that the effect *cannot fail*, which is to say that we
 have handled all errors by this point.
 #+END_ASIDE
 
-If we are integration with legacy system and are not in control of the entry
-point of the application, we can extend the =RTS= and gain access to unsafe
-methods for evaluating the =IO= at the entry point to our principled FP code.
+If we are integrating with a legacy system and are not in control of the entry
+point of our application, we can extend the =RTS= and gain access to unsafe
+methods to evaluate the =IO= at the entry point to our principled FP code.
 
-For example, if we have a typeclass that canonicalises values, and may hit disk
+For example, if we have an algebra that canonicalises values, and may hit disk
 or network to resolve filenames and URLs:
 
 #+BEGIN_SRC scala
-@typeclass trait Canon[A] {
-  def canon(a: A): Task[A]
+trait Canon[F[_], A] {
+  def canon(a: A): F[A]
 }
 #+END_SRC
 

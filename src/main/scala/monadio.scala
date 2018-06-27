@@ -45,10 +45,8 @@ object IO {
           import ExecutionContext.Implicits._
 
           val a_ = Future { Tag.unwrap(fa).interpret() }
-          val b_ = Future { Tag.unwrap(fb).interpret() }
-
-          val a = Await.result(a_, Duration.Inf)
-          val b = Await.result(b_, Duration.Inf)
+          val b  = Tag.unwrap(fb).interpret()
+          val a  = Await.result(a_, Duration.Inf)
 
           f(a, b)
         }
