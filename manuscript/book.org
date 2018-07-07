@@ -36,7 +36,7 @@ writing a web application.
 
 There are many ways to do Functional Programming in Scala. This book uses [[https://github.com/scalaz/scalaz][scalaz
 7.2]], the most popular, stable, principled and comprehensive framework. You could
-instead use the much smaller Cats fork of scalaz, or roll your own framework.
+instead use the Cats political fork of scalaz, or roll your own framework.
 
 This book is designed to be read from cover to cover, in the order presented,
 with a rest between chapters. Earlier chapters encourage coding styles that we
@@ -4486,7 +4486,7 @@ On the other hand, a =JsonReader= typically has a =Functor=:
 
 #+BEGIN_SRC scala
 @typeclass trait JsonReader[A] { self =>
-  def fromJson(j: JsValue): JsonReader.Result[A]
+  def fromJson(j: JsValue): A
 
   def map[B](f: A => B): JsonReader[B] = new JsonReader[B] {
     def fromJson(j: JsValue): B = f(self.fromJson(j))
@@ -4768,8 +4768,8 @@ after the Munch painting, because it is also the sound your CPU makes
 when it is parallelising All The Things.
 #+END_ASIDE
 
-The syntax =*>= and =<*= offer a convenient way to ignore the output
-from one of two parallel effects.
+The syntax =<*= and =*>= (left bird and right bird) offer a convenient way to
+ignore the output from one of two parallel effects.
 
 Unfortunately, although the =|@|= syntax is clear, there is a problem
 in that a new =ApplicativeBuilder= object is allocated for each
@@ -6242,36 +6242,6 @@ parameter cannot be run and functions that return =Nothing= will never return.
 a consequence is that we can write un-runnable code, by accident. Scalaz says we
 do not need covariant type parameters which means that we are limiting ourselves
 to writing practical code that can be run.
-
-To show how easy it is to introduce an inferred =Nothing=, the following code
-
-#+BEGIN_SRC scala
-final case class Foos(things: List[String])
-
-Foos(List.empty)
-#+END_SRC
-
-is inferred to be
-
-#+BEGIN_SRC scala
-Foos(List.empty[Nothing])
-#+END_SRC
-
-Whereas an invariant list
-
-#+BEGIN_SRC scala
-final case class Bars(v: IList[String])
-
-Bars(IList.empty)
-#+END_SRC
-
-is accurately inferred to be
-
-#+BEGIN_SRC scala
-Bars(IList.empty[String])
-#+END_SRC
-
-with no need for a =Nothing= hack.
 
 **** Contrarivariance
 
@@ -13062,8 +13032,12 @@ website regularly for updates.
 You can expect to see chapters covering the following topics:
 
 - Typeclass Derivation
-- =drone-dynamic-agents=
 - Appendix: Scalaz source code layout
+- Appendix: Scala for Beginners
+- Appendix: Haskell
+
+As well as a chapter pulling everything together for the example application
+(and getting the repository into a working state).
 
 # Maybe...
 # - Functional Streams
@@ -13094,6 +13068,18 @@ Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
 ** TODO Haskell
+
+** TODO Scala
+
+The following should suffice (in this order)
+
+- object, val, def, if, primitives, types
+- trait, class, abstract class (construction, methods, inheritance / type hierarchy)
+- String, List and Future as examples (including a brief look at for)
+- case class and pattern matching
+- a brief introduction to implicit
+
+ADTs, for, typeclasses and implicit, and algebras are covered in detail in the main body of my book. As well as many warnings about Future.
 
 * Backmatter                                                          :final:
 :PROPERTIES:

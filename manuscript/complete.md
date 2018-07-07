@@ -3876,7 +3876,7 @@ On the other hand, a `JsonReader` typically has a `Functor`:
 {lang="text"}
 ~~~~~~~~
   @typeclass trait JsonReader[A] { self =>
-    def fromJson(j: JsValue): JsonReader.Result[A]
+    def fromJson(j: JsValue): A
   
     def map[B](f: A => B): JsonReader[B] = new JsonReader[B] {
       def fromJson(j: JsValue): B = f(self.fromJson(j))
@@ -4095,8 +4095,8 @@ A> the *Macaulay Culkin*. We prefer to call it *The Scream* operator,
 A> after the Munch painting, because it is also the sound your CPU makes
 A> when it is parallelising All The Things.
 
-The syntax `*>` and `<*` offer a convenient way to ignore the output
-from one of two parallel effects.
+The syntax `<*` and `*>` (left bird and right bird) offer a convenient way to
+ignore the output from one of two parallel effects.
 
 Unfortunately, although the `|@|` syntax is clear, there is a problem
 in that a new `ApplicativeBuilder` object is allocated for each
@@ -5264,40 +5264,6 @@ parameter cannot be run and functions that return `Nothing` will never return.
 a consequence is that we can write un-runnable code, by accident. Scalaz says we
 do not need covariant type parameters which means that we are limiting ourselves
 to writing practical code that can be run.
-
-To show how easy it is to introduce an inferred `Nothing`, the following code
-
-{lang="text"}
-~~~~~~~~
-  final case class Foos(things: List[String])
-  
-  Foos(List.empty)
-~~~~~~~~
-
-is inferred to be
-
-{lang="text"}
-~~~~~~~~
-  Foos(List.empty[Nothing])
-~~~~~~~~
-
-Whereas an invariant list
-
-{lang="text"}
-~~~~~~~~
-  final case class Bars(v: IList[String])
-  
-  Bars(IList.empty)
-~~~~~~~~
-
-is accurately inferred to be
-
-{lang="text"}
-~~~~~~~~
-  Bars(IList.empty[String])
-~~~~~~~~
-
-with no need for a `Nothing` hack.
 
 
 ### Contrarivariance

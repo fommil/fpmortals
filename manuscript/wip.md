@@ -3744,7 +3744,11 @@ website regularly for updates.
 You can expect to see chapters covering the following topics:
 
 -   Typeclass Derivation
--   `drone-dynamic-agents`
 -   Appendix: Scalaz source code layout
+-   Appendix: Scala for Beginners
+-   Appendix: Haskell
+
+As well as a chapter pulling everything together for the example application
+(and getting the repository into a working state).
 
 
