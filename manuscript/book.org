@@ -4465,7 +4465,7 @@ a brief description of the =JsonWriter= typeclass. This is an expanded version:
   def toJson(a: A): JsValue
 
   def contramap[B](f: B => A): JsonWriter[B] = new JsonWriter[B] {
-    def toJson(b: B): JsValue = self(f(b))
+    def toJson(b: B): JsValue = self.toJson(f(b))
   }
 }
 #+END_SRC
@@ -4506,7 +4506,7 @@ alone, we need =xmap=:
 #+BEGIN_SRC scala
 @typeclass trait JsonFormat[A] extends JsonWriter[A] with JsonReader[A] { self =>
   def xmap[B](f: A => B, g: B => A): JsonFormat[B] = new JsonFormat[B] {
-    def toJson(b: B): JsValue = self(g(b))
+    def toJson(b: B): JsValue = self.toJson(g(b))
     def fromJson(j: JsValue): B = f(self.fromJson(j))
   }
 }
