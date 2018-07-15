@@ -9344,7 +9344,7 @@ The =Free= ADT is a natural data type representation of the =Monad= interface:
 2. =Gosub= represents =.bind= / =.flatMap=
 
 When an ADT mirrors the arguments of related functions, it is called a /Church
-encoding/, or /Continuation Passing Style/.
+encoding/.
 
 The =BindRec= implementation, =.tailrecM=, runs =.bind= until we get a =B=.
 Although this is not technically a =@tailrec= implementation, it uses constant
@@ -9375,6 +9375,8 @@ object Trampoline {
 When we see =Trampoline[A]= in a codebase we can always mentally substitute it
 with =A=, because it is simply adding stack safety to the pure computation. We
 get the =A= by interpreting =Free=, provided by the =.run= method:
+
+# FIXME: this is too hard to read. Specialise to thunks
 
 #+BEGIN_SRC scala
 sealed abstract class Free[S[_], A] {

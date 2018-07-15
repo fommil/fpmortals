@@ -191,7 +191,7 @@ The `Free` ADT is a natural data type representation of the `Monad` interface:
 2.  `Gosub` represents `.bind` / `.flatMap`
 
 When an ADT mirrors the arguments of related functions, it is called a *Church
-encoding*, or *Continuation Passing Style*.
+encoding*.
 
 The `BindRec` implementation, `.tailrecM`, runs `.bind` until we get a `B`.
 Although this is not technically a `@tailrec` implementation, it uses constant
