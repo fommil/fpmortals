@@ -9374,23 +9374,29 @@ object Trampoline {
 
 When we see =Trampoline[A]= in a codebase we can always mentally substitute it
 with =A=, because it is simply adding stack safety to the pure computation. We
-get the =A= by interpreting =Free=, provided by the =.run= method:
+get the =A= by interpreting =Free=, provided by =.run=.
 
-# FIXME: this is too hard to read. Specialise to thunks
+#+BEGIN_ASIDE
+It is instructive, although not necessary, to understand how =Free.run= is
+implemented: =.resume= evaluates a single layer of the =Free=, and =go= runs it
+to completion.
+
+In the following ~Trampoline[A]~ is used as a synonym for =Free[() => ?, A]= to
+make the code easier to read.
 
 #+BEGIN_SRC scala
-sealed abstract class Free[S[_], A] {
-  def run(implicit ev: Free[S, A] =:= Trampoline[A]): A = ev(this).go(_())
+sealed abstract class Trampoline[A] {
+  def run: A = go(f => f())
 
-  def go(f: S[Free[S, A]] => Free[S, A])(implicit S: Functor[S]): A = {
-    @tailrec def go2(t: Free[S, A]): A = t.resume match {
+  def go(f: () => Trampoline[A] => Trampoline[A]): A = {
+    @tailrec def go2(t: Trampoline[A]): A = t.resume match {
       case -\/(s) => go2(f(s))
       case \/-(r) => r
     }
     go2(this)
   }
 
-  @tailrec def resume(implicit S: Functor[S]): (S[Free[S, A]] \/ A) = this match {
+  @tailrec def resume: () => Trampoline[A] \/ A = this match {
     case Return(a) => \/-(a)
     case Suspend(t) => -\/(t.map(Return(_)))
     case Gosub(Return(a), f) => f(a).resume
@@ -9401,11 +9407,10 @@ sealed abstract class Free[S[_], A] {
 }
 #+END_SRC
 
-Take a moment to read through the implementation of =resume= to understand how
-this evaluates a single layer of the =Free=, and that =go= is running it to
-completion. The case that is most likely to cause confusion is when we have
-nested =Gosub=: apply the inner function =g= then pass it to the outer one =f=,
-it is just function composition.
+The case that is most likely to cause confusion is when we have nested =Gosub=:
+apply the inner function =g= then pass it to the outer one =f=, it is just
+function composition.
+#+END_ASIDE
 
 **** Example: Stack Safe =DList=
 

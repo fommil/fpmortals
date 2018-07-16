@@ -220,37 +220,42 @@ by-name (`.delay`). We can also create a `Trampoline` from a by-name
 
 When we see `Trampoline[A]` in a codebase we can always mentally substitute it
 with `A`, because it is simply adding stack safety to the pure computation. We
-get the `A` by interpreting `Free`, provided by the `.run` method:
+get the `A` by interpreting `Free`, provided by `.run`.
 
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Free[S[_], A] {
-    def run(implicit ev: Free[S, A] =:= Trampoline[A]): A = ev(this).go(_())
-  
-    def go(f: S[Free[S, A]] => Free[S, A])(implicit S: Functor[S]): A = {
-      @tailrec def go2(t: Free[S, A]): A = t.resume match {
-        case -\/(s) => go2(f(s))
-        case \/-(r) => r
-      }
-      go2(this)
-    }
-  
-    @tailrec def resume(implicit S: Functor[S]): (S[Free[S, A]] \/ A) = this match {
-      case Return(a) => \/-(a)
-      case Suspend(t) => -\/(t.map(Return(_)))
-      case Gosub(Return(a), f) => f(a).resume
-      case Gosub(Suspend(t), f) => -\/(t.map(f))
-      case Gosub(Gosub(a, g), f) => a >>= (z => g(z) >>= f).resume
-    }
-    ...
-  }
-~~~~~~~~
-
-Take a moment to read through the implementation of `resume` to understand how
-this evaluates a single layer of the `Free`, and that `go` is running it to
-completion. The case that is most likely to cause confusion is when we have
-nested `Gosub`: apply the inner function `g` then pass it to the outer one `f`,
-it is just function composition.
+A> It is instructive, although not necessary, to understand how `Free.run` is
+A> implemented: `.resume` evaluates a single layer of the `Free`, and `go` runs it
+A> to completion.
+A> 
+A> In the following `Trampoline[A]` is used as a synonym for `Free[() => ?, A]` to
+A> make the code easier to read.
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   sealed abstract class Trampoline[A] {
+A>     def run: A = go(f => f())
+A>   
+A>     def go(f: () => Trampoline[A] => Trampoline[A]): A = {
+A>       @tailrec def go2(t: Trampoline[A]): A = t.resume match {
+A>         case -\/(s) => go2(f(s))
+A>         case \/-(r) => r
+A>       }
+A>       go2(this)
+A>     }
+A>   
+A>     @tailrec def resume: () => Trampoline[A] \/ A = this match {
+A>       case Return(a) => \/-(a)
+A>       case Suspend(t) => -\/(t.map(Return(_)))
+A>       case Gosub(Return(a), f) => f(a).resume
+A>       case Gosub(Suspend(t), f) => -\/(t.map(f))
+A>       case Gosub(Gosub(a, g), f) => a >>= (z => g(z) >>= f).resume
+A>     }
+A>     ...
+A>   }
+A> ~~~~~~~~
+A> 
+A> The case that is most likely to cause confusion is when we have nested `Gosub`:
+A> apply the inner function `g` then pass it to the outer one `f`, it is just
+A> function composition.
 
 
 ### Example: Stack Safe `DList`
