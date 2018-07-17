@@ -2005,17 +2005,17 @@ type Name = NonEmpty And MaxSize[10]
 
 It is easy to define custom requirements that are not covered by the refined
 library. For example, the requirement that a =String= contains a valid
-=java.net.URL= is as simple as
+=java.net.URL= is as simple as the following, from the refined library:
 
 #+BEGIN_SRC scala
-final case class Url()
-object Url {
-  implicit def urlValidate: refined.Validate.Plain[String, Url] =
-    Validate.fromPartial(new java.net.URL(_), "Url", Url())
+object string {
+  final case class Url()
+  object Url {
+    implicit def urlValidate: refined.Validate.Plain[String, Url] =
+      Validate.fromPartial(new java.net.URL(_), "Url", Url())
+  }
 }
 #+END_SRC
-
-which can be used as =String Refined Url=.
 
 **** Simple to Share
 
@@ -2788,6 +2788,10 @@ network configuration (are not /deterministic/).
 The refined type =String Refined Url= allows us to perform equality checks based
 on the =String= and we can safely construct a =URL= only if it is needed by a
 legacy API.
+
+That said, in high performance code we would prefer to skip =java.net.URL=
+entirely and use a third party URL parser such as [[https://github.com/anthonynsimon/jurl][jurl]], because even the safe
+parts of =java.net.*= are extremely slow at scale.
 #+END_WARNING
 
 **** Functionality
@@ -2822,18 +2826,33 @@ To depend on =spray-json= in our project we must add the following to
 =build.sbt=:
 
 #+BEGIN_SRC scala
-libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.4.1"
+libraryDependencies += "io.spray" %% "spray-json" % "1.3.4"
 #+END_SRC
 
-Because =spray-json-derivation= provides /derived/ typeclass instances, we can
-conjure up a =JsonReader[AccessResponse]= and =JsonReader[RefreshResponse]=.
-This is an example of parsing text into =AccessResponse=:
+We need to construct instances of =JsonReader[AccessResponse]= and
+=JsonReader[RefreshResponse]=. We do this by calling spray's =jsonFormat=
+method, providing the constructor and the names of the fields (which may be
+different to the names we use in the =case class=). Recall that typeclass
+instances go on companions:
 
 #+BEGIN_SRC scala
-scala> import spray.json.ImplicitDerivedFormats._
+  import spray.json.DefaultJsonProtocol._
 
-       for {
-         json     <- spray.json.JsonParser("""
+  object AccessResponse {
+    implicit val json: JsonReader[AccessResponse] =
+      jsonFormat(apply, "access_token", "token_type", "expires_in", "refresh_token")
+  }
+
+  object RefreshResponse {
+    implicit val json: JsonReader[RefreshResponse] =
+      jsonFormat(apply, "access_token", "token_type", "expires_in")
+  }
+#+END_SRC
+
+We can then parse a string into an =AccessResponse= or a =RefreshResponse=
+
+#+BEGIN_SRC scala
+scala> val json = spray.json.JsonParser("""
                      {
                        "access_token": "BEARER_TOKEN",
                        "token_type": "Bearer",
@@ -2841,10 +2860,9 @@ scala> import spray.json.ImplicitDerivedFormats._
                        "refresh_token": "REFRESH_TOKEN"
                      }
                      """)
-         response <- JsonReader[AccessResponse].fromJson(json)
-       } yield response
 
-res = AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
+scala> JsonReader[AccessResponse].fromJson(json)
+AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
 #+END_SRC
 
 We need to write our own typeclasses for URL and POST encoding. The
@@ -2853,20 +2871,21 @@ following is a reasonable design:
 #+BEGIN_SRC scala
 package http.encoding
 
-final case class UrlQuery(params: List[(String, String)]) {
-  def forUrl(url: String Refined Url): String Refined Url = ...
-}
+// URL query key=value pairs, in unencoded form.
+final case class UrlQuery(params: List[(String, String)])
 
 @typeclass trait UrlQueryWriter[A] {
   def toUrlQuery(a: A): UrlQuery
 }
 
 @typeclass trait UrlEncodedWriter[A] {
-  def toUrlEncoded(a: A): String
+  def toUrlEncoded(a: A): String Refined UrlEncoded
 }
 #+END_SRC
 
 We need to provide typeclass instances for basic types:
+
+# TODO sync with the real code
 
 #+BEGIN_SRC scala
 object UrlEncodedWriter {
@@ -3032,7 +3051,6 @@ and then write an OAuth2 client:
 #+BEGIN_SRC scala
 import java.time.temporal.ChronoUnit
 import http.encoding.UrlQueryWriter.ops._
-import spray.json.ImplicitDerivedFormats._
 
 class OAuth2Client[F[_]: Monad](
   config: ServerConfig
@@ -13058,14 +13076,81 @@ As well as a chapter pulling everything together for the example application
   :EXPORT_FILE_NAME: remaining.md
   :END:
 
-** TODO Typeclass Derivation
+** Typeclass Derivation
 
-- scalaz-deriving
-- magnolia
-- shapeless
-- macros
-- export-hook
-- Property Testing (as a case study for Arbitrary)
+Typeclasses provide polymorphic functionality to our applications. But to use a
+typeclass we need instances for our business domain objects.
+
+The creation of a typeclass instance from existing instances is known as
+/typeclass derivation/ and is the topic of this chapter.
+
+There are five approaches to typeclass derivation:
+
+1. Manual instances for every domain object. This is infeasible for real world
+   applications as it results in hundreds of lines of code of boilerplate for
+   every line of a =case class=. It is useful only for educational purposes.
+
+2. Write macros for each typeclass. This is not a maintainable solution, since
+   the macro API is known to change with Scala major releases, and in any case
+   requires an advanced and experienced developer to write each macro.
+
+3. Many typeclasses (and algebras!) can be abstracted by an existing scalaz
+   typeclass, producing automated tests of the typeclass itself and derivations
+   for business domain objects. This is the approach of =scalaz-deriving=.
+
+4. Jon Pretty's [[https://github.com/propensive/magnolia][Magnolia]] macro provides a convenient API that lets typeclass
+   authors support ADTs. It is effectively an abstraction over hand-rolled
+   macros, with all the macro maintenance burden in a single shared library.
+
+5. Via generic programs with the [[https://github.com/milessabin/shapeless/][Shapeless]] library. The =implicit= mechanism is
+   a language within the Scala language and can be used to write programs at the
+   type level, incurring a significant compiler performance penalty.
+
+In this chapter we will study increasingly complex typeclasses and their
+derivations. We will begin with =scalaz-deriving= as the most principled
+mechanism, then Magnolia (the easiest to use) for encoder and decoder formats,
+finishing with Shapeless (the most powerful) for typeclasses with complex
+derivation logic.
+
+*** TODO =scalaz-deriving=
+
+#+BEGIN_SRC dot :file images/scalaz-deriving-base.png :exports results
+digraph G {
+    graph [dpi=100, rankdir=BT];
+    node [fontname=Hack];
+
+    Contravariant;
+    Functor;
+    InvariantFunctor;
+    Divisible;
+    Applicative;
+    Monad;
+    MonadError;
+    Decidable;
+    Alt;
+
+    Contravariant -> InvariantFunctor;
+    Functor -> InvariantFunctor;
+
+    Divisible -> Contravariant;
+    Decidable -> Divisible;
+
+    Applicative -> Functor;
+    Alt -> Applicative;
+
+    Monad -> Applicative;
+    MonadError -> Monad;
+}
+#+END_SRC
+
+#+CAPTION: 100
+#+RESULTS:
+[[file:images/scalaz-deriving-base.png]]
+
+
+*** TODO Magnolia
+
+*** TODO Shapeless
 
 ** TODO Implementing the Application
 

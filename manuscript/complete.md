@@ -1564,18 +1564,18 @@ A> ~~~~~~~~
 
 It is easy to define custom requirements that are not covered by the refined
 library. For example, the requirement that a `String` contains a valid
-`java.net.URL` is as simple as
+`java.net.URL` is as simple as the following, from the refined library:
 
 {lang="text"}
 ~~~~~~~~
-  final case class Url()
-  object Url {
-    implicit def urlValidate: refined.Validate.Plain[String, Url] =
-      Validate.fromPartial(new java.net.URL(_), "Url", Url())
+  object string {
+    final case class Url()
+    object Url {
+      implicit def urlValidate: refined.Validate.Plain[String, Url] =
+        Validate.fromPartial(new java.net.URL(_), "Url", Url())
+    }
   }
 ~~~~~~~~
-
-which can be used as `String Refined Url`.
 
 
 ### Simple to Share
@@ -2383,6 +2383,10 @@ W>
 W> The refined type `String Refined Url` allows us to perform equality checks based
 W> on the `String` and we can safely construct a `URL` only if it is needed by a
 W> legacy API.
+W> 
+W> That said, in high performance code we would prefer to skip `java.net.URL`
+W> entirely and use a third party URL parser such as [jurl](https://github.com/anthonynsimon/jurl), because even the safe
+W> parts of `java.net.*` are extremely slow at scale.
 
 
 ### Functionality
@@ -2419,19 +2423,35 @@ To depend on `spray-json` in our project we must add the following to
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "xyz.driver" %% "spray-json-derivation" % "0.4.1"
+  libraryDependencies += "io.spray" %% "spray-json" % "1.3.4"
 ~~~~~~~~
 
-Because `spray-json-derivation` provides *derived* typeclass instances, we can
-conjure up a `JsonReader[AccessResponse]` and `JsonReader[RefreshResponse]`.
-This is an example of parsing text into `AccessResponse`:
+We need to construct instances of `JsonReader[AccessResponse]` and
+`JsonReader[RefreshResponse]`. We do this by calling spray's `jsonFormat`
+method, providing the constructor and the names of the fields (which may be
+different to the names we use in the `case class`). Recall that typeclass
+instances go on companions:
 
 {lang="text"}
 ~~~~~~~~
-  scala> import spray.json.ImplicitDerivedFormats._
+  import spray.json.DefaultJsonProtocol._
   
-         for {
-           json     <- spray.json.JsonParser("""
+  object AccessResponse {
+    implicit val json: JsonReader[AccessResponse] =
+      jsonFormat(apply, "access_token", "token_type", "expires_in", "refresh_token")
+  }
+  
+  object RefreshResponse {
+    implicit val json: JsonReader[RefreshResponse] =
+      jsonFormat(apply, "access_token", "token_type", "expires_in")
+  }
+~~~~~~~~
+
+We can then parse a string into an `AccessResponse` or a `RefreshResponse`
+
+{lang="text"}
+~~~~~~~~
+  scala> val json = spray.json.JsonParser("""
                        {
                          "access_token": "BEARER_TOKEN",
                          "token_type": "Bearer",
@@ -2439,10 +2459,9 @@ This is an example of parsing text into `AccessResponse`:
                          "refresh_token": "REFRESH_TOKEN"
                        }
                        """)
-           response <- JsonReader[AccessResponse].fromJson(json)
-         } yield response
   
-  res = AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
+  scala> JsonReader[AccessResponse].fromJson(json)
+  AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
 ~~~~~~~~
 
 We need to write our own typeclasses for URL and POST encoding. The
@@ -2452,16 +2471,15 @@ following is a reasonable design:
 ~~~~~~~~
   package http.encoding
   
-  final case class UrlQuery(params: List[(String, String)]) {
-    def forUrl(url: String Refined Url): String Refined Url = ...
-  }
+  // URL query key=value pairs, in unencoded form.
+  final case class UrlQuery(params: List[(String, String)])
   
   @typeclass trait UrlQueryWriter[A] {
     def toUrlQuery(a: A): UrlQuery
   }
   
   @typeclass trait UrlEncodedWriter[A] {
-    def toUrlEncoded(a: A): String
+    def toUrlEncoded(a: A): String Refined UrlEncoded
   }
 ~~~~~~~~
 
@@ -2639,7 +2657,6 @@ and then write an OAuth2 client:
 ~~~~~~~~
   import java.time.temporal.ChronoUnit
   import http.encoding.UrlQueryWriter.ops._
-  import spray.json.ImplicitDerivedFormats._
   
   class OAuth2Client[F[_]: Monad](
     config: ServerConfig
