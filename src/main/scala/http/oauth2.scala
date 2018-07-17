@@ -109,6 +109,7 @@ package http.oauth2
 package client
 
 import prelude._, Z._
+import spray.json._
 
 import http.client._
 import http.encoding._
@@ -179,7 +180,6 @@ package logic {
     import api._
     import http.encoding.UrlQueryWriter.ops._
     import UrlQuery.ops._
-    import spray.json.ImplicitDerivedJsonProtocol._
 
     // for use in one-shot apps requiring user interaction
     def authenticate: F[CodeToken] =
@@ -232,6 +232,8 @@ package logic {
 
 /** The API as defined by the OAuth 2.0 server */
 package api {
+  import spray.json.DefaultJsonProtocol._
+
   @deriving(UrlQueryWriter)
   final case class AuthRequest(
     redirect_uri: String Refined AsciiUrl,
@@ -259,6 +261,16 @@ package api {
     expires_in: Long,
     refresh_token: String
   )
+  object AccessResponse {
+    implicit val json: JsonReader[AccessResponse] =
+      jsonFormat(
+        apply,
+        "access_token",
+        "token_type",
+        "expires_in",
+        "refresh_token"
+      )
+  }
 
   @deriving(UrlEncodedWriter)
   final case class RefreshRequest(
@@ -273,4 +285,8 @@ package api {
     token_type: String,
     expires_in: Long
   )
+  object RefreshResponse {
+    implicit val json: JsonReader[RefreshResponse] =
+      jsonFormat(apply, "access_token", "token_type", "expires_in")
+  }
 }
