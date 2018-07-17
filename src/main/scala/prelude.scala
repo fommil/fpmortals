@@ -74,6 +74,8 @@ package object prelude {
 
   // third party libs
   type Refined[A, B] = eu.timepit.refined.api.Refined[A, B]
+  @inline final val Refined: eu.timepit.refined.api.Refined.type =
+    eu.timepit.refined.api.Refined
   //type @:@[A, B] = eu.timepit.refined.api.Refined[A, B]
 
   // macro annotations don't work: https://github.com/scalamacros/paradise/issues/8

@@ -10,12 +10,13 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
 import eu.timepit.refined.auto._
+import eu.timepit.refined.string.Url
 
 class UrlQuerySpec extends FlatSpec {
   import UrlQuery.ops._
 
   "UrlQuery" should "allow changing the query" in {
-    val url: String Refined AsciiUrl = "http://fommil.com?wibble=wobble"
+    val url: String Refined Url = "http://fommil.com?wibble=wobble"
 
     url
       .withQuery(

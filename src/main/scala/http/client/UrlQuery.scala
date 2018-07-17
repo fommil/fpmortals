@@ -7,6 +7,7 @@ package http.client
 import prelude._, Z._, S._
 
 import java.net.URI
+import eu.timepit.refined.string.Url
 
 import http.encoding.UrlEncodedWriter
 
@@ -17,9 +18,9 @@ import http.encoding.UrlEncodedWriter
 final case class UrlQuery(params: List[(String, String)]) extends AnyVal
 object UrlQuery {
   object ops {
-    implicit class AsciiUrlOps(private val encoded: String Refined AsciiUrl) {
-      def withQuery(query: UrlQuery): String Refined AsciiUrl = {
-        val uri = AsciiUrl.toURI(encoded)
+    implicit class UrlOps(private val encoded: String Refined Url) {
+      def withQuery(query: UrlQuery): String Refined Url = {
+        val uri = new URI(encoded.value)
         val update = new URI(
           uri.getScheme,
           uri.getUserInfo,
@@ -30,9 +31,7 @@ object UrlQuery {
           query.params.map { case (k, v) => s"$k=$v" }.intercalate("&"),
           uri.getFragment
         )
-        AsciiUrl(update.toASCIIString).getOrElse(
-          scala.sys.error("bug in refinement")
-        )
+        Refined.unsafeApply(update.toASCIIString)
       }
     }
   }

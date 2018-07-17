@@ -109,6 +109,7 @@ package http.oauth2
 package client
 
 import prelude._, Z._
+import eu.timepit.refined.string.Url
 import spray.json._
 
 import http.client._
@@ -116,9 +117,9 @@ import http.encoding._
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
-  auth: String Refined AsciiUrl,
-  access: String Refined AsciiUrl,
-  refresh: String Refined AsciiUrl,
+  auth: String Refined Url,
+  access: String Refined Url,
+  refresh: String Refined Url,
   scope: String,
   clientId: String,
   clientSecret: String
@@ -129,7 +130,7 @@ final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same
   // redirect_uri in subsequent calls
-  redirect_uri: String Refined AsciiUrl
+  redirect_uri: String Refined Url
 )
 
 /**
@@ -149,10 +150,10 @@ package algebra {
   trait UserInteraction[F[_]] {
 
     /** returns the URL of the local server */
-    def start: F[String Refined AsciiUrl]
+    def start: F[String Refined Url]
 
     /** prompts the user to open this URL */
-    def open(uri: String Refined AsciiUrl): F[Unit]
+    def open(uri: String Refined Url): F[Unit]
 
     /** recover the code from the callback */
     def stop: F[CodeToken]
@@ -236,7 +237,7 @@ package api {
 
   @deriving(UrlQueryWriter)
   final case class AuthRequest(
-    redirect_uri: String Refined AsciiUrl,
+    redirect_uri: String Refined Url,
     scope: String,
     client_id: String,
     prompt: String = "consent",
@@ -249,7 +250,7 @@ package api {
   @deriving(UrlEncodedWriter)
   final case class AccessRequest(
     code: String,
-    redirect_uri: String Refined AsciiUrl,
+    redirect_uri: String Refined Url,
     client_id: String,
     client_secret: String,
     scope: String = "",
