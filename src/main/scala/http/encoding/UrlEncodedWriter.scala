@@ -6,8 +6,6 @@ package http.encoding
 
 import prelude._, Z._, S._
 
-import java.net.URLEncoder
-
 import shapeless._
 import shapeless.labelled._
 import simulacrum._
@@ -16,7 +14,7 @@ import simulacrum._
  * Converts entities into `application/x-www-form-urlencoded`
  */
 @typeclass trait UrlEncodedWriter[A] {
-  def toUrlEncoded(a: A): String
+  def toUrlEncoded(a: A): String Refined UrlEncoded
 }
 object UrlEncodedWriter {
   import ops._
@@ -30,21 +28,17 @@ object UrlEncodedWriter {
       }
     }
 
-  implicit val string: UrlEncodedWriter[String] = { s =>
-    // UTF-8 always succeeds
-    URLEncoder.encode(s, "UTF-8") // scalafix:ok
-  }
-  implicit val long: UrlEncodedWriter[Long] = (_.shows)
+  implicit val string: UrlEncodedWriter[String] = (s => UrlEncoded(s))
+  implicit val long: UrlEncodedWriter[Long]     = string.contramap(_.shows)
 
   implicit def kvs[F[_]: Traverse]: UrlEncodedWriter[F[(String, String)]] = {
     m =>
-      m.map {
+      val raw = m.map {
         case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}"
       }.intercalate("&")
+      Refined.unsafeApply(raw) // by deduction
   }
 
-  // this could be generalised to all Contravariant typeclasses...
-  // Covariant would require a Validate.Plain[A, B]
   implicit def refined[A: UrlEncodedWriter, B]: UrlEncodedWriter[A Refined B] =
     UrlEncodedWriter[A].contramap(_.value)
 
@@ -63,7 +57,7 @@ object DerivedUrlEncodedWriter {
   }
 
   implicit val hnil: DerivedUrlEncodedWriter[HNil] = { _ =>
-    ""
+    Refined.unsafeApply("")
   }
   implicit def hcons[Key <: Symbol, A, Remaining <: HList](
     implicit Key: Witness.Aux[Key],
@@ -73,10 +67,10 @@ object DerivedUrlEncodedWriter {
     case head :: tail =>
       val rest = {
         val rest = DR.toUrlEncoded(tail)
-        if (rest.isEmpty) "" else s"&$rest"
+        if (rest.value.isEmpty) "" else s"&$rest"
       }
       val key   = Key.value.name.toUrlEncoded
       val value = LV.value.toUrlEncoded(head)
-      s"$key=$value$rest"
+      Refined.unsafeApply(s"$key=$value$rest")
   }
 }

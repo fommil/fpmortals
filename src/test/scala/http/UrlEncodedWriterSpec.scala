@@ -6,6 +6,7 @@ package http.encoding
 
 import prelude._, S._
 
+import eu.timepit.refined.refineV
 import eu.timepit.refined.auto._
 import eu.timepit.refined.string.Url
 import org.scalatest._
@@ -18,12 +19,21 @@ final case class Foo(apple: String, bananas: Long, pears: String)
 
 class UrlEncodedWriterSpec extends FlatSpec {
   "UrlEncodedWriter" should "encode Strings" in {
-    "foo".toUrlEncoded should be("foo")
-    "http://foo".toUrlEncoded should be("http%3A%2F%2Ffoo")
+    "foo".toUrlEncoded should be("foo": String Refined UrlEncoded)
+
+    "http://foo".toUrlEncoded should be(
+      "http%3A%2F%2Ffoo": String Refined UrlEncoded
+    )
+  }
+
+  it should "not validate partially encoded strings" in {
+    refineV[UrlEncoded]("http%3A%2F foo") should be(
+      Left("Predicate failed: http%3A%2F foo.")
+    )
   }
 
   it should "encode Long numbers" in {
-    10L.toUrlEncoded should be("10")
+    10L.toUrlEncoded should be("10": String Refined UrlEncoded)
   }
 
   it should "encode stringy maps" in {
@@ -33,24 +43,22 @@ class UrlEncodedWriterSpec extends FlatSpec {
       "pears"   -> "%"
     )
     stringy.toUrlEncoded should be(
-      "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25"
+      "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25": String Refined UrlEncoded
     )
   }
 
   it should "encode Urls" in {
-    import eu.timepit.refined.auto._
-
     val url: String Refined Url =
       "http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
     url.toUrlEncoded should be(
       // the %3A must be double escaped to %253A
-      "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar"
+      "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar": String Refined UrlEncoded
     )
   }
 
   it should "encode final case classes" in {
     Foo("http://foo", 10L, "%").toUrlEncoded should be(
-      "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25"
+      "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25": String Refined UrlEncoded
     )
   }
 

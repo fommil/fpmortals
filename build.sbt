@@ -51,9 +51,9 @@ scalacOptions ++= Seq(
   "-opt-inline-from:scalaz.**"
 )
 
-addCompilerPlugin(
-  ("org.scalameta" % "semanticdb-scalac" % "4.0.0-M1").cross(CrossVersion.full)
-)
+// addCompilerPlugin(
+//   ("org.scalameta" % "semanticdb-scalac" % "4.0.0-M1").cross(CrossVersion.full)
+// )
 
 addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
 

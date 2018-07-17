@@ -40,7 +40,7 @@ object DerivedUrlQueryWriter {
         val decodedKey = Key.value.name
         // UTF-8 always succeeds
         val decodedValue = URLDecoder.decode(
-          LV.value.toUrlEncoded(head),
+          LV.value.toUrlEncoded(head).value,
           "UTF-8"
         ) // scalafix:ok
         decodedKey -> decodedValue
