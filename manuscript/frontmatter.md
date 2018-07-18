@@ -104,10 +104,10 @@ FP-specific features enabled (e.g. in `build.sbt`):
   
   libraryDependencies ++= Seq(
     "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
-    "org.scalaz"           %% "scalaz-core"    % "7.2.22"
+    "org.scalaz"           %% "scalaz-core"    % "7.2.25"
   )
   
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
   addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 ~~~~~~~~
 

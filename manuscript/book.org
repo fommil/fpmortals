@@ -116,10 +116,10 @@ scalacOptions in ThisBuild ++= Seq(
 
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
-  "org.scalaz"           %% "scalaz-core"    % "7.2.22"
+  "org.scalaz"           %% "scalaz-core"    % "7.2.25"
 )
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 #+END_SRC
 
@@ -1189,7 +1189,18 @@ authentication.
 
 *** Interfaces / Algebras
 
-Let's codify the architecture diagram from the previous section.
+Let's codify the architecture diagram from the previous section. Firstly, we
+need a need a simple data type to capture a millisecond timestamp because such
+a simple thing does not exist in either the Java or Scala standard libraries:
+
+#+BEGIN_SRC scala
+  import scala.concurrent.duration._
+
+  final case class Epoch(millis: Long) extends AnyVal {
+    def +(d: FiniteDuration): Epoch    = Epoch(millis + d.toMillis)
+    def diff(e: Epoch): FiniteDuration = (e.millis - millis).millis
+  }
+#+END_SRC
 
 In FP, an /algebra/ takes the place of an =interface= in Java, or the
 set of valid messages for an =Actor= in Akka. This is the layer where
@@ -1201,7 +1212,6 @@ algebra: it is a good level of abstraction to design a system.
 #+BEGIN_SRC scala
 package algebra
 
-import java.time.Instant
 import scalaz.NonEmptyList
 
 trait Drone[F[_]] {
@@ -1211,9 +1221,9 @@ trait Drone[F[_]] {
 
 final case class MachineNode(id: String)
 trait Machines[F[_]] {
-  def getTime: F[Instant]
+  def getTime: F[Epoch]
   def getManaged: F[NonEmptyList[MachineNode]]
-  def getAlive: F[Map[MachineNode, Instant]]
+  def getAlive: F[Map[MachineNode, Epoch]]
   def start(node: MachineNode): F[MachineNode]
   def stop(node: MachineNode): F[MachineNode]
 }
@@ -1249,14 +1259,7 @@ First, the imports
 #+BEGIN_SRC scala
 package logic
 
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-
-import scala.concurrent.duration._
-
-import scalaz._
-import Scalaz._
-
+import scalaz._, Scalaz._
 import algebra._
 #+END_SRC
 
@@ -1272,9 +1275,9 @@ final case class WorldView(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, Instant],
-  pending: Map[MachineNode, Instant],
-  time: Instant
+  alive: Map[MachineNode, Epoch],
+  pending: Map[MachineNode, Epoch],
+  time: Epoch
 )
 #+END_SRC
 
@@ -1345,24 +1348,19 @@ assume that it failed and forget that we asked to do it.
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
-      case (_, started) => timediff(started, snap.time) >= 10.minutes
+      case (_, started) => started.diff(snap.time) >= 10.minutes
     }
     update = snap.copy(pending = pending)
   } yield update
 
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
-
-  private def timediff(from: Instant, to: Instant): FiniteDuration =
-    ChronoUnit.MINUTES.between(from, to).minutes
 #+END_SRC
 
-Note that we use assignment for pure functions like =symdiff=,
-=timediff= and =copy=. Pure functions don't need test mocks, they have
-explicit inputs and outputs, so you could move all pure code into
-standalone methods on a stateless =object=, testable in isolation.
-We're happy testing only the public methods, preferring that our
-business logic is easy to read.
+Pure functions don't need test mocks, they have explicit inputs and outputs, so
+we could move all pure code into standalone methods on a stateless =object=,
+testable in isolation. We're happy testing only the public methods, preferring
+that our business logic is easy to read.
 
 **** act
 
@@ -1407,9 +1405,9 @@ As a financial safety net, all nodes should have a maximum lifetime of
         case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
           (alive -- pending.keys).collect {
             case (n, started)
-                if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 =>
+                if backlog == 0 && started.diff(time).toMinutes % 60 >= 58 =>
               n
-            case (n, started) if timediff(started, time) >= 5.hours => n
+            case (n, started) if started.diff(time) >= 5.hours => n
           }.toList.toNel
 
         case _ => None
@@ -1475,16 +1473,31 @@ object Data {
   val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed = NonEmptyList(node1, node2)
 
-  import Instant.parse
-  val time1 = parse("2017-03-03T18:07:00.000+01:00[Europe/London]")
-  val time2 = parse("2017-03-03T18:59:00.000+01:00[Europe/London]") // +52 mins
-  val time3 = parse("2017-03-03T19:06:00.000+01:00[Europe/London]") // +59 mins
-  val time4 = parse("2017-03-03T23:07:00.000+01:00[Europe/London]") // +5 hours
+  val time1: Epoch = epoch"2017-03-03T18:07:00Z"
+  val time2: Epoch = epoch"2017-03-03T18:59:00Z" // +52 mins
+  val time3: Epoch = epoch"2017-03-03T19:06:00Z" // +59 mins
+  val time4: Epoch = epoch"2017-03-03T23:07:00Z" // +5 hours
 
   val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 }
 import Data._
 #+END_SRC
+
+#+BEGIN_ASIDE
+The =epoch= string interpolator is written with Jon Pretty's [[https://github.com/propensive/contextual][contextual]] library,
+giving us compiletime safety around string constructors of a type:
+
+#+BEGIN_SRC scala
+  import java.time.Instant
+  object EpochInterpolator extends UnsafeVerifier[Epoch] {
+    override def attempt(s: String): Epoch = Epoch(Instant.parse(s).toEpochMilli)
+    override def fail: String = "not in ISO-8601 format"
+  }
+  implicit class EpochMillisStringContext(sc: StringContext) {
+    val epoch = Prefix(EpochInterpolator, sc)
+  }
+#+END_SRC
+#+END_ASIDE
 
 We implement algebras by extending =Drone= and =Machines= with a specific
 monadic context, =Id= being the simplest.
@@ -1503,9 +1516,9 @@ class Mutable(state: WorldView) {
   }
 
   private val M: Machines[Id] = new Machines[Id] {
-    def getAlive: Map[MachineNode, Instant] = state.alive
+    def getAlive: Map[MachineNode, Epoch] = state.alive
     def getManaged: NonEmptyList[MachineNode] = state.managed
-    def getTime: Instant = state.time
+    def getTime: Epoch = state.time
     def start(node: MachineNode): MachineNode = { started += 1 ; node }
     def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
   }
@@ -2885,20 +2898,32 @@ final case class UrlQuery(params: List[(String, String)])
 
 We need to provide typeclass instances for basic types:
 
-# TODO sync with the real code
-
 #+BEGIN_SRC scala
 object UrlEncodedWriter {
-  import ops._
+  implicit val encoded: UrlEncodedWriter[String Refined UrlEncoded] = identity
+
   implicit val string: UrlEncodedWriter[String] =
-    { s => java.net.URLEncoder.encode(s, "UTF-8") }
-  implicit val long: UrlEncodedWriter[Long] = _.toString
-  implicit val stringySeq: UrlEncodedWriter[Seq[(String, String)]] =
-    _.map { case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}" }.mkString("&")
-  implicit val url: UrlEncodedWriter[String Refined Url] =
-    { s => java.net.URLEncoder.encode(s.value, "UTF-8") }
+    (s => Refined.unsafeApply(URLEncoder.encode(s, "UTF-8")))
+
+  implicit val long: UrlEncodedWriter[Long] =
+    (s => Refined.unsafeApply(s.toString))
+
+  implicit def kvs[F[_]: Traverse, K: UrlEncodedWriter, V: UrlEncodedWriter]
+    : UrlEncodedWriter[F[(K, V)]] = { m =>
+    import ops._
+    val raw = m.map {
+      case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}"
+    }.intercalate("&")
+    Refined.unsafeApply(raw)
+  }
 }
 #+END_SRC
+
+We use =Refined.unsafeApply= when we can logically deduce that the contents of
+the string are already url encoded, bypassing any further checks.
+
+=kvs= is an example of simple typeclass derivation, much as we derived
+=Numeric[Complex]= from the underlying numeric representation.
 
 #+BEGIN_ASIDE
 =UrlEncodedWriter= is making use of the /Single Abstract Method/ (SAM types)
@@ -2934,17 +2959,22 @@ implicit val string: UrlEncodedWriter[String] = instance { s => ... }
 This pattern is still used in code that must support older versions of
 Scala, or for typeclasses instances that need to provide more than one
 method.
+
+Note that there are a lot of bugs around SAM types, as they do not interact with
+all the language features. Revert to the non-SAM variant if there are any
+strange compiler crashes.
 #+END_ASIDE
 
 In a dedicated chapter on /Typeclass Derivation/ we will calculate instances of
-=UrlQueryWriter= and =UrlEncodedWriter= automatically, but for now we will write
-the boilerplate for the types we wish to convert:
+=UrlQueryWriter= and =UrlEncodedWriter= automatically, as well as clean up what
+we have already written, but for now we will write the boilerplate for the types
+we wish to convert:
 
 #+BEGIN_SRC scala
   import UrlEncodedWriter.ops._
   object AuthRequest {
     private def stringify[T: UrlEncodedWriter](t: T) =
-      java.net.URLDecoder.decode(t.toUrlEncoded, "UTF-8")
+      java.net.URLDecoder.decode(t.toUrlEncoded.value, "UTF-8")
 
     implicit val query: UrlQueryWriter[AuthRequest] = { a =>
       UriQuery(List(
@@ -3049,7 +3079,6 @@ final case class BearerToken(token: String, expires: LocalDateTime)
 and then write an OAuth2 client:
 
 #+BEGIN_SRC scala
-import java.time.temporal.ChronoUnit
 import http.encoding.UrlQueryWriter.ops._
 
 class OAuth2Client[F[_]: Monad](
@@ -3078,7 +3107,7 @@ class OAuth2Client[F[_]: Monad](
                    config.access, request)
       time    <- clock.now
       msg     = response.body
-      expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+      expires = time + msg.expires_in.seconds
       refresh = RefreshToken(msg.refresh_token)
       bearer  = BearerToken(msg.access_token, expires)
     } yield (refresh, bearer)
@@ -3092,7 +3121,7 @@ class OAuth2Client[F[_]: Monad](
                    config.refresh, request)
       time    <- clock.now
       msg     = response.body
-      expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+      expires = time + msg.expires_in.seconds
       bearer  = BearerToken(msg.access_token, expires)
     } yield bearer
 }
@@ -7484,9 +7513,9 @@ object ConstImpl {
   }
 
   private val M = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
+    def getAlive: F[Map[MachineNode, Epoch]]     = Const("alive")
     def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
-    def getTime: F[Instant]                      = Const("time")
+    def getTime: F[Epoch]                        = Const("time")
     def start(node: MachineNode): F[Unit]        = Const("start")
     def stop(node: MachineNode): F[Unit]         = Const("stop")
   }
@@ -7531,9 +7560,9 @@ final class Monitored[U[_]: Functor](program: DynAgents[U]) {
     def getAgents: F[Int]  = Const(Set.empty)
   }
   private val M = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Instant]]   = Const(Set.empty)
+    def getAlive: F[Map[MachineNode, Epoch]]     = Const(Set.empty)
     def getManaged: F[NonEmptyList[MachineNode]] = Const(Set.empty)
-    def getTime: F[Instant]                      = Const(Set.empty)
+    def getTime: F[Epoch]                        = Const(Set.empty)
     def start(node: MachineNode): F[Unit]        = Const(Set.empty)
     def stop(node: MachineNode): F[Unit]         = Const(Set(node))
   }
@@ -9157,11 +9186,6 @@ publications appear regularly with new approaches to old problems. If you are
 the kind of person who would like to contribute back to scalaz, finding a
 functional data structure to implement would be greatly appreciated.
 
-* WIP                                                                 :final:
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: wip.md
-  :END:
-
 ** Advanced Monads
 
 You have to know things like Advanced Monads in order to be an advanced
@@ -10362,9 +10386,9 @@ final case class WorldView(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, Instant],
-  pending: Map[MachineNode, Instant],
-  time: Instant
+  alive: Map[MachineNode, Epoch],
+  pending: Map[MachineNode, Epoch],
+  time: Epoch
 )
 #+END_SRC
 
@@ -10376,10 +10400,10 @@ final case class World(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, Instant],
+  alive: Map[MachineNode, Epoch],
   started: Set[MachineNode],
   stopped: Set[MachineNode],
-  time: Instant
+  time: Epoch
 )
 #+END_SRC
 
@@ -10409,9 +10433,9 @@ object StateImpl {
   }
 
   private val M = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
+    def getAlive: F[Map[MachineNode, Epoch]]   = get.map(_.alive)
     def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
-    def getTime: F[Instant]                      = get.map(_.time)
+    def getTime: F[Epoch]                      = get.map(_.time)
 
     def start(node: MachineNode): F[Unit] =
       modify(w => w.copy(started = w.started + node))
@@ -11516,9 +11540,9 @@ explicit, consider our application's =Machines= algebra
 
 #+BEGIN_SRC scala
 trait Machines[F[_]] {
-  def getTime: F[Instant]
+  def getTime: F[Epoch]
   def getManaged: F[NonEmptyList[MachineNode]]
-  def getAlive: F[Map[MachineNode, Instant]]
+  def getAlive: F[Map[MachineNode, Epoch]]
   def start(node: MachineNode): F[Unit]
   def stop(node: MachineNode): F[Unit]
 }
@@ -11532,9 +11556,9 @@ and has the same name:
 #+BEGIN_SRC scala
 object Machines {
   sealed abstract class Ast[A]
-  final case class GetTime()                extends Ast[Instant]
+  final case class GetTime()                extends Ast[Epoch]
   final case class GetManaged()             extends Ast[NonEmptyList[MachineNode]]
-  final case class GetAlive()               extends Ast[Map[MachineNode, Instant]]
+  final case class GetAlive()               extends Ast[Map[MachineNode, Epoch]]
   final case class Start(node: MachineNode) extends Ast[Unit]
   final case class Stop(node: MachineNode)  extends Ast[Unit]
   ...
@@ -11713,7 +11737,7 @@ If the =.Ast= and =.liftF= is defined for an algebra, we can create /partial
 interpreters/
 
 #+BEGIN_SRC scala
-    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Instant]] {
+    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Epoch]] {
       case Machines.GetAlive() => Map.empty
     }
     val D: Drone.Ast ~> Id = stub[Int] {
@@ -12652,7 +12676,7 @@ separate lifecycle to the core scalaz library and must be manually added to our
 =build.sbt= with
 
 #+BEGIN_SRC scala
-libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.8.0"
+libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.10.1"
 #+END_SRC
 
 Do not use the deprecated =scalaz-effect= and =scalaz-concurrency= packages.
@@ -13049,33 +13073,10 @@ object Lookup {
 6. =IO= gives us the ability to implement algebras as effects on the outside world and interact with legacy systems.
 7. =IO= can perform effects in parallel and provides a high performance implementation of the MTL.
 
-** The Infinite Sadness
-
-You've reached the end of this Early Access book. Please check the
-website regularly for updates.
-
-You can expect to see chapters covering the following topics:
-
-- Typeclass Derivation
-- Appendix: Scalaz source code layout
-- Appendix: Scala for Beginners
-- Appendix: Haskell
-
-As well as a chapter pulling everything together for the example application
-(and getting the repository into a working state).
-
-# Maybe...
-# - Functional Streams
-# - Bluffing Haskell
-# - Recursion Schemes
-# - Category Theory
-# - Dependent Types
-
-* TODO Remaining
+* WIP                                                                 :final:
   :PROPERTIES:
-  :EXPORT_FILE_NAME: remaining.md
+  :EXPORT_FILE_NAME: wip.md
   :END:
-
 ** Typeclass Derivation
 
 Typeclasses provide polymorphic functionality to our applications. But to use a
@@ -13152,6 +13153,31 @@ digraph G {
 
 *** TODO Shapeless
 
+** The Infinite Sadness
+
+You've reached the end of this Early Access book. Please check the
+website regularly for updates.
+
+You can expect to see chapters covering the following topics:
+
+- Typeclass Derivation (to be completed)
+- Appendix: Scala for Beginners
+- Appendix: Haskell
+
+As well as a chapter pulling everything together for the example application
+(and getting the repository into a working state).
+
+# Maybe...
+# - Functional Streams
+# - Bluffing Haskell
+# - Recursion Schemes
+# - Category Theory
+# - Dependent Types
+
+* TODO Remaining
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: remaining.md
+  :END:
 ** TODO Implementing the Application
 
 Pad out the application implementation with everything we've learnt.
