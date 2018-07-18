@@ -12,6 +12,8 @@ import org.scalatest.Matchers._
 
 import scalaz.ioeffect.RTS
 
+import fommil.time.Epoch
+
 object Demo {
   def todo[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] =
     for {
@@ -29,9 +31,9 @@ object DummyDrone extends Drone[Task] {
   def getBacklog: Task[Int] = Task(1)
 }
 object DummyMachines extends Machines[Task] {
-  def getAlive: Task[Map[MachineNode, Instant]]   = Task(Map.empty)
+  def getAlive: Task[Map[MachineNode, Epoch]]     = Task(Map.empty)
   def getManaged: Task[NonEmptyList[MachineNode]] = ???
-  def getTime: Task[Instant]                      = ???
+  def getTime: Task[Epoch]                        = ???
   def start(node: MachineNode): Task[Unit]        = ???
   def stop(node: MachineNode): Task[Unit]         = ???
 }
@@ -102,7 +104,7 @@ class AlgebraSpec extends FlatSpec with RTS {
     val D: Drone.Ast ~> Id = stub[Int] {
       case Drone.GetBacklog() => 1
     }
-    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Instant]] {
+    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Epoch]] {
       case Machines.GetAlive() => Map.empty
     }
 

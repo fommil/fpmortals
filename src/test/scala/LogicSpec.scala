@@ -6,7 +6,7 @@ package tests
 
 import prelude._, S._
 
-import contextual.datetime._
+import fommil.time._
 import org.scalatest._
 import org.scalatest.Matchers._
 
@@ -18,10 +18,10 @@ object Data {
   val node2: MachineNode                 = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
   val managed: NonEmptyList[MachineNode] = NonEmptyList(node1, node2)
 
-  val time1: Instant = instant"2017-03-03T18:07:00Z"
-  val time2: Instant = instant"2017-03-03T18:59:00Z" // +52 mins
-  val time3: Instant = instant"2017-03-03T19:06:00Z" // +59 mins
-  val time4: Instant = instant"2017-03-03T23:07:00Z" // +5 hours
+  val time1: Epoch = epoch"2017-03-03T18:07:00Z"
+  val time2: Epoch = epoch"2017-03-03T18:59:00Z" // +52 mins
+  val time3: Epoch = epoch"2017-03-03T19:06:00Z" // +59 mins
+  val time4: Epoch = epoch"2017-03-03T23:07:00Z" // +5 hours
 
   val needsAgents: WorldView =
     WorldView(5, 0, managed, Map.empty, Map.empty, time1)
@@ -37,10 +37,10 @@ final case class World(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, Instant],
+  alive: Map[MachineNode, Epoch],
   started: Set[MachineNode],
   stopped: Set[MachineNode],
-  time: Instant
+  time: Epoch
 )
 
 object StateImpl {
@@ -54,9 +54,9 @@ object StateImpl {
   }
 
   private val M: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Instant]]   = get.map(_.alive)
+    def getAlive: F[Map[MachineNode, Epoch]]     = get.map(_.alive)
     def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
-    def getTime: F[Instant]                      = get.map(_.time)
+    def getTime: F[Epoch]                        = get.map(_.time)
 
     // will rewrite to use lenses later...
     def start(node: MachineNode): F[Unit] =
@@ -77,9 +77,9 @@ object ConstImpl {
   }
 
   private val M: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Instant]]   = Const("alive")
+    def getAlive: F[Map[MachineNode, Epoch]]     = Const("alive")
     def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
-    def getTime: F[Instant]                      = Const("time")
+    def getTime: F[Epoch]                        = Const("time")
     def start(node: MachineNode): F[Unit]        = Const("start")
     def stop(node: MachineNode): F[Unit]         = Const("stop")
   }

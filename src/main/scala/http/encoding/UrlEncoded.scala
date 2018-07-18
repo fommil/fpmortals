@@ -6,7 +6,6 @@ package http.encoding
 
 import prelude._
 import java.util.regex.Pattern
-import java.net.URLEncoder
 import eu.timepit.refined.api.Validate
 
 /**
@@ -18,9 +17,6 @@ import eu.timepit.refined.api.Validate
  */
 sealed abstract class UrlEncoded
 object UrlEncoded {
-  def apply(s: String): String Refined UrlEncoded =
-    Refined.unsafeApply(URLEncoder.encode(s, "UTF-8")) // scalafix:ok
-
   // WORKAROUND https://github.com/propensive/contextual/issues/21
   private[this] val valid: Pattern =
     Pattern.compile("\\A(\\p{Alnum}++|[-.*_+=&]++|%\\p{XDigit}{2})*\\z") // scalafix:ok

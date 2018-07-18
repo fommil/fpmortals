@@ -5,6 +5,7 @@ package fommil
 package http.encoding
 
 import prelude._, Z._, S._
+import java.net.URLEncoder
 
 import shapeless._
 import shapeless.labelled._
@@ -16,8 +17,14 @@ import simulacrum._
 @typeclass trait UrlEncodedWriter[A] {
   def toUrlEncoded(a: A): String Refined UrlEncoded
 }
-object UrlEncodedWriter {
+object UrlEncodedWriter extends UrlEncodedWriter1 {
   import ops._
+
+  // WORKAROUND: no SAM here https://github.com/scala/bug/issues/10814
+  def instance[T](f: T => String Refined UrlEncoded): UrlEncodedWriter[T] =
+    new UrlEncodedWriter[T] {
+      override def toUrlEncoded(t: T): String Refined UrlEncoded = f(t)
+    }
 
   implicit val contravariant: Contravariant[UrlEncodedWriter] =
     new Contravariant[UrlEncodedWriter] {
@@ -28,20 +35,27 @@ object UrlEncodedWriter {
       }
     }
 
-  implicit val string: UrlEncodedWriter[String] = (s => UrlEncoded(s))
-  implicit val long: UrlEncodedWriter[Long]     = string.contramap(_.shows)
+  implicit val encoded: UrlEncodedWriter[String Refined UrlEncoded] = instance(
+    identity
+  )
 
-  implicit def kvs[F[_]: Traverse]: UrlEncodedWriter[F[(String, String)]] = {
-    m =>
-      val raw = m.map {
-        case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}"
-      }.intercalate("&")
-      Refined.unsafeApply(raw) // by deduction
+  implicit val string: UrlEncodedWriter[String] =
+    instance(s => Refined.unsafeApply(URLEncoder.encode(s, "UTF-8"))) // scalafix:ok
+  implicit val long: UrlEncodedWriter[Long] =
+    instance(s => Refined.unsafeApply(s.toString)) // scalafix:ok
+
+  implicit def kvs[F[_]: Traverse, K: UrlEncodedWriter, V: UrlEncodedWriter]
+    : UrlEncodedWriter[F[(K, V)]] = instance { m =>
+    val raw = m.map {
+      case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}"
+    }.intercalate("&")
+    Refined.unsafeApply(raw) // by deduction
   }
 
+}
+private[encoding] sealed abstract class UrlEncodedWriter1 {
   implicit def refined[A: UrlEncodedWriter, B]: UrlEncodedWriter[A Refined B] =
     UrlEncodedWriter[A].contramap(_.value)
-
 }
 
 trait DerivedUrlEncodedWriter[T] extends UrlEncodedWriter[T]

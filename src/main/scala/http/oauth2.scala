@@ -109,11 +109,14 @@ package http.oauth2
 package client
 
 import prelude._, Z._
+import scala.concurrent.duration._
+
 import eu.timepit.refined.string.Url
 import spray.json._
 
 import http.client._
 import http.encoding._
+import time.Epoch
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 final case class ServerConfig(
@@ -144,7 +147,7 @@ final case class RefreshToken(token: String)
  * be expired on a whim by the server. For example, Google only allow
  * 50 tokens, per user.
  */
-final case class BearerToken(token: String, expires: Instant)
+final case class BearerToken(token: String, expires: Epoch)
 
 package algebra {
   trait UserInteraction[F[_]] {
@@ -160,13 +163,12 @@ package algebra {
   }
 
   trait LocalClock[F[_]] {
-    def now: F[Instant]
+    def now: F[Epoch]
   }
 }
 
 // what's the canonical name for this sort of thing? It's about combining algebras
 package logic {
-  import java.time.temporal.ChronoUnit
   import http.client.algebra.JsonHttpClient
   import algebra._
 
@@ -206,7 +208,7 @@ package logic {
                      )
         time    <- clock.now
         msg     = response.body
-        expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+        expires = time + msg.expires_in.seconds
         refresh = RefreshToken(msg.refresh_token)
         bearer  = BearerToken(msg.access_token, expires)
       } yield (refresh, bearer)
@@ -225,7 +227,7 @@ package logic {
                      )
         time    <- clock.now
         msg     = response.body
-        expires = time.plus(msg.expires_in, ChronoUnit.SECONDS)
+        expires = time + msg.expires_in.seconds
         bearer  = BearerToken(msg.access_token, expires)
       } yield bearer
   }

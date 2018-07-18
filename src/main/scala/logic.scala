@@ -6,11 +6,10 @@ package logic
 
 import prelude._, Z._, S._
 
-import java.time.temporal.ChronoUnit
-
 import scala.concurrent.duration._
 
 import algebra._
+import time.Epoch
 
 /**
  * @param backlog how many builds are waiting to be run on the ci
@@ -31,9 +30,9 @@ final case class WorldView(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, Instant],
-  pending: Map[MachineNode, Instant],
-  time: Instant
+  alive: Map[MachineNode, Epoch],
+  pending: Map[MachineNode, Epoch],
+  time: Epoch
 )
 
 final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
@@ -47,7 +46,7 @@ final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
     initial.map { snap =>
       val changed = symdiff(old.alive.keySet, snap.alive.keySet)
       val pending = (old.pending -- changed).filterNot {
-        case (_, started) => timediff(started, snap.time) >= 10.minutes
+        case (_, started) => started.diff(snap.time) >= 10.minutes
       }
       snap.copy(pending = pending)
     }
@@ -69,9 +68,6 @@ final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
 
     case _ => world.pure[F]
   }
-
-  private def timediff(from: Instant, to: Instant): FiniteDuration =
-    ChronoUnit.MINUTES.between(from, to).minutes
 
   // with a backlog, but no agents or pending nodes, start a node
   private object NeedsAgent {
@@ -98,9 +94,9 @@ final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
         case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
           (alive -- pending.keys).collect {
             case (n, started)
-                if backlog == 0 && timediff(started, time).toMinutes % 60 >= 58 =>
+                if backlog == 0 && started.diff(time).toMinutes % 60 >= 58 =>
               n
-            case (n, started) if timediff(started, time) >= 5.hours => n
+            case (n, started) if started.diff(time) >= 5.hours => n
           }.toList.toNel
 
         case _ => None

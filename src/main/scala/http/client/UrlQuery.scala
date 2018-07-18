@@ -12,7 +12,7 @@ import eu.timepit.refined.string.Url
 import http.encoding.UrlEncodedWriter
 
 /**
- * A container for URL query key=value pairs, in unencoded form.
+ * URL query key=value pairs, in unencoded form.
  */
 @xderiving(UrlEncodedWriter)
 final case class UrlQuery(params: List[(String, String)]) extends AnyVal
