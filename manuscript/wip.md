@@ -36,7 +36,19 @@ finishing with Shapeless (the most powerful) for typeclasses with complex
 derivation logic.
 
 
-## TODO `scalaz-deriving`
+## `scalaz-deriving`
+
+The `scalaz-deriving` library is an extension to Scalaz and is installed with
+
+{lang="text"}
+~~~~~~~~
+  val derivingVersion = "1.0.0-RC1"
+  addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
+  libraryDependencies += "com.fommil" %% "deriving-macro" % derivingVersion % "provided"
+~~~~~~~~
+
+providing three new typeclasses: `Decidable`, `Alt` and `InvariantAlt`. Shown
+below in relation to the typeclasses that are relevant to this chapter:
 
 {width=60%}
 ![](images/scalaz-deriving-base.png)

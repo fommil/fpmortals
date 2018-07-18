@@ -13113,24 +13113,37 @@ mechanism, then Magnolia (the easiest to use) for encoder and decoder formats,
 finishing with Shapeless (the most powerful) for typeclasses with complex
 derivation logic.
 
-*** TODO =scalaz-deriving=
+*** =scalaz-deriving=
+
+The =scalaz-deriving= library is an extension to Scalaz and is installed with
+
+#+BEGIN_SRC scala
+val derivingVersion = "1.0.0-RC1"
+addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
+libraryDependencies += "com.fommil" %% "deriving-macro" % derivingVersion % "provided"
+#+END_SRC
+
+providing three new typeclasses: =Decidable=, =Alt= and =InvariantAlt=. Shown
+below in relation to the typeclasses that are relevant to this chapter:
 
 #+BEGIN_SRC dot :file images/scalaz-deriving-base.png :exports results
 digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
+    node [fontcolor=lightgray,color=lightgray];
+    edge [color=lightgray]
 
     InvariantFunctor;
-#    InvariantApplicative;
-    InvariantAlt;
+#    InvariantApplicative [fontcolor=black,color=black];
+    InvariantAlt [fontcolor=black,color=black];
 
     Contravariant;
     Divisible;
-    Decidable;
+    Decidable [fontcolor=black,color=black];
 
     Functor;
     Applicative;
-    Alt;
+    Alt [fontcolor=black,color=black];
 
     Monad;
     MonadError;
@@ -13138,20 +13151,60 @@ digraph G {
     Contravariant -> InvariantFunctor;
 
     Divisible -> Contravariant;
-    Decidable -> Divisible;
+    Decidable -> Divisible [color=black];
 
     Functor -> InvariantFunctor;
     Applicative -> Functor;
-    Alt -> Applicative;
+    Alt -> Applicative [color=black];
 
     Monad -> Applicative;
     MonadError -> Monad;
 
-#    Divisible -> InvariantApplicative;
-#    Applicative -> InvariantApplicative;
-    Decidable -> InvariantAlt;
-    Alt -> InvariantAlt;
-
+#    #Divisible -> InvariantApplicative [color=black];
+#    #Applicative -> InvariantApplicative [color=black];
+    Decidable -> InvariantAlt [color=black];
+    Alt -> InvariantAlt [color=black];
+#
+#    DerivingProducts [fontcolor=black,color=black];
+#    Deriving [fontcolor=black,color=black];
+#
+#    InvariantApplicativez [fontcolor=black,color=black];
+#    InvariantAltz [fontcolor=black,color=black];
+#
+#    ExtendedInvariantApplicative [fontcolor=black,color=black];
+#    ExtendedInvariantAlt [fontcolor=black,color=black];
+#
+#    Divisiblez [fontcolor=black,color=black];
+#    Decidablez [fontcolor=black,color=black];
+#    Applicativez [fontcolor=black,color=black];
+#    Altz [fontcolor=black,color=black];
+#
+#    Deriving -> DerivingProducts [color=black];
+#
+#    InvariantApplicativez -> DerivingProducts [color=black];
+#    InvariantAltz -> Deriving [color=black];
+#
+#    #InvariantApplicativez -> InvariantApplicative [color=black];
+#    InvariantAltz -> InvariantAlt [color=black];
+#
+#    Divisiblez -> Divisible [color=black];
+#    Decidablez -> Decidable [color=black];
+#    Applicativez -> Applicative [color=black];
+#    Altz -> Alt [color=black];
+#
+#    Divisiblez -> InvariantApplicativez [color=black];
+#    Decidablez -> InvariantAltz [color=black];
+#    Applicativez -> InvariantApplicativez [color=black];
+#    Altz -> InvariantAltz [color=black];
+#
+#    ExtendedInvariantApplicative -> InvariantApplicativez [color=black];
+#    ExtendedInvariantAlt -> InvariantAltz [color=black];
+#
+#    LabelledEncoder [fontcolor=black,color=black];
+#    LabelledDecoder [fontcolor=black,color=black];
+#
+#    LabelledEncoder -> Deriving [color=black];
+#    LabelledDecoder -> Deriving [color=black];
 }
 #+END_SRC
 
