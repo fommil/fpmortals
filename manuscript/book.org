@@ -13120,31 +13120,42 @@ digraph G {
     graph [dpi=100, rankdir=BT];
     node [fontname=Hack];
 
-    Contravariant;
-    Functor;
     InvariantFunctor;
+#    InvariantApplicative;
+    InvariantAlt;
+
+    Contravariant;
     Divisible;
-    Applicative;
-    Monad;
-    MonadError;
     Decidable;
+
+    Functor;
+    Applicative;
     Alt;
 
+    Monad;
+    MonadError;
+
     Contravariant -> InvariantFunctor;
-    Functor -> InvariantFunctor;
 
     Divisible -> Contravariant;
     Decidable -> Divisible;
 
+    Functor -> InvariantFunctor;
     Applicative -> Functor;
     Alt -> Applicative;
 
     Monad -> Applicative;
     MonadError -> Monad;
+
+#    Divisible -> InvariantApplicative;
+#    Applicative -> InvariantApplicative;
+    Decidable -> InvariantAlt;
+    Alt -> InvariantAlt;
+
 }
 #+END_SRC
 
-#+CAPTION: 100
+#+CAPTION: 60
 #+RESULTS:
 [[file:images/scalaz-deriving-base.png]]
 

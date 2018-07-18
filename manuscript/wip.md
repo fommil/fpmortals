@@ -38,7 +38,7 @@ derivation logic.
 
 ## TODO `scalaz-deriving`
 
-{width=100%}
+{width=60%}
 ![](images/scalaz-deriving-base.png)
 
 
