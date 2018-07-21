@@ -2827,10 +2827,10 @@ final case class JsString(value: String) extends JsValue
 final case class JsArray(value: Vector[JsValue]) extends JsValue
 final case class JsObject(fields: Map[String, JsValue]) extends JsValue
 
-@typeclass trait JsonWriter[T] {
+@typeclass trait JsWriter[T] {
   def toJson(t: T): JsValue
 }
-@typeclass trait JsonReader[T] {
+@typeclass trait JsReader[T] {
   def fromJson(j: JsValue): T
 }
 #+END_SRC
@@ -2842,8 +2842,8 @@ To depend on =spray-json= in our project we must add the following to
 libraryDependencies += "io.spray" %% "spray-json" % "1.3.4"
 #+END_SRC
 
-We need to construct instances of =JsonReader[AccessResponse]= and
-=JsonReader[RefreshResponse]=. We do this by calling spray's =jsonFormat=
+We need to construct instances of =JsReader[AccessResponse]= and
+=JsReader[RefreshResponse]=. We do this by calling spray's =jsonFormat=
 method, providing the constructor and the names of the fields (which may be
 different to the names we use in the =case class=). Recall that typeclass
 instances go on companions:
@@ -2852,12 +2852,12 @@ instances go on companions:
   import spray.json.DefaultJsonProtocol._
 
   object AccessResponse {
-    implicit val json: JsonReader[AccessResponse] =
+    implicit val json: JsReader[AccessResponse] =
       jsonFormat(apply, "access_token", "token_type", "expires_in", "refresh_token")
   }
 
   object RefreshResponse {
-    implicit val json: JsonReader[RefreshResponse] =
+    implicit val json: JsReader[RefreshResponse] =
       jsonFormat(apply, "access_token", "token_type", "expires_in")
   }
 #+END_SRC
@@ -2874,7 +2874,7 @@ scala> val json = spray.json.JsonParser("""
                      }
                      """)
 
-scala> JsonReader[AccessResponse].fromJson(json)
+scala> JsReader[AccessResponse].fromJson(json)
 AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
 #+END_SRC
 
@@ -3018,7 +3018,7 @@ mockable components that need to interact with the world as algebras,
 and we define pure business logic in a module.
 
 We define our dependency algebras, and use context bounds to show that our
-responses must have a =JsonReader= and our =POST= payload must have a
+responses must have a =JsReader= and our =POST= payload must have a
 =UrlEncodedWriter=:
 
 #+BEGIN_SRC scala
@@ -3027,12 +3027,12 @@ package http.client.algebra
 final case class Response[T](header: HttpResponseHeader, body: T)
 
 trait JsonHttpClient[F[_]] {
-  def get[B: JsonReader](
+  def get[B: JsReader](
     uri: String Refined Url,
     headers: List[HttpHeader] = Nil
   ): F[Response[B]]
 
-  def postUrlencoded[A: UrlEncoded, B: JsonReader](
+  def postUrlencoded[A: UrlEncoded, B: JsReader](
     uri: String Refined Url,
     payload: A,
     headers: List[HttpHeader] = Nil
@@ -4505,37 +4505,37 @@ possible to map the contents of a structure =F[A]= into =F[B]=. Using
 This sounds so hopelessly abstract that it needs a practical example
 immediately, before we can take it seriously. In Chapter 4 we used
 =spray-json-derivation= to derive a JSON encoder for our data types and we gave
-a brief description of the =JsonWriter= typeclass. This is an expanded version:
+a brief description of the =JsWriter= typeclass. This is an expanded version:
 
 #+BEGIN_SRC scala
-@typeclass trait JsonWriter[A] { self =>
+@typeclass trait JsWriter[A] { self =>
   def toJson(a: A): JsValue
 
-  def contramap[B](f: B => A): JsonWriter[B] = new JsonWriter[B] {
+  def contramap[B](f: B => A): JsWriter[B] = new JsWriter[B] {
     def toJson(b: B): JsValue = self.toJson(f(b))
   }
 }
 #+END_SRC
 
-Now consider the case where we want to write an instance of an =JsonWriter[B]=
-in terms of another =JsonWriter[A]=, for example if we have a data type =Alpha=
+Now consider the case where we want to write an instance of an =JsWriter[B]=
+in terms of another =JsWriter[A]=, for example if we have a data type =Alpha=
 that simply wraps a =Double=. This is exactly what =contramap= is for:
 
 #+BEGIN_SRC scala
 final case class Alpha(value: Double)
 
 object Alpha {
-  implicit val encoder: JsonWriter[Alpha] = JsonWriter[Double].contramap(_.value)
+  implicit val encoder: JsWriter[Alpha] = JsWriter[Double].contramap(_.value)
 }
 #+END_SRC
 
-On the other hand, a =JsonReader= typically has a =Functor=:
+On the other hand, a =JsReader= typically has a =Functor=:
 
 #+BEGIN_SRC scala
-@typeclass trait JsonReader[A] { self =>
+@typeclass trait JsReader[A] { self =>
   def fromJson(j: JsValue): A
 
-  def map[B](f: A => B): JsonReader[B] = new JsonReader[B] {
+  def map[B](f: A => B): JsReader[B] = new JsReader[B] {
     def fromJson(j: JsValue): B = f(self.fromJson(j))
   }
 }
@@ -4546,13 +4546,13 @@ Methods on a typeclass can have their type parameters in
 position/ (return type). If a typeclass has a combination of covariant
 and contravariant positions, it might have an /invariant functor/.
 
-Consider what happens if we combine =JsonWriter= and =JsonReader= into one
+Consider what happens if we combine =JsWriter= and =JsReader= into one
 typeclass. We can no longer construct a =Format= by using =map= or =contramap=
 alone, we need =xmap=:
 
 #+BEGIN_SRC scala
-@typeclass trait JsonFormat[A] extends JsonWriter[A] with JsonReader[A] { self =>
-  def xmap[B](f: A => B, g: B => A): JsonFormat[B] = new JsonFormat[B] {
+@typeclass trait JsFormat[A] extends JsWriter[A] with JsReader[A] { self =>
+  def xmap[B](f: A => B, g: B => A): JsFormat[B] = new JsFormat[B] {
     def toJson(b: B): JsValue = self.toJson(g(b))
     def fromJson(j: JsValue): B = f(self.fromJson(j))
   }
@@ -4560,15 +4560,15 @@ alone, we need =xmap=:
 #+END_SRC
 
 #+BEGIN_ASIDE
-Although =JsonWriter= implements =contramap=, =JsonReader= implements =map=, and
+Although =JsWriter= implements =contramap=, =JsReader= implements =map=, and
 =Format= implements =xmap= we are not saying that these typeclasses extend
 =InvariantFunctor=, rather they /have an/ =InvariantFunctor=.
 
 We could implement instances of
 
-- =Functor[JsonReader]=
-- =Contravariant[JsonWriter]=
-- =InvariantFunctor[JsonFormat]=
+- =Functor[JsReader]=
+- =Contravariant[JsWriter]=
+- =InvariantFunctor[JsFormat]=
 
 on our companions, and use scalaz syntax to have the exact same =map=,
 =contramap= and =xmap=.
@@ -4600,12 +4600,12 @@ implements =xmap=, allowing =Format= to be constructed from a simple
 pattern:
 
 #+BEGIN_SRC scala
-implicit val double: JsonFormat[Double] = ...
+implicit val double: JsFormat[Double] = ...
 
-implicit val alpha: JsonFormat[Alpha] = double.xmap(Alpha(_), _.value)
-implicit val beta : JsonFormat[Beta]  = double.xmap(Beta(_) , _.value)
-implicit val rho  : JsonFormat[Rho]   = double.xmap(Rho(_)  , _.value)
-implicit val nu   : JsonFormat[Nu]    = double.xmap(Nu(_)   , _.value)
+implicit val alpha: JsFormat[Alpha] = double.xmap(Alpha(_), _.value)
+implicit val beta : JsFormat[Beta]  = double.xmap(Beta(_) , _.value)
+implicit val rho  : JsFormat[Rho]   = double.xmap(Rho(_)  , _.value)
+implicit val nu   : JsFormat[Nu]    = double.xmap(Nu(_)   , _.value)
 #+END_SRC
 
 Macros can automate the construction of these instances, so we don't
@@ -13109,18 +13109,17 @@ There are five approaches to typeclass derivation:
 
 In this chapter we will study increasingly complex typeclasses and their
 derivations. We will begin with =scalaz-deriving= as the most principled
-mechanism, then Magnolia (the easiest to use) for encoder and decoder formats,
-finishing with Shapeless (the most powerful) for typeclasses with complex
-derivation logic.
+mechanism, repeating some lessons from Chapter 5 "Scalaz Typeclasses", then
+Magnolia (the easiest to use) for encoder and decoder formats, finishing with
+Shapeless (the most powerful) for typeclasses with complex derivation logic.
 
 *** =scalaz-deriving=
 
-The =scalaz-deriving= library is an extension to Scalaz and is installed with
+The =scalaz-deriving= library is an extension to Scalaz and can be added to a
+project's =build.sbt= with
 
 #+BEGIN_SRC scala
-val derivingVersion = "1.0.0-RC1"
-addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
-libraryDependencies += "com.fommil" %% "deriving-macro" % derivingVersion % "provided"
+libraryDependencies += "com.fommil" %% "scalaz-deriving" % "1.0.0-RC1"
 #+END_SRC
 
 providing three new typeclasses: =Decidable=, =Alt= and =InvariantAlt=. Shown
@@ -13199,12 +13198,6 @@ digraph G {
 #
 #    ExtendedInvariantApplicative -> InvariantApplicativez [color=black];
 #    ExtendedInvariantAlt -> InvariantAltz [color=black];
-#
-#    LabelledEncoder [fontcolor=black,color=black];
-#    LabelledDecoder [fontcolor=black,color=black];
-#
-#    LabelledEncoder -> Deriving [color=black];
-#    LabelledDecoder -> Deriving [color=black];
 }
 #+END_SRC
 
@@ -13212,6 +13205,164 @@ digraph G {
 #+RESULTS:
 [[file:images/scalaz-deriving-base.png]]
 
+**** Running Examples
+
+This chapter will show how to define derivations for five specific typeclasses.
+Each example exhibits a feature that can be generalised:
+
+- =Equal= having a type parameter in contravariant (parameter) position
+- =Default= having a type parameter in covariant (return) position
+- =Semigroup= having type parameter in both positions (invariant)
+- =JsWriter= having a type parameter in contravariant position and requiring
+  access to the names of fields
+- =JsReader= having a type parameter in covariant position and requiring access
+  to the names of fields
+
+We have seen all of these typeclasses in previous chapters, except =Default=
+which can request a /default/ value for a type, which may not exist. For
+clarity, all typeclasses are:
+
+#+BEGIN_SRC scala
+@typeclass trait Equal[A]  {
+  @op("===") def equal(a1: A, a2: A): Boolean
+}
+
+@typeclass trait Default[A] {
+  def default: Maybe[A]
+}
+
+@typeclass trait Semigroup[A] {
+  @op("|+|") def append(x: A, y: =>A): A
+}
+
+@typeclass trait JsWriter[T] {
+  def toJson(t: T): JsValue
+}
+
+@typeclass trait JsReader[T] {
+  def fromJson(j: JsValue): T // FIXME: not total
+}
+#+END_SRC
+
+**** Don't Repeat Yourself
+
+The simplest way to derive a typeclass is to reuse one that already exists.
+
+The =Equal= typeclass has an instance of =Contravariant[Equal]= which provides
+the =.contramap= method:
+
+#+BEGIN_SRC scala
+object Equal {
+  implicit val contravariant = new Contravariant[Equal] {
+    def contramap[A, B](fa: Equal[A])(f: B => A): Equal[B] =
+      (b1, b2) => fa.equal(f(b1), f(b2))
+  }
+  ...
+}
+#+END_SRC
+
+As users of =Equal=, we can use =.contramap= for our data types, providing a
+function that extracts the underlying value. Recall that instances of
+typeclasses go on the companion of our data types so that they are in the
+implicit scope:
+
+#+BEGIN_SRC scala
+final case class Foo(s: String)
+object Foo {
+  implicit val equal: Equal[Foo] = Equal[String].contramap(_.s)
+}
+
+scala> Foo("hello") === Foo("world")
+false
+#+END_SRC
+
+However, not all typeclasses can have an instance of =Contravariant=. In
+particular, typeclasses with type parameters in covariant position may have a
+=Functor= instead:
+
+#+BEGIN_SRC scala
+object Default {
+  def instance[A](d: =>Maybe[A]) = new Default[A] { def default: Maybe[A] = d }
+  implicit val string: Default[String] = instance("".just)
+
+  implicit val functor: Functor[Default] = new Functor[Default] {
+    def map[A, B](fa: Default[A])(f: A => B): Default[B] =
+      instance(fa.default.map(f))
+  }
+  ...
+}
+#+END_SRC
+
+We can now derive a =Default[Foo]=
+
+#+BEGIN_SRC scala
+object Foo {
+  implicit val default: Default[Foo] = Default[String].map(Foo(_))
+  ...
+}
+#+END_SRC
+
+If a typeclass has parameters in both covariant and contravariant position, as
+is the case with =Semigroup=, it may provide an =InvariantFunctor=
+
+#+BEGIN_SRC scala
+object Semigroup {
+  implicit val invariant = new InvariantFunctor[Semigroup] {
+    def xmap[A, B](ma: Semigroup[A], f: A => B, g: B => A) = new Semigroup[B] {
+      def append(x: B, y: => B): B = f(ma.append(g(x), g(y)))
+    }
+  }
+  ...
+}
+#+END_SRC
+
+and we can call =.xmap=
+
+#+BEGIN_SRC scala
+object Foo {
+  implicit val semigroup: Semigroup[Foo] = Semigroup[String].xmap(Foo(_), _.s)
+  ...
+}
+#+END_SRC
+
+Recall that =Functor= and =Contravariant= extend =InvariantFunctor= and have
+derived =.xmap= implementations. It can be easier to always use =.xmap= instead
+of having to remember if we should use =.map= or =.contramap=:
+
+#+BEGIN_SRC scala
+object Foo {
+  implicit val equal: Equal[Foo]         = Equal[String].xmap(Foo(_), _.s)
+  implicit val default: Default[Foo]     = Default[String].xmap(Foo(_), _.s)
+  implicit val semigroup: Semigroup[Foo] = Semigroup[String].xmap(Foo(_), _.s)
+}
+#+END_SRC
+
+#+BEGIN_ASIDE
+The =@xderiving= annotation automatically inserts =.xmap= boilerplate. Add the
+following to =build.sbt=
+
+#+BEGIN_SRC scala
+addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
+libraryDependencies += "com.fommil" %% "deriving-macro" % derivingVersion % "provided"
+#+END_SRC
+
+and use it as
+
+#+BEGIN_SRC scala
+@xderiving(Equal, Default, Semigroup)
+final case class Foo(s: String)
+#+END_SRC
+#+END_ASIDE
+
+**** =MonadError=
+
+**** =fromIso=
+
+**** =Divisible= and =Applicative=
+
+**** =Decidable= and =Alt=
+
+**** Arbitrary Arity and =@deriving=
 
 *** TODO Magnolia
 
