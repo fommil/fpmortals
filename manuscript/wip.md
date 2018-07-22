@@ -58,40 +58,47 @@ below in relation to the typeclasses that are relevant to this chapter:
 This chapter will show how to define derivations for five specific typeclasses.
 Each example exhibits a feature that can be generalised:
 
--   `Equal` having a type parameter in contravariant (parameter) position
--   `Default` having a type parameter in covariant (return) position
--   `Semigroup` having type parameter in both positions (invariant)
--   `JsWriter` having a type parameter in contravariant position and requiring
-    access to the names of fields
--   `JsReader` having a type parameter in covariant position and requiring access
-    to the names of fields
-
-We have seen all of these typeclasses in previous chapters, except `Default`
-which can request a *default* value for a type, which may not exist. For
-clarity, all typeclasses are:
-
 {lang="text"}
 ~~~~~~~~
   @typeclass trait Equal[A]  {
+    // type parameter is in contravariant (parameter) position
     @op("===") def equal(a1: A, a2: A): Boolean
   }
   
+  // for requesting default values of a type when testing
   @typeclass trait Default[A] {
-    def default: Maybe[A]
+    // type parameter is in covariant (return) position
+    def default: String \/ A
   }
   
   @typeclass trait Semigroup[A] {
+    // type parameter is in both covariant and contravariant position (invariant)
     @op("|+|") def append(x: A, y: =>A): A
   }
   
   @typeclass trait JsWriter[T] {
+    // type parameter is in contravariant position and needs access to field names
     def toJson(t: T): JsValue
   }
   
   @typeclass trait JsReader[T] {
+    // type parameter is in covariant position and needs access to field names
     def fromJson(j: JsValue): T // FIXME: not total
   }
 ~~~~~~~~
+
+A> There is a school of thought that says serialisation formats, such as JSON and
+A> XML, should ****not**** have typeclass encoders and decoders, because it can lead to
+A> typeclass decoherence (i.e. more than one encoder or decoder may exist for the
+A> same type). The alternative is to use algebras and avoid using the `implicit`
+A> language feature entirely.
+A> 
+A> Although it is possible to apply the techniques in this chapter to either
+A> typeclass or algebra derivation, the latter involves a ****lot**** more boilerplate.
+A> We therefore consciously choose to restrict our study to encoders and decoders
+A> that are coherent. As we will see later in this chapter, use-site automatic
+A> derivation with magnolia and shapeless, combined with limitations of the scala
+A> compiler's implicit search, commonly leads to typeclass decoherence.
 
 
 ### Don't Repeat Yourself
@@ -99,7 +106,7 @@ clarity, all typeclasses are:
 The simplest way to derive a typeclass is to reuse one that already exists.
 
 The `Equal` typeclass has an instance of `Contravariant[Equal]` which provides
-the `.contramap` method:
+the `.contramap` method, defined by the typeclass author:
 
 {lang="text"}
 ~~~~~~~~
@@ -135,8 +142,8 @@ particular, typeclasses with type parameters in covariant position may have a
 {lang="text"}
 ~~~~~~~~
   object Default {
-    def instance[A](d: =>Maybe[A]) = new Default[A] { def default: Maybe[A] = d }
-    implicit val string: Default[String] = instance("".just)
+    def instance[A](d: =>String \/ A) = new Default[A] { def default = d }
+    implicit val string: Default[String] = instance("".right)
   
     implicit val functor: Functor[Default] = new Functor[Default] {
       def map[A, B](fa: Default[A])(f: A => B): Default[B] =
@@ -214,11 +221,231 @@ A> ~~~~~~~~
 
 ### `MonadError`
 
+Typically things that *write* a polymorphic value have a `Contravariant`, and
+things that *read* a polymorphic value have a `Functor`. However, it is very
+much expected that reading a value can fail. For example, if we have a default
+`String` it does not mean that we can simply derive a default `String Refined
+NonEmpty`
 
-### `fromIso`
+{lang="text"}
+~~~~~~~~
+  import eu.timepit.refined.refineV
+  import eu.timepit.refined.api._
+  import eu.timepit.refined.collection._
+  
+  implicit val nes: Default[String Refined NonEmpty] =
+    Default[String].map(refineV[NonEmpty](_))
+~~~~~~~~
+
+fails to compile with
+
+{lang="text"}
+~~~~~~~~
+  [error] default.scala:41:32: polymorphic expression cannot be instantiated to expected type;
+  [error]  found   : [P]Either[String, String Refined P]
+  [error]  required: String Refined NonEmpty
+  [error]     Default[String].map(refineV[NonEmpty](_))
+  [error]                                          ^
+~~~~~~~~
+
+Recall from Chapter 4.1 that `refineV` returns an `Either`, as the compiler
+has now reminded us.
+
+As the typeclass author of `Default`, we can do better than `Functor` and
+provide a `MonadError[Default, String]`:
+
+{lang="text"}
+~~~~~~~~
+  implicit val monaderr = new MonadError[Default, String] {
+    def point[A](a: =>A): Default[A] =
+      instance(a.right)
+    def bind[A, B](fa: Default[A])(f: A => Default[B]): Default[B] =
+      instance((fa >>= f).default)
+    def handleError[A](fa: Default[A])(f: String => Default[A]): Default[A] =
+      instance(fa.default.handleError(e => f(e).default))
+    def raiseError[A](e: String): Default[A] =
+      instance(e.left)
+  }
+~~~~~~~~
+
+Now we have access to `.emap` syntax and can derive our refined type
+
+{lang="text"}
+~~~~~~~~
+  implicit val nes: Default[String Refined NonEmpty] =
+    Default[String].emap(refineV[NonEmpty](_).disjunction)
+~~~~~~~~
+
+In fact, we can provide a derivation rule for all refined types
+
+{lang="text"}
+~~~~~~~~
+  implicit def refined[A: Default, P](
+    implicit V: Validate[A, P]
+  ): Default[A Refined P] = Default[A].emap(refineV[P](_).disjunction)
+~~~~~~~~
+
+where `Validate` is from the refined library and is required by `refineV`.
+
+A> The `refined-scalaz` extension to `refined` provides support for automatically
+A> deriving all typeclasses for refined types with the following import
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   import eu.timepit.refined.scalaz._
+A> ~~~~~~~~
+A> 
+A> if there is a `Contravariant` or `MonadError[?, String]` in the implicit scope.
+A> 
+A> However, due to [limitations of the scala compiler](https://github.com/scala/bug/issues/10753) it rarely works in practice
+A> and we must write `implicit def refined` derivations for each typeclass.
+
+Similarly we can use `.emap` to derive an `Int` decoder from a `Long`, with
+protection around the non-total `.toInt` stdlib method.
+
+{lang="text"}
+~~~~~~~~
+  implicit val long: Default[Long] = instance(0L.right)
+  implicit val int: Default[Int] = Default[Long].emap {
+    case n if (Int.MinValue <= n && n <= Int.MaxValue) => n.toInt.right
+    case big                                           => big.toString.left
+  }
+~~~~~~~~
+
+
+### `.fromIso`
+
+All of the typeclasses in scalaz have a method on their companion with a signature similar to the following:
+
+{lang="text"}
+~~~~~~~~
+  object Equal {
+    def fromIso[F, G: Equal](D: F <=> G): Equal[F] = ...
+    ...
+  }
+  
+  object Monad {
+    def fromIso[F[_], G[_]: Monad](D: F <~> G): Monad[F] = ...
+    ...
+  }
+~~~~~~~~
+
+These mean that if we have a type `F`, and a way to convert it into a `G`, that
+has the typeclass we care about, then we can simply call `Equal.fromIso` to
+obtain an instance.
+
+For example, as typeclass users, if we have a data type `Bar` we can define an
+isomorphism to `(String, Int)`
+
+{lang="text"}
+~~~~~~~~
+  import Isomorphism._
+  
+  final case class Bar(s: String, i: Int)
+  object Bar {
+    val iso: Bar <=> (String, Int) = IsoSet(b => (b.s, b.i), t => Bar(t._1, t._2))
+  }
+~~~~~~~~
+
+and then derive `Equal[Bar]` because there is already a `Equal[(String, Int)]`
+in scalaz (and for all tuples up to 22 parameters):
+
+{lang="text"}
+~~~~~~~~
+  object Bar {
+    ...
+    implicit val equal: Equal[Bar] = Equal.fromIso(iso)
+  }
+~~~~~~~~
+
+A> A compiler plugin to automatically generate `Isomorphism` for data types would
+A> be a welcome addition to the ecosystem.
+
+The `.fromIso` mechanism can also assist us as typeclass authors. Consider
+`Default` which has a core type signature of the form `Unit => F[A]`, the same
+as `Kleisli[F, Unit, ?]` !
+
+Since `Kleisli` already provides a `MonadError` (if `F` has one), we can derive
+`MonadError[Default, String]` by creating an isomorphism between `Default` and
+`Kleisli`:
+
+{lang="text"}
+~~~~~~~~
+  private type Sig[a] = Unit => String \/ a
+  private val iso = Kleisli.iso(
+    λ[Sig ~> Default](s => instance(s(()))),
+    λ[Default ~> Sig](d => _ => d.default)
+  )
+  implicit val monaderr: MonadError[Default, String] = MonadError.fromIso(iso)
+~~~~~~~~
+
+giving us the `.map`, `.xmap` and `.emap` that we've been making use of so far,
+effectively for free.
 
 
 ### `Divisible` and `Applicative`
+
+To derive the `Equal` for our case class with two parameters, we reused the
+instance that scalaz provides for tuples. But where did the tuple instance come
+from?
+
+A more specific typeclass than `Contravariant` is `Divisible`, and `Equal`
+provides an instance:
+
+{lang="text"}
+~~~~~~~~
+  implicit val divisible = new Divisible[Equal] {
+    def divide2[A1, A2, Z](a1: =>Equal[A1], a2: =>Equal[A2])(
+      f: Z => (A1, A2)
+    ): Equal[Z] = { (z1, z2) =>
+      val (s1, s2) = f(z1)
+      val (t1, t2) = f(z2)
+      a1.equal(s1, t1) && a2.equal(s2, t2)
+    }
+    def conquer[A]: Equal[A] = (_, _) => true
+  }
+~~~~~~~~
+
+And from `divide2`, `Divisible` is able to build up derivations all the way to
+`divide22`. We can call these methods directly for our data types:
+
+{lang="text"}
+~~~~~~~~
+  final case class Bar(s: String, i: Int)
+  object Bar {
+    implicit val equal: Equal[Bar] =
+      Divisible[Equal].divide2(Equal[String], Equal[Int])(b => (b.s, b.i))
+  }
+~~~~~~~~
+
+The analogy for typeclass with type parameters in covariant position is
+`Applicative`. We already have for `Default` through our `MonadError`, so we can
+call it
+
+{lang="text"}
+~~~~~~~~
+  object Bar {
+    ...
+    implicit val default: Default[Bar] =
+      Applicative[Default].apply2(Default[String], Default[Int])(Bar(_, _))
+  }
+~~~~~~~~
+
+But we must be careful that we do not break the typeclass laws (and derived
+combinators) when we implement `Divisible` or `Applicative`. In particular, it
+easy to break the `Divide` *law of composition* which says that the following
+two codepaths must yield exactly the same output
+
+-   `divide2(divide2(a1, a2)(identity), a3)(identity)`
+-   `divide2(a1, divide2(a2, a3)(identity))(identity)`
+
+And similarly for `Applicative`
+
+-   `apply2(apply2(a1, a2)(identity), a3)(identity)`
+-   `apply2(a1, apply2(a2, a3)(identity))(identity)`
+
+By means of an example, consider `JsWriter` and `JsReader`, which cannot have a
+lawful `Divisible` or `Applicative` (and by extension, `MonadError`).
 
 
 ### `Decidable` and `Alt`
