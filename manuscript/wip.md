@@ -536,7 +536,8 @@ scalatest we can use `forAll` if we mix in `GeneratorDrivenPropertyChecks`
 ~~~~~~~~
 
 giving us even more confidence that our typeclass meets the `Applicative`
-composition laws.
+composition laws. By checking all the laws on `Divisible` and `MonadError` we
+also get **a lot** of smoke tests for free.
 
 
 ### `Decidable` and `Alt`

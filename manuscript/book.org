@@ -13629,7 +13629,8 @@ forAll(SizeRange(10))((j: JsValue) => composeTest(j))
 #+END_SRC
 
 giving us even more confidence that our typeclass meets the =Applicative=
-composition laws.
+composition laws. By checking all the laws on =Divisible= and =MonadError= we
+also get *a lot* of smoke tests for free.
 
 **** =Decidable= and =Alt=
 
