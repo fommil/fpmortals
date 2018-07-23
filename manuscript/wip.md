@@ -189,8 +189,7 @@ and we can call `.xmap`
 ~~~~~~~~
 
 Recall that `Functor` and `Contravariant` extend `InvariantFunctor` and have
-derived `.xmap` implementations. It can be easier to always use `.xmap` instead
-of having to remember if we should use `.map` or `.contramap`:
+derived `.xmap` implementations. It is simpler to use `.xmap`, for consistency:
 
 {lang="text"}
 ~~~~~~~~
@@ -527,17 +526,24 @@ to propose corner cases where it could fail.
 
 One way of generating a wide variety of test data is to use the [scalacheck](https://github.com/rickynils/scalacheck)
 library, which provides an `Arbitrary` typeclass that integrates with most
-testing frameworks to repeat a test with randomly generated data. e.g. with
-scalatest we can use `forAll` if we mix in `GeneratorDrivenPropertyChecks`
+testing frameworks to repeat a test with randomly generated data.
+
+The `jsonformat` library provides an `Arbitrary[JsValue]` (everybody should
+provide an `Arbitrary` for their ADTs!) allowing us to make use of scalatest's
+`forAll` feature:
 
 {lang="text"}
 ~~~~~~~~
   forAll(SizeRange(10))((j: JsValue) => composeTest(j))
 ~~~~~~~~
 
-giving us even more confidence that our typeclass meets the `Applicative`
-composition laws. By checking all the laws on `Divisible` and `MonadError` we
-also get **a lot** of smoke tests for free.
+This test gives us even more confidence that our typeclass meets the
+`Applicative` composition laws. By checking all the laws on `Divisible` and
+`MonadError` we also get **a lot** of smoke tests for free.
+
+A> We must restrict `forAll` to have a `SizeRange` of `10`, which limits both
+A> `JsObject` and `JsArray` to a maximum size of 10 elements. This avoids stack
+A> overflows as larger numbers can generate gigantic JSON documents.
 
 
 ### `Decidable` and `Alt`
