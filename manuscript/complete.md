@@ -2404,59 +2404,86 @@ W> parts of `java.net.*` are extremely slow at scale.
 
 ### Functionality
 
-We need to marshal the data classes we defined in the previous section
-into JSON, URLs and POST-encoded forms. Since this requires
-polymorphism, we will need typeclasses.
+We need to marshal the data classes we defined in the previous section into
+JSON, URLs and POST-encoded forms. Since this requires polymorphism, we will
+need typeclasses.
 
-[spray-json](https://github.com/spray/spray-json) gives us an ADT for JSON and typeclasses to convert to/from that ADT
-(paraphrased for brevity):
+[`jsonformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/jsonformat/src) is a simple JSON library that we will study in more detail in a
+later chapter, as it has been written with principled FP and ease of readability
+as its primary design objectives. It consists of a JSON AST and encoder /
+decoder typeclasses:
 
 {lang="text"}
 ~~~~~~~~
-  package spray.json
+  package jsonformat
   
   sealed abstract class JsValue
-  case object JsNull extends JsValue
-  final case class JsBoolean(value: Boolean) extends JsValue
-  final case class JsNumber(value: BigDecimal) extends JsValue
-  final case class JsString(value: String) extends JsValue
-  final case class JsArray(value: Vector[JsValue]) extends JsValue
-  final case class JsObject(fields: Map[String, JsValue]) extends JsValue
+  final case object JsNull                                    extends JsValue
+  final case class JsObject(fields: IList[(String, JsValue)]) extends JsValue
+  final case class JsArray(elements: IList[JsValue])          extends JsValue
+  final case class JsBoolean(value: Boolean)                  extends JsValue
+  final case class JsString(value: String)                    extends JsValue
+  final case class JsDouble(value: Double)                    extends JsValue
+  final case class JsInteger(value: Long)                     extends JsValue
   
-  @typeclass trait JsWriter[T] {
-    def toJson(t: T): JsValue
+  @typeclass trait JsEncoder[A] {
+    def toJson(obj: A): JsValue
   }
-  @typeclass trait JsReader[T] {
-    def fromJson(j: JsValue): T
+  
+  @typeclass trait JsDecoder[A] { self =>
+    def fromJson(json: JsValue): String \/ A
   }
 ~~~~~~~~
 
-To depend on `spray-json` in our project we must add the following to
-`build.sbt`:
+`\/` is scalaz's `Either` and has a `.flatMap`. We can use it in `for`
+comprehensions, whereas stdlib `Either` does not support `.flatMap` prior to
+Scala 2.12.
+
+We need instances of `JsDecoder[AccessResponse]` and `JsDecoder[RefreshResponse]`.
+We can do this by making use of jsonformat's helper functions:
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "io.spray" %% "spray-json" % "1.3.4"
+  object JsDecoder {
+    object ops {
+      implicit class JsValueExtras(j: JsValue) {
+        def asJsObject: String \/ JsObject = ...
+        def as[A: JsDecoder]: String \/ A = ...
+      }
+      implicit class JsObjectExtras(j: JsObject) {
+        def getAs[A: JsDecoder](key: String): String \/ A = ...
+      }
+    }
+    ...
+  }
 ~~~~~~~~
 
-We need to construct instances of `JsReader[AccessResponse]` and
-`JsReader[RefreshResponse]`. We do this by calling spray's `jsonFormat`
-method, providing the constructor and the names of the fields (which may be
-different to the names we use in the `case class`). Recall that typeclass
-instances go on companions:
+We put the instances on the companions of our data types, so that they are
+always in the implicit scope:
 
 {lang="text"}
 ~~~~~~~~
-  import spray.json.DefaultJsonProtocol._
+  import jsonformat._, JsDecoder.ops._
   
   object AccessResponse {
-    implicit val json: JsReader[AccessResponse] =
-      jsonFormat(apply, "access_token", "token_type", "expires_in", "refresh_token")
+    implicit val json: JsDecoder[AccessResponse] = j =>
+      for {
+        obj <- j.asJsObject
+        acc <- obj.getAs[String]("access_token")
+        tpe <- obj.getAs[String]("token_type")
+        exp <- obj.getAs[Long]("expires_in")
+        ref <- obj.getAs[String]("refresh_token")
+      } yield AccessResponse(acc, tpe, exp, ref)
   }
   
   object RefreshResponse {
-    implicit val json: JsReader[RefreshResponse] =
-      jsonFormat(apply, "access_token", "token_type", "expires_in")
+    implicit val json: JsDecoder[RefreshResponse] = j =>
+      for {
+        obj <- j.asJsObject
+        acc <- obj.getAs[String]("access_token")
+        tpe <- obj.getAs[String]("token_type")
+        exp <- obj.getAs[Long]("expires_in")
+      } yield RefreshResponse(acc, tpe, exp)
   }
 ~~~~~~~~
 
@@ -2464,7 +2491,7 @@ We can then parse a string into an `AccessResponse` or a `RefreshResponse`
 
 {lang="text"}
 ~~~~~~~~
-  scala> val json = spray.json.JsonParser("""
+  scala> val json = JsParser("""
                        {
                          "access_token": "BEARER_TOKEN",
                          "token_type": "Bearer",
@@ -2473,7 +2500,7 @@ We can then parse a string into an `AccessResponse` or a `RefreshResponse`
                        }
                        """)
   
-  scala> JsReader[AccessResponse].fromJson(json)
+  scala> json.map(_.as[AccessResponse])
   AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
 ~~~~~~~~
 
@@ -2622,7 +2649,7 @@ mockable components that need to interact with the world as algebras,
 and we define pure business logic in a module.
 
 We define our dependency algebras, and use context bounds to show that our
-responses must have a `JsReader` and our `POST` payload must have a
+responses must have a `JsDecoder` and our `POST` payload must have a
 `UrlEncodedWriter`:
 
 {lang="text"}
@@ -2632,12 +2659,12 @@ responses must have a `JsReader` and our `POST` payload must have a
   final case class Response[T](header: HttpResponseHeader, body: T)
   
   trait JsonHttpClient[F[_]] {
-    def get[B: JsReader](
+    def get[B: JsDecoder](
       uri: String Refined Url,
       headers: List[HttpHeader] = Nil
     ): F[Response[B]]
   
-    def postUrlencoded[A: UrlEncoded, B: JsReader](
+    def postUrlencoded[A: UrlEncoded, B: JsDecoder](
       uri: String Refined Url,
       payload: A,
       headers: List[HttpHeader] = Nil
@@ -2663,7 +2690,7 @@ responses must have a `JsReader` and our `POST` payload must have a
   }
   
   trait LocalClock[F[_]] {
-    def now: F[java.time.LocalDateTime]
+    def now: F[Epoch]
   }
 ~~~~~~~~
 
@@ -2680,7 +2707,7 @@ some convenient data classes
     clientSecret: String
   )
   final case class RefreshToken(token: String)
-  final case class BearerToken(token: String, expires: LocalDateTime)
+  final case class BearerToken(token: String, expires: Epoch)
 ~~~~~~~~
 
 and then write an OAuth2 client:
@@ -3891,118 +3918,58 @@ possible to map the contents of a structure `F[A]` into `F[B]`. Using
 `B` depending on the variance of the functor.
 
 This sounds so hopelessly abstract that it needs a practical example
-immediately, before we can take it seriously. In Chapter 4 we used
-`spray-json-derivation` to derive a JSON encoder for our data types and we gave
-a brief description of the `JsWriter` typeclass. This is an expanded version:
+immediately, before we can take it seriously. In Chapter 4 we used `jsonformat`
+to derive a JSON encoder for our data types and we gave a brief description of
+the `JsEncoder` typeclass. This is an expanded version:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait JsWriter[A] { self =>
-    def toJson(a: A): JsValue
-  
-    def contramap[B](f: B => A): JsWriter[B] = new JsWriter[B] {
-      def toJson(b: B): JsValue = self.toJson(f(b))
-    }
+  @typeclass trait JsEncoder[A] {
+    def toJson(obj: A): JsValue
+  }
+  object JsEncoder {
+    implicit val contravariant: Contravariant[JsEncoder] =
+      new Contravariant[JsEncoder] {
+        def contramap[A, B](fa: JsEncoder[A])(f: B => A): JsEncoder[B] =
+          b => fa.toJson(f(b))
+      }
+    ...
   }
 ~~~~~~~~
 
-Now consider the case where we want to write an instance of an `JsWriter[B]`
-in terms of another `JsWriter[A]`, for example if we have a data type `Alpha`
-that simply wraps a `Double`. This is exactly what `contramap` is for:
+Now consider the case where we want to write an instance of an `JsEncoder[B]` in
+terms of another `JsEncoder[A]`: we have a data type `Alpha` that simply wraps a
+`Double`. This is exactly what `contramap` is for:
 
 {lang="text"}
 ~~~~~~~~
   final case class Alpha(value: Double)
   
   object Alpha {
-    implicit val encoder: JsWriter[Alpha] = JsWriter[Double].contramap(_.value)
+    implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
   }
 ~~~~~~~~
 
-On the other hand, a `JsReader` typically has a `Functor`:
+On the other hand, a `JsDecoder` has a `Functor`:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait JsReader[A] { self =>
-    def fromJson(j: JsValue): A
-  
-    def map[B](f: A => B): JsReader[B] = new JsReader[B] {
-      def fromJson(j: JsValue): B = f(self.fromJson(j))
+  @typeclass trait JsDecoder[A] { self =>
+    def fromJson(json: JsValue): String \/ A
+  }
+  object JsDecoder {
+    implicit val functor: Functor[JsDecoder] = new Functor[JsDecoder] {
+      def map[A, B](fa: JsDecoder[A])(f: A => B): JsDecoder[B] =
+        j => fa.fromJson(j).map(f)
     }
+    ...
   }
 ~~~~~~~~
 
-Methods on a typeclass can have their type parameters in
-*contravariant position* (method parameters) or in *covariant
-position* (return type). If a typeclass has a combination of covariant
-and contravariant positions, it might have an *invariant functor*.
-
-Consider what happens if we combine `JsWriter` and `JsReader` into one
-typeclass. We can no longer construct a `Format` by using `map` or `contramap`
-alone, we need `xmap`:
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait JsFormat[A] extends JsWriter[A] with JsReader[A] { self =>
-    def xmap[B](f: A => B, g: B => A): JsFormat[B] = new JsFormat[B] {
-      def toJson(b: B): JsValue = self.toJson(g(b))
-      def fromJson(j: JsValue): B = f(self.fromJson(j))
-    }
-  }
-~~~~~~~~
-
-A> Although `JsWriter` implements `contramap`, `JsReader` implements `map`, and
-A> `Format` implements `xmap` we are not saying that these typeclasses extend
-A> `InvariantFunctor`, rather they *have an* `InvariantFunctor`.
-A> 
-A> We could implement instances of
-A> 
-A> -   `Functor[JsReader]`
-A> -   `Contravariant[JsWriter]`
-A> -   `InvariantFunctor[JsFormat]`
-A> 
-A> on our companions, and use scalaz syntax to have the exact same `map`,
-A> `contramap` and `xmap`.
-A> 
-A> However, since we don't need anything else that the invariants provide
-A> (and it is a lot of boilerplate for a textbook), we just implement the
-A> bare minimum on the typeclasses themselves. The invariant instance
-A> [could be generated automatically](https://github.com/mpilquist/simulacrum/issues/85).
-
-One of the most compelling uses for `xmap` is to provide typeclasses
-for *value types*. A value type is a compiletime wrapper for another
-type, that does not incur any object allocation costs (subject to some
-rules of use).
-
-For example we can provide context around some numbers to avoid
-getting them mixed up:
-
-{lang="text"}
-~~~~~~~~
-  final case class Alpha(value: Double) extends AnyVal
-  final case class Beta (value: Double) extends AnyVal
-  final case class Rho  (value: Double) extends AnyVal
-  final case class Nu   (value: Double) extends AnyVal
-~~~~~~~~
-
-If we want to put these types in a JSON message, we'd need to write a
-custom `Format` for each type, which is tedious. But our `Format`
-implements `xmap`, allowing `Format` to be constructed from a simple
-pattern:
-
-{lang="text"}
-~~~~~~~~
-  implicit val double: JsFormat[Double] = ...
-  
-  implicit val alpha: JsFormat[Alpha] = double.xmap(Alpha(_), _.value)
-  implicit val beta : JsFormat[Beta]  = double.xmap(Beta(_) , _.value)
-  implicit val rho  : JsFormat[Rho]   = double.xmap(Rho(_)  , _.value)
-  implicit val nu   : JsFormat[Nu]    = double.xmap(Nu(_)   , _.value)
-~~~~~~~~
-
-Macros can automate the construction of these instances, so we don't
-need to write them: we'll revisit this later in a dedicated chapter on
-Typeclass Derivation.
+Methods on a typeclass can have their type parameters in *contravariant
+position* (method parameters) or in *covariant position* (return type). If a
+typeclass has a combination of covariant and contravariant positions, it might
+have an *invariant functor*.
 
 
 ### Composition

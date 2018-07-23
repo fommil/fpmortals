@@ -2809,63 +2809,90 @@ parts of =java.net.*= are extremely slow at scale.
 
 **** Functionality
 
-We need to marshal the data classes we defined in the previous section
-into JSON, URLs and POST-encoded forms. Since this requires
-polymorphism, we will need typeclasses.
+We need to marshal the data classes we defined in the previous section into
+JSON, URLs and POST-encoded forms. Since this requires polymorphism, we will
+need typeclasses.
 
-[[https://github.com/spray/spray-json][spray-json]] gives us an ADT for JSON and typeclasses to convert to/from that ADT
-(paraphrased for brevity):
+[[https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/jsonformat/src][=jsonformat=]] is a simple JSON library that we will study in more detail in a
+later chapter, as it has been written with principled FP and ease of readability
+as its primary design objectives. It consists of a JSON AST and encoder /
+decoder typeclasses:
 
 #+BEGIN_SRC scala
-package spray.json
+package jsonformat
 
 sealed abstract class JsValue
-case object JsNull extends JsValue
-final case class JsBoolean(value: Boolean) extends JsValue
-final case class JsNumber(value: BigDecimal) extends JsValue
-final case class JsString(value: String) extends JsValue
-final case class JsArray(value: Vector[JsValue]) extends JsValue
-final case class JsObject(fields: Map[String, JsValue]) extends JsValue
+final case object JsNull                                    extends JsValue
+final case class JsObject(fields: IList[(String, JsValue)]) extends JsValue
+final case class JsArray(elements: IList[JsValue])          extends JsValue
+final case class JsBoolean(value: Boolean)                  extends JsValue
+final case class JsString(value: String)                    extends JsValue
+final case class JsDouble(value: Double)                    extends JsValue
+final case class JsInteger(value: Long)                     extends JsValue
 
-@typeclass trait JsWriter[T] {
-  def toJson(t: T): JsValue
+@typeclass trait JsEncoder[A] {
+  def toJson(obj: A): JsValue
 }
-@typeclass trait JsReader[T] {
-  def fromJson(j: JsValue): T
+
+@typeclass trait JsDecoder[A] { self =>
+  def fromJson(json: JsValue): String \/ A
 }
 #+END_SRC
 
-To depend on =spray-json= in our project we must add the following to
-=build.sbt=:
+=\/= is scalaz's =Either= and has a =.flatMap=. We can use it in =for=
+comprehensions, whereas stdlib =Either= does not support =.flatMap= prior to
+Scala 2.12.
+
+We need instances of =JsDecoder[AccessResponse]= and =JsDecoder[RefreshResponse]=.
+We can do this by making use of jsonformat's helper functions:
 
 #+BEGIN_SRC scala
-libraryDependencies += "io.spray" %% "spray-json" % "1.3.4"
+object JsDecoder {
+  object ops {
+    implicit class JsValueExtras(j: JsValue) {
+      def asJsObject: String \/ JsObject = ...
+      def as[A: JsDecoder]: String \/ A = ...
+    }
+    implicit class JsObjectExtras(j: JsObject) {
+      def getAs[A: JsDecoder](key: String): String \/ A = ...
+    }
+  }
+  ...
+}
 #+END_SRC
 
-We need to construct instances of =JsReader[AccessResponse]= and
-=JsReader[RefreshResponse]=. We do this by calling spray's =jsonFormat=
-method, providing the constructor and the names of the fields (which may be
-different to the names we use in the =case class=). Recall that typeclass
-instances go on companions:
+We put the instances on the companions of our data types, so that they are
+always in the implicit scope:
 
 #+BEGIN_SRC scala
-  import spray.json.DefaultJsonProtocol._
+  import jsonformat._, JsDecoder.ops._
 
   object AccessResponse {
-    implicit val json: JsReader[AccessResponse] =
-      jsonFormat(apply, "access_token", "token_type", "expires_in", "refresh_token")
+    implicit val json: JsDecoder[AccessResponse] = j =>
+      for {
+        obj <- j.asJsObject
+        acc <- obj.getAs[String]("access_token")
+        tpe <- obj.getAs[String]("token_type")
+        exp <- obj.getAs[Long]("expires_in")
+        ref <- obj.getAs[String]("refresh_token")
+      } yield AccessResponse(acc, tpe, exp, ref)
   }
 
   object RefreshResponse {
-    implicit val json: JsReader[RefreshResponse] =
-      jsonFormat(apply, "access_token", "token_type", "expires_in")
+    implicit val json: JsDecoder[RefreshResponse] = j =>
+      for {
+        obj <- j.asJsObject
+        acc <- obj.getAs[String]("access_token")
+        tpe <- obj.getAs[String]("token_type")
+        exp <- obj.getAs[Long]("expires_in")
+      } yield RefreshResponse(acc, tpe, exp)
   }
 #+END_SRC
 
 We can then parse a string into an =AccessResponse= or a =RefreshResponse=
 
 #+BEGIN_SRC scala
-scala> val json = spray.json.JsonParser("""
+scala> val json = JsParser("""
                      {
                        "access_token": "BEARER_TOKEN",
                        "token_type": "Bearer",
@@ -2874,7 +2901,7 @@ scala> val json = spray.json.JsonParser("""
                      }
                      """)
 
-scala> JsReader[AccessResponse].fromJson(json)
+scala> json.map(_.as[AccessResponse])
 AccessResponse(BEARER_TOKEN,Bearer,3600,REFRESH_TOKEN)
 #+END_SRC
 
@@ -3018,7 +3045,7 @@ mockable components that need to interact with the world as algebras,
 and we define pure business logic in a module.
 
 We define our dependency algebras, and use context bounds to show that our
-responses must have a =JsReader= and our =POST= payload must have a
+responses must have a =JsDecoder= and our =POST= payload must have a
 =UrlEncodedWriter=:
 
 #+BEGIN_SRC scala
@@ -3027,12 +3054,12 @@ package http.client.algebra
 final case class Response[T](header: HttpResponseHeader, body: T)
 
 trait JsonHttpClient[F[_]] {
-  def get[B: JsReader](
+  def get[B: JsDecoder](
     uri: String Refined Url,
     headers: List[HttpHeader] = Nil
   ): F[Response[B]]
 
-  def postUrlencoded[A: UrlEncoded, B: JsReader](
+  def postUrlencoded[A: UrlEncoded, B: JsDecoder](
     uri: String Refined Url,
     payload: A,
     headers: List[HttpHeader] = Nil
@@ -3057,7 +3084,7 @@ trait UserInteraction[F[_]] {
 }
 
 trait LocalClock[F[_]] {
-  def now: F[java.time.LocalDateTime]
+  def now: F[Epoch]
 }
 #+END_SRC
 
@@ -3073,7 +3100,7 @@ final case class ServerConfig(
   clientSecret: String
 )
 final case class RefreshToken(token: String)
-final case class BearerToken(token: String, expires: LocalDateTime)
+final case class BearerToken(token: String, expires: Epoch)
 #+END_SRC
 
 and then write an OAuth2 client:
@@ -4503,114 +4530,55 @@ possible to map the contents of a structure =F[A]= into =F[B]=. Using
 =B= depending on the variance of the functor.
 
 This sounds so hopelessly abstract that it needs a practical example
-immediately, before we can take it seriously. In Chapter 4 we used
-=spray-json-derivation= to derive a JSON encoder for our data types and we gave
-a brief description of the =JsWriter= typeclass. This is an expanded version:
+immediately, before we can take it seriously. In Chapter 4 we used =jsonformat=
+to derive a JSON encoder for our data types and we gave a brief description of
+the =JsEncoder= typeclass. This is an expanded version:
 
 #+BEGIN_SRC scala
-@typeclass trait JsWriter[A] { self =>
-  def toJson(a: A): JsValue
-
-  def contramap[B](f: B => A): JsWriter[B] = new JsWriter[B] {
-    def toJson(b: B): JsValue = self.toJson(f(b))
-  }
+@typeclass trait JsEncoder[A] {
+  def toJson(obj: A): JsValue
+}
+object JsEncoder {
+  implicit val contravariant: Contravariant[JsEncoder] =
+    new Contravariant[JsEncoder] {
+      def contramap[A, B](fa: JsEncoder[A])(f: B => A): JsEncoder[B] =
+        b => fa.toJson(f(b))
+    }
+  ...
 }
 #+END_SRC
 
-Now consider the case where we want to write an instance of an =JsWriter[B]=
-in terms of another =JsWriter[A]=, for example if we have a data type =Alpha=
-that simply wraps a =Double=. This is exactly what =contramap= is for:
+Now consider the case where we want to write an instance of an =JsEncoder[B]= in
+terms of another =JsEncoder[A]=: we have a data type =Alpha= that simply wraps a
+=Double=. This is exactly what =contramap= is for:
 
 #+BEGIN_SRC scala
 final case class Alpha(value: Double)
 
 object Alpha {
-  implicit val encoder: JsWriter[Alpha] = JsWriter[Double].contramap(_.value)
+  implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
 }
 #+END_SRC
 
-On the other hand, a =JsReader= typically has a =Functor=:
+On the other hand, a =JsDecoder= has a =Functor=:
 
 #+BEGIN_SRC scala
-@typeclass trait JsReader[A] { self =>
-  def fromJson(j: JsValue): A
-
-  def map[B](f: A => B): JsReader[B] = new JsReader[B] {
-    def fromJson(j: JsValue): B = f(self.fromJson(j))
+@typeclass trait JsDecoder[A] { self =>
+  def fromJson(json: JsValue): String \/ A
+}
+object JsDecoder {
+  implicit val functor: Functor[JsDecoder] = new Functor[JsDecoder] {
+    def map[A, B](fa: JsDecoder[A])(f: A => B): JsDecoder[B] =
+      j => fa.fromJson(j).map(f)
   }
+  ...
 }
 #+END_SRC
 
-Methods on a typeclass can have their type parameters in
-/contravariant position/ (method parameters) or in /covariant
-position/ (return type). If a typeclass has a combination of covariant
-and contravariant positions, it might have an /invariant functor/.
-
-Consider what happens if we combine =JsWriter= and =JsReader= into one
-typeclass. We can no longer construct a =Format= by using =map= or =contramap=
-alone, we need =xmap=:
-
-#+BEGIN_SRC scala
-@typeclass trait JsFormat[A] extends JsWriter[A] with JsReader[A] { self =>
-  def xmap[B](f: A => B, g: B => A): JsFormat[B] = new JsFormat[B] {
-    def toJson(b: B): JsValue = self.toJson(g(b))
-    def fromJson(j: JsValue): B = f(self.fromJson(j))
-  }
-}
-#+END_SRC
-
-#+BEGIN_ASIDE
-Although =JsWriter= implements =contramap=, =JsReader= implements =map=, and
-=Format= implements =xmap= we are not saying that these typeclasses extend
-=InvariantFunctor=, rather they /have an/ =InvariantFunctor=.
-
-We could implement instances of
-
-- =Functor[JsReader]=
-- =Contravariant[JsWriter]=
-- =InvariantFunctor[JsFormat]=
-
-on our companions, and use scalaz syntax to have the exact same =map=,
-=contramap= and =xmap=.
-
-However, since we don't need anything else that the invariants provide
-(and it is a lot of boilerplate for a textbook), we just implement the
-bare minimum on the typeclasses themselves. The invariant instance
-[[https://github.com/mpilquist/simulacrum/issues/85][could be generated automatically]].
-#+END_ASIDE
-
-One of the most compelling uses for =xmap= is to provide typeclasses
-for /value types/. A value type is a compiletime wrapper for another
-type, that does not incur any object allocation costs (subject to some
-rules of use).
-
-For example we can provide context around some numbers to avoid
-getting them mixed up:
-
-#+BEGIN_SRC scala
-final case class Alpha(value: Double) extends AnyVal
-final case class Beta (value: Double) extends AnyVal
-final case class Rho  (value: Double) extends AnyVal
-final case class Nu   (value: Double) extends AnyVal
-#+END_SRC
-
-If we want to put these types in a JSON message, we'd need to write a
-custom =Format= for each type, which is tedious. But our =Format=
-implements =xmap=, allowing =Format= to be constructed from a simple
-pattern:
-
-#+BEGIN_SRC scala
-implicit val double: JsFormat[Double] = ...
-
-implicit val alpha: JsFormat[Alpha] = double.xmap(Alpha(_), _.value)
-implicit val beta : JsFormat[Beta]  = double.xmap(Beta(_) , _.value)
-implicit val rho  : JsFormat[Rho]   = double.xmap(Rho(_)  , _.value)
-implicit val nu   : JsFormat[Nu]    = double.xmap(Nu(_)   , _.value)
-#+END_SRC
-
-Macros can automate the construction of these instances, so we don't
-need to write them: we'll revisit this later in a dedicated chapter on
-Typeclass Derivation.
+Methods on a typeclass can have their type parameters in /contravariant
+position/ (method parameters) or in /covariant position/ (return type). If a
+typeclass has a combination of covariant and contravariant positions, it might
+have an /invariant functor/.
 
 **** Composition
 
@@ -13227,14 +13195,14 @@ Each example exhibits a feature that can be generalised:
     @op("|+|") def append(x: A, y: =>A): A
   }
 
-  @typeclass trait JsWriter[T] {
+  @typeclass trait JsEncoder[T] {
     // type parameter is in contravariant position and needs access to field names
     def toJson(t: T): JsValue
   }
 
-  @typeclass trait JsReader[T] {
+  @typeclass trait JsDecoder[T] {
     // type parameter is in covariant position and needs access to field names
-    def fromJson(j: JsValue): T // FIXME: not total
+    def fromJson(j: JsValue): String \/ T
   }
 #+END_SRC
 
@@ -13563,24 +13531,105 @@ object Bar {
 }
 #+END_SRC
 
-But we must be careful that we do not break the typeclass laws (and derived
-combinators) when we implement =Divisible= or =Applicative=. In particular, it
-is easy to break the /law of composition/ which says that the following two
-codepaths must yield exactly the same output
+But we must be careful that we do not break the typeclass laws when we implement
+=Divisible= or =Applicative=. In particular, it is easy to break the /law of
+composition/ which says that the following two codepaths must yield exactly the
+same output
 
-- =divide2(divide2(a1, a2)(identity), a3)(identity)=
-- =divide2(a1, divide2(a2, a3)(identity))(identity)=
+- =divide2(divide2(a1, a2)(dupe), a3)(dupe)=
+- =divide2(a1, divide2(a2, a3)(dupe))(dupe)=
+- for any ~dupe: A => (A, A)~
 
-and similarly for =Applicative=
+with similar laws for =Applicative=.
 
-- =apply2(apply2(a1, a2)(identity), a3)(identity)=
-- =apply2(a1, apply2(a2, a3)(identity))(identity)=
+Consider =JsEncoder= and a proposed instance of =Divisible=
 
-By means of an example, consider =JsWriter= and =JsReader=, which cannot have a
-lawful =Divisible= or =Applicative= (and by extension, =MonadError=).
+#+BEGIN_SRC scala
+    new Divisible[JsEncoder] {
+      def contramap[A, B](fa: JsEncoder[A])(f: B => A): JsEncoder[B] =
+        b => fa.toJson(f(b))
 
+      def divide[A, B, C](fa: JsEncoder[A], fb: JsEncoder[B])(
+        f: C => (A, B)
+      ): JsEncoder[C] = { c =>
+        val (a, b) = f(c)
+        JsArray(IList(fa.toJson(a), fb.toJson(b)))
+      }
 
+      def conquer[A]: JsEncoder[A] = _ => JsNull
+    }
+#+END_SRC
 
+On one side of the composition laws, for a =String= input, we get
+
+#+BEGIN_SRC scala
+JsArray([JsArray([JsString(hello),JsString(hello)]),JsString(hello)])
+#+END_SRC
+
+and on the other
+
+#+BEGIN_SRC scala
+JsArray([JsString(hello),JsArray([JsString(hello),JsString(hello)])])
+#+END_SRC
+
+which are different. We could experiment with variations of the =divide=
+implementation, but it will never satisfy the laws for all inputs.
+
+We therefore cannot provide a =Divisible[JsEncoder]=, even though we can write
+one down, because it breaks the mathematical laws and invalidates all the
+assumptions that users of =Divisible= rely upon.
+
+To aid in testing laws, scalaz typeclasses contain the codified versions of
+their laws on the typeclass itself. We can write an automated test, asserting
+that the law fails, to remind us of this fact:
+
+#+BEGIN_SRC scala
+    val D: Divisible[JsEncoder] = ...
+    val S: JsEncoder[String] = JsEncoder[String]
+    val E: Equal[JsEncoder[String]] = (p1, p2) => p1.toJson("hello") === p2.toJson("hello")
+    assert(!D.divideLaw.composition(S, S, S)(E))
+#+END_SRC
+
+On the other hand, a similar =JsDecoder= test meets the =Applicative= composition laws
+
+#+BEGIN_SRC scala
+  def composeTest(j: JsValue) = {
+    val A: Applicative[JsDecoder] = JsDecoder.monad // from MonadError.fromIso
+    val fa: JsDecoder[Comp] = JsDecoder[Comp]
+    val fab: JsDecoder[Comp => (String, Int)] = A.point(c => (c.a, c.b))
+    val fbc: JsDecoder[((String, Int)) => (Int, String)] = A.point(_.swap)
+    val E: Equal[JsDecoder[(Int, String)]] = (p1, p2) => p1.fromJson(j) === p2.fromJson(j)
+    assert(A.applyLaw.composition(fbc, fab, fa)(E))
+  }
+#+END_SRC
+
+for some test data
+
+#+BEGIN_SRC scala
+    composeTest(JsObject(IList("a" -> JsString("hello"), "b" -> JsInteger(1))))
+    composeTest(JsNull)
+    composeTest(JsObject(IList("a" -> JsString("hello"))))
+    composeTest(JsObject(IList("b" -> JsInteger(1))))
+#+END_SRC
+
+Now we are reasonably confident that our derived =MonadError= is lawful.
+
+However, just because we have a test that passes for a small set of data does
+not prove that the laws are satisfied. We must also reason through the
+implementation to convince ourselves that it *should* satisfy the laws, and try
+to propose corner cases where it could fail.
+
+One way of generating a wide variety of test data is to use the [[https://github.com/rickynils/scalacheck][scalacheck]]
+library, which provides an =Arbitrary= typeclass that integrates with most
+testing frameworks to repeat a test with randomly generated data. e.g. with
+scalatest we can use =forAll= if we mix in =GeneratorDrivenPropertyChecks=
+
+#+BEGIN_SRC scala
+forAll(SizeRange(10))((j: JsValue) => composeTest(j))
+#+END_SRC
+
+giving us even more confidence that our typeclass meets the =Applicative=
+composition laws.
 
 **** =Decidable= and =Alt=
 
@@ -13754,28 +13803,6 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#+END_SRC
-
-*** =spray-json= License
-
-=spray-json= is released under the [[http://www.apache.org/licenses/LICENSE-2.0][Apache 2.0]] and the following =NOTICE=
-
-#+BEGIN_SRC
-Copyright (C) 2009-2011 Mathias Doenitz
-Inspired by a similar implementation by Nathan Hamblen
-(https://github.com/dispatch/classic)
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 #+END_SRC
 
 # `whitespace-style: (face trailing tabs lines-tail)' is too noisy

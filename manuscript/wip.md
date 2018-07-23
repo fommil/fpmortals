@@ -76,14 +76,14 @@ Each example exhibits a feature that can be generalised:
     @op("|+|") def append(x: A, y: =>A): A
   }
   
-  @typeclass trait JsWriter[T] {
+  @typeclass trait JsEncoder[T] {
     // type parameter is in contravariant position and needs access to field names
     def toJson(t: T): JsValue
   }
   
-  @typeclass trait JsReader[T] {
+  @typeclass trait JsDecoder[T] {
     // type parameter is in covariant position and needs access to field names
-    def fromJson(j: JsValue): T // FIXME: not total
+    def fromJson(j: JsValue): String \/ T
   }
 ~~~~~~~~
 
@@ -431,21 +431,112 @@ call it
   }
 ~~~~~~~~
 
-But we must be careful that we do not break the typeclass laws (and derived
-combinators) when we implement `Divisible` or `Applicative`. In particular, it
-easy to break the `Divide` *law of composition* which says that the following
-two codepaths must yield exactly the same output
+But we must be careful that we do not break the typeclass laws when we implement
+`Divisible` or `Applicative`. In particular, it is easy to break the *law of
+composition* which says that the following two codepaths must yield exactly the
+same output
 
--   `divide2(divide2(a1, a2)(identity), a3)(identity)`
--   `divide2(a1, divide2(a2, a3)(identity))(identity)`
+-   `divide2(divide2(a1, a2)(dupe), a3)(dupe)`
+-   `divide2(a1, divide2(a2, a3)(dupe))(dupe)`
+-   for any `dupe: A => (A, A)`
 
-And similarly for `Applicative`
+with similar laws for `Applicative`.
 
--   `apply2(apply2(a1, a2)(identity), a3)(identity)`
--   `apply2(a1, apply2(a2, a3)(identity))(identity)`
+Consider `JsEncoder` and a proposed instance of `Divisible`
 
-By means of an example, consider `JsWriter` and `JsReader`, which cannot have a
-lawful `Divisible` or `Applicative` (and by extension, `MonadError`).
+{lang="text"}
+~~~~~~~~
+  new Divisible[JsEncoder] {
+    def contramap[A, B](fa: JsEncoder[A])(f: B => A): JsEncoder[B] =
+      b => fa.toJson(f(b))
+  
+    def divide[A, B, C](fa: JsEncoder[A], fb: JsEncoder[B])(
+      f: C => (A, B)
+    ): JsEncoder[C] = { c =>
+      val (a, b) = f(c)
+      JsArray(IList(fa.toJson(a), fb.toJson(b)))
+    }
+  
+    def conquer[A]: JsEncoder[A] = _ => JsNull
+  }
+~~~~~~~~
+
+On one side of the composition laws, for a `String` input, we get
+
+{lang="text"}
+~~~~~~~~
+  JsArray([JsArray([JsString(hello),JsString(hello)]),JsString(hello)])
+~~~~~~~~
+
+and on the other
+
+{lang="text"}
+~~~~~~~~
+  JsArray([JsString(hello),JsArray([JsString(hello),JsString(hello)])])
+~~~~~~~~
+
+which are different. We could experiment with variations of the `divide`
+implementation, but it will never satisfy the laws for all inputs.
+
+We therefore cannot provide a `Divisible[JsEncoder]`, even though we can write
+one down, because it breaks the mathematical laws and invalidates all the
+assumptions that users of `Divisible` rely upon.
+
+To aid in testing laws, scalaz typeclasses contain the codified versions of
+their laws on the typeclass itself. We can write an automated test, asserting
+that the law fails, to remind us of this fact:
+
+{lang="text"}
+~~~~~~~~
+  val D: Divisible[JsEncoder] = ...
+  val S: JsEncoder[String] = JsEncoder[String]
+  val E: Equal[JsEncoder[String]] = (p1, p2) => p1.toJson("hello") === p2.toJson("hello")
+  assert(!D.divideLaw.composition(S, S, S)(E))
+~~~~~~~~
+
+On the other hand, a similar `JsDecoder` test meets the `Applicative` composition laws
+
+{lang="text"}
+~~~~~~~~
+  def composeTest(j: JsValue) = {
+    val A: Applicative[JsDecoder] = JsDecoder.monad // from MonadError.fromIso
+    val fa: JsDecoder[Comp] = JsDecoder[Comp]
+    val fab: JsDecoder[Comp => (String, Int)] = A.point(c => (c.a, c.b))
+    val fbc: JsDecoder[((String, Int)) => (Int, String)] = A.point(_.swap)
+    val E: Equal[JsDecoder[(Int, String)]] = (p1, p2) => p1.fromJson(j) === p2.fromJson(j)
+    assert(A.applyLaw.composition(fbc, fab, fa)(E))
+  }
+~~~~~~~~
+
+for some test data
+
+{lang="text"}
+~~~~~~~~
+  composeTest(JsObject(IList("a" -> JsString("hello"), "b" -> JsInteger(1))))
+  composeTest(JsNull)
+  composeTest(JsObject(IList("a" -> JsString("hello"))))
+  composeTest(JsObject(IList("b" -> JsInteger(1))))
+~~~~~~~~
+
+Now we are reasonably confident that our derived `MonadError` is lawful.
+
+However, just because we have a test that passes for a small set of data does
+not prove that the laws are satisfied. We must also reason through the
+implementation to convince ourselves that it **should** satisfy the laws, and try
+to propose corner cases where it could fail.
+
+One way of generating a wide variety of test data is to use the [scalacheck](https://github.com/rickynils/scalacheck)
+library, which provides an `Arbitrary` typeclass that integrates with most
+testing frameworks to repeat a test with randomly generated data. e.g. with
+scalatest we can use `forAll` if we mix in `GeneratorDrivenPropertyChecks`
+
+{lang="text"}
+~~~~~~~~
+  forAll(SizeRange(10))((j: JsValue) => composeTest(j))
+~~~~~~~~
+
+giving us even more confidence that our typeclass meets the `Applicative`
+composition laws.
 
 
 ### `Decidable` and `Alt`
