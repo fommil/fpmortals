@@ -52,6 +52,8 @@ below in relation to the typeclasses that are relevant to this chapter:
 {width=60%}
 ![](images/scalaz-deriving-base.png)
 
+A> In scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
+
 
 ### Running Examples
 
@@ -548,8 +550,243 @@ A> overflows as larger numbers can generate gigantic JSON documents.
 
 ### `Decidable` and `Alt`
 
+Where `Divisible` and `Applicative` give us typeclass derivation for products
+(built of tuples), `Decidable` and `Alt` give us the coproducts (built of nested
+disjunctions):
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Alt[F[_]] extends Applicative[F] with InvariantAlt[F] {
+    def alt[A](a1: =>F[A], a2: =>F[A]): F[A]
+  
+    def altly1[Z, A1](a1: =>F[A1])(f: A1 => Z): F[Z] = ...
+    def altly2[Z, A1, A2](a1: =>F[A1], a2: =>F[A2])(f: A1 \/ A2 => Z): F[Z] = ...
+    def altly3 ...
+    def altly4 ...
+    ...
+  }
+  
+  trait Decidable[F[_]] extends Divisible[F] with InvariantAlt[F] {
+    def choose1[Z, A1](a1: =>F[A1])(f: Z => A1): F[Z] = ...
+    def choose2[Z, A1, A2](a1: =>F[A1], a2: =>F[A2])(f: Z => A1 \/ A2): F[Z] = ...
+    def choose3 ...
+    def choose4 ...
+    ...
+  }
+~~~~~~~~
+
+The four core typeclasses have symmetric signatures:
+
+| Typeclass     | method    | given          | signature         | returns |
+|------------- |--------- |-------------- |----------------- |------- |
+| `Applicative` | `apply2`  | `F[A1], F[A2]` | `(A1, A2) => Z`   | `F[Z]`  |
+| `Alt`         | `altly2`  | `F[A1], F[A2]` | `(A1 \/ A2) => Z` | `F[Z]`  |
+| `Divisible`   | `divide2` | `F[A1], F[A2]` | `Z => (A1, A2)`   | `F[Z]`  |
+| `Decidable`   | `choose2` | `F[A1], F[A2]` | `Z => (A1 \/ A2)` | `F[Z]`  |
+
+covering covariant products, covariant coproducts, contravariant products and
+contravariant coproducts, respectively.
+
+We can write a `Decidable[Equal]`, letting us derive `Equal` for any ADT!
+
+{lang="text"}
+~~~~~~~~
+  implicit val decidable = new Decidable[Equal] {
+    ...
+    def choose2[Z, A1, A2](a1: =>Equal[A1], a2: =>Equal[A2])(
+      f: Z => A1 \/ A2
+    ): Equal[Z] = { (z1, z2) =>
+      (f(z1), f(z2)) match {
+        case (-\/(s), -\/(t)) => a1.equal(s, t)
+        case (\/-(s), \/-(t)) => a2.equal(s, t)
+        case _ => false
+      }
+    }
+  }
+~~~~~~~~
+
+For an ADT
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Tweedle { def widen: Tweedle = this }
+  final case class Dee(s: String, i: Int) extends Tweedle
+  final case class Dum(i: Int, s: String) extends Tweedle
+~~~~~~~~
+
+where the products have an `Equal`
+
+{lang="text"}
+~~~~~~~~
+  object Dee {
+    private val g: Dee => (String, Int) = d => (d.s, d.i)
+    implicit val equal: Equal[Dee] =
+      Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
+  }
+  object Dum {
+    private val g: Dum => (Int, String) = d => (d.i, d.s)
+    implicit val equal: Equal[Dum] =
+      Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
+  }
+~~~~~~~~
+
+we can derive the equal for the ADT
+
+{lang="text"}
+~~~~~~~~
+  object Tweedle {
+    private def g(t: Tweedle): Dee \/ Dum = t match {
+      case p @ Dee(_, _) => -\/(p)
+      case p @ Dum(_, _) => \/-(p)
+    }
+    implicit val equal: Equal[Tweedle] =
+      Decidable[Equal].choose2(Equal[Dee], Equal[Dum])(g)
+  }
+  
+  scala> Dee("hello").widen === Dum(1).widen
+  false
+~~~~~~~~
+
+A> Scalaz 7.2 does not provide a `Decidable[Equal]` out of the box, because it was
+A> a late addition. We must provide one. In the next section is a more convenient
+A> solution that means we won't need to do this in practice.
+
+Typeclasses that have an `Applicative` can be eligible for an `Alt`. If we want
+to use our `Kleisli.iso` trick, we have to extend `IsomorphismMonadError`
+instead of `MonadError.fromIso`, and mix in `Alt`. Let's upgrade our
+`MonadError[Default, String]` to have an `Alt[Default]`:
+
+{lang="text"}
+~~~~~~~~
+  private type K[a] = Kleisli[String \/ ?, Unit, a]
+  implicit val monad = new IsomorphismMonadError[Default, K, String]
+                      with Alt[Default] {
+      override val G: MonadError[K, String] = MonadError[K, String]
+      override val iso: Default <~> K = ...
+  
+      def alt[A](a1: =>Default[A], a2: =>Default[A]): Default[A] =
+        instance(a1.default)
+    }
+~~~~~~~~
+
+Letting us derive our `Default[Tweedle]`
+
+{lang="text"}
+~~~~~~~~
+  object Tweedle {
+    ...
+    private def f(e: Dee \/ Dum): Tweedle = e.merge
+    implicit val default: Default[Tweedle] =
+      Alt[Default].altly2(Default[Dee], Default[Dum])(f)
+  }
+  object Dee {
+    ...
+    private val f: (String, Int) => Dee = Dee(_, _)
+    implicit val default: Default[Dee] =
+      Alt[Default].apply2(Default[String], Default[Int])(f)
+  }
+  object Dum {
+    ...
+    private val f: (Int, String) => Dum = Dum(_, _)
+    implicit val default: Default[Dum] =
+      Alt[Default].apply2(Default[Int], Default[String])(f)
+  }
+  
+  scala> Default[Tweedle].default
+  \/-(Dee())
+~~~~~~~~
+
+Finally, the common parents of `Alt` and `Decidable`:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait InvariantApplicative[F[_]] extends InvariantFunctor[F] {
+    def xproduct0[Z](f: =>Z): F[Z]
+    def xproduct1[Z, A1](a1: =>F[A1])(f: A1 => Z, g: Z => A1): F[Z] = ...
+    def xproduct2 ...
+    def xproduct3 ...
+    def xproduct4 ...
+  }
+  
+  @typeclass trait InvariantAlt[F[_]] extends InvariantApplicative[F] {
+    def xcoproduct1[Z, A1](a1: =>F[A1])(f: A1 => Z, g: Z => A1): F[Z] = ...
+    def xcoproduct2 ...
+    def xcoproduct3 ...
+    def xcoproduct4 ...
+  }
+~~~~~~~~
+
+means that we can instead write consistent boilerplate for all derivations
+
+{lang="text"}
+~~~~~~~~
+  object Tweedle {
+    ...
+    implicit val equal: Equal[Tweedle] =
+      InvariantAlt[Equal].xcoproduct2(Equal[Dee], Equal[Dum])(f, g)
+    implicit val default: Default[Tweedle] =
+      InvariantAlt[Default].xcoproduct2(Default[Dee], Default[Dum])(f, g)
+  }
+  object Dee {
+    ...
+    implicit val equal: Equal[Dee] =
+      InvariantApplicative[Equal].xproduct2(Equal[String], Equal[Int])(f, g)
+    implicit val default: Default[Dee] =
+      InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
+  }
+  object Dum {
+    ...
+    implicit val equal: Equal[Dum] =
+      InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
+    implicit val default: Default[Dum] =
+      InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
+  }
+~~~~~~~~
+
+This boilerplate also works when we have a typeclass like `Semigroup` that can
+only provide an `InvariantApplicative`, not an `Applicative` or even an
+`InvariantAlt`.
+
 
 ### Arbitrary Arity and `@deriving`
+
+There are two problems with `InvariantApplicative` and `InvariantAlt`:
+
+1.  they only support products of four fields and coproducts of four entries
+2.  there is a **lot** of boilerplate at the use site
+
+In this final section about `scalaz-deriving` we will solve both problems.
+
+There are additional typeclasses introduced by `scalaz-deriving`
+
+{width=60%}
+![](images/scalaz-deriving.png)
+
+Effectively, our four central typeclasses `Applicative`, `Divisible`, `Alt` and
+`Decidable` all get a `z` on the end, which is an extension to arbitrary arity
+using the [iotaz](https://github.com/frees-io/iota) library.
+
+The iotaz library has three core types:
+
+-   `TList` which describes arbitrary length chains of types
+-   `Prod[A <: TList]` for products
+-   `Cop[A <: TList]` for coproducts
+
+By way of example, a `TList` representation of `Tweedle` from the previous
+section is
+
+{lang="text"}
+~~~~~~~~
+  import iotaz._, TList._
+  
+  type TweedleT = Dee :: Dum :: TNil
+  type DeeT     = String :: Int :: TNil
+  type DumT     = Int :: String :: TNil
+~~~~~~~~
+
+TODO: Prod, Cop, do one typeclass full boilerplate, then drop the `@deriving`
+bomb and list all the instances. Maybe finish with an example of writing the
+`JsEncoder`.
 
 
 ## TODO Magnolia
