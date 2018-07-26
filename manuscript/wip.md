@@ -763,8 +763,8 @@ There are additional typeclasses introduced by `scalaz-deriving`
 ![](images/scalaz-deriving.png)
 
 Effectively, our four central typeclasses `Applicative`, `Divisible`, `Alt` and
-`Decidable` all get a `z` on the end, which is an extension to arbitrary arity
-using the [iotaz](https://github.com/frees-io/iota) library.
+`Decidable` all get extended to arbitrary arity using the [iotaz](https://github.com/frees-io/iota) library, hence
+the `z` postfix.
 
 The iotaz library has three core types:
 
@@ -784,15 +784,133 @@ section is
   type DumT     = Int :: String :: TNil
 ~~~~~~~~
 
-TODO: Prod, Cop, do one typeclass full boilerplate, then drop the `@deriving`
-bomb and list all the instances. Maybe finish with an example of writing the
-`JsEncoder`.
+which can be instantiated directly:
+
+{lang="text"}
+~~~~~~~~
+  val dee: Prod[DeeT]        = Prod("hello", 1)
+  val dum: Prod[DumT]        = Prod(1, "hello")
+  
+  val DeeI = Cop.Inject[Dee, Cop[TweedleT]]
+  val tweedle: Cop[TweedleT] = DeeI.inj(Dee("hello", 1))
+~~~~~~~~
+
+To be able to use the `scalaz-deriving` API, we need an `Isomorphism` between
+our ADTs and the `iotaz` generic representation. It's a lot of boilerplate, but
+it pays off (note that we also have to provide the names of all the fields and
+the type itself):
+
+{lang="text"}
+~~~~~~~~
+  object Tweedle {
+    private type Repr   = Dee :: Dum :: TNil
+    private type Labels = String :: String :: TNil
+    private val DeeI = Cop.Inject[Dee, Cop[Repr]]
+    private val DumI = Cop.Inject[Dum, Cop[Repr]]
+    private val iso = CopGen[Tweedle, Repr, Labels](
+      {
+        case d: Dee => DeeI.inj(d)
+        case d: Dum => DumI.inj(d)
+      }, {
+        case DeeI(d) => d
+        case DumI(d) => d
+      },
+      Prod("Dee", "Dum"),
+      "Tweedle"
+    )
+   ...
+  }
+  
+  object Dee {
+    private type Repr   = String :: Int :: TNil
+    private type Labels = String :: String :: TNil
+    private val iso = ProdGen[Dee, Repr, Labels](
+      d => Prod(d.s, d.i),
+      p => Dee(p.head, p.tail.head),
+      Prod("s", "i"),
+      "Dee"
+    )
+    ...
+  }
+  
+  object Dum {
+    private type Repr   = Int :: String :: TNil
+    private type Labels = String :: String :: TNil
+    private val iso = ProdGen[Dum, Repr, Labels](
+      d => Prod(d.i, d.s),
+      p => Dum(p.head, p.tail.head),
+      Prod("i", "s"),
+      "Dum"
+    )
+    ...
+  }
+~~~~~~~~
+
+With that out of the way we can call the `Deriving` API for `Equal`
+
+{lang="text"}
+~~~~~~~~
+  object Tweedle {
+    ...
+    implicit val equal: Equal[Tweedle] = Deriving[Equal].xcoproductz(
+      Prod(Need(Equal[Dee]), Need(Equal[Dum])),
+      iso.labels, iso.name)(iso.to, iso.from)
+  }
+  object Dee {
+    implicit val equal: Equal[Dee] = Deriving[Equal].xproductz(
+      Prod(Need(Equal[String]), Need(Equal[Int])),
+      iso.labels, iso.name)(iso.to, iso.from)
+    ...
+  }
+  object Dum {
+    ...
+    implicit val equal: Equal[Dum] = Deriving[Equal].xproductz(
+      Prod(Need(Equal[Int]), Need(Equal[String])),
+      iso.labels, iso.name)(iso.to, iso.from)
+  }
+~~~~~~~~
+
+This works because `scalaz-deriving` provides an optimised instance of
+`Deriving[Equal]`. To be able to do the same for our `Default` typeclass, we
+need to provide an instance. Luckily it's just a case of wrapping our existing
+`Alt` with a helper
+
+{lang="text"}
+~~~~~~~~
+  object Default {
+    ...
+    implicit val deriving: Deriving[Default] = ExtendedInvariantAlt(monad)
+  }
+~~~~~~~~
+
+Now we can repeat the same boilerplate that we wrote for `Equal` for `Default`,
+but we will spare you the pain. We have solved the problem of arbitrary arity,
+but we introduced even more boilerplate to get here.
+
+The punchline is that the `@deriving` annotation, which comes with
+`scalaz-deriving` generates all of the boilerplate automatically and only needs
+to be applied at the top level of an ADT. So take everything we've written in
+this chapter and get it all for free with
+
+{lang="text"}
+~~~~~~~~
+  @deriving(Equal, Default)
+  sealed abstract class Tweedle { def widen: Tweedle = this }
+  final case class Dee(s: String, i: Int) extends Tweedle
+  final case class Dum(i: Int, s: String) extends Tweedle
+~~~~~~~~
+
+Also included in `scalaz-deriving` are instances for `Order`, `Show`,
+`Semigroup`, `Monoid` and `Arbitrary`.
 
 
 ## TODO Magnolia
 
 
 ## TODO Shapeless
+
+
+## TODO : JSON Example
 
 
 # The Infinite Sadness

@@ -10,6 +10,9 @@ import eu.timepit.refined.api._
 import eu.timepit.refined.collection._
 import Isomorphism._
 
+import iotaz._, TList._
+import IotazHacks._
+
 @typeclass trait Default[A] {
   def default: String \/ A
 }
@@ -59,6 +62,8 @@ object Default {
       def alt[A](a1: =>Default[A], a2: =>Default[A]): Default[A] =
         instance(a1.default)
     }
+
+  implicit val deriving: Deriving[Default] = ExtendedInvariantAlt(monad)
 
   implicit def refined[A: Default, P](
     implicit V: Validate[A, P]
@@ -126,56 +131,134 @@ object orphans {
 }
 import orphans._
 
+@deriving(Equal, Show, Default)
 sealed abstract class Tweedle {
   def widen: Tweedle = this
 }
 final case class Dee(s: String, i: Int) extends Tweedle
 final case class Dum(i: Int, s: String) extends Tweedle
 
-object Tweedle {
-  private def f(e: Dee \/ Dum): Tweedle = e.merge
-  private def g(t: Tweedle): Dee \/ Dum = t match {
-    case p @ Dee(_, _) => -\/(p)
-    case p @ Dum(_, _) => \/-(p)
-  }
+// object Tweedle {
+//   private type Repr   = Dee :: Dum :: TNil
+//   private type Labels = String :: String :: TNil
+//   private val DeeI = Cop.Inject[Dee, Cop[Repr]]
+//   private val DumI = Cop.Inject[Dum, Cop[Repr]]
+//   private val iso = CopGen[Tweedle, Repr, Labels](
+//     {
+//       case d: Dee => DeeI.inj(d)
+//       case d: Dum => DumI.inj(d)
+//     }, {
+//       case DeeI(d) => d
+//       case DumI(d) => d
+//     },
+//     Prod("Dee", "Dum"),
+//     "Tweedle"
+//   )
 
-  // implicit val equal: Equal[Tweedle] =
-  //   Decidable[Equal].choose2(Equal[Dee], Equal[Dum])(g)
-  // implicit val default: Default[Tweedle] =
-  //   Alt[Default].altly2(Default[Dee], Default[Dum])(f)
+//   private def f(e: Dee \/ Dum): Tweedle = e.merge
+//   private def g(t: Tweedle): Dee \/ Dum = t match {
+//     case p @ Dee(_, _) => -\/(p)
+//     case p @ Dum(_, _) => \/-(p)
+//   }
 
-  implicit val equal: Equal[Tweedle] =
-    InvariantAlt[Equal].xcoproduct2(Equal[Dee], Equal[Dum])(f, g)
-  implicit val default: Default[Tweedle] =
-    InvariantAlt[Default].xcoproduct2(Default[Dee], Default[Dum])(f, g)
-}
-object Dee {
-  private val f: (String, Int) => Dee = Dee(_, _)
-  private val g: Dee => (String, Int) = d => (d.s, d.i)
+//   // implicit val equal: Equal[Tweedle] =
+//   //   Decidable[Equal].choose2(Equal[Dee], Equal[Dum])(g)
+//   // implicit val default: Default[Tweedle] =
+//   //   Alt[Default].altly2(Default[Dee], Default[Dum])(f)
+//   // implicit val equal: Equal[Tweedle] =
+//   //   InvariantAlt[Equal].xcoproduct2(Equal[Dee], Equal[Dum])(f, g)
+//   // implicit val default: Default[Tweedle] =
+//   //   InvariantAlt[Default].xcoproduct2(Default[Dee], Default[Dum])(f, g)
 
-  // implicit val equal: Equal[Dee] =
-  //   Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
-  // implicit val default: Default[Dee] =
-  //   Alt[Default].apply2(Default[String], Default[Int])(f)
-  implicit val equal: Equal[Dee] =
-    InvariantApplicative[Equal].xproduct2(Equal[String], Equal[Int])(f, g)
-  implicit val default: Default[Dee] =
-    InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
-}
-object Dum {
-  private val f: (Int, String) => Dum = Dum(_, _)
-  private val g: Dum => (Int, String) = d => (d.i, d.s)
+//   implicit val equal: Equal[Tweedle] =
+//     Deriving[Equal].xcoproductz(
+//       Prod(Need(Equal[Dee]), Need(Equal[Dum])),
+//       iso.labels,
+//       iso.name
+//     )(iso.to, iso.from)
 
-  // implicit val equal: Equal[Dum] =
-  //   Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
-  // implicit val default: Default[Dum] =
-  //   Alt[Default].apply2(Default[Int], Default[String])(f)
-  implicit val equal: Equal[Dum] =
-    InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
-  implicit val default: Default[Dum] =
-    InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
+//   implicit val default: Default[Tweedle] =
+//     Deriving[Default].xcoproductz(
+//       Prod(Need(Default[Dee]), Need(Default[Dum])),
+//       iso.labels,
+//       iso.name
+//     )(iso.to, iso.from)
 
-}
+// }
+// object Dee {
+//   private type Repr   = String :: Int :: TNil
+//   private type Labels = String :: String :: TNil
+//   private val iso = ProdGen[Dee, Repr, Labels](
+//     d => Prod(d.s, d.i),
+//     p => Dee(p.head, p.tail.head),
+//     Prod("s", "i"),
+//     "Dee"
+//   )
+
+//   private val f: (String, Int) => Dee = Dee(_, _)
+//   private val g: Dee => (String, Int) = d => (d.s, d.i)
+
+//   // implicit val equal: Equal[Dee] =
+//   //   Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
+//   // implicit val default: Default[Dee] =
+//   //   Alt[Default].apply2(Default[String], Default[Int])(f)
+//   // implicit val equal: Equal[Dee] =
+//   //   InvariantApplicative[Equal].xproduct2(Equal[String], Equal[Int])(f, g)
+//   //implicit val default: Default[Dee] =
+//   //   InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
+
+//   implicit val equal: Equal[Dee] =
+//     Deriving[Equal].xproductz(
+//       Prod(Need(Equal[String]), Need(Equal[Int])),
+//       iso.labels,
+//       iso.name
+//     )(iso.to, iso.from)
+
+//   implicit val default: Default[Dee] =
+//     Deriving[Default].xproductz(
+//       Prod(Need(Default[String]), Need(Default[Int])),
+//       iso.labels,
+//       iso.name
+//     )(iso.to, iso.from)
+
+// }
+// object Dum {
+//   private type Repr   = Int :: String :: TNil
+//   private type Labels = String :: String :: TNil
+//   private val iso = ProdGen[Dum, Repr, Labels](
+//     d => Prod(d.i, d.s),
+//     p => Dum(p.head, p.tail.head),
+//     Prod("i", "s"),
+//     "Dum"
+//   )
+
+//   private val f: (Int, String) => Dum = Dum(_, _)
+//   private val g: Dum => (Int, String) = d => (d.i, d.s)
+
+//   // implicit val equal: Equal[Dum] =
+//   //   Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
+//   // implicit val default: Default[Dum] =
+//   //   Alt[Default].apply2(Default[Int], Default[String])(f)
+//   // implicit val equal: Equal[Dum] =
+//   //   InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
+//   // implicit val default: Default[Dum] =
+//   //   InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
+
+//   implicit val equal: Equal[Dum] =
+//     Deriving[Equal].xproductz(
+//       Prod(Need(Equal[Int]), Need(Equal[String])),
+//       iso.labels,
+//       iso.name
+//     )(iso.to, iso.from)
+
+//   implicit val default: Default[Dum] =
+//     Deriving[Default].xproductz(
+//       Prod(Need(Default[Int]), Need(Default[String])),
+//       iso.labels,
+//       iso.name
+//     )(iso.to, iso.from)
+
+// }
 
 object Demo extends App {
 
@@ -187,4 +270,23 @@ object Demo extends App {
   println(Dee("hello", 1).widen === Dum(1, "world").widen)
 
   println(Default[Tweedle].default)
+
+  type TweedleT = Dee :: Dum :: TNil
+  type DeeT     = String :: Int :: TNil
+  type DumT     = Int :: String :: TNil
+
+  val dee: Prod[DeeT] = Prod("hello", 1)
+  val dum: Prod[DumT] = Prod(1, "hello")
+
+  //val DeeI = Cop.Inject[Dee, Cop[TweedleT]]
+  //val DumI = Cop.Inject[Dum, Cop[TweedleT]]
+  //val tweedle: Cop[TweedleT] = DeeI.inj(Dee("hello", 1))
+
+}
+
+object IotazHacks {
+  implicit class ProdExtras[A, T <: TList](prod: Prod[A :: T]) {
+    def head: A       = prod.values(0).asInstanceOf[A]
+    def tail: Prod[T] = Prod.unsafeApply(prod.values.drop(1))
+  }
 }
