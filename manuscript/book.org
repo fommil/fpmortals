@@ -13727,7 +13727,7 @@ we can derive the equal for the whole ADT
 object Darth {
   private def g(t: Darth): Vader \/ Maul = t match {
     case p @ Vader(_, _) => -\/(p)
-    case p @ Maul(_, _) => \/-(p)
+    case p @ Maul(_, _)  => \/-(p)
   }
   implicit val equal: Equal[Darth] =
     Decidable[Equal].choose2(Equal[Vader], Equal[Maul])(g)
@@ -13903,15 +13903,15 @@ section is
 import iotaz._, TList._
 
 type DarthT = Vader :: Maul :: TNil
-type VaderT     = String :: Int :: TNil
-type MaulT     = Int :: String :: TNil
+type VaderT = String :: Int :: TNil
+type MaulT  = Int :: String :: TNil
 #+END_SRC
 
-which can be instantiated directly:
+which can be instantiated:
 
 #+BEGIN_SRC scala
-  val dee: Prod[VaderT]        = Prod("hello", 1)
-  val dum: Prod[MaulT]        = Prod(1, "hello")
+  val vader: Prod[VaderT] = Prod("hello", 1)
+  val maul: Prod[MaulT]  = Prod(1, "hello")
 
   val VaderI = Cop.Inject[Vader, Cop[DarthT]]
   val tweedle: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
@@ -13926,15 +13926,15 @@ the type itself):
 object Darth {
   private type Repr   = Vader :: Maul :: TNil
   private type Labels = String :: String :: TNil
-  private val VaderI = Cop.Inject[Vader, Cop[Repr]]
-  private val MaulI = Cop.Inject[Maul, Cop[Repr]]
-  private val iso = CopGen[Darth, Repr, Labels](
+  private val VaderI  = Cop.Inject[Vader, Cop[Repr]]
+  private val MaulI   = Cop.Inject[Maul, Cop[Repr]]
+  private val iso     = CopGen[Darth, Repr, Labels](
     {
       case d: Vader => VaderI.inj(d)
-      case d: Maul => MaulI.inj(d)
+      case d: Maul  => MaulI.inj(d)
     }, {
       case VaderI(d) => d
-      case MaulI(d) => d
+      case MaulI(d)  => d
     },
     Prod("Vader", "Maul"),
     "Darth"
@@ -13945,7 +13945,7 @@ object Darth {
 object Vader {
   private type Repr   = String :: Int :: TNil
   private type Labels = String :: String :: TNil
-  private val iso = ProdGen[Vader, Repr, Labels](
+  private val iso     = ProdGen[Vader, Repr, Labels](
     d => Prod(d.s, d.i),
     p => Vader(p.head, p.tail.head),
     Prod("s", "i"),
@@ -13957,7 +13957,7 @@ object Vader {
 object Maul {
   private type Repr   = Int :: String :: TNil
   private type Labels = String :: String :: TNil
-  private val iso = ProdGen[Maul, Repr, Labels](
+  private val iso     = ProdGen[Maul, Repr, Labels](
     d => Prod(d.i, d.s),
     p => Maul(p.head, p.tail.head),
     Prod("i", "s"),
