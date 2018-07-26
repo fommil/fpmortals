@@ -216,7 +216,7 @@ is the case with `Semigroup`, it may provide an `InvariantFunctor`
   object Semigroup {
     implicit val invariant = new InvariantFunctor[Semigroup] {
       def xmap[A, B](ma: Semigroup[A], f: A => B, g: B => A) = new Semigroup[B] {
-        def append(x: B, y: => B): B = f(ma.append(g(x), g(y)))
+        def append(x: B, y: =>B): B = f(ma.append(g(x), g(y)))
       }
     }
     ...

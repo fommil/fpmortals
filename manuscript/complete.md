@@ -4230,9 +4230,9 @@ structures that are then joined.
     @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
     def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = bind(fa)(f)
   
-    override def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] =
+    override def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B] =
       bind(f)(x => map(fa)(x))
-    override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+    override def apply2[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] =
       bind(fa)(a => map(fb)(b => f(a, b)))
   
     def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
@@ -5855,7 +5855,7 @@ typeclasses. For example
   trait IsomorphismSemigroup[F, G] extends Semigroup[F] {
     implicit def G: Semigroup[G]
     def iso: F <=> G
-    def append(f1: F, f2: => F): F = iso.from(G.append(iso.to(f1), iso.to(f2)))
+    def append(f1: F, f2: =>F): F = iso.from(G.append(iso.to(f1), iso.to(f2)))
   }
 ~~~~~~~~
 
@@ -10527,7 +10527,7 @@ methods from the `Applicative` typeclass:
     ) extends FreeAp[S, A]
   
     def pure[S[_], A](a: A): FreeAp[S, A] = Pure(a)
-    def lift[S[_], A](x: => S[A]): FreeAp[S, A] = ...
+    def lift[S[_], A](x: =>S[A]): FreeAp[S, A] = ...
     ...
   }
 ~~~~~~~~
@@ -10892,7 +10892,7 @@ derived combinator laws for `.apply2` must be satisfied, which say
 ~~~~~~~~
   @typeclass trait Bind[F[_]] extends Apply[F] {
     ...
-    override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+    override def apply2[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] =
       bind(fa)(a => map(fb)(b => f(a, b)))
     ...
   }
@@ -11130,11 +11130,11 @@ safe and unsafe code blocks:
     // eager evaluation of an existing value
     def now[E, A](a: A): IO[E, A] = ...
     // lazy evaluation of a pure calculation
-    def point[E, A](a: => A): IO[E, A] = ...
+    def point[E, A](a: =>A): IO[E, A] = ...
     // lazy evaluation of a side-effecting, yet Total, code block
-    def sync[E, A](effect: => A): IO[E, A] = ...
+    def sync[E, A](effect: =>A): IO[E, A] = ...
     // lazy evaluation of a side-effecting code block that may fail
-    def syncThrowable[A](effect: => A): IO[Throwable, A] = ...
+    def syncThrowable[A](effect: =>A): IO[Throwable, A] = ...
   
     // create a failed IO
     def fail[E, A](error: E): IO[E, A] = ...
@@ -11149,7 +11149,7 @@ with convenient `Task` constructors:
 {lang="text"}
 ~~~~~~~~
   object Task {
-    def apply[A](effect: => A): Task[A] = IO.syncThrowable(effect)
+    def apply[A](effect: =>A): Task[A] = IO.syncThrowable(effect)
     def now[A](effect: A): Task[A] = IO.now(effect)
     def fail[A](error: Throwable): Task[A] = IO.fail(error)
     def fromFuture[E, A](io: Task[Future[A]])(ec: ExecutionContext): Task[A] = ...
