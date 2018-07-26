@@ -13,9 +13,9 @@ There are five approaches to typeclass derivation:
     applications as it results in hundreds of lines of code of boilerplate for
     every line of a `case class`. It is useful only for educational purposes.
 
-2.  Write macros for each typeclass. This is not a maintainable solution, since
-    the macro API is known to change with Scala major releases, and in any case
-    requires an advanced and experienced developer to write each macro.
+2.  Write macros for each typeclass. This is not a maintainable solution because
+    the macro API will change in Scala 3, and macros require an advanced and
+    experienced developer to write each one.
 
 3.  Many typeclasses (and algebras!) can be abstracted by an existing scalaz
     typeclass, producing automated tests of the typeclass itself and derivations
@@ -36,26 +36,7 @@ Magnolia (the easiest to use) for encoder and decoder formats, finishing with
 Shapeless (the most powerful) for typeclasses with complex derivation logic.
 
 
-## `scalaz-deriving`
-
-The `scalaz-deriving` library is an extension to Scalaz and can be added to a
-project's `build.sbt` with
-
-{lang="text"}
-~~~~~~~~
-  libraryDependencies += "com.fommil" %% "scalaz-deriving" % "1.0.0-RC1"
-~~~~~~~~
-
-providing three new typeclasses: `Decidable`, `Alt` and `InvariantAlt`. Shown
-below in relation to the typeclasses that are relevant to this chapter:
-
-{width=60%}
-![](images/scalaz-deriving-base.png)
-
-A> In scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
-
-
-### Running Examples
+## Running Examples
 
 This chapter will show how to define derivations for five specific typeclasses.
 Each example exhibits a feature that can be generalised:
@@ -90,7 +71,7 @@ Each example exhibits a feature that can be generalised:
 ~~~~~~~~
 
 A> There is a school of thought that says serialisation formats, such as JSON and
-A> XML, should ****not**** have typeclass encoders and decoders, because it can lead to
+A> XML, should **not** have typeclass encoders and decoders, because it can lead to
 A> typeclass decoherence (i.e. more than one encoder or decoder may exist for the
 A> same type). The alternative is to use algebras and avoid using the `implicit`
 A> language feature entirely.
@@ -101,6 +82,68 @@ A> We therefore consciously choose to restrict our study to encoders and decoder
 A> that are coherent. As we will see later in this chapter, use-site automatic
 A> derivation with magnolia and shapeless, combined with limitations of the scala
 A> compiler's implicit search, commonly leads to typeclass decoherence.
+
+
+## `scalaz-deriving`
+
+The `scalaz-deriving` library is an extension to Scalaz and can be added to a
+project's `build.sbt` with
+
+{lang="text"}
+~~~~~~~~
+  libraryDependencies += "com.fommil" %% "scalaz-deriving" % "1.0.0-RC1"
+~~~~~~~~
+
+providing new typeclasses: `Decidable`, `Alt` with invariant parents. Shown
+below in relation to the typeclasses that are relevant to this chapter:
+
+{width=60%}
+![](images/scalaz-deriving-base.png)
+
+A> In scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
+
+A summary of the scalaz core typeclasses is:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait InvariantFunctor[F[_]] {
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B]
+  }
+  
+  @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
+    def contramap[A, B](fa: F[A])(f: B => A): F[B]
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(g)
+  }
+  
+  @typeclass trait Divisible[F[_]] extends Contravariant[F] {
+    def conquer[A]: F[A]
+    def divide2[A, B, C](fa: F[A], fb: F[B])(f: C => (A, B)): F[C]
+    ...
+    def divide22[...] = ...
+  }
+  
+  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
+    def map[A, B](fa: F[A])(f: A => B): F[B]
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = map(fa)(f)
+  }
+  
+  @typeclass trait Applicative[F[_]] extends Functor[F] {
+    def point[A](a: =>A): F[A]
+    def apply2[A,B,C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
+    def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+    ...
+    def apply12[...]
+  }
+  
+  @typeclass trait Monad[F[_]] extends Functor[F] {
+    @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+  }
+  @typeclass trait MonadError[F[_], E] extends Monad[F] {
+    def raiseError[A](e: E): F[A]
+    def handleError[A](fa: F[A])(f: E => F[A]): F[A]
+    def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] = ...
+  }
+~~~~~~~~
 
 
 ### Don't Repeat Yourself
@@ -190,8 +233,7 @@ and we can call `.xmap`
   }
 ~~~~~~~~
 
-Recall that `Functor` and `Contravariant` extend `InvariantFunctor` and have
-derived `.xmap` implementations. It is simpler to use `.xmap`, for consistency:
+It is simpler to use `.xmap` from the `InvariantFunctor` parent:
 
 {lang="text"}
 ~~~~~~~~
@@ -243,7 +285,7 @@ fails to compile with
 {lang="text"}
 ~~~~~~~~
   [error] default.scala:41:32: polymorphic expression cannot be instantiated to expected type;
-  [error]  found   : [P]Either[String, String Refined P]
+  [error]  found   : Either[String, String Refined NonEmpty]
   [error]  required: String Refined NonEmpty
   [error]     Default[String].map(refineV[NonEmpty](_))
   [error]                                          ^
@@ -309,7 +351,7 @@ protection around the non-total `.toInt` stdlib method.
   implicit val long: Default[Long] = instance(0L.right)
   implicit val int: Default[Int] = Default[Long].emap {
     case n if (Int.MinValue <= n && n <= Int.MaxValue) => n.toInt.right
-    case big                                           => big.toString.left
+    case big => s"$big does not fit into 32 bits".left
   }
 ~~~~~~~~
 
@@ -348,8 +390,7 @@ isomorphism to `(String, Int)`
   }
 ~~~~~~~~
 
-and then derive `Equal[Bar]` because there is already a `Equal[(String, Int)]`
-in scalaz (and for all tuples up to 22 parameters):
+and then derive `Equal[Bar]` because there is already a `Equal` for all tuples:
 
 {lang="text"}
 ~~~~~~~~
@@ -359,12 +400,9 @@ in scalaz (and for all tuples up to 22 parameters):
   }
 ~~~~~~~~
 
-A> A compiler plugin to automatically generate `Isomorphism` for data types would
-A> be a welcome addition to the ecosystem.
-
 The `.fromIso` mechanism can also assist us as typeclass authors. Consider
-`Default` which has a core type signature of the form `Unit => F[A]`, the same
-as `Kleisli[F, Unit, ?]` !
+`Default` which has a core type signature of the form `Unit => F[A]`. This is
+just `Kleisli[F, Unit, ?]`, the `ReaderT` monad transformer.
 
 Since `Kleisli` already provides a `MonadError` (if `F` has one), we can derive
 `MonadError[Default, String]` by creating an isomorphism between `Default` and
@@ -377,7 +415,7 @@ Since `Kleisli` already provides a `MonadError` (if `F` has one), we can derive
     λ[Sig ~> Default](s => instance(s(()))),
     λ[Default ~> Sig](d => _ => d.default)
   )
-  implicit val monaderr: MonadError[Default, String] = MonadError.fromIso(iso)
+  implicit val monad: MonadError[Default, String] = MonadError.fromIso(iso)
 ~~~~~~~~
 
 giving us the `.map`, `.xmap` and `.emap` that we've been making use of so far,
@@ -396,7 +434,8 @@ provides an instance:
 {lang="text"}
 ~~~~~~~~
   implicit val divisible = new Divisible[Equal] {
-    def divide2[A1, A2, Z](a1: =>Equal[A1], a2: =>Equal[A2])(
+    ...
+    def divide[A1, A2, Z](a1: =>Equal[A1], a2: =>Equal[A2])(
       f: Z => (A1, A2)
     ): Equal[Z] = { (z1, z2) =>
       val (s1, s2) = f(z1)
@@ -419,9 +458,7 @@ And from `divide2`, `Divisible` is able to build up derivations all the way to
   }
 ~~~~~~~~
 
-The analogy for typeclass with type parameters in covariant position is
-`Applicative`. We already have for `Default` through our `MonadError`, so we can
-call it
+The equivalent for type parameters in covariant position is `Applicative`:
 
 {lang="text"}
 ~~~~~~~~
@@ -448,9 +485,7 @@ Consider `JsEncoder` and a proposed instance of `Divisible`
 {lang="text"}
 ~~~~~~~~
   new Divisible[JsEncoder] {
-    def contramap[A, B](fa: JsEncoder[A])(f: B => A): JsEncoder[B] =
-      b => fa.toJson(f(b))
-  
+    ...
     def divide[A, B, C](fa: JsEncoder[A], fb: JsEncoder[B])(
       f: C => (A, B)
     ): JsEncoder[C] = { c =>
@@ -609,41 +644,41 @@ For an ADT
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class Tweedle { def widen: Tweedle = this }
-  final case class Dee(s: String, i: Int) extends Tweedle
-  final case class Dum(i: Int, s: String) extends Tweedle
+  sealed abstract class Darth { def widen: Darth = this }
+  final case class Vader(s: String, i: Int) extends Darth
+  final case class Maul(i: Int, s: String) extends Darth
 ~~~~~~~~
 
-where the products have an `Equal`
+where the products (`Vader` and `Maul`) have an `Equal`
 
 {lang="text"}
 ~~~~~~~~
-  object Dee {
-    private val g: Dee => (String, Int) = d => (d.s, d.i)
-    implicit val equal: Equal[Dee] =
+  object Vader {
+    private val g: Vader => (String, Int) = d => (d.s, d.i)
+    implicit val equal: Equal[Vader] =
       Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
   }
-  object Dum {
-    private val g: Dum => (Int, String) = d => (d.i, d.s)
-    implicit val equal: Equal[Dum] =
+  object Maul {
+    private val g: Maul => (Int, String) = d => (d.i, d.s)
+    implicit val equal: Equal[Maul] =
       Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
   }
 ~~~~~~~~
 
-we can derive the equal for the ADT
+we can derive the equal for the whole ADT
 
 {lang="text"}
 ~~~~~~~~
-  object Tweedle {
-    private def g(t: Tweedle): Dee \/ Dum = t match {
-      case p @ Dee(_, _) => -\/(p)
-      case p @ Dum(_, _) => \/-(p)
+  object Darth {
+    private def g(t: Darth): Vader \/ Maul = t match {
+      case p @ Vader(_, _) => -\/(p)
+      case p @ Maul(_, _) => \/-(p)
     }
-    implicit val equal: Equal[Tweedle] =
-      Decidable[Equal].choose2(Equal[Dee], Equal[Dum])(g)
+    implicit val equal: Equal[Darth] =
+      Decidable[Equal].choose2(Equal[Vader], Equal[Maul])(g)
   }
   
-  scala> Dee("hello").widen === Dum(1).widen
+  scala> Vader("hello").widen === Maul(1).widen
   false
 ~~~~~~~~
 
@@ -659,41 +694,39 @@ instead of `MonadError.fromIso`, and mix in `Alt`. Let's upgrade our
 {lang="text"}
 ~~~~~~~~
   private type K[a] = Kleisli[String \/ ?, Unit, a]
-  implicit val monad = new IsomorphismMonadError[Default, K, String]
-                      with Alt[Default] {
-      override val G: MonadError[K, String] = MonadError[K, String]
-      override val iso: Default <~> K = ...
+  implicit val monad = new IsomorphismMonadError[Default, K, String] with Alt[Default] {
+    override val G = MonadError[K, String]
+    override val iso = ...
   
-      def alt[A](a1: =>Default[A], a2: =>Default[A]): Default[A] =
-        instance(a1.default)
-    }
+    def alt[A](a1: =>Default[A], a2: =>Default[A]): Default[A] = instance(a1.default)
+  }
 ~~~~~~~~
 
-Letting us derive our `Default[Tweedle]`
+Letting us derive our `Default[Darth]`
 
 {lang="text"}
 ~~~~~~~~
-  object Tweedle {
+  object Darth {
     ...
-    private def f(e: Dee \/ Dum): Tweedle = e.merge
-    implicit val default: Default[Tweedle] =
-      Alt[Default].altly2(Default[Dee], Default[Dum])(f)
+    private def f(e: Vader \/ Maul): Darth = e.merge
+    implicit val default: Default[Darth] =
+      Alt[Default].altly2(Default[Vader], Default[Maul])(f)
   }
-  object Dee {
+  object Vader {
     ...
-    private val f: (String, Int) => Dee = Dee(_, _)
-    implicit val default: Default[Dee] =
+    private val f: (String, Int) => Vader = Vader(_, _)
+    implicit val default: Default[Vader] =
       Alt[Default].apply2(Default[String], Default[Int])(f)
   }
-  object Dum {
+  object Maul {
     ...
-    private val f: (Int, String) => Dum = Dum(_, _)
-    implicit val default: Default[Dum] =
+    private val f: (Int, String) => Maul = Maul(_, _)
+    implicit val default: Default[Maul] =
       Alt[Default].apply2(Default[Int], Default[String])(f)
   }
   
-  scala> Default[Tweedle].default
-  \/-(Dee())
+  scala> Default[Darth].default
+  \/-(Vader())
 ~~~~~~~~
 
 Finally, the common parents of `Alt` and `Decidable`:
@@ -720,25 +753,25 @@ means that we can instead write consistent boilerplate for all derivations
 
 {lang="text"}
 ~~~~~~~~
-  object Tweedle {
+  object Darth {
     ...
-    implicit val equal: Equal[Tweedle] =
-      InvariantAlt[Equal].xcoproduct2(Equal[Dee], Equal[Dum])(f, g)
-    implicit val default: Default[Tweedle] =
-      InvariantAlt[Default].xcoproduct2(Default[Dee], Default[Dum])(f, g)
+    implicit val equal: Equal[Darth] =
+      InvariantAlt[Equal].xcoproduct2(Equal[Vader], Equal[Maul])(f, g)
+    implicit val default: Default[Darth] =
+      InvariantAlt[Default].xcoproduct2(Default[Vader], Default[Maul])(f, g)
   }
-  object Dee {
+  object Vader {
     ...
-    implicit val equal: Equal[Dee] =
+    implicit val equal: Equal[Vader] =
       InvariantApplicative[Equal].xproduct2(Equal[String], Equal[Int])(f, g)
-    implicit val default: Default[Dee] =
+    implicit val default: Default[Vader] =
       InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
   }
-  object Dum {
+  object Maul {
     ...
-    implicit val equal: Equal[Dum] =
+    implicit val equal: Equal[Maul] =
       InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
-    implicit val default: Default[Dum] =
+    implicit val default: Default[Maul] =
       InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
   }
 ~~~~~~~~
@@ -759,40 +792,40 @@ In this final section about `scalaz-deriving` we will solve both problems.
 
 There are additional typeclasses introduced by `scalaz-deriving`
 
-{width=60%}
+{width=75%}
 ![](images/scalaz-deriving.png)
 
 Effectively, our four central typeclasses `Applicative`, `Divisible`, `Alt` and
 `Decidable` all get extended to arbitrary arity using the [iotaz](https://github.com/frees-io/iota) library, hence
 the `z` postfix.
 
-The iotaz library has three core types:
+The iotaz library has three main types:
 
 -   `TList` which describes arbitrary length chains of types
 -   `Prod[A <: TList]` for products
 -   `Cop[A <: TList]` for coproducts
 
-By way of example, a `TList` representation of `Tweedle` from the previous
+By way of example, a `TList` representation of `Darth` from the previous
 section is
 
 {lang="text"}
 ~~~~~~~~
   import iotaz._, TList._
   
-  type TweedleT = Dee :: Dum :: TNil
-  type DeeT     = String :: Int :: TNil
-  type DumT     = Int :: String :: TNil
+  type DarthT = Vader :: Maul :: TNil
+  type VaderT     = String :: Int :: TNil
+  type MaulT     = Int :: String :: TNil
 ~~~~~~~~
 
 which can be instantiated directly:
 
 {lang="text"}
 ~~~~~~~~
-  val dee: Prod[DeeT]        = Prod("hello", 1)
-  val dum: Prod[DumT]        = Prod(1, "hello")
+  val dee: Prod[VaderT]        = Prod("hello", 1)
+  val dum: Prod[MaulT]        = Prod(1, "hello")
   
-  val DeeI = Cop.Inject[Dee, Cop[TweedleT]]
-  val tweedle: Cop[TweedleT] = DeeI.inj(Dee("hello", 1))
+  val VaderI = Cop.Inject[Vader, Cop[DarthT]]
+  val tweedle: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
 ~~~~~~~~
 
 To be able to use the `scalaz-deriving` API, we need an `Isomorphism` between
@@ -802,45 +835,45 @@ the type itself):
 
 {lang="text"}
 ~~~~~~~~
-  object Tweedle {
-    private type Repr   = Dee :: Dum :: TNil
+  object Darth {
+    private type Repr   = Vader :: Maul :: TNil
     private type Labels = String :: String :: TNil
-    private val DeeI = Cop.Inject[Dee, Cop[Repr]]
-    private val DumI = Cop.Inject[Dum, Cop[Repr]]
-    private val iso = CopGen[Tweedle, Repr, Labels](
+    private val VaderI = Cop.Inject[Vader, Cop[Repr]]
+    private val MaulI = Cop.Inject[Maul, Cop[Repr]]
+    private val iso = CopGen[Darth, Repr, Labels](
       {
-        case d: Dee => DeeI.inj(d)
-        case d: Dum => DumI.inj(d)
+        case d: Vader => VaderI.inj(d)
+        case d: Maul => MaulI.inj(d)
       }, {
-        case DeeI(d) => d
-        case DumI(d) => d
+        case VaderI(d) => d
+        case MaulI(d) => d
       },
-      Prod("Dee", "Dum"),
-      "Tweedle"
-    )
-   ...
-  }
-  
-  object Dee {
-    private type Repr   = String :: Int :: TNil
-    private type Labels = String :: String :: TNil
-    private val iso = ProdGen[Dee, Repr, Labels](
-      d => Prod(d.s, d.i),
-      p => Dee(p.head, p.tail.head),
-      Prod("s", "i"),
-      "Dee"
+      Prod("Vader", "Maul"),
+      "Darth"
     )
     ...
   }
   
-  object Dum {
+  object Vader {
+    private type Repr   = String :: Int :: TNil
+    private type Labels = String :: String :: TNil
+    private val iso = ProdGen[Vader, Repr, Labels](
+      d => Prod(d.s, d.i),
+      p => Vader(p.head, p.tail.head),
+      Prod("s", "i"),
+      "Vader"
+    )
+    ...
+  }
+  
+  object Maul {
     private type Repr   = Int :: String :: TNil
     private type Labels = String :: String :: TNil
-    private val iso = ProdGen[Dum, Repr, Labels](
+    private val iso = ProdGen[Maul, Repr, Labels](
       d => Prod(d.i, d.s),
-      p => Dum(p.head, p.tail.head),
+      p => Maul(p.head, p.tail.head),
       Prod("i", "s"),
-      "Dum"
+      "Maul"
     )
     ...
   }
@@ -850,21 +883,21 @@ With that out of the way we can call the `Deriving` API for `Equal`
 
 {lang="text"}
 ~~~~~~~~
-  object Tweedle {
+  object Darth {
     ...
-    implicit val equal: Equal[Tweedle] = Deriving[Equal].xcoproductz(
-      Prod(Need(Equal[Dee]), Need(Equal[Dum])),
+    implicit val equal: Equal[Darth] = Deriving[Equal].xcoproductz(
+      Prod(Need(Equal[Vader]), Need(Equal[Maul])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
-  object Dee {
-    implicit val equal: Equal[Dee] = Deriving[Equal].xproductz(
+  object Vader {
+    implicit val equal: Equal[Vader] = Deriving[Equal].xproductz(
       Prod(Need(Equal[String]), Need(Equal[Int])),
       iso.labels, iso.name)(iso.to, iso.from)
     ...
   }
-  object Dum {
+  object Maul {
     ...
-    implicit val equal: Equal[Dum] = Deriving[Equal].xproductz(
+    implicit val equal: Equal[Maul] = Deriving[Equal].xproductz(
       Prod(Need(Equal[Int]), Need(Equal[String])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
@@ -883,25 +916,27 @@ need to provide an instance. Luckily it's just a case of wrapping our existing
   }
 ~~~~~~~~
 
-Now we can repeat the same boilerplate that we wrote for `Equal` for `Default`,
-but we will spare you the pain. We have solved the problem of arbitrary arity,
-but we introduced even more boilerplate to get here.
+We could repeat the same boilerplate for `Default`. We have solved the problem
+of arbitrary arity, but we introduced even more boilerplate.
 
-The punchline is that the `@deriving` annotation, which comes with
-`scalaz-deriving` generates all of the boilerplate automatically and only needs
-to be applied at the top level of an ADT. So take everything we've written in
-this chapter and get it all for free with
+The punchline is that the `@deriving` annotation, which comes from
+`deriving-plugin`, generates all the boilerplate automatically and only needs to
+be applied at the top level of an ADT. We can collapse all the boilerplate down
+to:
 
 {lang="text"}
 ~~~~~~~~
   @deriving(Equal, Default)
-  sealed abstract class Tweedle { def widen: Tweedle = this }
-  final case class Dee(s: String, i: Int) extends Tweedle
-  final case class Dum(i: Int, s: String) extends Tweedle
+  sealed abstract class Darth { def widen: Darth = this }
+  final case class Vader(s: String, i: Int) extends Darth
+  final case class Maul(i: Int, s: String) extends Darth
 ~~~~~~~~
 
 Also included in `scalaz-deriving` are instances for `Order`, `Show`,
 `Semigroup`, `Monoid` and `Arbitrary`.
+
+TODO `Equal` and `Semigroup` implementations using iotaz API, and `/~\` the
+snake on the road...
 
 
 ## TODO Magnolia
