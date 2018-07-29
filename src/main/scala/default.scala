@@ -30,7 +30,7 @@ object Default {
   //     instance(fa.default.map(f))
   // }
 
-  // implicit val monaderr: MonadError[Default, String] =
+  // implicit val monad: MonadError[Default, String] =
   //   new MonadError[Default, String] {
   //     def point[A](a: =>A): Default[A] =
   //       instance(a.right)
@@ -47,7 +47,7 @@ object Default {
   //   λ[Sig ~> Default](s => instance(s(()))),
   //   λ[Default ~> Sig](d => _ => d.default)
   // )
-  //implicit val monaderr: MonadError[Default, String] = MonadError.fromIso(iso)
+  //implicit val monad: MonadError[Default, String] = MonadError.fromIso(iso)
 
   // private type K[a] = Kleisli[String \/ ?, Unit, a]
   // implicit val monad: MonadError[Default, String] with Alt[Default] =
@@ -100,7 +100,7 @@ object Default {
 
   implicit val int: Default[Int] = Default[Long].emap {
     case n if (Int.MinValue <= n && n <= Int.MaxValue) => n.toInt.right
-    case big                                           => big.toString.left
+    case big                                           => s"$big does not fit into 32 bits".left
   }
 }
 
@@ -310,7 +310,7 @@ object Demo extends App {
 
   //val VaderI = Cop.Inject[Vader, Cop[DarthT]]
   //val MaulI = Cop.Inject[Maul, Cop[DarthT]]
-  //val tweedle: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
+  //val darth: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
 
 }
 

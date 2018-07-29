@@ -94,15 +94,15 @@ project's `build.sbt` with
   libraryDependencies += "com.fommil" %% "scalaz-deriving" % "1.0.0-RC1"
 ~~~~~~~~
 
-providing new typeclasses: `Decidable`, `Alt` with invariant parents. Shown
-below in relation to the typeclasses that are relevant to this chapter:
+providing new typeclasses, shown below in relation to the core scalaz
+typeclasses that are relevant to this chapter:
 
 {width=60%}
 ![](images/scalaz-deriving-base.png)
 
 A> In scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
 
-A summary of the scalaz core typeclasses is:
+Before we proceed, here is a quick recap of the core scalaz typeclasses:
 
 {lang="text"}
 ~~~~~~~~
@@ -264,11 +264,11 @@ A> ~~~~~~~~
 
 ### `MonadError`
 
-Typically things that *write* a polymorphic value have a `Contravariant`, and
-things that *read* a polymorphic value have a `Functor`. However, it is very
-much expected that reading a value can fail. For example, if we have a default
-`String` it does not mean that we can simply derive a default `String Refined
-NonEmpty`
+Typically things that *write* out a polymorphic value have a `Contravariant`,
+and things that *read* into a polymorphic value have a `Functor`. However, it is
+very much expected that reading a value can fail. For example, if we have a
+default `String` it does not mean that we can simply derive a default `String
+Refined NonEmpty` from it
 
 {lang="text"}
 ~~~~~~~~
@@ -299,7 +299,7 @@ provide a `MonadError[Default, String]`:
 
 {lang="text"}
 ~~~~~~~~
-  implicit val monaderr = new MonadError[Default, String] {
+  implicit val monad = new MonadError[Default, String] {
     def point[A](a: =>A): Default[A] =
       instance(a.right)
     def bind[A, B](fa: Default[A])(f: A => Default[B]): Default[B] =
@@ -330,6 +330,9 @@ In fact, we can provide a derivation rule for all refined types
 
 where `Validate` is from the refined library and is required by `refineV`.
 
+That said, we probably want to provide a custom instance of `Default[String
+Refined NonEmpty]` that succeeds if it is something we need.
+
 A> The `refined-scalaz` extension to `refined` provides support for automatically
 A> deriving all typeclasses for refined types with the following import
 A> 
@@ -358,7 +361,8 @@ protection around the non-total `.toInt` stdlib method.
 
 ### `.fromIso`
 
-All of the typeclasses in scalaz have a method on their companion with a signature similar to the following:
+All of the typeclasses in scalaz have a method on their companion with a
+signature similar to the following:
 
 {lang="text"}
 ~~~~~~~~
@@ -373,9 +377,8 @@ All of the typeclasses in scalaz have a method on their companion with a signatu
   }
 ~~~~~~~~
 
-These mean that if we have a type `F`, and a way to convert it into a `G`, that
-has the typeclass we care about, then we can simply call `Equal.fromIso` to
-obtain an instance.
+These mean that if we have a type `F`, and a way to convert it into a `G` that
+has an instance, we can call `Equal.fromIso` to obtain an instance for `F`.
 
 For example, as typeclass users, if we have a data type `Bar` we can define an
 isomorphism to `(String, Int)`
@@ -401,8 +404,9 @@ and then derive `Equal[Bar]` because there is already a `Equal` for all tuples:
 ~~~~~~~~
 
 The `.fromIso` mechanism can also assist us as typeclass authors. Consider
-`Default` which has a core type signature of the form `Unit => F[A]`. This is
-just `Kleisli[F, Unit, ?]`, the `ReaderT` monad transformer.
+`Default` which has a core type signature of the form `Unit => F[A]`. Our
+`default` method is in fact isomorphic to `Kleisli[F, Unit, A]`, the `ReaderT`
+monad transformer.
 
 Since `Kleisli` already provides a `MonadError` (if `F` has one), we can derive
 `MonadError[Default, String]` by creating an isomorphism between `Default` and
@@ -545,8 +549,14 @@ On the other hand, a similar `JsDecoder` test meets the `Applicative` compositio
 
 {lang="text"}
 ~~~~~~~~
+  final case class Comp(a: String, b: Int)
+  object Comp {
+    implicit val equal: Equal[Comp] = ...
+    implicit val decoder: JsDecoder[Comp] = ...
+  }
+  
   def composeTest(j: JsValue) = {
-    val A: Applicative[JsDecoder] = JsDecoder.monad // from MonadError.fromIso
+    val A: Applicative[JsDecoder] = Applicative[JsDecoder]
     val fa: JsDecoder[Comp] = JsDecoder[Comp]
     val fab: JsDecoder[Comp => (String, Int)] = A.point(c => (c.a, c.b))
     val fbc: JsDecoder[((String, Int)) => (Int, String)] = A.point(_.swap)
@@ -630,8 +640,8 @@ The four core typeclasses have symmetric signatures:
 | `Divisible`   | `divide2` | `F[A1], F[A2]` | `Z => (A1, A2)`   | `F[Z]`  |
 | `Decidable`   | `choose2` | `F[A1], F[A2]` | `Z => (A1 \/ A2)` | `F[Z]`  |
 
-covering covariant products, covariant coproducts, contravariant products and
-contravariant coproducts, respectively.
+supporting covariant products; covariant coproducts; contravariant products;
+contravariant coproducts.
 
 We can write a `Decidable[Equal]`, letting us derive `Equal` for any ADT!
 
@@ -666,13 +676,11 @@ where the products (`Vader` and `Maul`) have an `Equal`
 ~~~~~~~~
   object Vader {
     private val g: Vader => (String, Int) = d => (d.s, d.i)
-    implicit val equal: Equal[Vader] =
-      Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
+    implicit val equal: Equal[Vader] = Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
   }
   object Maul {
     private val g: Maul => (Int, String) = d => (d.i, d.s)
-    implicit val equal: Equal[Maul] =
-      Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
+    implicit val equal: Equal[Maul] = Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
   }
 ~~~~~~~~
 
@@ -685,8 +693,7 @@ we can derive the equal for the whole ADT
       case p @ Vader(_, _) => -\/(p)
       case p @ Maul(_, _)  => \/-(p)
     }
-    implicit val equal: Equal[Darth] =
-      Decidable[Equal].choose2(Equal[Vader], Equal[Maul])(g)
+    implicit val equal: Equal[Darth] = Decidable[Equal].choose2(Equal[Vader], Equal[Maul])(g)
   }
   
   scala> Vader("hello").widen === Maul(1).widen
@@ -735,27 +742,25 @@ Letting us derive our `Default[Darth]`
   object Darth {
     ...
     private def f(e: Vader \/ Maul): Darth = e.merge
-    implicit val default: Default[Darth] =
-      Alt[Default].altly2(Default[Vader], Default[Maul])(f)
+    implicit val default: Default[Darth] = Alt[Default].altly2(Default[Vader], Default[Maul])(f)
   }
   object Vader {
     ...
     private val f: (String, Int) => Vader = Vader(_, _)
-    implicit val default: Default[Vader] =
-      Alt[Default].apply2(Default[String], Default[Int])(f)
+    implicit val default: Default[Vader] = Alt[Default].apply2(Default[String], Default[Int])(f)
   }
   object Maul {
     ...
     private val f: (Int, String) => Maul = Maul(_, _)
-    implicit val default: Default[Maul] =
-      Alt[Default].apply2(Default[Int], Default[String])(f)
+    implicit val default: Default[Maul] = Alt[Default].apply2(Default[Int], Default[String])(f)
   }
   
   scala> Default[Darth].default
   \/-(Vader())
 ~~~~~~~~
 
-Finally, the common parents of `Alt` and `Decidable`:
+Returning to the `scalaz-deriving` typeclasses, the invariant parents of `Alt`
+and `Decidable`:
 
 {lang="text"}
 ~~~~~~~~
@@ -775,7 +780,7 @@ Finally, the common parents of `Alt` and `Decidable`:
   }
 ~~~~~~~~
 
-means that we can instead write consistent boilerplate for all derivations
+mean that we can instead write consistent boilerplate for all derivations
 
 {lang="text"}
 ~~~~~~~~
@@ -811,8 +816,8 @@ only provide an `InvariantApplicative`, not an `Applicative` or even an
 
 There are two problems with `InvariantApplicative` and `InvariantAlt`:
 
-1.  they only support products of four fields and coproducts of four entries
-2.  there is a **lot** of boilerplate at the use site
+1.  they only support products of four fields and coproducts of four entries.
+2.  there is a **lot** of boilerplate on the data type companions.
 
 In this final section about `scalaz-deriving` we will solve both problems.
 
@@ -851,7 +856,7 @@ which can be instantiated:
   val maul: Prod[MaulT]  = Prod(1, "hello")
   
   val VaderI = Cop.Inject[Vader, Cop[DarthT]]
-  val tweedle: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
+  val darth: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
 ~~~~~~~~
 
 To be able to use the `scalaz-deriving` API, we need an `Isomorphism` between
@@ -916,10 +921,10 @@ With that out of the way we can call the `Deriving` API for `Equal`
       iso.labels, iso.name)(iso.to, iso.from)
   }
   object Vader {
+    ...
     implicit val equal: Equal[Vader] = Deriving[Equal].xproductz(
       Prod(Need(Equal[String]), Need(Equal[Int])),
       iso.labels, iso.name)(iso.to, iso.from)
-    ...
   }
   object Maul {
     ...
@@ -945,8 +950,32 @@ Luckily it's just a case of wrapping our existing `Alt` with a helper
   }
 ~~~~~~~~
 
-We could repeat the same boilerplate for `Default`. We have solved the problem
-of arbitrary arity, but we introduced even more boilerplate.
+and then calling it from the companions
+
+{lang="text"}
+~~~~~~~~
+  object Darth {
+    ...
+    implicit val default: Default[Darth] = Deriving[Default].xcoproductz(
+      Prod(Need(Default[Vader]), Need(Default[Maul])),
+      iso.labels, iso.name)(iso.to, iso.from)
+  }
+  object Vader {
+    ...
+    implicit val default: Default[Vader] = Deriving[Default].xproductz(
+      Prod(Need(Default[String]), Need(Default[Int])),
+      iso.labels, iso.name)(iso.to, iso.from)
+  }
+  object Maul {
+    ...
+    implicit val default: Default[Maul] = Deriving[Default].xproductz(
+      Prod(Need(Default[Int]), Need(Default[String])),
+      iso.labels, iso.name)(iso.to, iso.from)
+  }
+~~~~~~~~
+
+We have solved the problem of arbitrary arity, but we have introduced even more
+boilerplate.
 
 The punchline is that the `@deriving` annotation, which comes from
 `deriving-plugin`, generates all the boilerplate automatically and only needs to
@@ -964,14 +993,15 @@ to:
 Also included in `scalaz-deriving` are instances for `Order`, `Show`,
 `Semigroup`, `Monoid` and `Arbitrary`.
 
+You're welcome.
+
 
 ### Examples
 
-We will finish our study of `scalaz-deriving` with fully worked implementations
-for all the example typeclasses. Before we do that we need to know about a new
-data types: `/~\` (the "snake in the road") aliased to `APair`. This is useful
-for containing two higher kinded structures that are both tied to the same
-parameter:
+We finish our study of `scalaz-deriving` with fully worked implementations for
+all the example typeclasses. Before we do that we need to know about a new data
+types: `/~\` (the "snake in the road") aliased to `APair`. This is useful for
+containing two higher kinded structures that are both tied to the same type:
 
 {lang="text"}
 ~~~~~~~~
@@ -991,10 +1021,10 @@ We typically use this in the context of `Id /~\ TC` where `TC` is our typeclass,
 meaning that we have a value, and an instance of a typeclass for that value,
 without knowing anything about the value.
 
-Finally, all the methods have implicit evidence of the form `NameF ƒ A ↦ TC`,
-allowing the `iotaz` library to be able to perform `.zip`, `.traverse`, and
-other operations on `Prod` and `Cop`. We can ignore these parameters, as we
-don't use them directly.
+In addition, all the methods on the `Deriving` API have implicit evidence of the
+form `NameF ƒ A ↦ TC`, allowing the `iotaz` library to be able to perform
+`.zip`, `.traverse`, and other operations on `Prod` and `Cop`. We can ignore
+these parameters, as we don't use them directly.
 
 
 #### `Equal`
@@ -1023,8 +1053,7 @@ optimisations:
       implicit ev: NameF ƒ A ↦ TC
     ): Equal[Z] = (z1, z2) =>
       (g(z1), g(z2)).zip(tcs).foldRight(true) {
-        case ((a1, a2) /~\ fa, acc) =>
-          (quick(a1, a2) || fa.value.equal(a1, a2)) && acc
+        case ((a1, a2) /~\ fa, acc) => (quick(a1, a2) || fa.value.equal(a1, a2)) && acc
       }
   
     def choosez[Z, A <: TList, TC <: TList](
@@ -1112,18 +1141,18 @@ both covariant and contravariant position so we must make use of both `f` and
 
 #### `JsEncoder`
 
-We have already noted that an `Divisible[JsEncoder]` is not possible, but we can
-implement `Deriving` directly, which has no laws, and also provides access to
-field names.
+We have already noted that a lawful `Divisible[JsEncoder]` is not possible, but
+we can implement `Deriving` directly, which has no laws, and also provides
+access to field names.
 
 We have some choices to make with regards to JSON serialisation:
 
-1.  Should we include `null` values? We choose to not include fields if the value
-    is a `JsNull`.
-2.  How do we encode the name of a coproduct? We choose to use a special field
-    name `type` to hold the name.
-3.  How do we deal with coproducts that are not `JsObject`? We choose to put such
-    values into a special field named `xvalue`.
+1.  Should we include `null` values? We do not include fields if the value is a
+    `JsNull`.
+2.  How do we encode the name of a coproduct? We use a special field `"type"` to
+    disambiguate coproducts.
+3.  How do we deal with coproducts that are not `JsObject`? We put such values
+    into a special field `"xvalue"`.
 
 A> If the default derivation is not palatable to a user of the API, that user can
 A> provide a custom instance on the companion of their data type. More complicated
