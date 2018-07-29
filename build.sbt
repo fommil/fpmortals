@@ -10,6 +10,7 @@ inThisBuild(
   )
 )
 
+addCommandAlias("cpl", "all compile test:compile")
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias(
   "check",
@@ -18,16 +19,16 @@ addCommandAlias(
 addCommandAlias("lint", "all compile:scalafixTest test:scalafixTest")
 addCommandAlias("fix", "all compile:scalafixCli test:scalafixCli")
 
-val derivingVersion = "0.14.0"
+val derivingVersion = "1.0.0-RC4"
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"      % "0.12.0",
+  "com.github.mpilquist" %% "simulacrum"      % "0.13.0",
   "com.chuusai"          %% "shapeless"       % "2.3.3",
-  "io.spray"             %% "spray-json"      % "1.3.4",
-  "eu.timepit"           %% "refined-scalaz"  % "0.9.0",
-  "org.scalaz"           %% "scalaz-ioeffect" % "2.7.0",
+  "eu.timepit"           %% "refined-scalaz"  % "0.9.2",
+  "org.scalaz"           %% "scalaz-ioeffect" % "2.10.1",
   "org.scalaz"           %% "scalaz-core"     % "7.2.25",
   "com.fommil"           %% "deriving-macro"  % derivingVersion % "provided",
   "com.fommil"           %% "scalaz-deriving" % derivingVersion,
+  "com.fommil"           %% "jsonformat"      % derivingVersion,
   "com.propensive"       %% "magnolia"        % "0.8.0",
   "com.propensive"       %% "contextual"      % "1.1.0",
   "org.scalatest"        %% "scalatest"       % "3.0.5" % "test"
@@ -52,7 +53,7 @@ scalacOptions ++= Seq(
 )
 
 addCompilerPlugin(
-  ("org.scalameta" % "semanticdb-scalac" % "4.0.0-M6").cross(CrossVersion.full)
+  ("org.scalameta" % "semanticdb-scalac" % "4.0.0-M7").cross(CrossVersion.full)
 )
 
 addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)

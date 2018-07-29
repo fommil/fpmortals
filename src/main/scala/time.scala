@@ -6,6 +6,7 @@ package fommil
 import fommil.prelude._
 import java.time.Instant
 import scala.concurrent.duration._
+import scala.util.control.NonFatal
 import contextual._
 
 package object time {
@@ -21,17 +22,9 @@ package time {
     def diff(e: Epoch): FiniteDuration = (e.millis - millis).millis
   }
 
-  object EpochInterpolator extends UnsafeVerifier[Epoch] {
-    override def attempt(s: String): Epoch =
-      Epoch(Instant.parse(s).toEpochMilli)
-    override def fail: String = "not in ISO-8601 format"
+  object EpochInterpolator extends Verifier[Epoch] {
+    def check(s: String): Either[(Int, String), Epoch] =
+      try Right(Epoch(Instant.parse(s).toEpochMilli))
+      catch { case NonFatal(_) => Left((0, "not in ISO-8601 format")) }
   }
-}
-
-abstract class UnsafeVerifier[A] extends Verifier[A] {
-  override def check(s: String): Either[(Int, String), A] =
-    Try(attempt(s)).toEither.left.map(_ => (0, fail))
-
-  def attempt(s: String): A
-  def fail: String
 }

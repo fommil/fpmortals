@@ -112,7 +112,8 @@ import prelude._, Z._
 import scala.concurrent.duration._
 
 import eu.timepit.refined.string.Url
-import spray.json._
+import jsonformat._
+import jsonformat.JsDecoder.ops._
 
 import http.client._
 import http.encoding._
@@ -235,8 +236,6 @@ package logic {
 
 /** The API as defined by the OAuth 2.0 server */
 package api {
-  import spray.json.DefaultJsonProtocol._
-
   @deriving(UrlQueryWriter)
   final case class AuthRequest(
     redirect_uri: String Refined Url,
@@ -265,14 +264,14 @@ package api {
     refresh_token: String
   )
   object AccessResponse {
-    implicit val json: JsonReader[AccessResponse] =
-      jsonFormat(
-        apply,
-        "access_token",
-        "token_type",
-        "expires_in",
-        "refresh_token"
-      )
+    implicit val json: JsDecoder[AccessResponse] = j =>
+      for {
+        obj <- j.asJsObject
+        acc <- obj.getAs[String]("access_token")
+        tpe <- obj.getAs[String]("token_type")
+        exp <- obj.getAs[Long]("expires_in")
+        ref <- obj.getAs[String]("refresh_token")
+      } yield AccessResponse(acc, tpe, exp, ref)
   }
 
   @deriving(UrlEncodedWriter)
@@ -289,7 +288,12 @@ package api {
     expires_in: Long
   )
   object RefreshResponse {
-    implicit val json: JsonReader[RefreshResponse] =
-      jsonFormat(apply, "access_token", "token_type", "expires_in")
+    implicit val json: JsDecoder[RefreshResponse] = j =>
+      for {
+        obj <- j.asJsObject
+        acc <- obj.getAs[String]("access_token")
+        tpe <- obj.getAs[String]("token_type")
+        exp <- obj.getAs[Long]("expires_in")
+      } yield RefreshResponse(acc, tpe, exp)
   }
 }
