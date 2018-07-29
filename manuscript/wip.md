@@ -91,7 +91,8 @@ project's `build.sbt` with
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "com.fommil" %% "scalaz-deriving" % "1.0.0-RC1"
+  val derivingVersion = "1.0.0-RC5"
+  libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
 ~~~~~~~~
 
 providing new typeclasses, shown below in relation to the core scalaz

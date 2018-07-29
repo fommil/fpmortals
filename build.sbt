@@ -12,13 +12,13 @@ scalacOptions in ThisBuild ++= Seq(
 val derivingVersion = "1.0.0-RC5"
 
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"            % "0.12.0",
+  "com.github.mpilquist" %% "simulacrum"            % "0.13.0",
   "com.chuusai"          %% "shapeless"             % "2.3.3",
   "com.fommil"           %% "deriving-macro"        % derivingVersion % "provided",
   "com.fommil"           %% "scalaz-deriving"       % derivingVersion,
   "org.scalaz"           %% "scalaz-effect"         % "7.2.25",
-  "org.scalaz"           %% "scalaz-ioeffect"       % "2.8.0",
-  "eu.timepit"           %% "refined-scalaz"        % "0.9.0",
+  "org.scalaz"           %% "scalaz-ioeffect"       % "2.10.1",
+  "eu.timepit"           %% "refined-scalaz"        % "0.9.2",
   "com.lihaoyi"          %% "sourcecode"            % "0.1.4",
   "io.estatico"          %% "newtype"               % "0.4.2"
 )

@@ -103,7 +103,7 @@ FP-specific features enabled (e.g. in `build.sbt`):
   )
   
   libraryDependencies ++= Seq(
-    "com.github.mpilquist" %% "simulacrum"     % "0.12.0",
+    "com.github.mpilquist" %% "simulacrum"     % "0.13.0",
     "org.scalaz"           %% "scalaz-core"    % "7.2.25"
   )
   

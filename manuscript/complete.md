@@ -1487,7 +1487,7 @@ refined, add the following to `build.sbt`
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "eu.timepit" %% "refined-scalaz" % "0.8.7"
+  libraryDependencies += "eu.timepit" %% "refined-scalaz" % "0.9.2"
 ~~~~~~~~
 
 and the following imports
