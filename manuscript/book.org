@@ -1714,7 +1714,9 @@ The fundamental building blocks of data types are
 - =sealed abstract class= also known as /coproducts/
 - =case object= and =Int=, =Double=, =String= (etc) /values/
 
-with no methods or fields other than the constructor parameters.
+with no methods or fields other than the constructor parameters. We prefer
+=abstract class= to =trait= in order to get better binary compatibility and to
+discourage trait mixing.
 
 The collective name for /products/, /coproducts/ and /values/ is
 /Algebraic Data Type/ (ADT).
