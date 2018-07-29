@@ -446,6 +446,17 @@ provides an instance:
   }
 ~~~~~~~~
 
+A> When implementing `Divisible` the compiler will require us to implement
+A> `contramap`, which we can do with the following derived combinator:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   override def contramap[A, B](fa: F[A])(f: B => A): F[B] =
+A>     divide2(conquer[Unit], fa)(c => ((), f(c)))
+A> ~~~~~~~~
+A> 
+A> This has been added to `Divisible` in scalaz 7.3.
+
 And from `divide2`, `Divisible` is able to build up derivations all the way to
 `divide22`. We can call these methods directly for our data types:
 
@@ -702,6 +713,21 @@ instead of `MonadError.fromIso`, and mix in `Alt`. Let's upgrade our
   }
 ~~~~~~~~
 
+A> The primitive of `Alt` is `alt`, much as the primitive of `Applicative` is `ap`,
+A> but it often makes more sense to use `altly2` and `apply2` as the primitives
+A> with the following overrides:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   override def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B] =
+A>     apply2(fa, f)((a, abc) => abc(a))
+A>   
+A>   override def alt[A](a1: =>F[A], a2: =>F[A]): F[A] = altly2(a1, a2) {
+A>     case -\/(a) => a
+A>     case \/-(a) => a
+A>   }
+A> ~~~~~~~~
+
 Letting us derive our `Default[Darth]`
 
 {lang="text"}
@@ -903,10 +929,13 @@ With that out of the way we can call the `Deriving` API for `Equal`
   }
 ~~~~~~~~
 
-This works because `scalaz-deriving` provides an optimised instance of
-`Deriving[Equal]`. To be able to do the same for our `Default` typeclass, we
-need to provide an instance. Luckily it's just a case of wrapping our existing
-`Alt` with a helper
+A> Typeclasses in the `Deriving` API are wrapped in `Need` (recall `Name` from
+A> Chapter 6), which allows lazy construction, avoiding unnecessary work if the
+A> typeclass is not needed, and avoiding stack overflows for recursive ADTs.
+
+`scalaz-deriving` provides an optimised instance of `Deriving[Equal]`. To be
+able to do the same for our `Default` typeclass, we need to provide an instance.
+Luckily it's just a case of wrapping our existing `Alt` with a helper
 
 {lang="text"}
 ~~~~~~~~
@@ -935,8 +964,296 @@ to:
 Also included in `scalaz-deriving` are instances for `Order`, `Show`,
 `Semigroup`, `Monoid` and `Arbitrary`.
 
-TODO `Equal` and `Semigroup` implementations using iotaz API, and `/~\` the
-snake on the road...
+
+### Examples
+
+We will finish our study of `scalaz-deriving` with fully worked implementations
+for all the example typeclasses. Before we do that we need to know about a new
+data types: `/~\` (the "snake in the road") aliased to `APair`. This is useful
+for containing two higher kinded structures that are both tied to the same
+parameter:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class /~\[A[_], B[_]] {
+    type T
+    def a: A[T]
+    def b: B[T]
+  }
+  object /~\ {
+    type APair[A[_], B[_]]  = A /~\ B
+    @inline final def unapply[A[_], B[_]](p: A /~\ B): Some[(A[p.T], B[p.T])] = ...
+    @inline final def apply[A[_], B[_], Z](az: =>A[Z], bz: =>B[Z]): A /~\ B = ...
+  }
+~~~~~~~~
+
+We typically use this in the context of `Id /~\ TC` where `TC` is our typeclass,
+meaning that we have a value, and an instance of a typeclass for that value,
+without knowing anything about the value.
+
+Finally, all the methods have implicit evidence of the form `NameF ƒ A ↦ TC`,
+allowing the `iotaz` library to be able to perform `.zip`, `.traverse`, and
+other operations on `Prod` and `Cop`. We can ignore these parameters, as we
+don't use them directly.
+
+
+#### `Equal`
+
+As with `Default` we could define a regular fixed-arity `Decidable` and wrap it
+with `ExtendedInvariantAlt` (the simplest approach), but we choose to implement
+`Decidablez` directly for the performance benefit. We make two additional
+optimisations:
+
+1.  perform instance equality `.eq` before applying the `Equal.equal`, allowing
+    for shortcut equality between identical values.
+2.  `.foldRight` allowing early exit when any field is `false`. e.g. if the first
+    fields don't match, we don't even request the `Equal` for remaining values.
+
+{lang="text"}
+~~~~~~~~
+  new Decidablez[Equal] {
+    @inline private final def quick(a: Any, b: Any): Boolean =
+      a.asInstanceOf[AnyRef].eq(b.asInstanceOf[AnyRef])
+  
+    def dividez[Z, A <: TList, TC <: TList](
+      tcs: Prod[TC]
+    )(
+      g: Z => Prod[A]
+    )(
+      implicit ev: NameF ƒ A ↦ TC
+    ): Equal[Z] = (z1, z2) =>
+      (g(z1), g(z2)).zip(tcs).foldRight(true) {
+        case ((a1, a2) /~\ fa, acc) =>
+          (quick(a1, a2) || fa.value.equal(a1, a2)) && acc
+      }
+  
+    def choosez[Z, A <: TList, TC <: TList](
+      tcs: Prod[TC]
+    )(
+      g: Z => Cop[A]
+    )(
+      implicit ev: NameF ƒ A ↦ TC
+    ): Equal[Z] = (z1, z2) =>
+      (g(z1), g(z2)).zip(tcs) match {
+        case -\/(_)               => false
+        case \/-((a1, a2) /~\ fa) => quick(a1, a2) || fa.value.equal(a1, a2)
+      }
+  }
+~~~~~~~~
+
+
+#### `Default`
+
+We've already seen how to define an `Alt` and lift it to a `Deriving` with the
+`ExtendedInvariantAlt` helper. However, for completeness, say we wish to define
+an `Altz` directly.
+
+Unfortunately, the `iotaz` API for `.traverse` (and its analogy, `.coptraverse`)
+requires us to define natural transformations, which have a clunky syntax, even
+with the `kind-projector` plugin.
+
+{lang="text"}
+~~~~~~~~
+  private type K[a] = Kleisli[String \/ ?, Unit, a]
+  new IsomorphismMonadError[Default, K, String] with Altz[Default] {
+    type Sig[a] = Unit => String \/ a
+    override val G = MonadError[K, String]
+    override val iso = Kleisli.iso(
+      λ[Sig ~> Default](s => instance(s(()))),
+      λ[Default ~> Sig](d => _ => d.default)
+    )
+  
+    val extract = λ[NameF ~> (String \/ ?)](a => a.value.default)
+    def applyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
+      f: Prod[A] => Z
+    )(
+      implicit ev1: NameF ƒ A ↦ TC
+    ): Default[Z] = instance(tcs.traverse(extract).map(f))
+  
+    val always = λ[NameF ~> Maybe](a => a.value.default.toMaybe)
+    def altlyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
+      f: Cop[A] => Z
+    )(
+      implicit ev1: NameF ƒ A ↦ TC
+    ): Default[Z] = instance {
+      tcs.coptraverse[A, NameF, Id](always).map(f).headMaybe \/> "not found"
+    }
+  }
+~~~~~~~~
+
+
+#### `Semigroup`
+
+It is not possible to define a `Semigroup` for general coproducts, however it is
+possible to do so for products with the arbitrary arity extension of
+`InvariantApplicative` (not `InvariantAlt`). `Semigroup` has type parameters in
+both covariant and contravariant position so we must make use of both `f` and
+`g`:
+
+{lang="text"}
+~~~~~~~~
+  new InvariantApplicativez[Semigroup] {
+    type L[a] = ((a, a), NameF[a])
+    val appender = λ[L ~> Id] { case ((a1, a2), fa) => fa.value.append(a1, a2) }
+  
+    override def xproductz[Z, A <: TList, TC <: TList](
+      tcs: Prod[TC]
+    )(
+      f: Prod[A] => Z,
+      g: Z => Prod[A]
+    )(
+      implicit ev1: NameF ƒ A ↦ TC
+    ): Semigroup[Z] = new Semigroup[Z] {
+      def append(z1: Z, z2: =>Z): Z = f(tcs.ziptraverse2(g(z1), g(z2), appender))
+    }
+  }
+~~~~~~~~
+
+
+#### `JsEncoder`
+
+We have already noted that an `Divisible[JsEncoder]` is not possible, but we can
+implement `Deriving` directly, which has no laws, and also provides access to
+field names.
+
+We have some choices to make with regards to JSON serialisation:
+
+1.  Should we include `null` values? We choose to not include fields if the value
+    is a `JsNull`.
+2.  How do we encode the name of a coproduct? We choose to use a special field
+    name `type` to hold the name.
+3.  How do we deal with coproducts that are not `JsObject`? We choose to put such
+    values into a special field named `xvalue`.
+
+A> If the default derivation is not palatable to a user of the API, that user can
+A> provide a custom instance on the companion of their data type. More complicated
+A> JSON libraries may offer mechanisms for customising the derivation, but those
+A> approaches tend to trade convenience for typeclass coherence, which is not
+A> something we are willing to compromise.
+
+There is a lot of ceremony involved in the type signature of `Deriving` because
+it is the most general of all the APIs, but the implementation is
+straightforward:
+
+{lang="text"}
+~~~~~~~~
+  new Deriving[JsEncoder] {
+  
+    def xproductz[Z, A <: TList, TC <: TList, L <: TList](
+      tcs: Prod[TC],
+      labels: Prod[L],
+      name: String
+    )(
+      f: Prod[A] => Z,
+      g: Z => Prod[A]
+    )(
+      implicit
+      ev1: NameF ƒ A ↦ TC,
+      ev2: Label ƒ A ↦ L
+    ): JsEncoder[Z] = { z =>
+      val fields = g(z).zip(tcs, labels).flatMap {
+        case (label, a) /~\ fa =>
+          fa.value.toJson(a) match {
+            case JsNull => Nil
+            case value  => (label -> value) :: Nil
+          }
+      }
+      JsObject(fields.toIList)
+    }
+  
+    def xcoproductz[Z, A <: TList, TC <: TList, L <: TList](
+      tcs: Prod[TC],
+      labels: Prod[L],
+      name: String
+    )(
+      f: Cop[A] => Z,
+      g: Z => Cop[A]
+    )(
+      implicit
+      ev1: NameF ƒ A ↦ TC,
+      ev2: Label ƒ A ↦ L
+    ): JsEncoder[Z] = { z =>
+      g(z).zip(tcs, labels) match {
+        case (label, a) /~\ fa =>
+          val hint = "type" -> JsString(label)
+          fa.value.toJson(a) match {
+            case JsObject(fields) => JsObject(hint :: fields)
+            case other            => JsObject(IList(hint, "xvalue" -> other))
+          }
+      }
+    }
+  
+  }
+~~~~~~~~
+
+
+#### `JsDecoder`
+
+The decoder is paired to the encoder's design choices so we must not forget that
+missing fields are to be decoded as `JsNull` and coproduct `xvalue` is
+special-cased.
+
+{lang="text"}
+~~~~~~~~
+  new Deriving[JsDecoder] {
+    type LF[a] = (String, NameF[a])
+  
+    def xproductz[Z, A <: TList, TC <: TList, L <: TList](
+      tcs: Prod[TC],
+      labels: Prod[L],
+      name: String
+    )(
+      f: Prod[A] => Z,
+      g: Z => Prod[A]
+    )(
+      implicit
+      ev1: NameF ƒ A ↦ TC,
+      ev2: Label ƒ A ↦ L
+    ): JsDecoder[Z] = {
+      case obj @ JsObject(_) =>
+        val each = λ[LF ~> (String \/ ?)] {
+          case (label, fa) =>
+            val value = obj.get(label).getOrElse(JsNull)
+            fa.value.fromJson(value)
+        }
+        tcs.traverse(each, labels).map(f)
+  
+      case other => fail("JsObject", other)
+    }
+  
+    def xcoproductz[Z, A <: TList, TC <: TList, L <: TList](
+      tcs: Prod[TC],
+      labels: Prod[L],
+      name: String
+    )(
+      f: Cop[A] => Z,
+      g: Z => Cop[A]
+    )(
+      implicit
+      ev1: NameF ƒ A ↦ TC,
+      ev2: Label ƒ A ↦ L
+    ): JsDecoder[Z] = {
+      case obj @ JsObject(_) =>
+        obj.get("type") match {
+          case \/-(JsString(hint)) =>
+            val xvalue = obj.get("xvalue")
+            val each = λ[LF ~> Maybe] {
+              case (label, fa) =>
+                if (hint == label) fa.value.fromJson(xvalue.getOrElse(obj)).toMaybe
+                else Maybe.empty
+            }
+            tcs
+              .coptraverse[A, L, NameF, Id](each, labels)
+              .headMaybe
+              .map(f) \/> s"a valid $hint"
+  
+          case _ => fail("JsObject with type", obj)
+        }
+      case other => fail("JsObject", other)
+    }
+  
+  }
+~~~~~~~~
 
 
 ## TODO Magnolia
@@ -945,21 +1262,22 @@ snake on the road...
 ## TODO Shapeless
 
 
-## TODO : JSON Example
+## TODO Summary
+
+TODO: table comparison of features
+TODO: performance (compiletime and runtime)
 
 
 # The Infinite Sadness
 
-You've reached the end of this Early Access book. Please check the
-website regularly for updates.
+You've reached the end of this Early Access book. Please check the website
+regularly for updates.
 
 You can expect to see chapters covering the following topics:
 
 -   Typeclass Derivation (to be completed)
--   Appendix: Scala for Beginners
 -   Appendix: Haskell
 
-As well as a chapter pulling everything together for the example application
-(and getting the repository into a working state).
+As well as a chapter pulling everything together for the example application.
 
 

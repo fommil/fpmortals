@@ -630,8 +630,9 @@ the transformers
   result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 ~~~~~~~~
 
-A> `|>` is often called the *thrush operator* because of its uncanny
-A> resemblance to the cute bird.
+A> `|>` is often called the *thrush operator* because of its uncanny resemblance to
+A> the cute bird. Those who do not like symbolic operators can use the alias
+A> `.into`.
 
 This approach also works for `EitherT` (and others) as the inner
 context, but their lifting methods are more complex and require
@@ -1016,9 +1017,10 @@ A>
 A> {lang="text"}
 A> ~~~~~~~~
 A>   import java.time.Instant
-A>   object EpochInterpolator extends UnsafeVerifier[Epoch] {
-A>     override def attempt(s: String): Epoch = Epoch(Instant.parse(s).toEpochMilli)
-A>     override def fail: String = "not in ISO-8601 format"
+A>   object EpochInterpolator extends Verifier[Epoch] {
+A>     def check(s: String): Either[(Int, String), Epoch] =
+A>       try Right(Epoch(Instant.parse(s).toEpochMilli))
+A>       catch { case _ => Left((0, "not in ISO-8601 format")) }
 A>   }
 A>   implicit class EpochMillisStringContext(sc: StringContext) {
 A>     val epoch = Prefix(EpochInterpolator, sc)

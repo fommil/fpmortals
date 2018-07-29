@@ -9,7 +9,8 @@ scalacOptions in ThisBuild ++= Seq(
   "-deprecation"
 )
 
-val derivingVersion = "1.0.0-RC3"
+//val derivingVersion = "1.0.0-RC4"
+val derivingVersion = "SNAPSHOT"
 
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"            % "0.12.0",

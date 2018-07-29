@@ -49,9 +49,24 @@ object Default {
   // )
   //implicit val monaderr: MonadError[Default, String] = MonadError.fromIso(iso)
 
+  // private type K[a] = Kleisli[String \/ ?, Unit, a]
+  // implicit val monad: MonadError[Default, String] with Alt[Default] =
+  //   new IsomorphismMonadError[Default, K, String] with Alt[Default] {
+  //     type Sig[a] = Unit => String \/ a
+  //     override val G = MonadError[K, String]
+  //     override val iso = Kleisli.iso(
+  //       λ[Sig ~> Default](s => instance(s(()))),
+  //       λ[Default ~> Sig](d => _ => d.default)
+  //     )
+
+  //     def alt[A](a1: =>Default[A], a2: =>Default[A]): Default[A] =
+  //       instance(a1.default)
+  //   }
+  // implicit val deriving: Deriving[Default] = ExtendedInvariantAlt(monad)
+
   private type K[a] = Kleisli[String \/ ?, Unit, a]
-  implicit val monad: MonadError[Default, String] with Alt[Default] =
-    new IsomorphismMonadError[Default, K, String] with Alt[Default] {
+  implicit val monad: MonadError[Default, String] with Altz[Default] =
+    new IsomorphismMonadError[Default, K, String] with Altz[Default] {
       type Sig[a] = Unit => String \/ a
       override val G = MonadError[K, String]
       override val iso = Kleisli.iso(
@@ -59,11 +74,24 @@ object Default {
         λ[Default ~> Sig](d => _ => d.default)
       )
 
-      def alt[A](a1: =>Default[A], a2: =>Default[A]): Default[A] =
-        instance(a1.default)
-    }
+      private val extract = λ[NameF ~> (String \/ ?)](a => a.value.default)
+      def applyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
+        f: Prod[A] => Z
+      )(
+        implicit ev1: NameF ƒ A ↦ TC
+      ): Default[Z] = instance(tcs.traverse(extract).map(f))
 
-  implicit val deriving: Deriving[Default] = ExtendedInvariantAlt(monad)
+      private val always =
+        λ[NameF ~> Maybe](a => a.value.default.toMaybe)
+      def altlyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
+        f: Cop[A] => Z
+      )(
+        implicit ev1: NameF ƒ A ↦ TC
+      ): Default[Z] = instance {
+        tcs.coptraverse[A, NameF, Id](always).map(f).headMaybe \/> "not found"
+      }
+
+    }
 
   implicit def refined[A: Default, P](
     implicit V: Validate[A, P]

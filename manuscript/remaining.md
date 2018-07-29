@@ -7,10 +7,10 @@ Will probably be a big chapter. Maybe best to leave it for a final
 part of the book?
 
 
-# TODO Haskell
+# TODO Appendix: Haskell
 
 
-# TODO Scala
+# TODO Appendix: Scala for Beginners
 
 The following should suffice (in this order)
 
