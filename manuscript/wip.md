@@ -7,27 +7,25 @@ typeclass we need instances for our business domain objects.
 The creation of a typeclass instance from existing instances is known as
 *typeclass derivation* and is the topic of this chapter.
 
-There are five approaches to typeclass derivation:
+There are four approaches to typeclass derivation:
 
 1.  Manual instances for every domain object. This is infeasible for real world
     applications as it results in hundreds of lines of code of boilerplate for
-    every line of a `case class`. It is useful only for educational purposes.
+    every line of a `case class`. It is useful only for educational purposes and
+    adhoc performance optimisations.
 
-2.  Write macros for each typeclass. This is not a maintainable solution because
-    the macro API will change in Scala 3. Macros require an advanced and
-    experienced developer.
+2.  Abstract over the typeclass by an existing scalaz typeclass. This is the
+    approach of `scalaz-deriving`, producing automated tests and derivations for
+    products and coproducts
 
-3.  Many typeclasses can be abstracted by an existing scalaz typeclass, producing
-    automated tests of the typeclass itself and derivations for business domain
-    objects. This is the approach of `scalaz-deriving`.
+3.  Macros. However, writing a macro for each typeclass requires an advanced and
+    experienced developer. Fortunately, Jon Pretty's [Magnolia](https://github.com/propensive/magnolia) library abstracts
+    over hand-rolled macros with a simple API, centralising the complex
+    interaction with the compiler.
 
-4.  Jon Pretty's [Magnolia](https://github.com/propensive/magnolia) macro provides a convenient API that lets typeclass
-    authors support ADTs. It is effectively an abstraction over hand-rolled
-    macros, with all the macro maintenance burden in a single shared library.
-
-5.  Via generic programs with the [Shapeless](https://github.com/milessabin/shapeless/) library. The `implicit` mechanism is
-    a language within the Scala language and can be used to write programs at the
-    type level, incurring a significant compiler performance penalty.
+4.  Write a generic program using the [Shapeless](https://github.com/milessabin/shapeless/) library. The `implicit` mechanism
+    is a language within the Scala language and can be used to write programs at
+    the type level.
 
 In this chapter we will study increasingly complex typeclasses and their
 derivations. We will begin with `scalaz-deriving` as the most principled
@@ -677,11 +675,11 @@ For an ADT
 {lang="text"}
 ~~~~~~~~
   sealed abstract class Darth { def widen: Darth = this }
-  final case class Vader(s: String, i: Int) extends Darth
-  final case class Maul(i: Int, s: String) extends Darth
+  final case class Vader(s: String, i: Int)  extends Darth
+  final case class JarJar(i: Int, s: String) extends Darth
 ~~~~~~~~
 
-where the products (`Vader` and `Maul`) have an `Equal`
+where the products (`Vader` and `JarJar`) have an `Equal`
 
 {lang="text"}
 ~~~~~~~~
@@ -689,9 +687,9 @@ where the products (`Vader` and `Maul`) have an `Equal`
     private val g: Vader => (String, Int) = d => (d.s, d.i)
     implicit val equal: Equal[Vader] = Divisible[Equal].divide2(Equal[String], Equal[Int])(g)
   }
-  object Maul {
-    private val g: Maul => (Int, String) = d => (d.i, d.s)
-    implicit val equal: Equal[Maul] = Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
+  object JarJar {
+    private val g: JarJar => (Int, String) = d => (d.i, d.s)
+    implicit val equal: Equal[JarJar] = Divisible[Equal].divide2(Equal[Int], Equal[String])(g)
   }
 ~~~~~~~~
 
@@ -700,14 +698,14 @@ we can derive the equal for the whole ADT
 {lang="text"}
 ~~~~~~~~
   object Darth {
-    private def g(t: Darth): Vader \/ Maul = t match {
-      case p @ Vader(_, _) => -\/(p)
-      case p @ Maul(_, _)  => \/-(p)
+    private def g(t: Darth): Vader \/ JarJar = t match {
+      case p @ Vader(_, _)  => -\/(p)
+      case p @ JarJar(_, _) => \/-(p)
     }
-    implicit val equal: Equal[Darth] = Decidable[Equal].choose2(Equal[Vader], Equal[Maul])(g)
+    implicit val equal: Equal[Darth] = Decidable[Equal].choose2(Equal[Vader], Equal[JarJar])(g)
   }
   
-  scala> Vader("hello").widen === Maul(1).widen
+  scala> Vader("hello").widen === JarJar(1).widen
   false
 ~~~~~~~~
 
@@ -755,9 +753,9 @@ Letting us derive our `Default[Darth]`
 ~~~~~~~~
   object Darth {
     ...
-    private def f(e: Vader \/ Maul): Darth = e.merge
+    private def f(e: Vader \/ JarJar): Darth = e.merge
     implicit val default: Default[Darth] =
-      Alt[Default].altly2(Default[Vader], Default[Maul])(f)
+      Alt[Default].altly2(Default[Vader], Default[JarJar])(f)
   }
   object Vader {
     ...
@@ -765,10 +763,10 @@ Letting us derive our `Default[Darth]`
     implicit val default: Default[Vader] =
       Alt[Default].apply2(Default[String], Default[Int])(f)
   }
-  object Maul {
+  object JarJar {
     ...
-    private val f: (Int, String) => Maul = Maul(_, _)
-    implicit val default: Default[Maul] =
+    private val f: (Int, String) => JarJar = JarJar(_, _)
+    implicit val default: Default[JarJar] =
       Alt[Default].apply2(Default[Int], Default[String])(f)
   }
   
@@ -804,9 +802,9 @@ Letting us write consistent boilerplate for all derivations:
   object Darth {
     ...
     implicit val equal: Equal[Darth] =
-      InvariantAlt[Equal].xcoproduct2(Equal[Vader], Equal[Maul])(f, g)
+      InvariantAlt[Equal].xcoproduct2(Equal[Vader], Equal[JarJar])(f, g)
     implicit val default: Default[Darth] =
-      InvariantAlt[Default].xcoproduct2(Default[Vader], Default[Maul])(f, g)
+      InvariantAlt[Default].xcoproduct2(Default[Vader], Default[JarJar])(f, g)
   }
   object Vader {
     ...
@@ -815,11 +813,11 @@ Letting us write consistent boilerplate for all derivations:
     implicit val default: Default[Vader] =
       InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
   }
-  object Maul {
+  object JarJar {
     ...
-    implicit val equal: Equal[Maul] =
+    implicit val equal: Equal[JarJar] =
       InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
-    implicit val default: Default[Maul] =
+    implicit val default: Default[JarJar] =
       InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
   }
 ~~~~~~~~
@@ -858,9 +856,9 @@ section is
 ~~~~~~~~
   import iotaz._, TList._
   
-  type DarthT = Vader :: Maul :: TNil
-  type VaderT = String :: Int :: TNil
-  type MaulT  = Int :: String :: TNil
+  type DarthT  = Vader  :: JarJar :: TNil
+  type VaderT  = String :: Int    :: TNil
+  type JarJarT = Int    :: String :: TNil
 ~~~~~~~~
 
 which can be instantiated:
@@ -868,7 +866,7 @@ which can be instantiated:
 {lang="text"}
 ~~~~~~~~
   val vader: Prod[VaderT] = Prod("hello", 1)
-  val maul: Prod[MaulT]  = Prod(1, "hello")
+  val maul: Prod[JarJarT]  = Prod(1, "hello")
   
   val VaderI = Cop.Inject[Vader, Cop[DarthT]]
   val darth: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
@@ -882,19 +880,19 @@ the type itself):
 {lang="text"}
 ~~~~~~~~
   object Darth {
-    private type Repr   = Vader :: Maul :: TNil
+    private type Repr   = Vader  :: JarJar :: TNil
     private type Labels = String :: String :: TNil
     private val VaderI  = Cop.Inject[Vader, Cop[Repr]]
-    private val MaulI   = Cop.Inject[Maul, Cop[Repr]]
+    private val JarJarI = Cop.Inject[JarJar, Cop[Repr]]
     private val iso     = CopGen[Darth, Repr, Labels](
       {
-        case d: Vader => VaderI.inj(d)
-        case d: Maul  => MaulI.inj(d)
+        case d: Vader  => VaderI.inj(d)
+        case d: JarJar => JarJarI.inj(d)
       }, {
-        case VaderI(d) => d
-        case MaulI(d)  => d
+        case VaderI(d)  => d
+        case JarJarI(d) => d
       },
-      Prod("Vader", "Maul"),
+      Prod("Vader", "JarJar"),
       "Darth"
     )
     ...
@@ -912,14 +910,14 @@ the type itself):
     ...
   }
   
-  object Maul {
-    private type Repr   = Int :: String :: TNil
+  object JarJar {
+    private type Repr   = Int    :: String :: TNil
     private type Labels = String :: String :: TNil
-    private val iso     = ProdGen[Maul, Repr, Labels](
+    private val iso     = ProdGen[JarJar, Repr, Labels](
       d => Prod(d.i, d.s),
-      p => Maul(p.head, p.tail.head),
+      p => JarJar(p.head, p.tail.head),
       Prod("i", "s"),
-      "Maul"
+      "JarJar"
     )
     ...
   }
@@ -933,7 +931,7 @@ because `scalaz-deriving` provides an optimised instance of `Deriving[Equal]`
   object Darth {
     ...
     implicit val equal: Equal[Darth] = Deriving[Equal].xcoproductz(
-      Prod(Need(Equal[Vader]), Need(Equal[Maul])),
+      Prod(Need(Equal[Vader]), Need(Equal[JarJar])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
   object Vader {
@@ -942,9 +940,9 @@ because `scalaz-deriving` provides an optimised instance of `Deriving[Equal]`
       Prod(Need(Equal[String]), Need(Equal[Int])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
-  object Maul {
+  object JarJar {
     ...
-    implicit val equal: Equal[Maul] = Deriving[Equal].xproductz(
+    implicit val equal: Equal[JarJar] = Deriving[Equal].xproductz(
       Prod(Need(Equal[Int]), Need(Equal[String])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
@@ -973,7 +971,7 @@ and then calling it from the companions
   object Darth {
     ...
     implicit val default: Default[Darth] = Deriving[Default].xcoproductz(
-      Prod(Need(Default[Vader]), Need(Default[Maul])),
+      Prod(Need(Default[Vader]), Need(Default[JarJar])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
   object Vader {
@@ -982,9 +980,9 @@ and then calling it from the companions
       Prod(Need(Default[String]), Need(Default[Int])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
-  object Maul {
+  object JarJar {
     ...
-    implicit val default: Default[Maul] = Deriving[Default].xproductz(
+    implicit val default: Default[JarJar] = Deriving[Default].xproductz(
       Prod(Need(Default[Int]), Need(Default[String])),
       iso.labels, iso.name)(iso.to, iso.from)
   }
@@ -1001,8 +999,8 @@ to be applied at the top level of an ADT:
 ~~~~~~~~
   @deriving(Equal, Default)
   sealed abstract class Darth { def widen: Darth = this }
-  final case class Vader(s: String, i: Int) extends Darth
-  final case class Maul(i: Int, s: String) extends Darth
+  final case class Vader(s: String, i: Int)  extends Darth
+  final case class JarJar(i: Int, s: String) extends Darth
 ~~~~~~~~
 
 Also included in `scalaz-deriving` are instances for `Order`, `Show`,
@@ -1299,7 +1297,321 @@ special-cased.
 ~~~~~~~~
 
 
-## TODO Magnolia
+## Magnolia
+
+The magnolia macro library provides a clean API for writing typeclass
+derivations. A typeclass author implements the following members:
+
+{lang="text"}
+~~~~~~~~
+  import magnolia._
+  
+  object MagnoliaEncoder {
+    type Typeclass[A]
+  
+    def combine[A](ctx: CaseClass[Typeclass, A]): Typeclass[A]
+    def dispatch[A](ctx: SealedTrait[Typeclass, A]): Typeclass[A]
+  
+    def gen[A]: Typeclass[A] = macro Magnolia.gen[A]
+  }
+~~~~~~~~
+
+The magnolia objects are:
+
+{lang="text"}
+~~~~~~~~
+  class CaseClass[TC[_], A] {
+    def typeName: TypeName
+    def isObject: Boolean
+    def isValueClass: Boolean
+    def construct[B](makeParam: Param[TC, A] => B): A
+    def parameters: Seq[Param[TC, A]]
+  
+    def annotations: Seq[Any]
+  }
+  
+  class SealedTrait[TC[_], A] {
+    def typeName: TypeName
+    def subtypes: Seq[Subtype[TC, A]]
+    def dispatch[B](value: A)(handle: Subtype[TC, A] => B): B
+  
+    def annotations: Seq[Any]
+  }
+~~~~~~~~
+
+with helpers
+
+{lang="text"}
+~~~~~~~~
+  final case class TypeName(short: String, full: String)
+  
+  class Param[TC[_], A] {
+    type PType
+    def label: String
+    def typeclass: TC[PType]
+    def dereference(param: A): PType
+  
+    def repeated: Boolean      // varargs
+    def default: Option[PType] // default arguments
+    def annotations: Seq[Any]
+  }
+  
+  class Subtype[TC[_], A] {
+    type SType <: A
+    def typeName: TypeName
+    def typeclass: TC[SType]
+    def cast(a: A): SType
+  }
+~~~~~~~~
+
+It does not make sense to use magnolia for typeclasses that can be abstracted by
+`Divisible`, `Decidable`, `Applicative` or `Alt`, since those abstractions
+provide a lot of extra structure and tests for free. The choice is therefore
+between `Deriving` and `Magnolia`, boiling down to whichever API the typeclass
+author prefers.
+
+Magnolia offers some features that `scalaz-deriving` cannot provide: annotations
+and knowledge about varargs and default values. These features could allow for
+custom DSLs around a typeclass, for example annotations to support configuration
+parameters. For JSON this could allow users to choose their preference instead
+of it being dictated by the typeclass author: e.g. typehint field names,
+behaviour around `null`.
+
+
+### Example: JSON
+
+Magnolia lets us elegantly implement our `JsDecoder`
+
+{lang="text"}
+~~~~~~~~
+  object MagnoliaEncoder {
+    type Typeclass[A] = JsEncoder[A]
+  
+    def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
+      val fields = ctx.parameters.toList.flatMap { p =>
+        p.typeclass.toJson(p.dereference(a)) match {
+          case JsNull => Nil
+          case value  => (p.label -> value) :: Nil
+        }
+      }
+      JsObject(fields.toIList)
+    }
+  
+    def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] = a =>
+      ctx.dispatch(a) { sub =>
+        val hint = "type" -> JsString(sub.typeName.short)
+        sub.typeclass.toJson(sub.cast(a)) match {
+          case JsObject(fields) => JsObject(hint :: fields)
+          case other            => JsObject(IList(hint, "xvalue" -> other))
+        }
+      }
+  
+    def gen[A]: JsEncoder[A] = macro Magnolia.gen[A]
+  }
+~~~~~~~~
+
+Unfortunately, magnolia [does not support typeclasses with a `MonadError`](https://github.com/propensive/magnolia/issues/118). To
+understand why, consider the `.construct` signature:
+
+{lang="text"}
+~~~~~~~~
+  def construct[B](makeParam: Param[TC, A] => B): A
+~~~~~~~~
+
+This expects a function from each `Param` (a container for the typeclass and
+label for a field) to the field value. It is analogous to a natural
+transformation into `Id`, like we would expect to see in an `Altz`. But `Id` is
+not always enough, for `JsDecoder` we need to map into `String \/ ?`
+
+{lang="text"}
+~~~~~~~~
+  Param[TC, A] => String \/ B
+~~~~~~~~
+
+There is an evil hack: we can code the happy path and use a locally scoped
+exception to deal with the failure case.
+
+{lang="text"}
+~~~~~~~~
+  object MagnoliaDecoder {
+    type Typeclass[A] = JsDecoder[A]
+  
+    private case class Fail(msg: String) extends Exception with NoStackTrace
+    def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
+      case obj @ JsObject(_) =>
+        try {
+          val success = ctx.construct { p =>
+            val value = obj.get(p.label).getOrElse(JsNull)
+            p.typeclass.fromJson(value) match {
+              case \/-(got)  => got
+              case -\/(fail) => throw new Fail(fail)
+            }
+          }
+          \/-(success)
+        } catch {
+          case Fail(msg) => -\/(msg)
+        }
+      case other => fail("JsObject", other)
+    }
+  
+    def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] = {
+      case obj @ JsObject(_) =>
+        obj.get("type") match {
+          case \/-(JsString(hint)) =>
+            ctx.subtypes.find(_.typeName.short == hint) match {
+              case None => JsDecoder.fail(s"a valid $hint", obj)
+              case Some(sub) =>
+                val value = obj.get("xvalue").getOrElse(obj)
+                sub.typeclass.fromJson(value)
+            }
+          case _ => fail("JsObject with type", obj)
+        }
+      case other => fail("JsObject", other)
+    }
+  
+    def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
+  }
+~~~~~~~~
+
+We call the `MagnoliaEncoder.gen` or `MagnoliaDecoder.gen` method from the
+companion of our data types. For example, the Google Maps API
+
+{lang="text"}
+~~~~~~~~
+  final case class Value(text: String, value: Int)
+  final case class Elements(distance: Value, duration: Value, status: String)
+  final case class Rows(elements: List[Elements])
+  final case class DistanceMatrix(
+    destination_addresses: List[String],
+    origin_addresses: List[String],
+    rows: List[Rows],
+    status: String
+  )
+  
+  object Value {
+    implicit val encoder: JsEncoder[Value] = MagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[Value] = MagnoliaDecoder.gen
+  }
+  object Elements {
+    implicit val encoder: JsEncoder[Elements] = MagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[Elements] = MagnoliaDecoder.gen
+  }
+  object Rows {
+    implicit val encoder: JsEncoder[Rows] = MagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[Rows] = MagnoliaDecoder.gen
+  }
+  object DistanceMatrix {
+    implicit val encoder: JsEncoder[DistanceMatrix] = MagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[DistanceMatrix] = MagnoliaDecoder.gen
+  }
+~~~~~~~~
+
+The `@deriving` annotation also supports Magnolia! If the typeclass author
+provides a file `deriving.conf` with their jar, containing this text
+
+{lang="text"}
+~~~~~~~~
+  jsonformat.JsEncoder=jsonformat.MagnoliaEncoder.gen
+  jsonformat.JsDecoder=jsonformat.MagnoliaDecoder.gen
+~~~~~~~~
+
+The `deriving-macro` will ignore the `scalaz-deriving` typeclasses and instead
+call the user-provided method:
+
+{lang="text"}
+~~~~~~~~
+  @deriving(JsEncoder, JsDecoder)
+  final case class Value(text: String, value: Int)
+  @deriving(JsEncoder, JsDecoder)
+  final case class Elements(distance: Value, duration: Value, status: String)
+  @deriving(JsEncoder, JsDecoder)
+  final case class Rows(elements: List[Elements])
+  @deriving(JsEncoder, JsDecoder)
+  final case class DistanceMatrix(
+    destination_addresses: List[String],
+    origin_addresses: List[String],
+    rows: List[Rows],
+    status: String
+  )
+~~~~~~~~
+
+
+### Automatic Derivation
+
+Generating `implicit` instances on the companion of the data type has been
+called *semi-auto* derivation, in contrast to *full-auto* which is when the
+`.gen` is made `implicit`
+
+{lang="text"}
+~~~~~~~~
+  object MagnoliaEncoder {
+    ...
+    implicit def gen[A]: JsEncoder[A] = macro Magnolia.gen[A]
+  }
+  object MagnoliaDecoder {
+    ...
+    implicit def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
+  }
+~~~~~~~~
+
+Users can import these methods into their scope and get magical derivation at
+the point of use
+
+{lang="text"}
+~~~~~~~~
+  scala> final case class Value(text: String, value: Int)
+  scala> import MagnoliaEncoder.gen
+  scala> Value("hello", 1).toJson
+  res = JsObject([("text","hello"),("value",1)])
+~~~~~~~~
+
+This may sound tempting, as it involves the least amount of typing, but there
+are two caveats:
+
+1.  the macro is invoked at every use site, i.e. every time we call `.toJson`.
+    This slows down compilation and also produces more objects at runtime, which
+    will impact runtime performance.
+2.  the implicit scope changes.
+
+The first caveat is self evident, but the concept of the implicit scope changing
+can manifest itself with very subtle bugs. Recall that import scope has a higher
+priority than companions, and say we have two data types
+
+{lang="text"}
+~~~~~~~~
+  @xderiving(JsEncoder)
+  final case class Foo(s: String)
+  final case class Bar(foo: Foo)
+~~~~~~~~
+
+We might expect the full-auto encoded form of `Bar("hello")` to look like
+
+{lang="text"}
+~~~~~~~~
+  {
+    "foo":"hello"
+  }
+~~~~~~~~
+
+but it is:
+
+{lang="text"}
+~~~~~~~~
+  {
+    "foo": {
+      "s":"hello"
+    }
+  }
+~~~~~~~~
+
+This is because `MagnoliaEncoder.gen` has a higher priority than the `implicit`
+on the companion of `Foo`. We have, unfortunately, just introduced a source of
+typeclass decoherence. It is for this reason that most functional programmers
+avoid *full-auto* derivation.
+
+Some typeclass authors go one step further and put the `implicit def` on the
+companion of the typeclass, so there is no way to opt out. Such code should be
+terminated... immediately!
 
 
 ## TODO Shapeless
