@@ -10,9 +10,9 @@ The creation of a typeclass instance from existing instances is known as
 There are four approaches to typeclass derivation:
 
 1.  Manual instances for every domain object. This is infeasible for real world
-    applications as it results in hundreds of lines of code of boilerplate for
-    every line of a `case class`. It is useful only for educational purposes and
-    adhoc performance optimisations.
+    applications as it results in hundreds of lines of boilerplate for every line
+    of a `case class`. It is useful only for educational purposes and adhoc
+    performance optimisations.
 
 2.  Abstract over the typeclass by an existing scalaz typeclass. This is the
     approach of `scalaz-deriving`, producing automated tests and derivations for
@@ -89,7 +89,7 @@ project's `build.sbt` with
 
 {lang="text"}
 ~~~~~~~~
-  val derivingVersion = "1.0.0-RC5"
+  val derivingVersion = "1.0.0-RC7"
   libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
 ~~~~~~~~
 
@@ -874,50 +874,40 @@ which can be instantiated:
 
 To be able to use the `scalaz-deriving` API, we need an `Isomorphism` between
 our ADTs and the `iotaz` generic representation. It's a lot of boilerplate, but
-it pays off (note that we also have to provide the names of all the fields and
-the type itself):
+it pays off:
 
 {lang="text"}
 ~~~~~~~~
   object Darth {
-    private type Repr   = Vader  :: JarJar :: TNil
-    private type Labels = String :: String :: TNil
+    private type Repr   = Vader :: JarJar :: TNil
     private val VaderI  = Cop.Inject[Vader, Cop[Repr]]
     private val JarJarI = Cop.Inject[JarJar, Cop[Repr]]
-    private val iso     = CopGen[Darth, Repr, Labels](
+    private val iso     = IsoSet(
       {
         case d: Vader  => VaderI.inj(d)
         case d: JarJar => JarJarI.inj(d)
       }, {
         case VaderI(d)  => d
         case JarJarI(d) => d
-      },
-      Prod("Vader", "JarJar"),
-      "Darth"
+      }
     )
     ...
   }
   
   object Vader {
-    private type Repr   = String :: Int :: TNil
-    private type Labels = String :: String :: TNil
-    private val iso     = ProdGen[Vader, Repr, Labels](
+    private type Repr = String :: Int :: TNil
+    private val iso   = IsoSet(
       d => Prod(d.s, d.i),
-      p => Vader(p.head, p.tail.head),
-      Prod("s", "i"),
-      "Vader"
+      p => Vader(p.head, p.tail.head)
     )
     ...
   }
   
   object JarJar {
-    private type Repr   = Int    :: String :: TNil
-    private type Labels = String :: String :: TNil
-    private val iso     = ProdGen[JarJar, Repr, Labels](
+    private type Repr = Int :: String :: TNil
+    private val iso   = IsoSet(
       d => Prod(d.i, d.s),
-      p => JarJar(p.head, p.tail.head),
-      Prod("i", "s"),
-      "JarJar"
+      p => JarJar(p.head, p.tail.head)
     )
     ...
   }
@@ -931,20 +921,17 @@ because `scalaz-deriving` provides an optimised instance of `Deriving[Equal]`
   object Darth {
     ...
     implicit val equal: Equal[Darth] = Deriving[Equal].xcoproductz(
-      Prod(Need(Equal[Vader]), Need(Equal[JarJar])),
-      iso.labels, iso.name)(iso.to, iso.from)
+      Prod(Need(Equal[Vader]), Need(Equal[JarJar])))(iso.to, iso.from)
   }
   object Vader {
     ...
     implicit val equal: Equal[Vader] = Deriving[Equal].xproductz(
-      Prod(Need(Equal[String]), Need(Equal[Int])),
-      iso.labels, iso.name)(iso.to, iso.from)
+      Prod(Need(Equal[String]), Need(Equal[Int])))(iso.to, iso.from)
   }
   object JarJar {
     ...
     implicit val equal: Equal[JarJar] = Deriving[Equal].xproductz(
-      Prod(Need(Equal[Int]), Need(Equal[String])),
-      iso.labels, iso.name)(iso.to, iso.from)
+      Prod(Need(Equal[Int]), Need(Equal[String])))(iso.to, iso.from)
   }
 ~~~~~~~~
 
@@ -971,20 +958,17 @@ and then calling it from the companions
   object Darth {
     ...
     implicit val default: Default[Darth] = Deriving[Default].xcoproductz(
-      Prod(Need(Default[Vader]), Need(Default[JarJar])),
-      iso.labels, iso.name)(iso.to, iso.from)
+      Prod(Need(Default[Vader]), Need(Default[JarJar])))(iso.to, iso.from)
   }
   object Vader {
     ...
     implicit val default: Default[Vader] = Deriving[Default].xproductz(
-      Prod(Need(Default[String]), Need(Default[Int])),
-      iso.labels, iso.name)(iso.to, iso.from)
+      Prod(Need(Default[String]), Need(Default[Int])))(iso.to, iso.from)
   }
   object JarJar {
     ...
     implicit val default: Default[JarJar] = Deriving[Default].xproductz(
-      Prod(Need(Default[Int]), Need(Default[String])),
-      iso.labels, iso.name)(iso.to, iso.from)
+      Prod(Need(Default[Int]), Need(Default[String])))(iso.to, iso.from)
   }
 ~~~~~~~~
 
@@ -1003,8 +987,9 @@ to be applied at the top level of an ADT:
   final case class JarJar(i: Int, s: String) extends Darth
 ~~~~~~~~
 
-Also included in `scalaz-deriving` are instances for `Order`, `Show`,
-`Semigroup`, `Monoid` and `Arbitrary`.
+Also included in `scalaz-deriving` are instances for `Order`, `Semigroup` and
+`Monoid`. Instances of `Show` and `Arbitrary` are available by installing the
+`scalaz-deriving-magnolia` and `scalaz-deriving-scalacheck` extras.
 
 You're welcome!
 
@@ -1035,7 +1020,7 @@ meaning that we have a value, and an instance of a typeclass for that value,
 without knowing anything about the value.
 
 In addition, all the methods on the `Deriving` API have implicit evidence of the
-form `NameF ƒ A ↦ TC`, allowing the `iotaz` library to be able to perform
+form `A PairedWith FA`, allowing the `iotaz` library to be able to perform
 `.zip`, `.traverse`, and other operations on `Prod` and `Cop`. We can ignore
 these parameters, as we don't use them directly.
 
@@ -1059,23 +1044,15 @@ optimisations:
     @inline private final def quick(a: Any, b: Any): Boolean =
       a.asInstanceOf[AnyRef].eq(b.asInstanceOf[AnyRef])
   
-    def dividez[Z, A <: TList, TC <: TList](
-      tcs: Prod[TC]
-    )(
-      g: Z => Prod[A]
-    )(
-      implicit ev: NameF ƒ A ↦ TC
+    def dividez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Prod[A])(
+      implicit ev: A PairedWith FA
     ): Equal[Z] = (z1, z2) =>
       (g(z1), g(z2)).zip(tcs).foldRight(true) {
         case ((a1, a2) /~\ fa, acc) => (quick(a1, a2) || fa.value.equal(a1, a2)) && acc
       }
   
-    def choosez[Z, A <: TList, TC <: TList](
-      tcs: Prod[TC]
-    )(
-      g: Z => Cop[A]
-    )(
-      implicit ev: NameF ƒ A ↦ TC
+    def choosez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Cop[A])(
+      implicit ev: A PairedWith FA
     ): Equal[Z] = (z1, z2) =>
       (g(z1), g(z2)).zip(tcs) match {
         case -\/(_)               => false
@@ -1107,17 +1084,13 @@ with the `kind-projector` plugin.
     )
   
     val extract = λ[NameF ~> (String \/ ?)](a => a.value.default)
-    def applyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
-      f: Prod[A] => Z
-    )(
-      implicit ev1: NameF ƒ A ↦ TC
+    def applyz[Z, A <: TList, FA <: TList](tcs: Prod[FA])(f: Prod[A] => Z)(
+      implicit ev: A PairedWith FA
     ): Default[Z] = instance(tcs.traverse(extract).map(f))
   
     val always = λ[NameF ~> Maybe](a => a.value.default.toMaybe)
-    def altlyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
-      f: Cop[A] => Z
-    )(
-      implicit ev1: NameF ƒ A ↦ TC
+    def altlyz[Z, A <: TList, FA <: TList](tcs: Prod[FA])(f: Cop[A] => Z)(
+      implicit ev: A PairedWith FA
     ): Default[Z] = instance {
       tcs.coptraverse[A, NameF, Id](always).map(f).headMaybe \/> "not found"
     }
@@ -1137,13 +1110,13 @@ possible to define one for general products. We can use the arbitrary arity
     type L[a] = ((a, a), NameF[a])
     val appender = λ[L ~> Id] { case ((a1, a2), fa) => fa.value.append(a1, a2) }
   
-    override def xproductz[Z, A <: TList, TC <: TList](
-      tcs: Prod[TC]
+    override def xproductz[Z, A <: TList, FA <: TList](
+      tcs: Prod[FA]
     )(
       f: Prod[A] => Z,
       g: Z => Prod[A]
     )(
-      implicit ev1: NameF ƒ A ↦ TC
+      implicit ev: A PairedWith FA
     ): Semigroup[Z] = new Semigroup[Z] {
       def append(z1: Z, z2: =>Z): Z = f(tcs.ziptraverse2(g(z1), g(z2), appender))
     }
@@ -1151,150 +1124,13 @@ possible to define one for general products. We can use the arbitrary arity
 ~~~~~~~~
 
 
-#### `JsEncoder`
+#### `JsEncoder` and `JsDecoder`
 
 We have already noted that a lawful `Divisible[JsEncoder]` is not possible, but
 we can implement `Deriving` directly, which has no laws, and provides access to
-field names.
-
-We have some design choices to make with regards to JSON serialisation:
-
-1.  Should we include `null` values? We do not include fields if the value is a
-    `JsNull`.
-2.  How do we encode the name of a coproduct? We use a special field `"type"` to
-    disambiguate coproducts.
-3.  How do we deal with coproducts that are not `JsObject`? We put such values
-    into a special field `"xvalue"`.
-
-A> If the default derivation is not palatable to a user of the API, that user can
-A> provide a custom instance on the companion of their data type. More complicated
-A> JSON libraries may offer mechanisms for customising the derivation, but those
-A> approaches tend to trade convenience for typeclass coherence, which is not
-A> something we are willing to compromise.
-
-There is a lot of ceremony involved in the type signature of `Deriving` because
-it is the most general of all the APIs, but the implementation is
-straightforward:
-
-{lang="text"}
-~~~~~~~~
-  new Deriving[JsEncoder] {
-  
-    def xproductz[Z, A <: TList, TC <: TList, L <: TList](
-      tcs: Prod[TC],
-      labels: Prod[L],
-      name: String
-    )(
-      f: Prod[A] => Z,
-      g: Z => Prod[A]
-    )(
-      implicit
-      ev1: NameF ƒ A ↦ TC,
-      ev2: Label ƒ A ↦ L
-    ): JsEncoder[Z] = { z =>
-      val fields = g(z).zip(tcs, labels).flatMap {
-        case (label, a) /~\ fa =>
-          fa.value.toJson(a) match {
-            case JsNull => Nil
-            case value  => (label -> value) :: Nil
-          }
-      }
-      JsObject(fields.toIList)
-    }
-  
-    def xcoproductz[Z, A <: TList, TC <: TList, L <: TList](
-      tcs: Prod[TC],
-      labels: Prod[L],
-      name: String
-    )(
-      f: Cop[A] => Z,
-      g: Z => Cop[A]
-    )(
-      implicit
-      ev1: NameF ƒ A ↦ TC,
-      ev2: Label ƒ A ↦ L
-    ): JsEncoder[Z] = { z =>
-      g(z).zip(tcs, labels) match {
-        case (label, a) /~\ fa =>
-          val hint = "type" -> JsString(label)
-          fa.value.toJson(a) match {
-            case JsObject(fields) => JsObject(hint :: fields)
-            case other            => JsObject(IList(hint, "xvalue" -> other))
-          }
-      }
-    }
-  
-  }
-~~~~~~~~
-
-
-#### `JsDecoder`
-
-The decoder is paired to the encoder's design choices so we must not forget that
-missing fields are to be decoded as `JsNull` and coproduct `xvalue` is
-special-cased.
-
-{lang="text"}
-~~~~~~~~
-  new Deriving[JsDecoder] {
-    type LF[a] = (String, NameF[a])
-  
-    def xproductz[Z, A <: TList, TC <: TList, L <: TList](
-      tcs: Prod[TC],
-      labels: Prod[L],
-      name: String
-    )(
-      f: Prod[A] => Z,
-      g: Z => Prod[A]
-    )(
-      implicit
-      ev1: NameF ƒ A ↦ TC,
-      ev2: Label ƒ A ↦ L
-    ): JsDecoder[Z] = {
-      case obj @ JsObject(_) =>
-        val each = λ[LF ~> (String \/ ?)] {
-          case (label, fa) =>
-            val value = obj.get(label).getOrElse(JsNull)
-            fa.value.fromJson(value)
-        }
-        tcs.traverse(each, labels).map(f)
-  
-      case other => fail("JsObject", other)
-    }
-  
-    def xcoproductz[Z, A <: TList, TC <: TList, L <: TList](
-      tcs: Prod[TC],
-      labels: Prod[L],
-      name: String
-    )(
-      f: Cop[A] => Z,
-      g: Z => Cop[A]
-    )(
-      implicit
-      ev1: NameF ƒ A ↦ TC,
-      ev2: Label ƒ A ↦ L
-    ): JsDecoder[Z] = {
-      case obj @ JsObject(_) =>
-        obj.get("type") match {
-          case \/-(JsString(hint)) =>
-            val xvalue = obj.get("xvalue")
-            val each = λ[LF ~> Maybe] {
-              case (label, fa) =>
-                if (hint == label) fa.value.fromJson(xvalue.getOrElse(obj)).toMaybe
-                else Maybe.empty
-            }
-            tcs
-              .coptraverse[A, L, NameF, Id](each, labels)
-              .headMaybe
-              .map(f) \/> s"a valid $hint"
-  
-          case _ => fail("JsObject with type", obj)
-        }
-      case other => fail("JsObject", other)
-    }
-  
-  }
-~~~~~~~~
+field names. The answer is no: `scalaz-deriving` does not provide access to
+field names so it is not possible, which is why we will study Magnolia in the
+next section.
 
 
 ## Magnolia
@@ -1306,7 +1142,7 @@ derivations. A typeclass author implements the following members:
 ~~~~~~~~
   import magnolia._
   
-  object MagnoliaEncoder {
+  object MyDerivation {
     type Typeclass[A]
   
     def combine[A](ctx: CaseClass[Typeclass, A]): Typeclass[A]
@@ -1380,7 +1216,29 @@ behaviour around `null`.
 
 ### Example: JSON
 
-Magnolia lets us elegantly implement our `JsDecoder`
+We have some design choices to make with regards to JSON serialisation:
+
+1.  Should we include fields with `null` values? Should decoding treat missing vs
+    `null` differently?
+2.  How do we encode the name of a coproduct?
+3.  How do we deal with coproducts that are not `JsObject`?
+
+We can pick some sensible defaults:
+
+-   do not include fields if the value is a `JsNull`, handle missing fields the
+    same as `null` values.
+-   use a special field `"type"` to disambiguate coproducts.
+-   put primitive values into a special field `"xvalue"`.
+
+If the default derivation is not palatable to a user of the API, that user can
+provide a custom instance on the companion of their data type.
+
+However, there is an expectation that a JSON library will allow the user to
+customise encoders and decoders with configuration. Some popular libraries
+compromise typeclass coherence by using the `implicit` language feature, but
+Magnolia allows us to use annotations, extracted at compiletime.
+
+Let's first write a `JsDecoder` that deals only with the defaults:
 
 {lang="text"}
 ~~~~~~~~
@@ -1410,6 +1268,8 @@ Magnolia lets us elegantly implement our `JsDecoder`
   }
 ~~~~~~~~
 
+TODO: add the annotations.
+
 Unfortunately, magnolia [does not support typeclasses with a `MonadError`](https://github.com/propensive/magnolia/issues/118). To
 understand why, consider the `.construct` signature:
 
@@ -1436,6 +1296,7 @@ exception to deal with the failure case.
   object MagnoliaDecoder {
     type Typeclass[A] = JsDecoder[A]
   
+    // FIXME jon is going to fix this https://github.com/propensive/magnolia/issues/118
     private case class Fail(msg: String) extends Exception with NoStackTrace
     def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
       case obj @ JsObject(_) =>

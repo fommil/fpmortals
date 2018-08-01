@@ -75,18 +75,14 @@ object Default {
       )
 
       private val extract = λ[NameF ~> (String \/ ?)](a => a.value.default)
-      def applyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
-        f: Prod[A] => Z
-      )(
-        implicit ev1: NameF ƒ A ↦ TC
+      def applyz[Z, A <: TList, FA <: TList](tcs: Prod[FA])(f: Prod[A] => Z)(
+        implicit ev: A PairedWith FA
       ): Default[Z] = instance(tcs.traverse(extract).map(f))
 
       private val always =
         λ[NameF ~> Maybe](a => a.value.default.toMaybe)
-      def altlyz[Z, A <: TList, TC <: TList](tcs: Prod[TC])(
-        f: Cop[A] => Z
-      )(
-        implicit ev1: NameF ƒ A ↦ TC
+      def altlyz[Z, A <: TList, FA <: TList](tcs: Prod[FA])(f: Cop[A] => Z)(
+        implicit ev: A PairedWith FA
       ): Default[Z] = instance {
         tcs.coptraverse[A, NameF, Id](always).map(f).headMaybe \/> "not found"
       }
