@@ -1160,7 +1160,9 @@ The magnolia objects are:
     def typeName: TypeName
     def isObject: Boolean
     def isValueClass: Boolean
-    def construct[B](makeParam: Param[TC, A] => B): A
+    def construct[B](f: Param[TC, A] => B): A
+    def constructEither[E, B](f: Param[TC, A] => Either[E, B]): Either[E, A]
+  
     def parameters: Seq[Param[TC, A]]
   
     def annotations: Seq[Any]
@@ -1218,31 +1220,45 @@ behaviour around `null`.
 
 We have some design choices to make with regards to JSON serialisation:
 
-1.  Should we include fields with `null` values? Should decoding treat missing vs
-    `null` differently?
-2.  How do we encode the name of a coproduct?
-3.  How do we deal with coproducts that are not `JsObject`?
+1.  Should we include fields with `null` values?
+2.  Should decoding treat missing vs `null` differently?
+3.  How do we encode the name of a coproduct?
+4.  How do we deal with coproducts that are not `JsObject`?
 
-We can pick some sensible defaults:
+We choose sensible defaults
 
--   do not include fields if the value is a `JsNull`, handle missing fields the
-    same as `null` values.
+-   do not include fields if the value is a `JsNull`.
+-   handle missing fields the same as `null` values.
 -   use a special field `"type"` to disambiguate coproducts.
 -   put primitive values into a special field `"xvalue"`.
 
-If the default derivation is not palatable to a user of the API, that user can
-provide a custom instance on the companion of their data type.
-
-However, there is an expectation that a JSON library will allow the user to
-customise encoders and decoders with configuration. Some popular libraries
-compromise typeclass coherence by using the `implicit` language feature, but
-Magnolia allows us to use annotations, extracted at compiletime.
-
-Let's first write a `JsDecoder` that deals only with the defaults:
+and let the users attach annotations to sealed traits and fields to customise
+their formats:
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaEncoder {
+  package json {
+    final case class nulls()                  extends Annotation
+    final case class field(val name: String)  extends Annotation
+    final case class xvalue(val hint: String) extends Annotation
+  }
+~~~~~~~~
+
+For example
+
+{lang="text"}
+~~~~~~~~
+  @json.field("TYPE")
+  sealed abstract class Cost
+  final case class Time(s: String) extends Cost
+  final case class Money(@json.field("integer") i: Int) extends Cost
+~~~~~~~~
+
+Let's start with a `JsDecoder` that handles only with the defaults:
+
+{lang="text"}
+~~~~~~~~
+  object MagnoliaJsEncoder {
     type Typeclass[A] = JsEncoder[A]
   
     def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
@@ -1268,50 +1284,70 @@ Let's first write a `JsDecoder` that deals only with the defaults:
   }
 ~~~~~~~~
 
-TODO: add the annotations.
+We can see how the Magnolia API makes it easy to access field names and
+typeclasses for each parameter.
 
-Unfortunately, magnolia [does not support typeclasses with a `MonadError`](https://github.com/propensive/magnolia/issues/118). To
-understand why, consider the `.construct` signature:
-
-{lang="text"}
-~~~~~~~~
-  def construct[B](makeParam: Param[TC, A] => B): A
-~~~~~~~~
-
-This expects a function from each `Param` (a container for the typeclass and
-label for a field) to the field value. It is analogous to a natural
-transformation into `Id`, like we would expect to see in an `Altz`. But `Id` is
-not always enough, for `JsDecoder` we need to map into `String \/ ?`
+Now add support for annotations to handle user preferences. This implementation
+is inefficient at runtime as it will traverse the annotations for every
+invocation. Performance is usually the victim in the trade-off between
+specialisation and generalisation. It is not difficult to cache `nulls` and
+`label`, but we will avoid doing so for the sake of clarity.
 
 {lang="text"}
 ~~~~~~~~
-  Param[TC, A] => String \/ B
+  object MagnoliaJsEncoder {
+    type Typeclass[A] = JsEncoder[A]
+  
+    def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
+      val fields = ctx.parameters.flatMap { p =>
+        val nulls = p.annotations.collectFirst {
+          case json.nulls() => true
+        }.getOrElse(false)
+        val label = p.annotations.collectFirst {
+          case json.field(name) => name
+        }.getOrElse(p.label)
+        p.typeclass.toJson(p.dereference(a)) match {
+          case JsNull if !nulls => Nil
+          case value            => (label -> value) :: Nil
+        }
+      }
+      JsObject(fields.toList.toIList)
+    }
+  
+    def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] =
+      a =>
+        ctx.dispatch(a) { sub =>
+          val typehint = ctx.annotations.collectFirst {
+            case json.field(hint) => hint
+          }.getOrElse("type")
+          val xvalue = ctx.annotations.collectFirst {
+            case json.xvalue(hint) => hint
+          }.getOrElse("xvalue")
+          val hint = typehint -> JsString(sub.typeName.short)
+          sub.typeclass.toJson(sub.cast(a)) match {
+            case JsObject(fields) => JsObject(hint :: fields)
+            case other            => JsObject(IList(hint, xvalue -> other))
+          }
+        }
+  
+    def gen[A]: JsEncoder[A] = macro Magnolia.gen[A]
+  }
 ~~~~~~~~
 
-There is an evil hack: we can code the happy path and use a locally scoped
-exception to deal with the failure case.
+For the decoder we use `.constructEither` which has a type signature similar to
+`MonadError.emap`
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaDecoder {
+  object MagnoliaJsDecoder {
     type Typeclass[A] = JsDecoder[A]
   
-    // FIXME jon is going to fix this https://github.com/propensive/magnolia/issues/118
-    private case class Fail(msg: String) extends Exception with NoStackTrace
     def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
       case obj @ JsObject(_) =>
-        try {
-          val success = ctx.construct { p =>
-            val value = obj.get(p.label).getOrElse(JsNull)
-            p.typeclass.fromJson(value) match {
-              case \/-(got)  => got
-              case -\/(fail) => throw new Fail(fail)
-            }
-          }
-          \/-(success)
-        } catch {
-          case Fail(msg) => -\/(msg)
-        }
+        ctx.constructEither { p =>
+          val value = obj.get(p.label).getOrElse(JsNull)
+          p.typeclass.fromJson(value).toEither
+        }.disjunction
       case other => fail("JsObject", other)
     }
   
@@ -1320,7 +1356,7 @@ exception to deal with the failure case.
         obj.get("type") match {
           case \/-(JsString(hint)) =>
             ctx.subtypes.find(_.typeName.short == hint) match {
-              case None => JsDecoder.fail(s"a valid $hint", obj)
+              case None => fail(s"a valid '$hint'", obj)
               case Some(sub) =>
                 val value = obj.get("xvalue").getOrElse(obj)
                 sub.typeclass.fromJson(value)
@@ -1334,7 +1370,60 @@ exception to deal with the failure case.
   }
 ~~~~~~~~
 
-We call the `MagnoliaEncoder.gen` or `MagnoliaDecoder.gen` method from the
+Again, adding support for annotations:
+
+{lang="text"}
+~~~~~~~~
+  object MagnoliaJsDecoder {
+    type Typeclass[A] = JsDecoder[A]
+    def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
+      case obj @ JsObject(_) =>
+        ctx.constructEither { p =>
+          val nulls = p.annotations.collectFirst {
+            case json.nulls() => true
+          }.getOrElse(false)
+          val label = p.annotations.collectFirst {
+            case json.field(name) => name
+          }.getOrElse(p.label)
+          obj
+            .get(label)
+            .into {
+              case err @ -\/(_) if nulls => err
+              case value @ \/-(_)        => value
+              case -\/(_)                => \/-(JsNull)
+            }
+            .flatMap(p.typeclass.fromJson)
+            .toEither
+        }.disjunction
+      case other => fail("JsObject", other)
+    }
+  
+    def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] = {
+      case obj @ JsObject(_) =>
+        val typehint = ctx.annotations.collectFirst {
+          case json.field(hint) => hint
+        }.getOrElse("type")
+        val xvalue = ctx.annotations.collectFirst {
+          case json.xvalue(hint) => hint
+        }.getOrElse("xvalue")
+        obj.get(typehint) match {
+          case \/-(JsString(hint)) =>
+            ctx.subtypes.find(_.typeName.short == hint) match {
+              case None => fail(s"a valid '$hint'", obj)
+              case Some(sub) =>
+                val value = obj.get(xvalue).getOrElse(obj)
+                sub.typeclass.fromJson(value)
+            }
+          case _ => fail(s"JsObject with '$typehint' field", obj)
+        }
+      case other => fail("JsObject", other)
+    }
+  
+    def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
+  }
+~~~~~~~~
+
+We call the `MagnoliaJsEncoder.gen` or `MagnoliaJsDecoder.gen` method from the
 companion of our data types. For example, the Google Maps API
 
 {lang="text"}
@@ -1350,34 +1439,33 @@ companion of our data types. For example, the Google Maps API
   )
   
   object Value {
-    implicit val encoder: JsEncoder[Value] = MagnoliaEncoder.gen
-    implicit val decoder: JsDecoder[Value] = MagnoliaDecoder.gen
+    implicit val encoder: JsEncoder[Value] = MagnoliaJsEncoder.gen
+    implicit val decoder: JsDecoder[Value] = MagnoliaJsDecoder.gen
   }
   object Elements {
-    implicit val encoder: JsEncoder[Elements] = MagnoliaEncoder.gen
-    implicit val decoder: JsDecoder[Elements] = MagnoliaDecoder.gen
+    implicit val encoder: JsEncoder[Elements] = MagnoliaJsEncoder.gen
+    implicit val decoder: JsDecoder[Elements] = MagnoliaJsDecoder.gen
   }
   object Rows {
-    implicit val encoder: JsEncoder[Rows] = MagnoliaEncoder.gen
-    implicit val decoder: JsDecoder[Rows] = MagnoliaDecoder.gen
+    implicit val encoder: JsEncoder[Rows] = MagnoliaJsEncoder.gen
+    implicit val decoder: JsDecoder[Rows] = MagnoliaJsDecoder.gen
   }
   object DistanceMatrix {
-    implicit val encoder: JsEncoder[DistanceMatrix] = MagnoliaEncoder.gen
-    implicit val decoder: JsDecoder[DistanceMatrix] = MagnoliaDecoder.gen
+    implicit val encoder: JsEncoder[DistanceMatrix] = MagnoliaJsEncoder.gen
+    implicit val decoder: JsDecoder[DistanceMatrix] = MagnoliaJsDecoder.gen
   }
 ~~~~~~~~
 
-The `@deriving` annotation also supports Magnolia! If the typeclass author
-provides a file `deriving.conf` with their jar, containing this text
+Thankfully, the `@deriving` annotation supports Magnolia! If the typeclass
+author provides a file `deriving.conf` with their jar, containing this text
 
 {lang="text"}
 ~~~~~~~~
-  jsonformat.JsEncoder=jsonformat.MagnoliaEncoder.gen
-  jsonformat.JsDecoder=jsonformat.MagnoliaDecoder.gen
+  jsonformat.JsEncoder=jsonformat.MagnoliaJsEncoder.gen
+  jsonformat.JsDecoder=jsonformat.MagnoliaJsDecoder.gen
 ~~~~~~~~
 
-The `deriving-macro` will ignore the `scalaz-deriving` typeclasses and instead
-call the user-provided method:
+The `deriving-macro` will call the user-provided method:
 
 {lang="text"}
 ~~~~~~~~
@@ -1397,19 +1485,19 @@ call the user-provided method:
 ~~~~~~~~
 
 
-### Automatic Derivation
+### Fully Automatic Derivation
 
-Generating `implicit` instances on the companion of the data type has been
-called *semi-auto* derivation, in contrast to *full-auto* which is when the
-`.gen` is made `implicit`
+Generating `implicit` instances on the companion of the data type is
+historically known as *semi-auto* derivation, in contrast to *full-auto* which
+is when the `.gen` is made `implicit`
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaEncoder {
+  object MagnoliaJsEncoder {
     ...
     implicit def gen[A]: JsEncoder[A] = macro Magnolia.gen[A]
   }
-  object MagnoliaDecoder {
+  object MagnoliaJsDecoder {
     ...
     implicit def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
   }
@@ -1421,7 +1509,7 @@ the point of use
 {lang="text"}
 ~~~~~~~~
   scala> final case class Value(text: String, value: Int)
-  scala> import MagnoliaEncoder.gen
+  scala> import MagnoliaJsEncoder.gen
   scala> Value("hello", 1).toJson
   res = JsObject([("text","hello"),("value",1)])
 ~~~~~~~~
@@ -1434,9 +1522,9 @@ are two caveats:
     will impact runtime performance.
 2.  the implicit scope changes.
 
-The first caveat is self evident, but the concept of the implicit scope changing
-can manifest itself with very subtle bugs. Recall that import scope has a higher
-priority than companions, and say we have two data types
+The first caveat is self evident, but the implicit scope changing can manifest
+itself with as subtle bugs. Recall from Chapter 4.2 that import scope has a
+higher priority than companion scope. Say we have two data types
 
 {lang="text"}
 ~~~~~~~~
@@ -1454,7 +1542,7 @@ We might expect the full-auto encoded form of `Bar("hello")` to look like
   }
 ~~~~~~~~
 
-but it is:
+because we have used `xderiving` for `Foo`. But it is instead
 
 {lang="text"}
 ~~~~~~~~
@@ -1465,10 +1553,8 @@ but it is:
   }
 ~~~~~~~~
 
-This is because `MagnoliaEncoder.gen` has a higher priority than the `implicit`
-on the companion of `Foo`. We have, unfortunately, just introduced a source of
-typeclass decoherence. It is for this reason that most functional programmers
-avoid *full-auto* derivation.
+because `MagnoliaJsEncoder.gen` has a higher priority than the `implicit` on the
+companion of `Foo`. Full auto introduces a source of typeclass decoherence.
 
 Some typeclass authors go one step further and put the `implicit def` on the
 companion of the typeclass, so there is no way to opt out. Such code should be
