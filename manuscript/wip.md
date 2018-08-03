@@ -1232,8 +1232,8 @@ We choose sensible defaults
 -   use a special field `"type"` to disambiguate coproducts.
 -   put primitive values into a special field `"xvalue"`.
 
-and let the users attach annotations to sealed traits and fields to customise
-their formats:
+and let the users attach annotations to coproducts and product fields to
+customise their formats:
 
 {lang="text"}
 ~~~~~~~~
@@ -1254,7 +1254,7 @@ For example
   final case class Money(@json.field("integer") i: Int) extends Cost
 ~~~~~~~~
 
-Let's start with a `JsDecoder` that handles only with the defaults:
+Let's start with a `JsDecoder` that handles only the defaults:
 
 {lang="text"}
 ~~~~~~~~
@@ -1314,21 +1314,20 @@ specialisation and generalisation. It is not difficult to cache `nulls` and
       JsObject(fields.toList.toIList)
     }
   
-    def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] =
-      a =>
-        ctx.dispatch(a) { sub =>
-          val typehint = ctx.annotations.collectFirst {
-            case json.field(hint) => hint
-          }.getOrElse("type")
-          val xvalue = ctx.annotations.collectFirst {
-            case json.xvalue(hint) => hint
-          }.getOrElse("xvalue")
-          val hint = typehint -> JsString(sub.typeName.short)
-          sub.typeclass.toJson(sub.cast(a)) match {
-            case JsObject(fields) => JsObject(hint :: fields)
-            case other            => JsObject(IList(hint, xvalue -> other))
-          }
+    def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] = a =>
+      ctx.dispatch(a) { sub =>
+        val typehint = ctx.annotations.collectFirst {
+          case json.field(hint) => hint
+        }.getOrElse("type")
+        val xvalue = ctx.annotations.collectFirst {
+          case json.xvalue(hint) => hint
+        }.getOrElse("xvalue")
+        val hint = typehint -> JsString(sub.typeName.short)
+        sub.typeclass.toJson(sub.cast(a)) match {
+          case JsObject(fields) => JsObject(hint :: fields)
+          case other            => JsObject(IList(hint, xvalue -> other))
         }
+      }
   
     def gen[A]: JsEncoder[A] = macro Magnolia.gen[A]
   }
@@ -1465,7 +1464,7 @@ author provides a file `deriving.conf` with their jar, containing this text
   jsonformat.JsDecoder=jsonformat.MagnoliaJsDecoder.gen
 ~~~~~~~~
 
-The `deriving-macro` will call the user-provided method:
+the `deriving-macro` will call the user-provided method:
 
 {lang="text"}
 ~~~~~~~~
