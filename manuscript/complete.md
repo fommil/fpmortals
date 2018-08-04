@@ -1760,49 +1760,6 @@ may be managing state, throwing exceptions, or providing adhoc method
 implementations.
 
 
-### Generic Representation
-
-We showed that product is synonymous with tuple and coproduct is
-synonymous with nested `Either`. The [shapeless](https://github.com/milessabin/shapeless) library takes this
-duality to the extreme and introduces a representation that is
-*generic* for all ADTs:
-
--   `shapeless.HList` (symbolically `::`) for representing products
-    (`scala.Product` already exists for another purpose)
--   `shapeless.Coproduct` (symbolically `:+:`) for representing coproducts
-
-Shapeless provides the ability to convert back and forth between a
-generic representation and the ADT, allowing functions to be written
-that work **for every** `final case class` and `sealed abstract class`.
-
-{lang="text"}
-~~~~~~~~
-  scala> import shapeless._
-         final case class Foo(a: String, b: Long)
-         Generic[Foo].to(Foo("hello", 13L))
-  res: String :: Long :: HNil = hello :: 13 :: HNil
-  
-  scala> Generic[Foo].from("hello" :: 13L :: HNil)
-  res: Foo = Foo(hello,13)
-  
-  scala> sealed abstract class Bar
-         case object Irish extends Bar
-         case object English extends Bar
-  
-  scala> Generic[Bar].to(Irish)
-  res: English.type :+: Irish.type :+: CNil = Inl(Irish)
-  
-  scala> Generic[Bar].from(Inl(Irish))
-  res: Bar = Irish
-~~~~~~~~
-
-`HNil` is the empty product and `CNil` is the empty coproduct.
-
-It is not necessary to know how to write generic code to be able to
-make use of shapeless. However, it is an important part of FP Scala so
-we will return to it later with a dedicated chapter.
-
-
 ## Functionality
 
 Pure functions are typically defined as methods on an `object`.
@@ -2160,13 +2117,13 @@ caller, with special syntax for typeclass instances. Implicit
 parameters are a clean way to thread configuration through an
 application.
 
-In this example, `foo` requires that typeclasses for `Numeric` and
-shapeless' `Typeable` are available for `T`, as well as an implicit
-(user-defined) `Config` object.
+In this example, `foo` requires that typeclasses instances of `Numeric` and
+`Typeable` are available for `A`, as well as an implicit `Handler` object that
+takes two type parameters
 
 {lang="text"}
 ~~~~~~~~
-  def foo[T: Numeric: Typeable](implicit conf: Config) = ...
+  def foo[A: Numeric: Typeable](implicit A: Handler[String, A]) = ...
 ~~~~~~~~
 
 *Implicit conversion* is when an `implicit def` exists. One such use
@@ -6426,8 +6383,7 @@ functions exist on the companion to deal with `EphemeralStream`
 ### Higher Kinded Either
 
 The `Coproduct` data type (not to be confused with the more general concept of a
-*coproduct* in an ADT, or `shapeless.Coproduct`) wraps `Disjunction` for type
-constructors:
+*coproduct* in an ADT) wraps `Disjunction` for type constructors:
 
 {lang="text"}
 ~~~~~~~~
