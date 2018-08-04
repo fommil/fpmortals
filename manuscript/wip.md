@@ -1136,7 +1136,27 @@ next section.
 ## Magnolia
 
 The magnolia macro library provides a clean API for writing typeclass
-derivations. A typeclass author implements the following members:
+derivations. It is installed with the following `build.sbt` entry
+
+{lang="text"}
+~~~~~~~~
+  libraryDependencies += "com.propensive" %% "magnolia" % "0.8.0"
+~~~~~~~~
+
+W> These examples are using an unreleased version of magnolia that should be
+W> available imminently. To use the unreleased version use
+W> 
+W> {lang="text"}
+W> ~~~~~~~~
+W>   val magnolia = ProjectRef(
+W>     uri("https://github.com/fommil/magnolia.git#10676a0"),
+W>     "coreJVM"
+W>   )
+W>   
+W>   dependsOn(magnolia)
+W> ~~~~~~~~
+
+A typeclass author implements the following members:
 
 {lang="text"}
 ~~~~~~~~
@@ -1254,11 +1274,11 @@ For example
   final case class Money(@json.field("integer") i: Int) extends Cost
 ~~~~~~~~
 
-Let's start with a `JsDecoder` that handles only the defaults:
+Let's start with a `JsDecoder` that handles only our "sensible defaults":
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaJsEncoder {
+  object JsMagnoliaEncoder {
     type Typeclass[A] = JsEncoder[A]
   
     def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
@@ -1287,45 +1307,56 @@ Let's start with a `JsDecoder` that handles only the defaults:
 We can see how the Magnolia API makes it easy to access field names and
 typeclasses for each parameter.
 
-Now add support for annotations to handle user preferences. This implementation
-is inefficient at runtime as it will traverse the annotations for every
-invocation. Performance is usually the victim in the trade-off between
-specialisation and generalisation. It is not difficult to cache `nulls` and
-`label`, but we will avoid doing so for the sake of clarity.
+Now add support for annotations to handle user preferences. To avoid looking up
+the annotations on every encoding, we'll cache them in a map indexed by the
+field names Performance is usually the victim in the trade-off between
+specialisation and generalisation.
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaJsEncoder {
+  object JsMagnoliaEncoder {
     type Typeclass[A] = JsEncoder[A]
   
-    def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
-      val fields = ctx.parameters.flatMap { p =>
-        val nulls = p.annotations.collectFirst {
-          case json.nulls() => true
-        }.getOrElse(false)
-        val label = p.annotations.collectFirst {
-          case json.field(name) => name
-        }.getOrElse(p.label)
-        p.typeclass.toJson(p.dereference(a)) match {
-          case JsNull if !nulls => Nil
-          case value            => (label -> value) :: Nil
+    def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] =
+      new JsEncoder[A] {
+        private val anns = ctx.parameters.map { p =>
+          val nulls = p.annotations.collectFirst {
+            case json.nulls() => true
+          }.getOrElse(false)
+          val field = p.annotations.collectFirst {
+            case json.field(name) => name
+          }.getOrElse(p.label)
+          (p.label, (nulls, field))
+        }.toMap
+  
+        def toJson(a: A): JsValue = {
+          val fields = ctx.parameters.flatMap { p =>
+            val (nulls, field) = anns(p.label)
+            p.typeclass.toJson(p.dereference(a)) match {
+              case JsNull if !nulls => Nil
+              case value            => (field -> value) :: Nil
+            }
+          }
+          JsObject(fields.toList.toIList)
         }
       }
-      JsObject(fields.toList.toIList)
-    }
   
-    def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] = a =>
-      ctx.dispatch(a) { sub =>
-        val typehint = ctx.annotations.collectFirst {
+    def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] =
+      new JsEncoder[A] {
+        private val typehint = ctx.annotations.collectFirst {
           case json.field(hint) => hint
         }.getOrElse("type")
-        val xvalue = ctx.annotations.collectFirst {
+  
+        private val xvalue = ctx.annotations.collectFirst {
           case json.xvalue(hint) => hint
         }.getOrElse("xvalue")
-        val hint = typehint -> JsString(sub.typeName.short)
-        sub.typeclass.toJson(sub.cast(a)) match {
-          case JsObject(fields) => JsObject(hint :: fields)
-          case other            => JsObject(IList(hint, xvalue -> other))
+  
+        def toJson(a: A): JsValue = ctx.dispatch(a) { sub =>
+          val hint = typehint -> JsString(sub.typeName.short)
+          sub.typeclass.toJson(sub.cast(a)) match {
+            case JsObject(fields) => JsObject(hint :: fields)
+            case other            => JsObject(IList(hint, xvalue -> other))
+          }
         }
       }
   
@@ -1338,7 +1369,7 @@ For the decoder we use `.constructEither` which has a type signature similar to
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaJsDecoder {
+  object JsMagnoliaDecoder {
     type Typeclass[A] = JsDecoder[A]
   
     def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
@@ -1373,56 +1404,76 @@ Again, adding support for annotations:
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaJsDecoder {
+  object JsMagnoliaDecoder {
     type Typeclass[A] = JsDecoder[A]
-    def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
-      case obj @ JsObject(_) =>
-        ctx.constructEither { p =>
+  
+    import JsDecoder.ops._
+    import JsDecoder.fail
+  
+    def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] =
+      new JsDecoder[A] {
+        private val anns = ctx.parameters.map { p =>
           val nulls = p.annotations.collectFirst {
             case json.nulls() => true
           }.getOrElse(false)
-          val label = p.annotations.collectFirst {
+          val field = p.annotations.collectFirst {
             case json.field(name) => name
           }.getOrElse(p.label)
-          obj
-            .get(label)
-            .into {
-              case err @ -\/(_) if nulls => err
-              case value @ \/-(_)        => value
-              case -\/(_)                => \/-(JsNull)
-            }
-            .flatMap(p.typeclass.fromJson)
-            .toEither
-        }.disjunction
-      case other => fail("JsObject", other)
-    }
+          (p.label, (nulls, field))
+        }.toMap
   
-    def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] = {
-      case obj @ JsObject(_) =>
-        val typehint = ctx.annotations.collectFirst {
+        def fromJson(j: JsValue): String \/ A = j match {
+          case obj @ JsObject(_) =>
+            ctx.constructEither { p =>
+              val (nulls, field) = anns(p.label)
+              obj
+                .get(field)
+                .into {
+                  case \/-(value) => p.typeclass.fromJson(value)
+                  case err @ -\/(_) =>
+                    p.default match {
+                      case Some(default) => \/-(default)
+                      case None if nulls => err
+                      case None          => p.typeclass.fromJson(JsNull)
+                    }
+                }
+                .toEither
+            }.disjunction
+          case other => fail("JsObject", other)
+        }
+      }
+  
+    def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] =
+      new JsDecoder[A] {
+        private val typehint = ctx.annotations.collectFirst {
           case json.field(hint) => hint
         }.getOrElse("type")
-        val xvalue = ctx.annotations.collectFirst {
+  
+        private val xvalue = ctx.annotations.collectFirst {
           case json.xvalue(hint) => hint
         }.getOrElse("xvalue")
-        obj.get(typehint) match {
-          case \/-(JsString(hint)) =>
-            ctx.subtypes.find(_.typeName.short == hint) match {
-              case None => fail(s"a valid '$hint'", obj)
-              case Some(sub) =>
-                val value = obj.get(xvalue).getOrElse(obj)
-                sub.typeclass.fromJson(value)
+  
+        def fromJson(j: JsValue): String \/ A = j match {
+          case obj @ JsObject(_) =>
+            obj.get(typehint) match {
+              case \/-(JsString(hint)) =>
+                ctx.subtypes.find(_.typeName.short == hint) match {
+                  case None => fail(s"a valid '$hint'", obj)
+                  case Some(sub) =>
+                    val value = obj.get(xvalue).getOrElse(obj)
+                    sub.typeclass.fromJson(value)
+                }
+              case _ => fail(s"JsObject with '$typehint' field", obj)
             }
-          case _ => fail(s"JsObject with '$typehint' field", obj)
+          case other => fail("JsObject", other)
         }
-      case other => fail("JsObject", other)
-    }
+      }
   
     def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
   }
 ~~~~~~~~
 
-We call the `MagnoliaJsEncoder.gen` or `MagnoliaJsDecoder.gen` method from the
+We call the `JsMagnoliaEncoder.gen` or `JsMagnoliaDecoder.gen` method from the
 companion of our data types. For example, the Google Maps API
 
 {lang="text"}
@@ -1438,20 +1489,20 @@ companion of our data types. For example, the Google Maps API
   )
   
   object Value {
-    implicit val encoder: JsEncoder[Value] = MagnoliaJsEncoder.gen
-    implicit val decoder: JsDecoder[Value] = MagnoliaJsDecoder.gen
+    implicit val encoder: JsEncoder[Value] = JsMagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[Value] = JsMagnoliaDecoder.gen
   }
   object Elements {
-    implicit val encoder: JsEncoder[Elements] = MagnoliaJsEncoder.gen
-    implicit val decoder: JsDecoder[Elements] = MagnoliaJsDecoder.gen
+    implicit val encoder: JsEncoder[Elements] = JsMagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[Elements] = JsMagnoliaDecoder.gen
   }
   object Rows {
-    implicit val encoder: JsEncoder[Rows] = MagnoliaJsEncoder.gen
-    implicit val decoder: JsDecoder[Rows] = MagnoliaJsDecoder.gen
+    implicit val encoder: JsEncoder[Rows] = JsMagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[Rows] = JsMagnoliaDecoder.gen
   }
   object DistanceMatrix {
-    implicit val encoder: JsEncoder[DistanceMatrix] = MagnoliaJsEncoder.gen
-    implicit val decoder: JsDecoder[DistanceMatrix] = MagnoliaJsDecoder.gen
+    implicit val encoder: JsEncoder[DistanceMatrix] = JsMagnoliaEncoder.gen
+    implicit val decoder: JsDecoder[DistanceMatrix] = JsMagnoliaDecoder.gen
   }
 ~~~~~~~~
 
@@ -1460,8 +1511,8 @@ author provides a file `deriving.conf` with their jar, containing this text
 
 {lang="text"}
 ~~~~~~~~
-  jsonformat.JsEncoder=jsonformat.MagnoliaJsEncoder.gen
-  jsonformat.JsDecoder=jsonformat.MagnoliaJsDecoder.gen
+  jsonformat.JsEncoder=jsonformat.JsMagnoliaEncoder.gen
+  jsonformat.JsDecoder=jsonformat.JsMagnoliaDecoder.gen
 ~~~~~~~~
 
 the `deriving-macro` will call the user-provided method:
@@ -1492,11 +1543,11 @@ is when the `.gen` is made `implicit`
 
 {lang="text"}
 ~~~~~~~~
-  object MagnoliaJsEncoder {
+  object JsMagnoliaEncoder {
     ...
     implicit def gen[A]: JsEncoder[A] = macro Magnolia.gen[A]
   }
-  object MagnoliaJsDecoder {
+  object JsMagnoliaDecoder {
     ...
     implicit def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
   }
@@ -1508,7 +1559,7 @@ the point of use
 {lang="text"}
 ~~~~~~~~
   scala> final case class Value(text: String, value: Int)
-  scala> import MagnoliaJsEncoder.gen
+  scala> import JsMagnoliaEncoder.gen
   scala> Value("hello", 1).toJson
   res = JsObject([("text","hello"),("value",1)])
 ~~~~~~~~
@@ -1541,7 +1592,7 @@ We might expect the full-auto encoded form of `Bar("hello")` to look like
   }
 ~~~~~~~~
 
-because we have used `xderiving` for `Foo`. But it is instead
+because we have used `xderiving` for `Foo`. But it can instead, be
 
 {lang="text"}
 ~~~~~~~~
@@ -1552,8 +1603,10 @@ because we have used `xderiving` for `Foo`. But it is instead
   }
 ~~~~~~~~
 
-because `MagnoliaJsEncoder.gen` has a higher priority than the `implicit` on the
-companion of `Foo`. Full auto introduces a source of typeclass decoherence.
+because `JsMagnoliaEncoder.gen` has a higher priority than the `implicit` on the
+companion of `Foo`. Magnolia does try to avoid these problems, but it does not
+always succeed, and it is silent when it picks something we did not intend. Full
+auto introduces a source of typeclass decoherence.
 
 Some typeclass authors go one step further and put the `implicit def` on the
 companion of the typeclass, so there is no way to opt out. Such code should be
