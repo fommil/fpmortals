@@ -1218,16 +1218,9 @@ with helpers
 
 It does not make sense to use magnolia for typeclasses that can be abstracted by
 `Divisible`, `Decidable`, `Applicative` or `Alt`, since those abstractions
-provide a lot of extra structure and tests for free. The choice is therefore
-between `Deriving` and `Magnolia`, boiling down to whichever API the typeclass
-author prefers.
-
-Magnolia offers some features that `scalaz-deriving` cannot provide: annotations
-and knowledge about varargs and default values. These features could allow for
-custom DSLs around a typeclass, for example annotations to support configuration
-parameters. For JSON this could allow users to choose their preference instead
-of it being dictated by the typeclass author: e.g. typehint field names,
-behaviour around `null`.
+provide a lot of extra structure and tests for free. However, Magnolia offers
+features that `scalaz-deriving` cannot provide: access to field names, type
+names, annotations and default values.
 
 
 ### Example: JSON
@@ -1303,7 +1296,7 @@ typeclasses for each parameter.
 
 Now add support for annotations to handle user preferences. To avoid looking up
 the annotations on every encoding, we'll cache them in a map indexed by the
-field names Performance is usually the victim in the trade-off between
+field names. Performance is usually the victim in the trade-off between
 specialisation and generalisation.
 
 {lang="text"}
