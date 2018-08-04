@@ -1178,13 +1178,9 @@ The magnolia objects are:
 ~~~~~~~~
   class CaseClass[TC[_], A] {
     def typeName: TypeName
-    def isObject: Boolean
-    def isValueClass: Boolean
     def construct[B](f: Param[TC, A] => B): A
     def constructEither[E, B](f: Param[TC, A] => Either[E, B]): Either[E, A]
-  
     def parameters: Seq[Param[TC, A]]
-  
     def annotations: Seq[Any]
   }
   
@@ -1192,7 +1188,6 @@ The magnolia objects are:
     def typeName: TypeName
     def subtypes: Seq[Subtype[TC, A]]
     def dispatch[B](value: A)(handle: Subtype[TC, A] => B): B
-  
     def annotations: Seq[Any]
   }
 ~~~~~~~~
@@ -1208,9 +1203,7 @@ with helpers
     def label: String
     def typeclass: TC[PType]
     def dereference(param: A): PType
-  
-    def repeated: Boolean      // varargs
-    def default: Option[PType] // default arguments
+    def default: Option[PType]
     def annotations: Seq[Any]
   }
   
@@ -1219,6 +1212,7 @@ with helpers
     def typeName: TypeName
     def typeclass: TC[SType]
     def cast(a: A): SType
+    def annotations: Seq[Any]
   }
 ~~~~~~~~
 
@@ -1249,7 +1243,7 @@ We choose sensible defaults
 
 -   do not include fields if the value is a `JsNull`.
 -   handle missing fields the same as `null` values.
--   use a special field `"type"` to disambiguate coproducts.
+-   use a special field `"type"` to disambiguate coproducts using the type name.
 -   put primitive values into a special field `"xvalue"`.
 
 and let the users attach annotations to coproducts and product fields to
@@ -1258,9 +1252,9 @@ customise their formats:
 {lang="text"}
 ~~~~~~~~
   package json {
-    final case class nulls()                  extends Annotation
-    final case class field(val name: String)  extends Annotation
-    final case class xvalue(val hint: String) extends Annotation
+    final case class nulls()                 extends Annotation
+    final case class field(val name: String) extends Annotation
+    final case class hint(val hint: String)  extends Annotation
   }
 ~~~~~~~~
 
@@ -1343,19 +1337,31 @@ specialisation and generalisation.
   
     def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] =
       new JsEncoder[A] {
-        private val typehint = ctx.annotations.collectFirst {
-          case json.field(hint) => hint
-        }.getOrElse("type")
+        private val anns = {
+          val field = ctx.annotations.collectFirst {
+            case json.field(v) => v
+          }.getOrElse("type")
   
-        private val xvalue = ctx.annotations.collectFirst {
-          case json.xvalue(hint) => hint
-        }.getOrElse("xvalue")
+          ctx.subtypes.map { s =>
+            s.typeName -> s.annotations.collectFirst {
+              case json.hint(hint) => field -> JsString(hint)
+            }.getOrElse(field -> JsString(s.typeName.short))
+          }
+        }.toMap
+  
+        private val xvalues = ctx.subtypes.flatMap { sub =>
+          sub.annotations.collectFirst {
+            case json.field(hint) => sub.typeName -> hint
+          }
+        }.toMap.withDefaultValue("xvalue")
   
         def toJson(a: A): JsValue = ctx.dispatch(a) { sub =>
-          val hint = typehint -> JsString(sub.typeName.short)
+          val hint = anns(sub.typeName)
           sub.typeclass.toJson(sub.cast(a)) match {
             case JsObject(fields) => JsObject(hint :: fields)
-            case other            => JsObject(IList(hint, xvalue -> other))
+            case other =>
+              val xvalue = xvalues(sub.typeName)
+              JsObject(IList(hint, xvalue -> other))
           }
         }
       }
@@ -1400,15 +1406,12 @@ For the decoder we use `.constructEither` which has a type signature similar to
   }
 ~~~~~~~~
 
-Again, adding support for annotations:
+Again, adding support for user preferences and default field values:
 
 {lang="text"}
 ~~~~~~~~
   object JsMagnoliaDecoder {
     type Typeclass[A] = JsDecoder[A]
-  
-    import JsDecoder.ops._
-    import JsDecoder.fail
   
     def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] =
       new JsDecoder[A] {
@@ -1445,22 +1448,31 @@ Again, adding support for annotations:
   
     def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] =
       new JsDecoder[A] {
+        private val hints = ctx.subtypes.map { s =>
+          s.typeName -> s.annotations.collectFirst {
+            case json.hint(hint) => hint
+          }.getOrElse(s.typeName.short)
+        }.toMap
+  
         private val typehint = ctx.annotations.collectFirst {
           case json.field(hint) => hint
         }.getOrElse("type")
   
-        private val xvalue = ctx.annotations.collectFirst {
-          case json.xvalue(hint) => hint
-        }.getOrElse("xvalue")
+        private val xvalues = ctx.subtypes.flatMap { sub =>
+          sub.annotations.collectFirst {
+            case json.field(hint) => sub.typeName -> hint
+          }
+        }.toMap.withDefaultValue("xvalue")
   
         def fromJson(j: JsValue): String \/ A = j match {
           case obj @ JsObject(_) =>
             obj.get(typehint) match {
               case \/-(JsString(hint)) =>
-                ctx.subtypes.find(_.typeName.short == hint) match {
+                ctx.subtypes.find(s => hints(s.typeName) == hint) match {
                   case None => fail(s"a valid '$hint'", obj)
                   case Some(sub) =>
-                    val value = obj.get(xvalue).getOrElse(obj)
+                    val xvalue = xvalues(sub.typeName)
+                    val value  = obj.get(xvalue).getOrElse(obj)
                     sub.typeclass.fromJson(value)
                 }
               case _ => fail(s"JsObject with '$typehint' field", obj)
@@ -1573,8 +1585,8 @@ are two caveats:
 2.  the implicit scope changes.
 
 The first caveat is self evident, but the implicit scope changing can manifest
-itself with as subtle bugs. Recall from Chapter 4.2 that import scope has a
-higher priority than companion scope. Say we have two data types
+itself as subtle bugs. Recall from Chapter 4.2 that import scope has a higher
+priority than companion scope. Say we have two data types
 
 {lang="text"}
 ~~~~~~~~
@@ -1604,13 +1616,13 @@ because we have used `xderiving` for `Foo`. But it can instead, be
 ~~~~~~~~
 
 because `JsMagnoliaEncoder.gen` has a higher priority than the `implicit` on the
-companion of `Foo`. Magnolia does try to avoid these problems, but it does not
-always succeed, and it is silent when it picks something we did not intend. Full
-auto introduces a source of typeclass decoherence.
+companion of `Foo`. Magnolia tries to hijack the compiler to avoid these
+problems, and often does, but it does not always succeed. It is also silent when
+it picks something we did not intend: full auto introduces a source of typeclass
+decoherence. Some typeclass authors go one step further and put the `implicit
+def` on the companion of the typeclass, so you can't even opt out.
 
-Some typeclass authors go one step further and put the `implicit def` on the
-companion of the typeclass, so there is no way to opt out. Such code should be
-terminated... immediately!
+TL;DR don't do full auto derivation, and don't let your friends do it either.
 
 
 ## TODO Shapeless
