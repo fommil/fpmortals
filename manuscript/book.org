@@ -14981,9 +14981,9 @@ SAM types! When you live this close to the razor's edge, expect to get cut.
 #+END_ASIDE
 
 With this in mind, we no longer need the =implicit val generic= or the explicit
-type parameters on the call to =.gen=. That means we can wire up =@deriving= by
-adding an entry in =deriving.conf= (assuming we want to override the
-=scalaz-deriving= implementation)
+type parameters on the call to =.gen=. We can wire up =@deriving= by adding an
+entry in =deriving.conf= (assuming we want to override the =scalaz-deriving=
+implementation)
 
 #+BEGIN_SRC scala
 scalaz.Equal=fpmortals.DerivedEqual.gen
@@ -14997,6 +14997,11 @@ and write
 @deriving(Equal) final case class Faz(b: Boolean, i: Int) extends Foo
 @deriving(Equal) final case object Baz
 #+END_SRC
+
+But replacing the =scalaz-deriving= version means that compile times get slower.
+This is because the compiler is solving =N= implicit searches for each product
+of =N= fields or coproduct of =N= products, whereas =scalaz-deriving= and
+Magnolia do not.
 
 Note that when using =scalaz-deriving= or Magnolia we can put the =@deriving= on
 just the top member of an ADT, but for shapeless we must add it to all entries.
@@ -15090,6 +15095,84 @@ assert(tree1 /== tree2)
 #+END_SRC
 
 without a runtime exception.
+
+**** Example: =Default=
+
+There are no new snares in the implementation of a typeclass with a type
+parameter in covariant position. Here we create =HList= and =Coproduct= values,
+and must provide a value for the =CNil= case as it corresponds to the case where
+no coproduct is able to provide a value.
+
+#+BEGIN_SRC scala
+sealed trait DerivedDefault[A] extends Default[A]
+object DerivedDefault {
+  def gen[A, R](
+    implicit G: Generic.Aux[A, R],
+    R: Cached[Strict[DerivedDefault[R]]]
+  ): Default[A] = new Default[A] {
+    def default = R.value.value.default.map(G.from)
+  }
+
+  implicit def hcons[H, T <: HList](
+    implicit H: Lazy[Default[H]],
+    T: DerivedDefault[T]
+  ): DerivedDefault[H :: T] = new DerivedDefault[H :: T] {
+    def default =
+      for {
+        head <- H.value.default
+        tail <- T.default
+      } yield head :: tail
+  }
+
+  implicit val hnil: DerivedDefault[HNil] = new DerivedDefault[HNil] {
+    def default = HNil.right
+  }
+
+  implicit def ccons[H, T <: Coproduct](
+    implicit H: Lazy[Default[H]],
+    T: DerivedDefault[T]
+  ): DerivedDefault[H :+: T] = new DerivedDefault[H :+: T] {
+    def default = H.value.default.map(Inl(_)).orElse(T.default.map(Inr(_)))
+  }
+
+  implicit val cnil: DerivedDefault[CNil] = new DerivedDefault[CNil] {
+    def default = "not a valid coproduct".left
+  }
+}
+#+END_SRC
+
+Much as we could draw an analogy between =Equal= and =Decidable=, we can see the
+relationship to =Alt= in =.point= (=hnil=), =.apply2= (=.hcons=) and =.altly2=
+(=.ccons=).
+
+There is little to be learned from an example like =Semigroup=, so we will skip
+to encoders and decoders.
+
+**** Example: =JsEncoder=
+
+To be able to reproduce our Magnolia JSON encoder, we must be able to access:
+
+1. field names and class names
+2. annotations for user preferences
+3. default values on a =case class=
+
+We'll begin by creating an encoder that handles only the sensible defaults.
+
+To get field names, we use =LabelledGeneric= instead of =Generic=, and when
+defining the type of the head element, we use =FieldType[K, H]= instead of just
+=H=. We can request a =Witness.Aux[K]= to be able to access the value of the
+field name =K= at runtime.
+
+#+BEGIN_SRC scala
+import scalaz.{ Coproduct => _, :+: => _, _ }, Scalaz._
+import shapeless._, labelled._
+
+trait DerivedJsEncoder[A] extends JsEncoder[A]
+object DerivedJsEncoder {
+
+}
+#+END_SRC
+
 
 *** TODO Summary
 

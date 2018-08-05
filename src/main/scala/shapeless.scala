@@ -48,21 +48,76 @@ object DerivedEqual {
     a.asInstanceOf[AnyRef].eq(b.asInstanceOf[AnyRef])
 }
 
+trait Default[A] {
+  def default: String \/ A
+}
+object Default {
+  @inline def apply[A](implicit A: Default[A]): Default[A] = A
+  def instance[A](d: =>String \/ A): Default[A] = new Default[A] {
+    def default: String \/ A = d
+  }
+
+  implicit val int: Default[Int]         = instance(0.right)
+  implicit val string: Default[String]   = instance("".right)
+  implicit val boolean: Default[Boolean] = instance(false.right)
+}
+
+sealed trait DerivedDefault[A] extends Default[A]
+object DerivedDefault {
+  def gen[A, R](
+    implicit G: Generic.Aux[A, R],
+    R: Cached[Strict[DerivedDefault[R]]]
+  ): Default[A] = new Default[A] {
+    def default = R.value.value.default.map(G.from)
+  }
+
+  implicit def hcons[H, T <: HList](
+    implicit H: Lazy[Default[H]],
+    T: DerivedDefault[T]
+  ): DerivedDefault[H :: T] = new DerivedDefault[H :: T] {
+    def default =
+      for {
+        head <- H.value.default
+        tail <- T.default
+      } yield head :: tail
+  }
+
+  implicit val hnil: DerivedDefault[HNil] = new DerivedDefault[HNil] {
+    def default = HNil.right
+  }
+
+  implicit def ccons[H, T <: Coproduct](
+    implicit H: Lazy[Default[H]],
+    T: DerivedDefault[T]
+  ): DerivedDefault[H :+: T] = new DerivedDefault[H :+: T] {
+    def default = H.value.default.map(Inl(_)).orElse(T.default.map(Inr(_)))
+  }
+
+  implicit val cnil: DerivedDefault[CNil] = new DerivedDefault[CNil] {
+    def default = "not a valid coproduct".left
+  }
+
+}
+
 @deriving(Show)
 sealed abstract class Foo { def widen: Foo = this }
 final case class Bar(s: String)          extends Foo
 final case class Faz(b: Boolean, i: Int) extends Foo
 final case object Baz extends Foo {
-  implicit val equal: Equal[Baz.type] = DerivedEqual.gen
+  implicit val equal: Equal[Baz.type]     = DerivedEqual.gen
+  implicit val default: Default[Baz.type] = DerivedDefault.gen
 }
 object Bar {
-  implicit val equal: Equal[Bar] = DerivedEqual.gen
+  implicit val equal: Equal[Bar]     = DerivedEqual.gen
+  implicit val default: Default[Bar] = DerivedDefault.gen
 }
 object Faz {
-  implicit val equal: Equal[Faz] = DerivedEqual.gen
+  implicit val equal: Equal[Faz]     = DerivedEqual.gen
+  implicit val default: Default[Faz] = DerivedDefault.gen
 }
 object Foo {
-  implicit val equal: Equal[Foo] = DerivedEqual.gen
+  implicit val equal: Equal[Foo]     = DerivedEqual.gen
+  implicit val default: Default[Foo] = DerivedDefault.gen
 }
 
 sealed trait ATree
@@ -81,6 +136,8 @@ object Branch {
 
 object Test extends App {
   //Baz.widen.assert_===(Baz)
+
+  println(Default[Foo].default)
 
   val leaf1: Leaf    = Leaf("hello")
   val leaf2: Leaf    = Leaf("goodbye")
