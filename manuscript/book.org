@@ -98,7 +98,7 @@ The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmun
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
 Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
-A. Baker and Alexander Konovalov.
+A. Baker, Alexander Konovalov, Harrison Houghton and Alexandre Archambault.
 
 ** Practicalities
 
@@ -14271,6 +14271,8 @@ customise their formats:
 
 #+BEGIN_SRC scala
 package json {
+  // FIXME TODO combine into one annotation
+
   final case class nulls()                 extends Annotation
   final case class field(val name: String) extends Annotation
   final case class hint(val hint: String)  extends Annotation
@@ -15191,6 +15193,34 @@ object DerivedJsEncoder {
 }
 #+END_SRC
 
+FIXME: this is incorrect. This section will be rewritten to use annotations
+
+#+BEGIN_ASIDE
+A pattern has emerged in many shapeless derivation libraries that introduce
+"hints" with a default materialiser
+
+#+BEGIN_SRC scala
+  trait ProductHint[A] {
+    def nulls(field: String): Boolean
+    def fieldname(field: String): String
+  }
+  object ProductHint {
+    implicit def default[A]: ProductHint[A] = new ProductHint[A] {
+      def nulls(field: String)     = false
+      def fieldname(field: String) = field
+    }
+  }
+#+END_SRC
+
+Users can provide a custom instance of =ProductHint= on the companion of their
+data type or package object.
+
+This mechanism relies on fragile implicit ordering and is a source of typeclass
+decoherence: if we derive a =JsEncoder[Foo]=, we will get a different result
+depending on which =ProductHint[Foo]= is in scope. It is best avoided.
+#+END_ASIDE
+
+
 When it comes to user preferences, it is not possible to reuse the annotations
 that we used for Magnolia. Shapeless has its own mechanism which unfortunately
 relies on typeclass decoherence and cannot be checked at compiletime, therefore
@@ -15198,35 +15228,6 @@ we must write extensive tests.
 
 The basic idea is to introduce configuration data types
 
-#+BEGIN_SRC scala
-  trait ProductHint[A] {
-    def nulls(field: String): Boolean
-    def fieldname(field: String): String
-  }
-  trait CoproductHint[A] {
-    def field: String
-    def hint(field: String): String
-    def xvalue(field: String): String
-  }
-#+END_SRC
-
-with default materialisers
-
-#+BEGIN_SRC scala
-  object ProductHint {
-    implicit def default[A]: ProductHint[A] = new ProductHint[A] {
-      def nulls(field: String)     = false
-      def fieldname(field: String) = field
-    }
-  }
-  object CoproductHint {
-    implicit def default[A]: CoproductHint[A] = new CoproductHint[A] {
-      def field                 = "type"
-      def hint(field: String)   = field
-      def xvalue(field: String) = "xvalue"
-    }
-  }
-#+END_SRC
 
 If the user wants to customise any aspect of the encoding or decoding, they must
 provide an =implicit= instance of =ProductHint[A]= or =CoproductHint[A]= for
@@ -15444,6 +15445,8 @@ and add an entry in the =deriving.conf= for =DerivedJsDecoder= (for coproducts)
 as well as =JsDecoder= (for products), but this adds to the mental burden at the
 point of use, which is not ideal.
 
+FIXME: a note about the =@@= bug
+
 **** The Dark Side of Derivation
 
 #+BEGIN_QUOTE
@@ -15509,20 +15512,23 @@ dark side. Fear leads to anger. Anger leads to hate. Hate leads to suffering.
 When deciding on a technology to use for typeclass derivation, this feature
 chart may help:
 
-| Feature          | Scalaz | Magnolia | Shapeless |
-|------------------+--------+----------+-----------|
-| =@deriving=      | yes    | yes      | yes       |
-| Laws             | yes    |          |           |
-| Coherent         | yes    | yes      |           |
-| Fast compiles    | yes    | yes      |           |
-| Annotations      |        | yes      |           |
-| Field names      |        | yes      | yes       |
-| Defaults         |        | yes      | yes       |
-| User config      |        | yes      | yes       |
-| Requires a PhD   |        |          | yes       |
-| Compiler freezes |        |          | yes       |
+| Feature          | Scalaz | Magnolia | Shapeless | Manual |
+|------------------+--------+----------+-----------+--------|
+| =@deriving=      | yes    | yes      | mostly    |        |
+| Laws             | yes    |          |           |        |
+| Coherent         | yes    | yes      |           | yes    |
+| Fast compiles    | yes    | yes      |           | yes    |
+| Annotations      |        | yes      | yes       |        |
+| Field names      |        | yes      | yes       |        |
+| Default values   |        | yes      | yes       |        |
+| Requires a PhD   |        |          | yes       |        |
+| Compiler freezes |        |          | yes       |        |
+| Runtime speed    |        |          | yes       | yes    |
+
 
 FIXME: include perf numbers from jsonformat
+
+FIXME: include flamegraph of the jmh
 
 However, hand optimised custom instances are an escape hatch if extra CPU cycles
 are required, outperforming all automated derivations by significant margin at
