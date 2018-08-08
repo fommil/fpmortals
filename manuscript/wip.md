@@ -1188,6 +1188,7 @@ with helpers
   class Param[TC[_], A] {
     type PType
     def label: String
+    def index: Int
     def typeclass: TC[PType]
     def dereference(param: A): PType
     def default: Option[PType]
@@ -1197,6 +1198,7 @@ with helpers
   class Subtype[TC[_], A] {
     type SType <: A
     def typeName: TypeName
+    def index: Int
     def typeclass: TC[SType]
     def cast(a: A): SType
     def annotations: Seq[Any]
@@ -1226,17 +1228,21 @@ We choose sensible defaults
 -   use a special field `"type"` to disambiguate coproducts using the type name.
 -   put primitive values into a special field `"xvalue"`.
 
-and let the users attach annotations to coproducts and product fields to
+and let the users attach an annotation to coproducts and product fields to
 customise their formats:
 
 {lang="text"}
 ~~~~~~~~
-  package json {
-    final case class nulls()                 extends Annotation
-    final case class field(val name: String) extends Annotation
-    final case class hint(val hint: String)  extends Annotation
+  sealed class json extends Annotation
+  object json {
+    final case class nulls()          extends json
+    final case class field(f: String) extends json
+    final case class hint(f: String)  extends json
   }
 ~~~~~~~~
+
+A> Magnolia is not limited to one annotation family. This encoding is so that we
+A> can do a like-for-like comparison with Shapeless in the next section.
 
 For example
 
@@ -1248,6 +1254,32 @@ For example
   final case class Money(@json.field("integer") i: Int) extends Cost
 ~~~~~~~~
 
+These user preferences also allow us to distinguish between `null`, missing and
+valid values without any further modifications to `JsValue`, `JsEncoder` or
+`JsDecoder`. For example, through this ADT
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Possibly[A]
+  object Possibly {
+    final case class Missing[A]()   extends Possibly[A]
+    final case class Found[A](a: A) extends Possibly[A]
+  
+    implicit def encoder[A: JsEncoder]: JsEncoder[Possibly] = JsEncoder[A].contramap(_.a)
+    implicit def decoder[A: JsDecoder]: JsDecoder[Possibly] = JsDecoder[A].map(Found(_))
+  }
+~~~~~~~~
+
+we can say that we require `null` values, otherwise using a default, then check
+for `null` with `Option`:
+
+{lang="text"}
+~~~~~~~~
+  final case class(
+    @json.nulls() s: Possibly[Option[String]] = Missing()
+  )
+~~~~~~~~
+
 Let's start with a `JsDecoder` that handles only our "sensible defaults":
 
 {lang="text"}
@@ -1256,13 +1288,14 @@ Let's start with a `JsDecoder` that handles only our "sensible defaults":
     type Typeclass[A] = JsEncoder[A]
   
     def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
-      val fields = ctx.parameters.toList.flatMap { p =>
+      val empty = IList.empty[(String, JsValue)]
+      val fields = ctx.parameters.foldRight(right) { (p, acc) =>
         p.typeclass.toJson(p.dereference(a)) match {
-          case JsNull => Nil
-          case value  => (p.label -> value) :: Nil
+          case JsNull => acc
+          case value  => (p.label -> value) :: acc
         }
       }
-      JsObject(fields.toIList)
+      JsObject(fields)
     }
   
     def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] = a =>
@@ -1300,48 +1333,42 @@ specialisation and generalisation.
           val field = p.annotations.collectFirst {
             case json.field(name) => name
           }.getOrElse(p.label)
-          (p.label, (nulls, field))
-        }.toMap
+          (nulls, field)
+        }.toArray
   
         def toJson(a: A): JsValue = {
-          val fields = ctx.parameters.flatMap { p =>
-            val (nulls, field) = anns(p.label)
+          val empty = IList.empty[(String, JsValue)]
+          val fields = ctx.parameters.foldRight(empty) { (p, acc) =>
+            val (nulls, field) = anns(p.index)
             p.typeclass.toJson(p.dereference(a)) match {
-              case JsNull if !nulls => Nil
-              case value            => (field -> value) :: Nil
+              case JsNull if !nulls => acc
+              case value            => (field -> value) :: acc
             }
           }
-          JsObject(fields.toList.toIList)
+          JsObject(fields)
         }
       }
   
     def dispatch[A](ctx: SealedTrait[JsEncoder, A]): JsEncoder[A] =
       new JsEncoder[A] {
-        private val anns = {
-          val field = ctx.annotations.collectFirst {
-            case json.field(v) => v
-          }.getOrElse("type")
-  
-          ctx.subtypes.map { s =>
-            s.typeName -> s.annotations.collectFirst {
-              case json.hint(hint) => field -> JsString(hint)
-            }.getOrElse(field -> JsString(s.typeName.short))
-          }
-        }.toMap
-  
-        private val xvalues = ctx.subtypes.flatMap { sub =>
-          sub.annotations.collectFirst {
-            case json.field(hint) => sub.typeName -> hint
-          }
-        }.toMap.withDefaultValue("xvalue")
+        private val field = ctx.annotations.collectFirst {
+          case json.field(name) => name
+        }.getOrElse("type")
+        private val anns = ctx.subtypes.map { s =>
+          val hint = s.annotations.collectFirst {
+            case json.hint(name) => field -> JsString(name)
+          }.getOrElse(field -> JsString(s.typeName.short))
+          val xvalue = s.annotations.collectFirst {
+            case json.field(name) => name
+          }.getOrElse("xvalue")
+          (hint, xvalue)
+        }.toArray
   
         def toJson(a: A): JsValue = ctx.dispatch(a) { sub =>
-          val hint = anns(sub.typeName)
+          val (hint, xvalue) = anns(sub.index)
           sub.typeclass.toJson(sub.cast(a)) match {
             case JsObject(fields) => JsObject(hint :: fields)
-            case other =>
-              val xvalue = xvalues(sub.typeName)
-              JsObject(IList(hint, xvalue -> other))
+            case other            => JsObject(hint :: (xvalue -> other) :: IList.empty)
           }
         }
       }
@@ -1402,13 +1429,13 @@ Again, adding support for user preferences and default field values:
           val field = p.annotations.collectFirst {
             case json.field(name) => name
           }.getOrElse(p.label)
-          (p.label, (nulls, field))
-        }.toMap
+          (nulls, field)
+        }.toArray
   
         def fromJson(j: JsValue): String \/ A = j match {
           case obj @ JsObject(_) =>
             ctx.constructEither { p =>
-              val (nulls, field) = anns(p.label)
+              val (nulls, field) = anns(p.index)
               obj
                 .get(field)
                 .into {
@@ -1429,29 +1456,27 @@ Again, adding support for user preferences and default field values:
     def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] =
       new JsDecoder[A] {
         private val hints = ctx.subtypes.map { s =>
-          s.typeName -> s.annotations.collectFirst {
-            case json.hint(hint) => hint
+          s.typeName.full -> s.annotations.collectFirst {
+            case json.hint(name) => name
           }.getOrElse(s.typeName.short)
-        }.toMap
-  
+        }.toMap // TODO: faster String lookup
         private val typehint = ctx.annotations.collectFirst {
-          case json.field(hint) => hint
+          case json.field(name) => name
         }.getOrElse("type")
-  
-        private val xvalues = ctx.subtypes.flatMap { sub =>
+        private val xvalues = ctx.subtypes.map { sub =>
           sub.annotations.collectFirst {
-            case json.field(hint) => sub.typeName -> hint
-          }
-        }.toMap.withDefaultValue("xvalue")
+            case json.field(name) => name
+          }.getOrElse("xvalue")
+        }.toArray
   
         def fromJson(j: JsValue): String \/ A = j match {
           case obj @ JsObject(_) =>
             obj.get(typehint) match {
               case \/-(JsString(hint)) =>
-                ctx.subtypes.find(s => hints(s.typeName) == hint) match {
+                ctx.subtypes.find(s => hints(s.typeName.full) == hint) match {
                   case None => fail(s"a valid '$hint'", obj)
                   case Some(sub) =>
-                    val xvalue = xvalues(sub.typeName)
+                    val xvalue = xvalues(sub.index)
                     val value  = obj.get(xvalue).getOrElse(obj)
                     sub.typeclass.fromJson(value)
                 }
@@ -2138,16 +2163,15 @@ field name `K` at runtime.
 ~~~~~~~~
   import shapeless._, labelled._
   
-  sealed trait DerivedJsEncoder[A] {
-    final def toJson(a: A) = JsObject(toJsFields(a))
-    def toJsFields(a: A): IList[(String, JsValue)]
+  sealed trait DerivedJsEncoder[R] {
+    def toJsFields(r: R): IList[(String, JsValue)]
   }
   object DerivedJsEncoder {
     def gen[A, R](
       implicit G: LabelledGeneric.Aux[A, R],
       R: Cached[Strict[DerivedJsEncoder[R]]]
     ): JsEncoder[A] = new JsEncoder[A] {
-      def toJson(a: A) = R.value.value.toJson(G.to(a))
+      def toJson(a: A) = JsObject(R.value.value.toJsFields(G.to(a)))
     }
   
     implicit def hcons[K <: Symbol, H, T <: HList](
@@ -2156,17 +2180,23 @@ field name `K` at runtime.
       H: Lazy[JsEncoder[H]],
       T: DerivedJsEncoder[T]
     ): DerivedJsEncoder[FieldType[K, H] :: T] =
-      new DerivedJsEncoder[FieldType[K, H] :: T] {
-        private val fieldname = K.value.name
-        def toJsFields(ht: FieldType[K, H] :: T) = ht.into {
-          case head :: tail =>
-            (fieldname -> H.value.toJson(head)) :: T.toJsFields(tail)
-        }
+      new DerivedJsEncoder[A, FieldType[K, H] :: T] {
+        private val field = K.value.name
+        def toJsFields(ht: FieldType[K, H] :: T) =
+          ht match {
+            case head :: tail =>
+              val rest = T.toJsFields(tail)
+              H.value.toJson(head) match {
+                case JsNull => rest
+                case value  => (field -> value) :: rest
+              }
+          }
       }
   
-    implicit val hnil: DerivedJsEncoder[HNil] = new DerivedJsEncoder[HNil] {
-      def toJsFields(@unused h: HNil) = IList.empty
-    }
+    implicit val hnil: DerivedJsEncoder[HNil] =
+      new DerivedJsEncoder[HNil] {
+        def toJsFields(h: HNil) = IList.empty
+      }
   
     implicit def ccons[K <: Symbol, H, T <: Coproduct](
       implicit
@@ -2176,148 +2206,349 @@ field name `K` at runtime.
     ): DerivedJsEncoder[FieldType[K, H] :+: T] =
       new DerivedJsEncoder[FieldType[K, H] :+: T] {
         private val hint = ("type" -> JsString(K.value.name))
-        def toJsFields(ht: FieldType[K, H] :+: T) = ht.into {
+        def toJsFields(ht: FieldType[K, H] :+: T) = ht match {
           case Inl(head) =>
-            hint :: H.value.toJson(head).into {
-              case JsObject(fields) => fields
+            H.value.toJson(head) match {
+              case JsObject(fields) => hint :: fields
               case v                => IList.single("xvalue" -> v)
             }
+  
           case Inr(tail) => T.toJsFields(tail)
         }
       }
   
-    implicit val cnil: DerivedJsEncoder[CNil] = new DerivedJsEncoder[CNil] {
-      def toJsFields(@unused c: CNil) = sys.error("impossible")
+    implicit val cnil: DerivedJsEncoder[CNil] =
+      new DerivedJsEncoder[CNil] {
+        def toJsFields(c: CNil) = sys.error("impossible")
+      }
+  
+  }
+~~~~~~~~
+
+A> A pattern has emerged in many shapeless derivation libraries that introduce
+A> "hints" with a default `implicit`
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   trait ProductHint[A] {
+A>     def nulls(field: String): Boolean
+A>     def fieldname(field: String): String
+A>   }
+A>   object ProductHint {
+A>     implicit def default[A]: ProductHint[A] = new ProductHint[A] {
+A>       def nulls(field: String)     = false
+A>       def fieldname(field: String) = field
+A>     }
+A>   }
+A> ~~~~~~~~
+A> 
+A> Users are supposed to provide a custom instance of `ProductHint` on their
+A> companions or package objects.
+A> 
+A> This mechanism relies on fragile implicit ordering and is a source of typeclass
+A> decoherence: if we derive a `JsEncoder[Foo]`, we will get a different result
+A> depending on which `ProductHint[Foo]` is in scope. It is best avoided.
+
+Shapeless selects codepaths at compiletime based on the presence of annotations,
+which can lead to more optimised code, at the expense of code repetition. This
+means that the number of annotations we are dealing with, and their subtypes,
+must minimised or we can find ourselves writing 10x the amount of code. Let's
+refactor our three annotations into one containing all the customisation
+parameters:
+
+{lang="text"}
+~~~~~~~~
+  case class json(
+    nulls: Boolean,
+    field: Option[String],
+    hint: Option[String]
+  ) extends Annotation
+~~~~~~~~
+
+All users of the annotation must provide all three values since default values
+and convenience methods are not available to annotation constructors. We can
+write custom extractors so we don't have to change our Magnolia code
+
+{lang="text"}
+~~~~~~~~
+  object json {
+    object nulls {
+      def unapply(j: json): Boolean = j.nulls
+    }
+    object field {
+      def unapply(j: json): Option[String] = j.field
+    }
+    object hint {
+      def unapply(j: json): Option[String] = j.hint
     }
   }
 ~~~~~~~~
 
-When it comes to user preferences, it is not possible to reuse the annotations
-that we used for Magnolia. Shapeless has its own mechanism which unfortunately
-relies on typeclass decoherence and cannot be checked at compiletime, therefore
-we must write extensive tests.
+We can request `Annotation[json, A]` for a `case class` or `sealed trait` to get access to the annotation, but we must write an `hcons` and a `ccons` dealing with both cases because the evidence will not be generated if the annotation is not present. We therefore have to introduce a lower priority implicit scope and put the "no annotation" evidence there.
 
-The basic idea is to introduce configuration data types
+We can also request `Annotations.Aux[json, A, J]` evidence to obtain an `HList`
+of the `json` annotation for type `A`. Again, we must provide `hcons` and
+`ccons` dealing with the case where there is and is not an annotation.
 
-{lang="text"}
-~~~~~~~~
-  trait ProductHint[A] {
-    def nulls(field: String): Boolean
-    def fieldname(field: String): String
-  }
-  trait CoproductHint[A] {
-    def field: String
-    def hint(field: String): String
-    def xvalue(field: String): String
-  }
-~~~~~~~~
+To support this one annotation, we must write four times as much code as before!
 
-with default materialisers
+Lets start by rewriting the `JsEncoder`, only handling user code that doesn't
+have any annotations. Now any code that uses the `@json` will fail to compile,
+which is a good safety net.
 
-{lang="text"}
-~~~~~~~~
-  object ProductHint {
-    implicit def default[A]: ProductHint[A] = new ProductHint[A] {
-      def nulls(field: String)     = false
-      def fieldname(field: String) = field
-    }
-  }
-  object CoproductHint {
-    implicit def default[A]: CoproductHint[A] = new CoproductHint[A] {
-      def field                 = "type"
-      def hint(field: String)   = field
-      def xvalue(field: String) = "xvalue"
-    }
-  }
-~~~~~~~~
+We must add an `A` and `J` type to the `DerivedJsEncoder` and thread through the
+annotations on its `.toJsObject` method. Our `.hcons` and `.ccons` evidence now
+provides instances for `DerivedJsEncoder` with a `None.type` annotation and we
+move them to a lower priority so that we can deal with `Annotation[json, A]` in
+the higher priority.
 
-If the user wants to customise any aspect of the encoding or decoding, they must
-provide an `implicit` instance of `ProductHint[A]` or `CoproductHint[A]` for
-their type, on the companion. Then we can update the `JsEncoder` to make use of
-this evidence instead of the hard coded defaults, and add an extra type
-parameter to `DerivedJsEncoder` and all the methods:
+Note that the evidence for `J` is listed before `R`. This is important, since
+the compiler must first fix the type of `J` before it can solve for `R`.
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait DerivedJsEncoder[A, R] {
-    final def toJson(r: R) = JsObject(toJsFields(r))
-    def toJsFields(r: R): IList[(String, JsValue)]
+  sealed trait DerivedJsEncoder[A, R, J <: HList] {
+    def toJsFields(r: R, anns: J): IList[(String, JsValue)]
   }
-  object DerivedJsEncoder {
-    def gen[A, R](
-      implicit G: LabelledGeneric.Aux[A, R],
-      R: Cached[Strict[DerivedJsEncoder[A, R]]]
+  object DerivedJsEncoder extends DerivedJsEncoder1 {
+    def gen[A, R, J <: HList](
+      implicit
+      G: LabelledGeneric.Aux[A, R],
+      J: Annotations.Aux[json, A, J],
+      R: Cached[Strict[DerivedJsEncoder[A, R, J]]]
     ): JsEncoder[A] = new JsEncoder[A] {
-      def toJson(a: A) = R.value.value.toJson(G.to(a))
+      def toJson(a: A) = JsObject(R.value.value.toJsFields(G.to(a), J()))
     }
   
-    implicit def hcons[A, K <: Symbol, H, T <: HList](
+    implicit def hnil[A]: DerivedJsEncoder[A, HNil, HNil] =
+      new DerivedJsEncoder[A, HNil, HNil] {
+        def toJsFields(h: HNil, a: HNil) = IList.empty
+      }
+  
+    implicit def cnil[A]: DerivedJsEncoder[A, CNil, HNil] =
+      new DerivedJsEncoder[A, CNil, HNil] {
+        def toJsFields(c: CNil, a: HNil) = sys.error("impossible")
+      }
+  }
+  private[jsonformat] trait DerivedJsEncoder1 {
+    implicit def hcons[A, K <: Symbol, H, T <: HList, J <: HList](
       implicit
-      C: ProductHint[A],
       K: Witness.Aux[K],
       H: Lazy[JsEncoder[H]],
-      T: DerivedJsEncoder[A, T]
-    ): DerivedJsEncoder[A, FieldType[K, H] :: T] =
-      new DerivedJsEncoder[A, FieldType[K, H] :: T] {
-        private val fieldname = C.fieldname(K.value.name)
-        private val nulls     = C.nulls(K.value.name)
-        def toJsFields(ht: FieldType[K, H] :: T) = ht.into {
-          case head :: tail =>
-            H.value.toJson(head).into {
-              case JsNull if !nulls => T.toJsFields(tail)
-              case value            => (fieldname -> value) :: T.toJsFields(tail)
-            }
-        }
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :: T, None.type :: J] =
+      new DerivedJsEncoder[A, FieldType[K, H] :: T, None.type :: J] {
+        private val field = K.value.name
+        def toJsFields(ht: FieldType[K, H] :: T, anns: None.type :: J) =
+          ht match {
+            case head :: tail =>
+              val rest = T.toJsFields(tail, anns.tail)
+              H.value.toJson(head) match {
+                case JsNull => rest
+                case value  => (field -> value) :: rest
+              }
+          }
       }
   
-    implicit def hnil[A]: DerivedJsEncoder[A, HNil] =
-      new DerivedJsEncoder[A, HNil] {
-        def toJsFields(@unused h: HNil) = IList.empty
-      }
-  
-    implicit def ccons[A, K <: Symbol, H, T <: Coproduct](
+    implicit def ccons[A, K <: Symbol, H, T <: Coproduct, J <: HList](
       implicit
-      C: CoproductHint[A],
       K: Witness.Aux[K],
       H: Lazy[JsEncoder[H]],
-      T: DerivedJsEncoder[A, T]
-    ): DerivedJsEncoder[A, FieldType[K, H] :+: T] =
-      new DerivedJsEncoder[A, FieldType[K, H] :+: T] {
-        private val hint   = (C.field -> JsString(C.hint(K.value.name)))
-        private val xvalue = C.xvalue(K.value.name)
-        def toJsFields(ht: FieldType[K, H] :+: T) = ht.into {
-          case Inl(head) =>
-            hint :: H.value.toJson(head).into {
-              case JsObject(fields) => fields
-              case v                => IList.single(xvalue -> v)
-            }
-  
-          case Inr(tail) => T.toJsFields(tail)
-        }
-      }
-  
-    implicit def cnil[A]: DerivedJsEncoder[A, CNil] =
-      new DerivedJsEncoder[A, CNil] {
-        def toJsFields(@unused c: CNil) = sys.error("impossible")
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :+: T, None.type :: J] =
+      new DerivedJsEncoder[A, FieldType[K, H] :+: T, None.type :: J] {
+        private val hint = ("type" -> JsString(K.value.name))
+        def toJsFields(ht: FieldType[K, H] :+: T, anns: None.type :: J) =
+          ht match {
+            case Inl(head) =>
+              H.value.toJson(head) match {
+                case JsObject(fields) => hint :: fields
+                case v                => IList.single("xvalue" -> v)
+              }
+            case Inr(tail) => T.toJsFields(tail, anns.tail)
+          }
       }
   }
 ~~~~~~~~
+
+Now we can add the type signatures for the six new methods, covering all the
+possibilities of where the annotation can be. Note that we only support **one**
+annotation in each position. If the user provides multiple annotations, anything
+after the first will be silently ignored.
+
+We're now running out of names for things, so we will arbitrarily call it
+`Annotated` when there is an annotation on the `A`, and `Custom` when there is
+an annotation on a field:
+
+{lang="text"}
+~~~~~~~~
+  object DerivedJsEncoder extends DerivedJsEncoder1 {
+    ...
+    implicit def hconsAnnotated[A, K <: Symbol, H, T <: HList, J <: HList](
+      implicit
+      A: Annotation[json, A],
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :: T, None.type :: J]
+  
+    implicit def cconsAnnotated[A, K <: Symbol, H, T <: Coproduct, J <: HList](
+      implicit
+      A: Annotation[json, A],
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :+: T, None.type :: J]
+  
+    implicit def hconsAnnotatedCustom[A, K <: Symbol, H, T <: HList, J <: HList](
+      implicit
+      A: Annotation[json, A],
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :: T, Some[json] :: J]
+  
+    implicit def cconsAnnotatedCustom[A, K <: Symbol, H, T <: Coproduct, J <: HList](
+      implicit
+      A: Annotation[json, A],
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :+: T, Some[json] :: J]
+  }
+  private[jsonformat] trait DerivedJsEncoder1 {
+    ...
+    implicit def hconsCustom[A, K <: Symbol, H, T <: HList, J <: HList](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :: T, Some[json] :: J] = ???
+  
+    implicit def cconsCustom[A, K <: Symbol, H, T <: Coproduct, J <: HList](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H] :+: T, Some[json] :: J]
+  }
+~~~~~~~~
+
+We don't actually need `.hconsAnnotated` or `.hconsAnnotatedCustom` for
+anything, since an annotation on a `case class` does not mean anything to the
+encoding of that product, it is only used in `.cconsAnnotated*`. We can therefore
+delete two methods.
+
+`.cconsAnnotated` and `.cconsAnnotatedCustom` can be defined as
+
+{lang="text"}
+~~~~~~~~
+  new DerivedJsEncoder[A, FieldType[K, H] :+: T, None.type :: J] {
+    private val hint = A().field.getOrElse("type") -> JsString(K.value.name)
+    def toJsFields(ht: FieldType[K, H] :+: T, anns: None.type :: J) = ht match {
+      case Inl(head) =>
+        H.value.toJson(head) match {
+          case JsObject(fields) => hint :: fields
+          case v                => IList.single("xvalue" -> v)
+        }
+      case Inr(tail) => T.toJsFields(tail, anns.tail)
+    }
+  }
+~~~~~~~~
+
+and
+
+{lang="text"}
+~~~~~~~~
+  new DerivedJsEncoder[A, FieldType[K, H] :+: T, Some[json] :: J] {
+    private val hintfield = A().field.getOrElse("type")
+    def toJsFields(ht: FieldType[K, H] :+: T, anns: Some[json] :: J) = ht match {
+      case Inl(head) =>
+        val ann = anns.head.get
+        H.value.toJson(head) match {
+          case JsObject(fields) =>
+            val hint = (hintfield -> JsString(ann.hint.getOrElse(K.value.name)))
+            hint :: fields
+          case v =>
+            val xvalue = ann.field.getOrElse("xvalue")
+            IList.single(xvalue -> v)
+        }
+      case Inr(tail) => T.toJsFields(tail, anns.tail)
+    }
+  }
+~~~~~~~~
+
+The use of `.head` and `.get` may be concerned but recall that the types here
+are `::` and `Some` meaning that these methods are total and safe to use.
+
+`.hconsCustom` and `.cconsCustom` are written
+
+{lang="text"}
+~~~~~~~~
+  new DerivedJsEncoder[A, FieldType[K, H] :: T, Some[json] :: J] {
+    def toJsFields(ht: FieldType[K, H] :: T, anns: Some[json] :: J) = ht match {
+      case head :: tail =>
+        val ann  = anns.head.get
+        val next = T.toJsFields(tail, anns.tail)
+        H.value.toJson(head) match {
+          case JsNull if !ann.nulls => next
+          case value =>
+            val field = ann.field.getOrElse(K.value.name)
+            (field -> value) :: next
+        }
+    }
+  }
+~~~~~~~~
+
+and
+
+{lang="text"}
+~~~~~~~~
+  new DerivedJsEncoder[A, FieldType[K, H] :+: T, Some[json] :: J] {
+    def toJsFields(ht: FieldType[K, H] :+: T, anns: Some[json] :: J) = ht match {
+      case Inl(head) =>
+        val ann = anns.head.get
+        H.value.toJson(head) match {
+          case JsObject(fields) =>
+            val hint = ("type" -> JsString(ann.hint.getOrElse(K.value.name)))
+            hint :: fields
+          case v =>
+            val xvalue = ann.field.getOrElse("xvalue")
+            IList.single(xvalue -> v)
+        }
+      case Inr(tail) => T.toJsFields(tail, anns.tail)
+    }
+  }
+~~~~~~~~
+
+Obviously, there is a lot of boilerplate, but looking closely one can see that
+each method is implemented as efficiently as possible with the information it
+has available: codepaths are selected at compiletime rather than runtime.
+
+The performance obsessed may be able to refactor this code so all annotation
+information is available in advance, rather than injected via the `.toJsFields`
+method, with another layer of indirection. For absolute performance, we could
+also treat each customisation as a separate annotation, but that would multiply
+the amount of code we've written yet again, with additional cost to compilation
+time on downstream users. Such optimisations are beyond the scope of this book,
+but they are possible and people do them: the ability to shift work from runtime
+to compiletime is one of the most appealing things about generic programming.
 
 
 ### `JsDecoder`
 
-The decoding side is much as we can expect based on previous examples. We
-construct an instance of a `FieldType[K, H]` with the helper `field[K](h: H)`. This time let's go straight to the full implementation with user preferences:
+The decoding side is much as we can expect based on previous examples. We can
+construct an instance of a `FieldType[K, H]` with the helper `field[K](h: H)`. Supporting only the sensible defaults means we write:
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait DerivedJsDecoder[A, R] {
-    def fromJsObject(j: JsObject): String \/ R
+  sealed trait DerivedJsDecoder[A] {
+    def fromJsObject(j: JsObject): String \/ A
   }
   object DerivedJsDecoder {
     def gen[A, R](
       implicit G: LabelledGeneric.Aux[A, R],
-      R: Cached[Strict[DerivedJsDecoder[A, R]]]
+      R: Cached[Strict[DerivedJsDecoder[R]]]
     ): JsDecoder[A] = new JsDecoder[A] {
       def fromJson(j: JsValue) = j match {
         case o @ JsObject(_) => R.value.value.fromJsObject(o).map(G.from)
@@ -2325,68 +2556,77 @@ construct an instance of a `FieldType[K, H]` with the helper `field[K](h: H)`. T
       }
     }
   
-    implicit def hcons[A, K <: Symbol, H, T <: HList](
+    implicit def hcons[K <: Symbol, H, T <: HList](
       implicit
-      C: json.ProductHint[A],
       K: Witness.Aux[K],
       H: Lazy[JsDecoder[H]],
-      T: DerivedJsDecoder[A, T]
-    ): DerivedJsDecoder[A, FieldType[K, H] :: T] =
-      new DerivedJsDecoder[A, FieldType[K, H] :: T] {
-        private val fieldname = C.fieldname(K.value.name)
-        private val nulls     = C.nulls(K.value.name)
-        def fromJsObject(j: JsObject) =
-          j.get(fieldname)
-            .into {
-              case \/-(value)            => H.value.fromJson(value)
-              case err @ -\/(_) if nulls => err
-              case _                     => H.value.fromJson(JsNull)
-            }
-            .flatMap { head =>
-              T.fromJsObject(j).map(field[K](head) :: _)
-            }
+      T: DerivedJsDecoder[T]
+    ): DerivedJsDecoder[FieldType[K, H] :: T] =
+      new DerivedJsDecoder[FieldType[K, H] :: T] {
+        private val fieldname = K.value.name
+        def fromJsObject(j: JsObject) = {
+          val value = j.get(fieldname).getOrElse(JsNull)
+          for {
+            head  <- H.value.fromJson(value)
+            tail  <- T.fromJsObject(j)
+          } yield field[K](head) :: tail
+        }
       }
   
-    implicit def hnil[A]: DerivedJsDecoder[A, HNil] =
-      new DerivedJsDecoder[A, HNil] {
-        private val nil = HNil.right[String]
-        def fromJsObject(j: JsObject) = nil
-      }
+    implicit val hnil: DerivedJsDecoder[HNil] = new DerivedJsDecoder[HNil] {
+      private val nil               = HNil.right[String]
+      def fromJsObject(j: JsObject) = nil
+    }
   
-    implicit def ccons[A, K <: Symbol, H, T <: Coproduct](
+    implicit def ccons[K <: Symbol, H, T <: Coproduct](
       implicit
-      C: json.CoproductHint[A],
       K: Witness.Aux[K],
       H: Lazy[JsDecoder[H]],
-      T: DerivedJsDecoder[A, T]
-    ): DerivedJsDecoder[A, FieldType[K, H] :+: T] =
-      new DerivedJsDecoder[A, FieldType[K, H] :+: T] {
-        private val hint   = (C.field -> JsString(C.hint(K.value.name)))
-        private val xvalue = C.xvalue(K.value.name)
+      T: DerivedJsDecoder[T]
+    ): DerivedJsDecoder[FieldType[K, H] :+: T] =
+      new DerivedJsDecoder[FieldType[K, H] :+: T] {
+        private val hint = ("type" -> JsString(K.value.name))
         def fromJsObject(j: JsObject) =
           if (j.fields.element(hint)) {
-            j.get(xvalue)
+            j.get("xvalue")
               .into {
-                case \/-(v) => H.value.fromJson(v)
-                case -\/(_) => H.value.fromJson(j)
+                case \/-(xvalue) => H.value.fromJson(xvalue)
+                case -\/(_)      => H.value.fromJson(j)
               }
               .map(h => Inl(field[K](h)))
           } else
             T.fromJsObject(j).map(Inr(_))
       }
   
-    implicit def cnil[A]: DerivedJsDecoder[A, CNil] =
-      new DerivedJsDecoder[A, CNil] {
-        def fromJsObject(j: JsObject) = fail(s"JsObject with 'type' field", j)
-      }
+    implicit val cnil: DerivedJsDecoder[CNil] = new DerivedJsDecoder[CNil] {
+      def fromJsObject(j: JsObject) = fail(s"JsObject with 'type' field", j)
+    }
   }
 ~~~~~~~~
 
-One final thing is missing: default case class values. We can request evidence
+Adding user preferences via annotations follows the same route as
+`DerivedJsEncoder` and is mechanical, so left as an exercise to the reader.
+
+One final thing is missing: case class default values. We can request evidence
 for `shapeless.Default` values on products. A big problem is that we can no
 longer use the same derivation mechanism for products and coproducts, since the
-method will never succeed for coproducts. Rename the existing `.gen` method to `.cop`
-and introduce a new `.gen`
+evidence is never created for coproducts. The solution is quite drastic: we must
+split our `DerivedJsDecoder` into `DerivedCoproductJsDecoder` and
+`DerivedProductJsDecoder`. We will focus our attention on the
+`DerivedProductJsDecoder` which will have this signature
+
+{lang="text"}
+~~~~~~~~
+  sealed trait DerivedProductJsDecoder[A, R, J <: HList, D <: HList] {
+    def fromJsObject(j: JsObject, anns: J, defaults: D): String \/ R
+  }
+~~~~~~~~
+
+We can request evidence of default values with `Default.Aux[A, D]` and duplicate
+all the methods to deal with the case where we do and do not have a default
+value. However, shapeless is merciful in this one area and has a convenient
+alternative, `Default.AsOptions.Aux[A, D]` which allows us to have defaults at
+runtime.
 
 {lang="text"}
 ~~~~~~~~
@@ -2451,6 +2691,8 @@ possible hack around this is to make `DerivedJsDecoder` extend from `JsDecoder`
 and add an entry in the `deriving.conf` for `DerivedJsDecoder` (for coproducts)
 as well as `JsDecoder` (for products), but this adds to the mental burden at the
 point of use, which is not ideal.
+
+FIXME: a note about the `@@` bug
 
 
 ### The Dark Side of Derivation
@@ -2520,20 +2762,24 @@ dark side. Fear leads to anger. Anger leads to hate. Hate leads to suffering.
 When deciding on a technology to use for typeclass derivation, this feature
 chart may help:
 
-| Feature          | Scalaz | Magnolia | Shapeless |
-|---------------- |------ |-------- |--------- |
-| `@deriving`      | yes    | yes      | yes       |
-| Laws             | yes    |          |           |
-| Coherent         | yes    | yes      |           |
-| Fast compiles    | yes    | yes      |           |
-| Annotations      |        | yes      |           |
-| Field names      |        | yes      | yes       |
-| Defaults         |        | yes      | yes       |
-| User config      |        | yes      | yes       |
-| Requires a PhD   |        |          | yes       |
-| Compiler freezes |        |          | yes       |
+| Feature        | Scalaz | Magnolia | Shapeless | Manual |
+|-------------- |------ |-------- |--------- |------ |
+| `@deriving`    | yes    | yes      | yes       |        |
+| Laws           | yes    |          |           |        |
+| Coherent       | yes    | yes      |           | yes    |
+| Fast compiles  | yes    | yes      |           | yes    |
+| Field names    |        | yes      | yes       |        |
+| Annotations    |        | yes      | partially |        |
+| Default values |        | yes      | painfully |        |
+| Complex        |        |          | yes       |        |
 
 FIXME: include perf numbers from jsonformat
+
+FIXME: include flamegraph of the jmh
+
+FIXME: limitations where only shapeless works. But also point out how easy it
+would be to add a new feature, such as an option to encode coproducts as a
+key/value lookup. Exercise to the reader.
 
 However, hand optimised custom instances are an escape hatch if extra CPU cycles
 are required, outperforming all automated derivations by significant margin at
