@@ -1422,29 +1422,31 @@ Again, adding support for user preferences and default field values:
   
     def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] =
       new JsDecoder[A] {
-        private val anns = ctx.parameters.map { p =>
-          val nulls = p.annotations.collectFirst {
+        private val nulls = ctx.parameters.map { p =>
+          p.annotations.collectFirst {
             case json.nulls() => true
           }.getOrElse(false)
-          val field = p.annotations.collectFirst {
+        }.toArray
+  
+        private val fieldnames = ctx.parameters.map { p =>
+          p.annotations.collectFirst {
             case json.field(name) => name
           }.getOrElse(p.label)
-          (nulls, field)
         }.toArray
   
         def fromJson(j: JsValue): String \/ A = j match {
           case obj @ JsObject(_) =>
             ctx.constructEither { p =>
-              val (nulls, field) = anns(p.index)
+              val field = fieldnames(p.index)
               obj
                 .get(field)
                 .into {
                   case \/-(value) => p.typeclass.fromJson(value)
                   case err @ -\/(_) =>
                     p.default match {
-                      case Some(default) => \/-(default)
-                      case None if nulls => err
-                      case None          => p.typeclass.fromJson(JsNull)
+                      case Some(default)          => \/-(default)
+                      case None if nulls(p.index) => err
+                      case None                   => p.typeclass.fromJson(JsNull)
                     }
                 }
                 .toEither
@@ -1459,7 +1461,7 @@ Again, adding support for user preferences and default field values:
           s.typeName.full -> s.annotations.collectFirst {
             case json.hint(name) => name
           }.getOrElse(s.typeName.short)
-        }.toMap // TODO: faster String lookup
+        }.toMap
         private val typehint = ctx.annotations.collectFirst {
           case json.field(name) => name
         }.getOrElse("type")
@@ -2534,6 +2536,73 @@ time on downstream users. Such optimisations are beyond the scope of this book,
 but they are possible and people do them: the ability to shift work from runtime
 to compiletime is one of the most appealing things about generic programming.
 
+One more caveat that we need to be aware of: [`LabelledGeneric` is not compatible
+with `scalaz.@@`](https://github.com/milessabin/shapeless/issues/309), but there is a workaround. Say we want to effectively ignore
+tags so we add the following derivation rules to the companions of our encoder and decoder
+
+{lang="text"}
+~~~~~~~~
+  object JsEncoder {
+    ...
+    implicit def tagged[A: JsEncoder, Z]: JsEncoder[A @@ Z] = JsEncoder[A].contramap(Tag.unwrap)
+  }
+  object JsDecoder {
+    ...
+    implicit def tagged[A: JsDecoder, Z]: JsDecoder[A @@ Z] = JsDecoder[A].map(Tag(_))
+  }
+~~~~~~~~
+
+We would then expect to be able to derive a `JsDecoder` for something like our
+`TradeTemplate` from Chapter 5
+
+{lang="text"}
+~~~~~~~~
+  final case class TradeTemplate(
+    otc: Option[Boolean] @@ Tags.Last
+  )
+  object TradeTemplate {
+    implicit val encoder: JsEncoder[TradeTemplate] = DerivedJsEncoder.gen
+  }
+~~~~~~~~
+
+But we instead get a compiler error
+
+{lang="text"}
+~~~~~~~~
+  [error] could not find implicit value for parameter G: LabelledGeneric.Aux[A,R]
+  [error]   implicit val encoder: JsEncoder[TradeTemplate] = DerivedJsEncoder.gen
+  [error]                                                                     ^
+~~~~~~~~
+
+The error message is as helpful as always. The workaround is to introduce evidence for `H @@ Z` on the lower priority implicit scope, and then just call the code that the compiler should have found in the first place:
+
+{lang="text"}
+~~~~~~~~
+  object DerivedJsEncoder extends DerivedJsEncoder1 with DerivedJsEncoder2 {
+    ...
+  }
+  private[jsonformat] trait DerivedJsEncoder2 {
+    this: DerivedJsEncoder.type =>
+  
+    // WORKAROUND https://github.com/milessabin/shapeless/issues/309
+    implicit def hconsTagged[A, K <: Symbol, H, Z, T <: HList, J <: HList](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H @@ Z]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H @@ Z] :: T, None.type :: J] = hcons(K, H, T)
+  
+    implicit def hconsCustomTagged[A, K <: Symbol, H, Z, T <: HList, J <: HList](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsEncoder[H @@ Z]],
+      T: DerivedJsEncoder[A, T, J]
+    ): DerivedJsEncoder[A, FieldType[K, H @@ Z] :: T, Some[json] :: J] = hconsCustom(K, H, T)
+  }
+~~~~~~~~
+
+Thankfully, we only need to consider products, since coproducts cannot be tagged.
+
 
 ### `JsDecoder`
 
@@ -2692,7 +2761,46 @@ and add an entry in the `deriving.conf` for `DerivedJsDecoder` (for coproducts)
 as well as `JsDecoder` (for products), but this adds to the mental burden at the
 point of use, which is not ideal.
 
-FIXME: a note about the `@@` bug
+Oh, and don't forget to add `@@` support
+
+{lang="text"}
+~~~~~~~~
+  object DerivedProductJsDecoder extends DerivedProductJs
+                                 with    DerivedProductJsDecoder2 {
+    ...
+  }
+  private[jsonformat] trait DerivedProductJsDecoder2 {
+    this: DerivedProductJsDecoder.type =>
+  
+    implicit def hconsTagged[
+      A, K <: Symbol, H, Z, T <: HList, J <: HList, D <: HList
+    ](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsDecoder[H @@ Z]],
+      T: DerivedProductJsDecoder[A, T, J, D]
+    ): DerivedProductJsDecoder[
+      A,
+      FieldType[K, H @@ Z] :: T,
+      None.type :: J,
+      Option[H @@ Z] :: D
+    ] = hcons(K, H, T)
+  
+    implicit def hconsCustomTagged[
+      A, K <: Symbol, H, Z, T <: HList, J <: HList, D <: HList
+    ](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsDecoder[H @@ Z]],
+      T: DerivedProductJsDecoder[A, T, J, D]
+    ): DerivedProductJsDecoder[
+      A,
+      FieldType[K, H @@ Z] :: T,
+      Some[json] :: J,
+      Option[H @@ Z] :: D
+    ] = hconsCustomTagged(K, H, T)
+  }
+~~~~~~~~
 
 
 ### The Dark Side of Derivation
@@ -2771,7 +2879,7 @@ chart may help:
 | Field names    |        | yes      | yes       |        |
 | Annotations    |        | yes      | partially |        |
 | Default values |        | yes      | painfully |        |
-| Complex        |        |          | yes       |        |
+| Complicated    |        |          | painfully |        |
 
 FIXME: include perf numbers from jsonformat
 
