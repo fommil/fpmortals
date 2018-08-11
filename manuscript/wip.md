@@ -78,7 +78,7 @@ A> Although it is possible to apply the techniques in this chapter to either
 A> typeclass or algebra derivation, the latter involves a ****lot**** more boilerplate.
 A> We therefore consciously choose to restrict our study to encoders and decoders
 A> that are coherent. As we will see later in this chapter, use-site automatic
-A> derivation with magnolia and shapeless, combined with limitations of the scala
+A> derivation with Magnolia and Shapeless, combined with limitations of the scala
 A> compiler's implicit search, commonly leads to typeclass decoherence.
 
 
@@ -1034,8 +1034,8 @@ optimisations:
 
 1.  perform instance equality `.eq` before applying the `Equal.equal`, allowing
     for shortcut equality between identical values.
-2.  `.foldRight` allowing early exit when any comparison is `false`. e.g. if the
-    first fields don't match, we don't even request the `Equal` for remaining
+2.  `Foldable.all` allowing early exit when any comparison is `false`. e.g. if
+    the first fields don't match, we don't even request the `Equal` for remaining
     values.
 
 {lang="text"}
@@ -1047,8 +1047,8 @@ optimisations:
     def dividez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Prod[A])(
       implicit ev: A PairedWith FA
     ): Equal[Z] = (z1, z2) =>
-      (g(z1), g(z2)).zip(tcs).foldRight(true) {
-        case ((a1, a2) /~\ fa, acc) => (quick(a1, a2) || fa.value.equal(a1, a2)) && acc
+      (g(z1), g(z2)).zip(tcs).all {
+        case (a1, a2) /~\ fa => (quick(a1, a2) || fa.value.equal(a1, a2))
       }
   
     def choosez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Cop[A])(
@@ -1135,7 +1135,7 @@ next section.
 
 ## Magnolia
 
-The magnolia macro library provides a clean API for writing typeclass
+The Magnolia macro library provides a clean API for writing typeclass
 derivations. It is installed with the following `build.sbt` entry
 
 {lang="text"}
@@ -1159,14 +1159,14 @@ A typeclass author implements the following members:
   }
 ~~~~~~~~
 
-The magnolia objects are:
+The Magnolia objects are:
 
 {lang="text"}
 ~~~~~~~~
   class CaseClass[TC[_], A] {
     def typeName: TypeName
     def construct[B](f: Param[TC, A] => B): A
-    def constructEither[E, B](f: Param[TC, A] => Either[E, B]): Either[E, A]
+    def constructMonadic[F[_]: Monadic, B](f: Param[TC, A] => F[B]): F[A]
     def parameters: Seq[Param[TC, A]]
     def annotations: Seq[Any]
   }
@@ -1205,7 +1205,10 @@ with helpers
   }
 ~~~~~~~~
 
-It does not make sense to use magnolia for typeclasses that can be abstracted by
+The `Monadic` typeclass, used in `constructMonadic`, is automatically generated
+if our data type has a `.map` and `.flatMap` method when we `import mercator._`
+
+It does not make sense to use Magnolia for typeclasses that can be abstracted by
 `Divisible`, `Decidable`, `Applicative` or `Alt`, since those abstractions
 provide a lot of extra structure and tests for free. However, Magnolia offers
 features that `scalaz-deriving` cannot provide: access to field names, type
@@ -1315,9 +1318,10 @@ We can see how the Magnolia API makes it easy to access field names and
 typeclasses for each parameter.
 
 Now add support for annotations to handle user preferences. To avoid looking up
-the annotations on every encoding, we'll cache them in a map indexed by the
-field names. Performance is usually the victim in the trade-off between
-specialisation and generalisation.
+the annotations on every encoding, we'll cache them in an array. Although field
+access to an array is non-total, we are guaranteed that the indices will always
+align. Performance is usually the victim in the trade-off between specialisation
+and generalisation.
 
 {lang="text"}
 ~~~~~~~~
@@ -1377,8 +1381,8 @@ specialisation and generalisation.
   }
 ~~~~~~~~
 
-For the decoder we use `.constructEither` which has a type signature similar to
-`MonadError.emap`
+For the decoder we use `.constructMonadic` which has a type signature similar to
+`.traverse`
 
 {lang="text"}
 ~~~~~~~~
@@ -1387,10 +1391,9 @@ For the decoder we use `.constructEither` which has a type signature similar to
   
     def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
       case obj @ JsObject(_) =>
-        ctx.constructEither { p =>
-          val value = obj.get(p.label).getOrElse(JsNull)
-          p.typeclass.fromJson(value).toEither
-        }.disjunction
+        ctx.constructMonadic(
+          p => p.typeclass.fromJson(obj.get(p.label).getOrElse(JsNull))
+        )
       case other => fail("JsObject", other)
     }
   
@@ -1413,7 +1416,8 @@ For the decoder we use `.constructEither` which has a type signature similar to
   }
 ~~~~~~~~
 
-Again, adding support for user preferences and default field values:
+Again, adding support for user preferences and default field values, along with
+some optimisations:
 
 {lang="text"}
 ~~~~~~~~
@@ -1436,31 +1440,33 @@ Again, adding support for user preferences and default field values:
   
         def fromJson(j: JsValue): String \/ A = j match {
           case obj @ JsObject(_) =>
-            ctx.constructEither { p =>
+            import mercator._
+            val lookup = obj.fields.toMap
+            ctx.constructMonadic { p =>
               val field = fieldnames(p.index)
-              obj
+              lookup
                 .get(field)
                 .into {
-                  case \/-(value) => p.typeclass.fromJson(value)
-                  case err @ -\/(_) =>
+                  case Maybe.Just(value) => p.typeclass.fromJson(value)
+                  case _ =>
                     p.default match {
-                      case Some(default)          => \/-(default)
-                      case None if nulls(p.index) => err
-                      case None                   => p.typeclass.fromJson(JsNull)
+                      case Some(default) => \/-(default)
+                      case None if nulls(p.index) =>
+                        s"missing field '$field'".left
+                      case None => p.typeclass.fromJson(JsNull)
                     }
                 }
-                .toEither
-            }.disjunction
+            }
           case other => fail("JsObject", other)
         }
       }
   
     def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] =
       new JsDecoder[A] {
-        private val hints = ctx.subtypes.map { s =>
-          s.typeName.full -> s.annotations.collectFirst {
+        private val subtype = ctx.subtypes.map { s =>
+          s.annotations.collectFirst {
             case json.hint(name) => name
-          }.getOrElse(s.typeName.short)
+          }.getOrElse(s.typeName.short) -> s
         }.toMap
         private val typehint = ctx.annotations.collectFirst {
           case json.field(name) => name
@@ -1474,9 +1480,9 @@ Again, adding support for user preferences and default field values:
         def fromJson(j: JsValue): String \/ A = j match {
           case obj @ JsObject(_) =>
             obj.get(typehint) match {
-              case \/-(JsString(hint)) =>
-                ctx.subtypes.find(s => hints(s.typeName.full) == hint) match {
-                  case None => fail(s"a valid '$hint'", obj)
+              case \/-(JsString(h)) =>
+                subtype.get(h) match {
+                  case None => fail(s"a valid '$h'", obj)
                   case Some(sub) =>
                     val xvalue = xvalues(sub.index)
                     val value  = obj.get(xvalue).getOrElse(obj)
@@ -1491,6 +1497,12 @@ Again, adding support for user preferences and default field values:
     def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
   }
 ~~~~~~~~
+
+A> In `.combine` we created a lookup `HashMap` to reduce the cost of linear
+A> searches. This pays off if there is more than 2 or 3 entries in the JSON.
+A> However, Scala's `HashMap` is especially slow to construct compared to Java's
+A> implementation, although is faster to look up. Field lookup, typically incurring
+A> one lookup per entry, often benefits from a wrapped Java `HashMap`.
 
 We call the `JsMagnoliaEncoder.gen` or `JsMagnoliaDecoder.gen` method from the
 companion of our data types. For example, the Google Maps API
@@ -1630,7 +1642,7 @@ something. Full auto is therefore not recommended.
 
 ## Shapeless
 
-The [shapeless](https://github.com/milessabin/shapeless/) library is notoriously the most complicated library in Scala. The
+The [Shapeless](https://github.com/milessabin/shapeless/) library is notoriously the most complicated library in Scala. The
 reason why it has such a reputation is because it takes the `implicit` language
 feature to the extreme: creating a kind of *generic programming* language at the
 level of the types.
@@ -1649,14 +1661,14 @@ A> and Magnolia, hanging the compiler indefinitely if there are compile errors,
 A> requires an immortal being to debug implicit resolution problems, and is not
 A> compatible with IDEs such as IntelliJ.
 
-To install shapeless, add the following to `build.sbt`
+To install Shapeless, add the following to `build.sbt`
 
 {lang="text"}
 ~~~~~~~~
   libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.3"
 ~~~~~~~~
 
-At the core of shapeless are the `HList` and `Coproduct` data types
+At the core of Shapeless are the `HList` and `Coproduct` data types
 
 {lang="text"}
 ~~~~~~~~
@@ -1766,7 +1778,7 @@ with Tagged[String(...)], A]`, or `FieldType[K, A]`, we can ask for the implicit
 evidence `Witness.Aux[K]` and from there access the value of `K`, the label, at
 runtime.
 
-Superficially, this is all we need to know about shapeless to be able to derive
+Superficially, this is all we need to know about Shapeless to be able to derive
 a typeclass. However, things get increasingly complex, so we will proceed with
 increasingly complex examples.
 
@@ -1774,7 +1786,7 @@ increasingly complex examples.
 ### Example: Equal
 
 A typical pattern to follow is to extend the typeclass that we wish to derive,
-and put the shapeless code on its companion. This gives us an implicit scope
+and put the Shapeless code on its companion. This gives us an implicit scope
 that the compiler can search with without requiring the user to provide complex imports
 
 {lang="text"}
@@ -1785,7 +1797,7 @@ that the compiler can search with without requiring the user to provide complex 
   }
 ~~~~~~~~
 
-The entry point to a shapeless derivation is a method, `gen`, requiring two type
+The entry point to a Shapeless derivation is a method, `gen`, requiring two type
 parameters: the `A` that we are deriving and the `R` for its generic
 representation. We then ask for the `Generic.Aux[A, R]`, relating `A` to `R`,
 and an instance of the `Derived` typeclass for the `R`. We begin with this
@@ -1911,7 +1923,7 @@ But it doesn't compile
   [error]                                      ^
 ~~~~~~~~
 
-Welcome to shapeless compilation errors!
+Welcome to Shapeless compilation errors!
 
 The problem, which is not at all evident in the error, is that the compiler is unable to work out what `R` is, and gets caught thinking it is something else. We need to provide the explicit type parameters when calling `gen`, e.g.
 
@@ -1964,7 +1976,7 @@ different solutions to `DerivedEqual[R]` before constraining it with the
 `Generic.Aux[A, R]`. Another way to solve this is to not use context bounds.
 
 A> Rather than present the fully working version, we feel it is important to show
-A> when obvious code fails, such as is the reality of shapeless. Another thing we
+A> when obvious code fails, such as is the reality of Shapeless. Another thing we
 A> could have reasonably done here is to have `sealed` the `DerivedEqual` trait so
 A> that only derived versions are valid. But `sealed trait` is not compatible with
 A> SAM types! When you live this close to the razor's edge, expect to get cut.
@@ -1995,7 +2007,7 @@ of `N` fields or coproduct of `N` products, whereas `scalaz-deriving` and
 Magnolia do not.
 
 Note that when using `scalaz-deriving` or Magnolia we can put the `@deriving` on
-just the top member of an ADT, but for shapeless we must add it to all entries.
+just the top member of an ADT, but for Shapeless we must add it to all entries.
 
 However, this implementation still has a bug: it fails for recursive types **at runtime**, e.g.
 
@@ -2025,12 +2037,12 @@ The reason why this happens is because `Equal[Tree]` depends on the
 It must be loaded lazily, not eagerly.
 
 Both `scalaz-deriving` and Magnolia deal with lazy automatically, but in
-shapeless it is the responsibility of the typeclass author.
+Shapeless it is the responsibility of the typeclass author.
 
-The macro types `shapeless.{ Cached, Strict, Lazy }` modify the compiler's type
-inference behaviour allowing us to achieve the laziness we require. The pattern
-to follow is to use `Cached[Strict[_]]` on the entry point and `Lazy[_]` around
-the `H` instances.
+The macro types `Cached, Strict, Lazy` modify the compiler's type inference
+behaviour allowing us to achieve the laziness we require. The pattern to follow
+is to use `Cached[Strict[_]]` on the entry point and `Lazy[_]` around the `H`
+instances.
 
 It is best to depart from context bounds and SAM types entirely at this point:
 
@@ -2227,7 +2239,7 @@ field name `K` at runtime.
   }
 ~~~~~~~~
 
-A> A pattern has emerged in many shapeless derivation libraries that introduce
+A> A pattern has emerged in many Shapeless derivation libraries that introduce
 A> "hints" with a default `implicit`
 A> 
 A> {lang="text"}
@@ -2538,7 +2550,8 @@ to compiletime is one of the most appealing things about generic programming.
 
 One more caveat that we need to be aware of: [`LabelledGeneric` is not compatible
 with `scalaz.@@`](https://github.com/milessabin/shapeless/issues/309), but there is a workaround. Say we want to effectively ignore
-tags so we add the following derivation rules to the companions of our encoder and decoder
+tags so we add the following derivation rules to the companions of our encoder
+and decoder
 
 {lang="text"}
 ~~~~~~~~
@@ -2607,7 +2620,8 @@ Thankfully, we only need to consider products, since coproducts cannot be tagged
 ### `JsDecoder`
 
 The decoding side is much as we can expect based on previous examples. We can
-construct an instance of a `FieldType[K, H]` with the helper `field[K](h: H)`. Supporting only the sensible defaults means we write:
+construct an instance of a `FieldType[K, H]` with the helper `field[K](h: H)`.
+Supporting only the sensible defaults means we write:
 
 {lang="text"}
 ~~~~~~~~
@@ -2676,97 +2690,103 @@ construct an instance of a `FieldType[K, H]` with the helper `field[K](h: H)`. S
 Adding user preferences via annotations follows the same route as
 `DerivedJsEncoder` and is mechanical, so left as an exercise to the reader.
 
-One final thing is missing: case class default values. We can request evidence
-for `shapeless.Default` values on products. A big problem is that we can no
-longer use the same derivation mechanism for products and coproducts, since the
-evidence is never created for coproducts. The solution is quite drastic: we must
-split our `DerivedJsDecoder` into `DerivedCoproductJsDecoder` and
-`DerivedProductJsDecoder`. We will focus our attention on the
-`DerivedProductJsDecoder` which will have this signature
+One final thing is missing: `case class` default values. We can request evidence
+but a big problem is that we can no longer use the same derivation mechanism for
+products and coproducts: the evidence is never created for coproducts.
+
+The solution is quite drastic. We must split our `DerivedJsDecoder` into
+`DerivedCoproductJsDecoder` and `DerivedProductJsDecoder`. We will focus our
+attention on the `DerivedProductJsDecoder`, and while we are at it we will
+use a `Map` for faster field lookup:
 
 {lang="text"}
 ~~~~~~~~
   sealed trait DerivedProductJsDecoder[A, R, J <: HList, D <: HList] {
-    def fromJsObject(j: JsObject, anns: J, defaults: D): String \/ R
+    private[jsonformat] def fromJsObject(
+      j: Map[String, JsValue],
+      anns: J,
+      defaults: D
+    ): String \/ R
   }
 ~~~~~~~~
 
 We can request evidence of default values with `Default.Aux[A, D]` and duplicate
 all the methods to deal with the case where we do and do not have a default
-value. However, shapeless is merciful in this one area and has a convenient
-alternative, `Default.AsOptions.Aux[A, D]` which allows us to have defaults at
-runtime.
+value. However, Shapeless is merciful (for once) and provides
+`Default.AsOptions.Aux[A, D]` letting us handle defaults at runtime.
 
 {lang="text"}
 ~~~~~~~~
-  def gen[A, R, D <: HList](
-    implicit G: LabelledGeneric.Aux[A, R],
-    D: Default.AsOptions.Aux[A, D],
-    R: Cached[Strict[DerivedJsDecoderWithDefault[A, R, D]]]
-  ): JsDecoder[A] = new JsDecoder[A] {
-    def fromJson(j: JsValue) = j match {
-      case o @ JsObject(_) => R.value.value.fromJsObject(o, D()).map(G.from)
-      case other           => fail("JsObject", other)
+  object DerivedProductJsDecoder {
+    def gen[A, R, J <: HList, D <: HList](
+      implicit G: LabelledGeneric.Aux[A, R],
+      J: Annotations.Aux[json, A, J],
+      D: Default.AsOptions.Aux[A, D],
+      R: Cached[Strict[DerivedProductJsDecoder[A, R, J, D]]]
+    ): JsDecoder[A] = new JsDecoder[A] {
+      def fromJson(j: JsValue) = j match {
+        case o @ JsObject(_) =>
+          R.value.value.fromJsObject(o.fields.toMap, J(), D()).map(G.from)
+        case other => fail("JsObject", other)
+      }
     }
+    ...
   }
 ~~~~~~~~
 
-Then move the `.hcons` and `.hnil` methods onto the companion of the new sealed
-typeclass, which can handle default values
+We must move the `.hcons` and `.hnil` methods onto the companion of the new
+sealed typeclass, which can handle default values
 
 {lang="text"}
 ~~~~~~~~
-  sealed trait DerivedJsDecoderWithDefault[A, R, D <: HList] {
-    def fromJsObject(j: JsObject, d: D): String \/ R
-  }
-  object DerivedJsDecoderWithDefault {
-    implicit def hcons[A, K <: Symbol, H, T <: HList, D <: HList](
-      implicit
-      C: json.ProductHint[A],
-      K: Witness.Aux[K],
-      H: Lazy[JsDecoder[H]],
-      T: DerivedJsDecoderWithDefault[A, T, D]
-    ): DerivedJsDecoderWithDefault[A, FieldType[K, H] :: T, Option[H] :: D] =
-      new DerivedJsDecoderWithDefault[A, FieldType[K, H] :: T, Option[H] :: D] {
-        private val fieldname = C.fieldname(K.value.name)
-        private val nulls     = C.nulls(K.value.name)
-        def fromJsObject(j: JsObject, d: Option[H] :: D) =
-          j.get(fieldname)
-            .into {
-              case \/-(value)   => H.value.fromJson(value)
-              case err @ -\/(_) =>
-                d.head match {
-                  case Some(default) => \/-(default)
-                  case None if nulls => err
-                  case None          => H.value.fromJson(JsNull)
-                }
-            }
-            .flatMap { head =>
-              T.fromJsObject(j, d.tail).map(field[K](head) :: _)
-            }
+  object DerivedProductJsDecoder {
+    ...
+      implicit def hnil[A]: DerivedProductJsDecoder[A, HNil, HNil, HNil] =
+      new DerivedProductJsDecoder[A, HNil, HNil, HNil] {
+        private val nil = HNil.right[String]
+        def fromJsObject(j: StringyMap[JsValue], a: HNil, defaults: HNil) = nil
       }
   
-    implicit def hnil[A]: DerivedJsDecoderWithDefault[A, HNil, HNil] =
-      new DerivedJsDecoderWithDefault[A, HNil, HNil] {
-        private val nil = HNil.right[String]
-        def fromJsObject(j: JsObject, d: HNil) = nil
+    implicit def hcons[A, K <: Symbol, H, T <: HList, J <: HList, D <: HList](
+      implicit
+      K: Witness.Aux[K],
+      H: Lazy[JsDecoder[H]],
+      T: DerivedProductJsDecoder[A, T, J, D]
+    ): DerivedProductJsDecoder[A, FieldType[K, H] :: T, None.type :: J, Option[H] :: D] =
+      new DerivedProductJsDecoder[A, FieldType[K, H] :: T, None.type :: J, Option[H] :: D] {
+        private val fieldname = K.value.name
+        def fromJsObject(
+          j: StringyMap[JsValue],
+          anns: None.type :: J,
+          defaults: Option[H] :: D
+        ) =
+          for {
+            head <- j.get(fieldname) match {
+                     case Maybe.Just(v) => H.value.fromJson(v)
+                     case _ =>
+                       defaults.head match {
+                         case Some(default) => \/-(default)
+                         case None          => H.value.fromJson(JsNull)
+                       }
+                   }
+            tail <- T.fromJsObject(j, anns.tail, defaults.tail)
+          } yield field[K](head) :: tail
       }
+    ...
   }
 ~~~~~~~~
 
-Don't forget that we now must manually call `DerivedJsDecoder.cop` on the
-companion of our `sealed class`, it will not work with `@deriving` any more. One
-possible hack around this is to make `DerivedJsDecoder` extend from `JsDecoder`
-and add an entry in the `deriving.conf` for `DerivedJsDecoder` (for coproducts)
-as well as `JsDecoder` (for products), but this adds to the mental burden at the
-point of use, which is not ideal.
+We can't use `@deriving` any more for products and coproducts. One possible hack
+is to make `DerivedCoproductJsDecoder` extend from `JsDecoder`, adding an entry
+in the `deriving.conf` for `DerivedCoproductJsDecoder` as well as one for
+`JsDecoder` (which points to `DerivedProductJsDecoder`), but this adds to the
+mental burden at the point of use, which is not ideal.
 
 Oh, and don't forget to add `@@` support
 
 {lang="text"}
 ~~~~~~~~
-  object DerivedProductJsDecoder extends DerivedProductJs
-                                 with    DerivedProductJsDecoder2 {
+  object DerivedProductJsDecoder extends DerivedProductJsDecoder1 {
     ...
   }
   private[jsonformat] trait DerivedProductJsDecoder2 {
@@ -2810,18 +2830,18 @@ Oh, and don't forget to add `@@` support
 > you start down the dark path, forever will it dominate your compiler, consume
 > you it will."
 > 
-> ― a Shapeless user
+> ― an ancient Shapeless master
 
 In addition to all the warnings about fully automatic derivation that were
-mentioned for Magnolia, shapeless is **much** worse. Not only is fully automatic
-shapeless derivation [the most common cause of slow compiles](https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html), but it is also a
+mentioned for Magnolia, Shapeless is **much** worse. Not only is fully automatic
+Shapeless derivation [the most common cause of slow compiles](https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html), it is also a
 painful source of typeclass coherence bugs.
 
-Fully automatic derivation is when the `def gen` and `def cop` are `implicit`
-such that a call will recurse for all entries in the ADT. Because of the way
-that implicit scopes work, an imported `implicit def` will have a higher
-priority than custom instances on companions, creating a source of typeclass
-decoherence. For example, consider this code if our `.gen` were implicit
+Fully automatic derivation is when the `def gen` are `implicit` such that a call
+will recurse for all entries in the ADT. Because of the way that implicit scopes
+work, an imported `implicit def` will have a higher priority than custom
+instances on companions, creating a source of typeclass decoherence. For
+example, consider this code if our `.gen` were implicit
 
 {lang="text"}
 ~~~~~~~~
@@ -2853,8 +2873,8 @@ because we have used `xderiving` for `Foo`. But it can instead be
 ~~~~~~~~
 
 Worse yet is when implicit methods are added to the companion of the typeclass,
-meaning that the typeclass is always derived at the point of use, users unable
-opt out, and [compile times slowing down by a factor of 10 to 100](https://github.com/pureconfig/pureconfig/issues/396).
+meaning that the typeclass is always derived at the point of use and users are
+unable opt out.
 
 Fundamentally, when writing generic programs, implicits can be ignored by the
 compiler depending on scope, meaning that we lose the compiletime safety that
@@ -2874,18 +2894,55 @@ chart may help:
 |-------------- |------ |-------- |--------- |------ |
 | `@deriving`    | yes    | yes      | yes       |        |
 | Laws           | yes    |          |           |        |
-| Coherent       | yes    | yes      |           | yes    |
 | Fast compiles  | yes    | yes      |           | yes    |
 | Field names    |        | yes      | yes       |        |
 | Annotations    |        | yes      | partially |        |
 | Default values |        | yes      | painfully |        |
 | Complicated    |        |          | painfully |        |
 
-FIXME: include perf numbers from jsonformat
+but there is no silver bullet. Beyond feature comparisons, another axis to
+consider is performance: both at compiletime and runtime.
 
-FIXME: include flamegraph of the jmh
 
-FIXME: limitations where only shapeless works. But also point out how easy it
+### Compilation Times
+
+When it comes to compilation times, Shapeless is the outlier. It is not uncommon
+to see a small project expand from a one second compile to a one minute compile.
+To investigate compilation issues, we can profile our applications with the
+`scalac-profiling` plugin
+
+{lang="text"}
+~~~~~~~~
+  addCompilerPlugin("ch.epfl.scala" %% "scalac-profiling" % "1.0.0")
+  scalacOptions ++= Seq("-Ystatistics:typer", "-P:scalac-profiling:no-profiledb")
+~~~~~~~~
+
+It produces output that can generate a *flame graph*.
+
+The following is a profile of the `jsonformat` tests and is typical output when
+using `scalaz-deriving`, Magnolia or manual instances has do not have many
+implicit searches, since everything is easily found on the companions:
+
+{width=100%}
+![](images/implicit-flamegraph-jsonformat-test.png)
+
+Whereas for Shapeless derivation, this being the `jmh` performance tests, we can
+expect to see a lively chart
+
+{width=100%}
+![](images/implicit-flamegraph-jsonformat-jmh.png)
+
+Note that this `jmh` chart also includes the `scalaz-deriving`, Magnolia and
+manual instances, but Shapeless dominates. Things get much, **much**, worse if
+fully automatic derivation is used.
+
+And this is when it works. If there is a problem with a shapeless derivation,
+the compiler can get stuck in an infinite loop and must be killed.
+
+
+### Runtime Performance
+
+FIXME: limitations where only Shapeless works. But also point out how easy it
 would be to add a new feature, such as an option to encode coproducts as a
 key/value lookup. Exercise to the reader.
 
