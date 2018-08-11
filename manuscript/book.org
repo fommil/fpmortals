@@ -1130,7 +1130,7 @@ demand of the work queue.
 
 #+BEGIN_SRC dot :cmd circo :file images/architecture.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Palatino, shape=box];
 
     Agents [shape=doubleoctagon];
@@ -3205,7 +3205,7 @@ scalaz source code.
 
 #+BEGIN_SRC dot :file images/scalaz-core-tree.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Cobind;
@@ -3277,7 +3277,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-core-cliques.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Monoid -> Semigroup;
@@ -3307,7 +3307,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-core-loners.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Zip;
@@ -3327,7 +3327,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-semigroup.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Monoid -> Semigroup;
@@ -3539,7 +3539,7 @@ even concepts as simple equality are captured at compiletime.
 
 #+BEGIN_SRC dot :file images/scalaz-comparable.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Show;
@@ -3673,7 +3673,7 @@ some sense:
 
 #+BEGIN_SRC dot :file images/scalaz-mappable.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -4384,7 +4384,7 @@ we previously ignored:
 
 #+BEGIN_SRC dot :file images/scalaz-variance.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -4585,7 +4585,7 @@ Consider this the warm-up act to =Applicative= and =Monad=
 
 #+BEGIN_SRC dot :file images/scalaz-apply.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -4938,7 +4938,7 @@ From a functionality point of view, =Applicative= is =Apply= with a
 
 #+BEGIN_SRC dot :file images/scalaz-applicative.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -5106,7 +5106,7 @@ those effects are, deserves a dedicated chapter on Advanced Monads.
 
 #+BEGIN_SRC dot :file images/scalaz-divide.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -5276,7 +5276,7 @@ terms of =divide=
 
 #+BEGIN_SRC dot :file images/scalaz-plus.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -5490,7 +5490,7 @@ larger hierarchy.
 
 #+BEGIN_SRC dot :file images/scalaz-loners.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Zip;
@@ -5666,7 +5666,7 @@ signature of /thing/ wherever we can.
 
 #+BEGIN_SRC dot :file images/scalaz-cothings.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -5737,7 +5737,7 @@ digraph G {
 
 #+BEGIN_SRC dot :file images/scalaz-coloners.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Zip [fontcolor=lightslategray,color=lightslategray];
@@ -5940,7 +5940,7 @@ relatives that allow us to map both ways.
 
 #+BEGIN_SRC dot :file images/scalaz-bithings.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Bitraverse -> Bifunctor;
@@ -6047,7 +6047,7 @@ and are not needed in typical FP applications.
 
 #+BEGIN_SRC dot :file images/scalaz-abstract.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     Category -> Compose;
@@ -6087,7 +6087,7 @@ To help further, Valentin Kasas explains how to [[https://twitter.com/ValentinKa
 
 #+BEGIN_SRC dot :file images/shortest-fp-book.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=TB];
+    graph [dpi=300, rankdir=TB];
 
     things [label="combine N things",shape=oval];
     type [label="same (or no)\n type parameter",shape=diamond,height=1.2];
@@ -7828,7 +7828,7 @@ which can be visualised as
 
 #+BEGIN_SRC dot :cmd dot :file images/dequeue.png :exports results
 digraph G {
-    graph [dpi=200];
+    graph [dpi=300];
     node [fontname=Hack];
 
     subgraph cluster_front {
@@ -7893,7 +7893,7 @@ together. Consider the work that goes into evaluating the following:
 
 #+BEGIN_SRC dot :cmd dot :file images/dlist-list-append.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     as;bs;cs;ds;es;fs;gs;
@@ -8069,7 +8069,7 @@ case (Tip(), Tip()) => singleton(y)
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-1.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8108,7 +8108,7 @@ case (Bin(lx, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-2.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8158,7 +8158,7 @@ case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip()) =>
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-3.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8223,7 +8223,7 @@ case (Bin(lx, ll, Tip()), Tip()) => Bin(lx, ll, singleton(y))
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-4.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8277,7 +8277,7 @@ For the first branch, ~2*ll.size > lr.size~
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-5a.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8322,7 +8322,7 @@ and for the second branch ~2*ll.size <= lr.size~
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-5b.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8382,7 +8382,7 @@ case (Tip(), r) => Bin(y, Tip(), r)
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-6.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8422,7 +8422,7 @@ case _ if l.size <= 3 * r.size => Bin(y, l, r)
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-7a.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8465,7 +8465,7 @@ case (Bin(lx, ll, Bin(lrx, lrl, lrr)), r) =>
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-7b.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8508,7 +8508,7 @@ digraph G {
 
 #+BEGIN_SRC dot :cmd dot :file images/balanceL-7c.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT,nodesep=1];
+    graph [dpi=300, rankdir=BT,nodesep=1];
     node [fontname=Hack];
     compound=true;
 
@@ -8725,7 +8725,7 @@ boxes:
 
 #+BEGIN_SRC dot :cmd dot :file images/fingertree.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
 
     // Deep[V, A]
@@ -10744,7 +10744,7 @@ this application is left to right
 
 #+BEGIN_SRC dot :cmd dot :file images/contt-simple.png :exports results
 digraph G {
-    graph [dpi=200,rankdir=LR];
+    graph [dpi=300,rankdir=LR];
     node [fontname=Hack];
     edge [fontname=Hack];
     fontname=Hack;
@@ -10785,7 +10785,7 @@ we receive from the right (downstream), i.e. we want to split our =foo2= into
 
 #+BEGIN_SRC dot :cmd dot :file images/contt-process1.png :exports results
 digraph G {
-    graph [dpi=200,rankdir=LR];
+    graph [dpi=300,rankdir=LR];
     node [fontname=Hack];
     edge [fontname=Hack];
     fontname=Hack;
@@ -10835,7 +10835,7 @@ the result of the =next= continuation:
 
 #+BEGIN_SRC dot :cmd dot :file images/contt-process2.png :exports results
 digraph G {
-    graph [dpi=200,rankdir=LR];
+    graph [dpi=300,rankdir=LR];
     node [fontname=Hack];
     edge [fontname=Hack];
     fontname=Hack;
@@ -10895,7 +10895,7 @@ control flow turning the linear flow into a graph!
 
 #+BEGIN_SRC dot :cmd dot :file images/contt-elsewhere.png :exports results
 digraph G {
-    graph [dpi=200,rankdir=LR];
+    graph [dpi=300,rankdir=LR];
     node [fontname=Hack];
     edge [fontname=Hack];
     fontname=Hack;
@@ -10967,7 +10967,7 @@ Or we can stay within the original flow and retry everything downstream
 
 #+BEGIN_SRC dot :cmd dot :file images/contt-retry.png :exports results
 digraph G {
-    graph [dpi=200,rankdir=LR];
+    graph [dpi=300,rankdir=LR];
     node [fontname=Hack];
     edge [fontname=Hack];
     fontname=Hack;
@@ -13103,7 +13103,7 @@ providing new typeclasses, shown below in relation to core scalaz typeclasses:
 
 #+BEGIN_SRC dot :file images/scalaz-deriving-base.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -13855,7 +13855,7 @@ In this section we solve both problems with additional typeclasses introduced by
 
 #+BEGIN_SRC dot :file images/scalaz-deriving.png :exports results
 digraph G {
-    graph [dpi=200, rankdir=BT];
+    graph [dpi=300, rankdir=BT];
     node [fontname=Hack];
     node [fontcolor=lightgray,color=lightgray];
     edge [color=lightgray]
@@ -15907,15 +15907,14 @@ implicit searches, since everything is easily found on the companions:
 #+CAPTION: 100
 [[file:images/implicit-flamegraph-jsonformat-test.png]]
 
-Whereas for Shapeless derivation, this being the =jmh= performance tests, we can
-expect to see a lively chart
+For Shapeless derivation, we get a lively chart
 
 #+CAPTION: 100
 [[file:images/implicit-flamegraph-jsonformat-jmh.png]]
 
-Note that this =jmh= chart also includes the =scalaz-deriving=, Magnolia and
-manual instances, but Shapeless dominates. Things get much, *much*, worse if
-fully automatic derivation is used.
+Note that this second chart also includes the =scalaz-deriving=, Magnolia and
+manual instances, but Shapeless dominates. Compile times get much, *much*, worse
+if fully automatic derivation is used.
 
 And this is when it works. If there is a problem with a shapeless derivation,
 the compiler can get stuck in an infinite loop and must be killed.

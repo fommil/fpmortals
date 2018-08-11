@@ -2926,15 +2926,14 @@ implicit searches, since everything is easily found on the companions:
 {width=100%}
 ![](images/implicit-flamegraph-jsonformat-test.png)
 
-Whereas for Shapeless derivation, this being the `jmh` performance tests, we can
-expect to see a lively chart
+For Shapeless derivation, we get a lively chart
 
 {width=100%}
 ![](images/implicit-flamegraph-jsonformat-jmh.png)
 
-Note that this `jmh` chart also includes the `scalaz-deriving`, Magnolia and
-manual instances, but Shapeless dominates. Things get much, **much**, worse if
-fully automatic derivation is used.
+Note that this second chart also includes the `scalaz-deriving`, Magnolia and
+manual instances, but Shapeless dominates. Compile times get much, **much**, worse
+if fully automatic derivation is used.
 
 And this is when it works. If there is a problem with a shapeless derivation,
 the compiler can get stuck in an infinite loop and must be killed.
