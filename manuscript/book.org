@@ -14208,7 +14208,7 @@ The Magnolia objects are:
 class CaseClass[TC[_], A] {
   def typeName: TypeName
   def construct[B](f: Param[TC, A] => B): A
-  def constructEither[E, B](f: Param[TC, A] => Either[E, B]): Either[E, A]
+  def constructMonadic[F[_]: Monadic, B](f: Param[TC, A] => F[B]): F[A]
   def parameters: Seq[Param[TC, A]]
   def annotations: Seq[Any]
 }
@@ -14245,6 +14245,9 @@ class Subtype[TC[_], A] {
   def annotations: Seq[Any]
 }
 #+END_SRC
+
+The =Monadic= typeclass, used in =constructMonadic=, is automatically generated
+if our data type has a =.map= and =.flatMap= method when we =import mercator._=
 
 It does not make sense to use Magnolia for typeclasses that can be abstracted by
 =Divisible=, =Decidable=, =Applicative= or =Alt=, since those abstractions
@@ -14352,9 +14355,10 @@ We can see how the Magnolia API makes it easy to access field names and
 typeclasses for each parameter.
 
 Now add support for annotations to handle user preferences. To avoid looking up
-the annotations on every encoding, we'll cache them in a map indexed by the
-field names. Performance is usually the victim in the trade-off between
-specialisation and generalisation.
+the annotations on every encoding, we'll cache them in an array. Although field
+access to an array is non-total, we are guaranteed that the indices will always
+align. Performance is usually the victim in the trade-off between specialisation
+and generalisation.
 
 #+BEGIN_SRC scala
 object JsMagnoliaEncoder {
@@ -14413,8 +14417,8 @@ object JsMagnoliaEncoder {
 }
 #+END_SRC
 
-For the decoder we use =.constructEither= which has a type signature similar to
-=MonadError.emap=
+For the decoder we use =.constructMonadic= which has a type signature similar to
+=.traverse=
 
 #+BEGIN_SRC scala
 object JsMagnoliaDecoder {
@@ -14422,10 +14426,9 @@ object JsMagnoliaDecoder {
 
   def combine[A](ctx: CaseClass[JsDecoder, A]): JsDecoder[A] = {
     case obj @ JsObject(_) =>
-      ctx.constructEither { p =>
-        val value = obj.get(p.label).getOrElse(JsNull)
-        p.typeclass.fromJson(value).toEither
-      }.disjunction
+      ctx.constructMonadic(
+        p => p.typeclass.fromJson(obj.get(p.label).getOrElse(JsNull))
+      )
     case other => fail("JsObject", other)
   }
 
@@ -14448,7 +14451,8 @@ object JsMagnoliaDecoder {
 }
 #+END_SRC
 
-Again, adding support for user preferences and default field values:
+Again, adding support for user preferences and default field values, along with
+some optimisations:
 
 #+BEGIN_SRC scala
 object JsMagnoliaDecoder {
@@ -14470,31 +14474,33 @@ object JsMagnoliaDecoder {
 
       def fromJson(j: JsValue): String \/ A = j match {
         case obj @ JsObject(_) =>
-          ctx.constructEither { p =>
+          import mercator._
+          val lookup = obj.fields.toMap
+          ctx.constructMonadic { p =>
             val field = fieldnames(p.index)
-            obj
+            lookup
               .get(field)
               .into {
-                case \/-(value) => p.typeclass.fromJson(value)
-                case err @ -\/(_) =>
+                case Maybe.Just(value) => p.typeclass.fromJson(value)
+                case _ =>
                   p.default match {
-                    case Some(default)          => \/-(default)
-                    case None if nulls(p.index) => err
-                    case None                   => p.typeclass.fromJson(JsNull)
+                    case Some(default) => \/-(default)
+                    case None if nulls(p.index) =>
+                      s"missing field '$field'".left
+                    case None => p.typeclass.fromJson(JsNull)
                   }
               }
-              .toEither
-          }.disjunction
+          }
         case other => fail("JsObject", other)
       }
     }
 
   def dispatch[A](ctx: SealedTrait[JsDecoder, A]): JsDecoder[A] =
     new JsDecoder[A] {
-      private val hints = ctx.subtypes.map { s =>
-        s.typeName.full -> s.annotations.collectFirst {
+      private val subtype = ctx.subtypes.map { s =>
+        s.annotations.collectFirst {
           case json.hint(name) => name
-        }.getOrElse(s.typeName.short)
+        }.getOrElse(s.typeName.short) -> s
       }.toMap
       private val typehint = ctx.annotations.collectFirst {
         case json.field(name) => name
@@ -14508,9 +14514,9 @@ object JsMagnoliaDecoder {
       def fromJson(j: JsValue): String \/ A = j match {
         case obj @ JsObject(_) =>
           obj.get(typehint) match {
-            case \/-(JsString(hint)) =>
-              ctx.subtypes.find(s => hints(s.typeName.full) == hint) match {
-                case None => fail(s"a valid '$hint'", obj)
+            case \/-(JsString(h)) =>
+              subtype.get(h) match {
+                case None => fail(s"a valid '$h'", obj)
                 case Some(sub) =>
                   val xvalue = xvalues(sub.index)
                   val value  = obj.get(xvalue).getOrElse(obj)
@@ -14525,6 +14531,14 @@ object JsMagnoliaDecoder {
   def gen[A]: JsDecoder[A] = macro Magnolia.gen[A]
 }
 #+END_SRC
+
+#+BEGIN_ASIDE
+In =.combine= we created a lookup =HashMap= to reduce the cost of linear
+searches. This pays off if there is more than 2 or 3 entries in the JSON.
+However, Scala's =HashMap= is especially slow to construct compared to Java's
+implementation, although is faster to look up. Field lookup, typically incurring
+one lookup per entry, often benefits from a wrapped Java =HashMap=.
+#+END_ASIDE
 
 We call the =JsMagnoliaEncoder.gen= or =JsMagnoliaDecoder.gen= method from the
 companion of our data types. For example, the Google Maps API
@@ -15596,7 +15610,8 @@ Thankfully, we only need to consider products, since coproducts cannot be tagged
 **** =JsDecoder=
 
 The decoding side is much as we can expect based on previous examples. We can
-construct an instance of a =FieldType[K, H]= with the helper =field[K](h: H)=. Supporting only the sensible defaults means we write:
+construct an instance of a =FieldType[K, H]= with the helper =field[K](h: H)=.
+Supporting only the sensible defaults means we write:
 
 #+BEGIN_SRC scala
 sealed trait DerivedJsDecoder[A] {
@@ -15664,93 +15679,100 @@ object DerivedJsDecoder {
 Adding user preferences via annotations follows the same route as
 =DerivedJsEncoder= and is mechanical, so left as an exercise to the reader.
 
-One final thing is missing: case class default values. We can request evidence
-for =shapeless.Default= values on products. A big problem is that we can no
-longer use the same derivation mechanism for products and coproducts, since the
-evidence is never created for coproducts. The solution is quite drastic: we must
-split our =DerivedJsDecoder= into =DerivedCoproductJsDecoder= and
-=DerivedProductJsDecoder=. We will focus our attention on the
-=DerivedProductJsDecoder= which will have this signature
+One final thing is missing: =case class= default values. We can request evidence
+but a big problem is that we can no longer use the same derivation mechanism for
+products and coproducts: the evidence is never created for coproducts.
+
+The solution is quite drastic. We must split our =DerivedJsDecoder= into
+=DerivedCoproductJsDecoder= and =DerivedProductJsDecoder=. We will focus our
+attention on the =DerivedProductJsDecoder=, and while we are at it we will
+use a =Map= for faster field lookup:
 
 #+BEGIN_SRC scala
 sealed trait DerivedProductJsDecoder[A, R, J <: HList, D <: HList] {
-  def fromJsObject(j: JsObject, anns: J, defaults: D): String \/ R
+  private[jsonformat] def fromJsObject(
+    j: Map[String, JsValue],
+    anns: J,
+    defaults: D
+  ): String \/ R
 }
 #+END_SRC
 
 We can request evidence of default values with =Default.Aux[A, D]= and duplicate
 all the methods to deal with the case where we do and do not have a default
-value. However, Shapeless is merciful in this one area and has a convenient
-alternative, =Default.AsOptions.Aux[A, D]= which allows us to have defaults at
-runtime.
+value. However, Shapeless is merciful (for once) and provides
+=Default.AsOptions.Aux[A, D]= letting us handle defaults at runtime.
 
 #+BEGIN_SRC scala
-  def gen[A, R, D <: HList](
+object DerivedProductJsDecoder {
+  def gen[A, R, J <: HList, D <: HList](
     implicit G: LabelledGeneric.Aux[A, R],
+    J: Annotations.Aux[json, A, J],
     D: Default.AsOptions.Aux[A, D],
-    R: Cached[Strict[DerivedJsDecoderWithDefault[A, R, D]]]
+    R: Cached[Strict[DerivedProductJsDecoder[A, R, J, D]]]
   ): JsDecoder[A] = new JsDecoder[A] {
     def fromJson(j: JsValue) = j match {
-      case o @ JsObject(_) => R.value.value.fromJsObject(o, D()).map(G.from)
-      case other           => fail("JsObject", other)
+      case o @ JsObject(_) =>
+        R.value.value.fromJsObject(o.fields.toMap, J(), D()).map(G.from)
+      case other => fail("JsObject", other)
     }
   }
+  ...
+}
 #+END_SRC
 
-Then move the =.hcons= and =.hnil= methods onto the companion of the new sealed
-typeclass, which can handle default values
+We must move the =.hcons= and =.hnil= methods onto the companion of the new
+sealed typeclass, which can handle default values
 
 #+BEGIN_SRC scala
-sealed trait DerivedJsDecoderWithDefault[A, R, D <: HList] {
-  def fromJsObject(j: JsObject, d: D): String \/ R
-}
-object DerivedJsDecoderWithDefault {
-  implicit def hcons[A, K <: Symbol, H, T <: HList, D <: HList](
+object DerivedProductJsDecoder {
+  ...
+    implicit def hnil[A]: DerivedProductJsDecoder[A, HNil, HNil, HNil] =
+    new DerivedProductJsDecoder[A, HNil, HNil, HNil] {
+      private val nil = HNil.right[String]
+      def fromJsObject(j: StringyMap[JsValue], a: HNil, defaults: HNil) = nil
+    }
+
+  implicit def hcons[A, K <: Symbol, H, T <: HList, J <: HList, D <: HList](
     implicit
-    C: json.ProductHint[A],
     K: Witness.Aux[K],
     H: Lazy[JsDecoder[H]],
-    T: DerivedJsDecoderWithDefault[A, T, D]
-  ): DerivedJsDecoderWithDefault[A, FieldType[K, H] :: T, Option[H] :: D] =
-    new DerivedJsDecoderWithDefault[A, FieldType[K, H] :: T, Option[H] :: D] {
-      private val fieldname = C.fieldname(K.value.name)
-      private val nulls     = C.nulls(K.value.name)
-      def fromJsObject(j: JsObject, d: Option[H] :: D) =
-        j.get(fieldname)
-          .into {
-            case \/-(value)   => H.value.fromJson(value)
-            case err @ -\/(_) =>
-              d.head match {
-                case Some(default) => \/-(default)
-                case None if nulls => err
-                case None          => H.value.fromJson(JsNull)
-              }
-          }
-          .flatMap { head =>
-            T.fromJsObject(j, d.tail).map(field[K](head) :: _)
-          }
+    T: DerivedProductJsDecoder[A, T, J, D]
+  ): DerivedProductJsDecoder[A, FieldType[K, H] :: T, None.type :: J, Option[H] :: D] =
+    new DerivedProductJsDecoder[A, FieldType[K, H] :: T, None.type :: J, Option[H] :: D] {
+      private val fieldname = K.value.name
+      def fromJsObject(
+        j: StringyMap[JsValue],
+        anns: None.type :: J,
+        defaults: Option[H] :: D
+      ) =
+        for {
+          head <- j.get(fieldname) match {
+                   case Maybe.Just(v) => H.value.fromJson(v)
+                   case _ =>
+                     defaults.head match {
+                       case Some(default) => \/-(default)
+                       case None          => H.value.fromJson(JsNull)
+                     }
+                 }
+          tail <- T.fromJsObject(j, anns.tail, defaults.tail)
+        } yield field[K](head) :: tail
     }
-
-  implicit def hnil[A]: DerivedJsDecoderWithDefault[A, HNil, HNil] =
-    new DerivedJsDecoderWithDefault[A, HNil, HNil] {
-      private val nil = HNil.right[String]
-      def fromJsObject(j: JsObject, d: HNil) = nil
-    }
+  ...
 }
+
 #+END_SRC
 
-Don't forget that we now must manually call =DerivedJsDecoder.cop= on the
-companion of our =sealed class=, it will not work with =@deriving= any more. One
-possible hack around this is to make =DerivedJsDecoder= extend from =JsDecoder=
-and add an entry in the =deriving.conf= for =DerivedJsDecoder= (for coproducts)
-as well as =JsDecoder= (for products), but this adds to the mental burden at the
-point of use, which is not ideal.
+We can't use =@deriving= any more for products and coproducts. One possible hack
+is to make =DerivedCoproductJsDecoder= extend from =JsDecoder=, adding an entry
+in the =deriving.conf= for =DerivedCoproductJsDecoder= as well as one for
+=JsDecoder= (which points to =DerivedProductJsDecoder=), but this adds to the
+mental burden at the point of use, which is not ideal.
 
 Oh, and don't forget to add =@@= support
 
 #+BEGIN_SRC scala
-object DerivedProductJsDecoder extends DerivedProductJs
-                               with    DerivedProductJsDecoder2 {
+object DerivedProductJsDecoder extends DerivedProductJsDecoder1 {
   ...
 }
 private[jsonformat] trait DerivedProductJsDecoder2 {
@@ -15794,19 +15816,19 @@ the derivation are they. Easily they flow, quick to join you in a fight. If once
 you start down the dark path, forever will it dominate your compiler, consume
 you it will."
 
-― a Shapeless user
+― an ancient Shapeless master
 #+END_QUOTE
 
 In addition to all the warnings about fully automatic derivation that were
 mentioned for Magnolia, Shapeless is *much* worse. Not only is fully automatic
-Shapeless derivation [[https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html][the most common cause of slow compiles]], but it is also a
+Shapeless derivation [[https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html][the most common cause of slow compiles]], it is also a
 painful source of typeclass coherence bugs.
 
-Fully automatic derivation is when the =def gen= and =def cop= are =implicit=
-such that a call will recurse for all entries in the ADT. Because of the way
-that implicit scopes work, an imported =implicit def= will have a higher
-priority than custom instances on companions, creating a source of typeclass
-decoherence. For example, consider this code if our =.gen= were implicit
+Fully automatic derivation is when the =def gen= are =implicit= such that a call
+will recurse for all entries in the ADT. Because of the way that implicit scopes
+work, an imported =implicit def= will have a higher priority than custom
+instances on companions, creating a source of typeclass decoherence. For
+example, consider this code if our =.gen= were implicit
 
 #+BEGIN_SRC scala
 import DerivedJsEncoder._
@@ -15835,8 +15857,8 @@ because we have used =xderiving= for =Foo=. But it can instead be
 #+END_SRC
 
 Worse yet is when implicit methods are added to the companion of the typeclass,
-meaning that the typeclass is always derived at the point of use, users unable
-opt out, and [[https://github.com/pureconfig/pureconfig/issues/396][compile times slowing down by a factor of 10 to 100]].
+meaning that the typeclass is always derived at the point of use and users are
+unable opt out.
 
 Fundamentally, when writing generic programs, implicits can be ignored by the
 compiler depending on scope, meaning that we lose the compiletime safety that
@@ -15855,16 +15877,52 @@ chart may help:
 |----------------+--------+----------+-----------+--------|
 | =@deriving=    | yes    | yes      | yes       |        |
 | Laws           | yes    |          |           |        |
-| Coherent       | yes    | yes      |           | yes    |
 | Fast compiles  | yes    | yes      |           | yes    |
 | Field names    |        | yes      | yes       |        |
 | Annotations    |        | yes      | partially |        |
 | Default values |        | yes      | painfully |        |
 | Complicated    |        |          | painfully |        |
 
-FIXME: include perf numbers from jsonformat
+but there is no silver bullet. Beyond feature comparisons, another axis to
+consider is performance: both at compiletime and runtime.
 
-FIXME: include flamegraph of the jmh
+**** Compilation Times
+
+When it comes to compilation times, Shapeless is the outlier. It is not uncommon
+to see a small project expand from a one second compile to a one minute compile.
+To investigate compilation issues, we can profile our applications with the
+=scalac-profiling= plugin
+
+#+BEGIN_SRC scala
+addCompilerPlugin("ch.epfl.scala" %% "scalac-profiling" % "1.0.0")
+scalacOptions ++= Seq("-Ystatistics:typer", "-P:scalac-profiling:no-profiledb")
+#+END_SRC
+
+It produces output that can generate a /flame graph/.
+
+The following is a profile of the =jsonformat= tests and is typical output when
+using =scalaz-deriving=, Magnolia or manual instances has do not have many
+implicit searches, since everything is easily found on the companions:
+
+#+CAPTION: 100
+[[file:images/implicit-flamegraph-jsonformat-test.png]]
+
+Whereas for Shapeless derivation, this being the =jmh= performance tests, we can
+expect to see a lively chart
+
+#+CAPTION: 100
+[[file:images/implicit-flamegraph-jsonformat-jmh.png]]
+
+Note that this =jmh= chart also includes the =scalaz-deriving=, Magnolia and
+manual instances, but Shapeless dominates. Things get much, *much*, worse if
+fully automatic derivation is used.
+
+And this is when it works. If there is a problem with a shapeless derivation,
+the compiler can get stuck in an infinite loop and must be killed.
+
+**** Runtime Performance
+
+
 
 FIXME: limitations where only Shapeless works. But also point out how easy it
 would be to add a new feature, such as an option to encode coproducts as a
