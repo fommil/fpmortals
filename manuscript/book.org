@@ -13085,7 +13085,7 @@ Although it is possible to apply the techniques in this chapter to either
 typeclass or algebra derivation, the latter involves a **lot** more boilerplate.
 We therefore consciously choose to restrict our study to encoders and decoders
 that are coherent. As we will see later in this chapter, use-site automatic
-derivation with magnolia and shapeless, combined with limitations of the scala
+derivation with Magnolia and Shapeless, combined with limitations of the scala
 compiler's implicit search, commonly leads to typeclass decoherence.
 #+END_ASIDE
 
@@ -14086,8 +14086,8 @@ optimisations:
 
 1. perform instance equality =.eq= before applying the =Equal.equal=, allowing
    for shortcut equality between identical values.
-2. =.foldRight= allowing early exit when any comparison is =false=. e.g. if the
-   first fields don't match, we don't even request the =Equal= for remaining
+2. =Foldable.all= allowing early exit when any comparison is =false=. e.g. if
+   the first fields don't match, we don't even request the =Equal= for remaining
    values.
 
 #+BEGIN_SRC scala
@@ -14098,8 +14098,8 @@ optimisations:
     def dividez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Prod[A])(
       implicit ev: A PairedWith FA
     ): Equal[Z] = (z1, z2) =>
-      (g(z1), g(z2)).zip(tcs).foldRight(true) {
-        case ((a1, a2) /~\ fa, acc) => (quick(a1, a2) || fa.value.equal(a1, a2)) && acc
+      (g(z1), g(z2)).zip(tcs).all {
+        case (a1, a2) /~\ fa => (quick(a1, a2) || fa.value.equal(a1, a2))
       }
 
     def choosez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Cop[A])(
@@ -14180,7 +14180,7 @@ next section.
 
 *** Magnolia
 
-The magnolia macro library provides a clean API for writing typeclass
+The Magnolia macro library provides a clean API for writing typeclass
 derivations. It is installed with the following =build.sbt= entry
 
 #+BEGIN_SRC scala
@@ -14202,7 +14202,7 @@ object MyDerivation {
 }
 #+END_SRC
 
-The magnolia objects are:
+The Magnolia objects are:
 
 #+BEGIN_SRC scala
 class CaseClass[TC[_], A] {
@@ -14246,7 +14246,7 @@ class Subtype[TC[_], A] {
 }
 #+END_SRC
 
-It does not make sense to use magnolia for typeclasses that can be abstracted by
+It does not make sense to use Magnolia for typeclasses that can be abstracted by
 =Divisible=, =Decidable=, =Applicative= or =Alt=, since those abstractions
 provide a lot of extra structure and tests for free. However, Magnolia offers
 features that =scalaz-deriving= cannot provide: access to field names, type
@@ -14654,7 +14654,7 @@ something. Full auto is therefore not recommended.
 
 *** Shapeless
 
-The [[https://github.com/milessabin/shapeless/][shapeless]] library is notoriously the most complicated library in Scala. The
+The [[https://github.com/milessabin/shapeless/][Shapeless]] library is notoriously the most complicated library in Scala. The
 reason why it has such a reputation is because it takes the =implicit= language
 feature to the extreme: creating a kind of /generic programming/ language at the
 level of the types.
@@ -14675,13 +14675,13 @@ requires an immortal being to debug implicit resolution problems, and is not
 compatible with IDEs such as IntelliJ.
 #+END_ASIDE
 
-To install shapeless, add the following to =build.sbt=
+To install Shapeless, add the following to =build.sbt=
 
 #+BEGIN_SRC scala
 libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.3"
 #+END_SRC
 
-At the core of shapeless are the =HList= and =Coproduct= data types
+At the core of Shapeless are the =HList= and =Coproduct= data types
 
 #+BEGIN_SRC scala
 package shapeless
@@ -14786,14 +14786,14 @@ with Tagged[String(...)], A]=, or =FieldType[K, A]=, we can ask for the implicit
 evidence =Witness.Aux[K]= and from there access the value of =K=, the label, at
 runtime.
 
-Superficially, this is all we need to know about shapeless to be able to derive
+Superficially, this is all we need to know about Shapeless to be able to derive
 a typeclass. However, things get increasingly complex, so we will proceed with
 increasingly complex examples.
 
 **** Example: Equal
 
 A typical pattern to follow is to extend the typeclass that we wish to derive,
-and put the shapeless code on its companion. This gives us an implicit scope
+and put the Shapeless code on its companion. This gives us an implicit scope
 that the compiler can search with without requiring the user to provide complex imports
 
 #+BEGIN_SRC scala
@@ -14803,7 +14803,7 @@ object DerivedEqual {
 }
 #+END_SRC
 
-The entry point to a shapeless derivation is a method, =gen=, requiring two type
+The entry point to a Shapeless derivation is a method, =gen=, requiring two type
 parameters: the =A= that we are deriving and the =R= for its generic
 representation. We then ask for the =Generic.Aux[A, R]=, relating =A= to =R=,
 and an instance of the =Derived= typeclass for the =R=. We begin with this
@@ -14920,7 +14920,7 @@ But it doesn't compile
 [error]                                      ^
 #+END_SRC
 
-Welcome to shapeless compilation errors!
+Welcome to Shapeless compilation errors!
 
 The problem, which is not at all evident in the error, is that the compiler is unable to work out what =R= is, and gets caught thinking it is something else. We need to provide the explicit type parameters when calling =gen=, e.g.
 
@@ -14972,7 +14972,7 @@ different solutions to =DerivedEqual[R]= before constraining it with the
 
 #+BEGIN_ASIDE
 Rather than present the fully working version, we feel it is important to show
-when obvious code fails, such as is the reality of shapeless. Another thing we
+when obvious code fails, such as is the reality of Shapeless. Another thing we
 could have reasonably done here is to have =sealed= the =DerivedEqual= trait so
 that only derived versions are valid. But =sealed trait= is not compatible with
 SAM types! When you live this close to the razor's edge, expect to get cut.
@@ -15002,7 +15002,7 @@ of =N= fields or coproduct of =N= products, whereas =scalaz-deriving= and
 Magnolia do not.
 
 Note that when using =scalaz-deriving= or Magnolia we can put the =@deriving= on
-just the top member of an ADT, but for shapeless we must add it to all entries.
+just the top member of an ADT, but for Shapeless we must add it to all entries.
 
 However, this implementation still has a bug: it fails for recursive types *at runtime*, e.g.
 
@@ -15030,12 +15030,12 @@ The reason why this happens is because =Equal[Tree]= depends on the
 It must be loaded lazily, not eagerly.
 
 Both =scalaz-deriving= and Magnolia deal with lazy automatically, but in
-shapeless it is the responsibility of the typeclass author.
+Shapeless it is the responsibility of the typeclass author.
 
-The macro types =shapeless.{ Cached, Strict, Lazy }= modify the compiler's type
-inference behaviour allowing us to achieve the laziness we require. The pattern
-to follow is to use =Cached[Strict[_]]= on the entry point and =Lazy[_]= around
-the =H= instances.
+The macro types =Cached, Strict, Lazy= modify the compiler's type inference
+behaviour allowing us to achieve the laziness we require. The pattern to follow
+is to use =Cached[Strict[_]]= on the entry point and =Lazy[_]= around the =H=
+instances.
 
 It is best to depart from context bounds and SAM types entirely at this point:
 
@@ -15227,7 +15227,7 @@ object DerivedJsEncoder {
 #+END_SRC
 
 #+BEGIN_ASIDE
-A pattern has emerged in many shapeless derivation libraries that introduce
+A pattern has emerged in many Shapeless derivation libraries that introduce
 "hints" with a default =implicit=
 
 #+BEGIN_SRC scala
@@ -15530,7 +15530,8 @@ to compiletime is one of the most appealing things about generic programming.
 
 One more caveat that we need to be aware of: [[https://github.com/milessabin/shapeless/issues/309][=LabelledGeneric= is not compatible
 with =scalaz.@@=]], but there is a workaround. Say we want to effectively ignore
-tags so we add the following derivation rules to the companions of our encoder and decoder
+tags so we add the following derivation rules to the companions of our encoder
+and decoder
 
 #+BEGIN_SRC scala
 object JsEncoder {
@@ -15679,7 +15680,7 @@ sealed trait DerivedProductJsDecoder[A, R, J <: HList, D <: HList] {
 
 We can request evidence of default values with =Default.Aux[A, D]= and duplicate
 all the methods to deal with the case where we do and do not have a default
-value. However, shapeless is merciful in this one area and has a convenient
+value. However, Shapeless is merciful in this one area and has a convenient
 alternative, =Default.AsOptions.Aux[A, D]= which allows us to have defaults at
 runtime.
 
@@ -15797,8 +15798,8 @@ you it will."
 #+END_QUOTE
 
 In addition to all the warnings about fully automatic derivation that were
-mentioned for Magnolia, shapeless is *much* worse. Not only is fully automatic
-shapeless derivation [[https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html][the most common cause of slow compiles]], but it is also a
+mentioned for Magnolia, Shapeless is *much* worse. Not only is fully automatic
+Shapeless derivation [[https://www.scala-lang.org/blog/2018/06/04/scalac-profiling.html][the most common cause of slow compiles]], but it is also a
 painful source of typeclass coherence bugs.
 
 Fully automatic derivation is when the =def gen= and =def cop= are =implicit=
@@ -15865,7 +15866,7 @@ FIXME: include perf numbers from jsonformat
 
 FIXME: include flamegraph of the jmh
 
-FIXME: limitations where only shapeless works. But also point out how easy it
+FIXME: limitations where only Shapeless works. But also point out how easy it
 would be to add a new feature, such as an option to encode coproducts as a
 key/value lookup. Exercise to the reader.
 

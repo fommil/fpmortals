@@ -1,6 +1,9 @@
 // this file exists only so I can have quick access to a REPL
 // with the correct dependencies.
 
+addCommandAlias("cpl", "all compile")
+addCommandAlias("fmt", "all scalafmtSbt scalafmt")
+
 scalaVersion in ThisBuild := "2.12.6"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
