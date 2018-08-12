@@ -2823,6 +2823,47 @@ Oh, and don't forget to add `@@` support
 ~~~~~~~~
 
 
+### Complicated Derivations
+
+Shapeless allows for a lot more kinds of derivations than are possible with
+`scalaz-deriving` or Magnolia. As an example of an encoder / decoder than are
+not possible with Magnolia, consider this simple XML model from [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat)
+
+{lang="text"}
+~~~~~~~~
+  @deriving(Equal, Show)
+  sealed abstract class XNode
+  final case class XChildren(tree: IList[XTag]) extends XNode
+  @xderiving(Semigroup)
+  final case class XString(text: String)        extends XNode
+  
+  final case class XTag(
+    name: String,
+    attrs: IList[XAttr],
+    children: IList[XTag],
+    body: Maybe[XString]
+  )
+  final case class XAttr(
+    name: String,
+    value: XString
+  )
+~~~~~~~~
+
+Given the nature of XML it makes sense to have separate encoder / decoder pairs
+for `XChildren` and `XString` content. We could provide a derivation for the
+`XChildren` with Shapeless but we would want to special case fields based on the
+kind of typeclass they have, as well as `Option` fields which cannot be handled
+as elegantly as JSON. In addition, when decoding we wish to have different
+strategies for handling XML element bodies, which can be multipart, depending on
+if our type has a `Semigroup`, `Monoid` or neither. `xmlformat` achieves all of
+these things with Shapeless.
+
+A> Many developers believe XML is simply a more verbose form of JSON, with angle
+A> brackets instead of curlies. However, an attempt to write a round trip converter
+A> between `XNode` and `JsValue` should convince us that JSON and XML are different
+A> species, with conversions only possible on a case-by-case basis.
+
+
 ### The Dark Side of Derivation
 
 > "Beware fully automatic derivation. Anger, fear, aggression; the dark side of
@@ -2885,26 +2926,13 @@ coherent, globally unique, typeclasses. Fear of boilerplate is the path to the
 dark side. Fear leads to anger. Anger leads to hate. Hate leads to suffering.
 
 
-## Summary
+## Performance
 
-When deciding on a technology to use for typeclass derivation, this feature
-chart may help:
-
-| Feature        | Scalaz | Magnolia | Shapeless | Manual |
-|-------------- |------ |-------- |--------- |------ |
-| `@deriving`    | yes    | yes      | yes       |        |
-| Laws           | yes    |          |           |        |
-| Fast compiles  | yes    | yes      |           | yes    |
-| Field names    |        | yes      | yes       |        |
-| Annotations    |        | yes      | partially |        |
-| Default values |        | yes      | painfully |        |
-| Complicated    |        |          | painfully |        |
-
-but there is no silver bullet. Beyond feature comparisons, another axis to
+There is no silver bullet when it comes to typeclass derivation. An axis to
 consider is performance: both at compiletime and runtime.
 
 
-### Compilation Times
+#### Compile Times
 
 When it comes to compilation times, Shapeless is the outlier. It is not uncommon
 to see a small project expand from a one second compile to a one minute compile.
@@ -2923,36 +2951,212 @@ The following is a profile of the `jsonformat` tests and is typical output when
 using `scalaz-deriving`, Magnolia or manual instances has do not have many
 implicit searches, since everything is easily found on the companions:
 
-{width=100%}
+{width=90%}
 ![](images/implicit-flamegraph-jsonformat-test.png)
 
 For Shapeless derivation, we get a lively chart
 
-{width=100%}
+{width=90%}
 ![](images/implicit-flamegraph-jsonformat-jmh.png)
 
-Note that this second chart also includes the `scalaz-deriving`, Magnolia and
-manual instances, but Shapeless dominates. Compile times get much, **much**, worse
-if fully automatic derivation is used.
+Note that this also includes compiling the `scalaz-deriving`, Magnolia and
+manual instances, but Shapeless dominates.
 
 And this is when it works. If there is a problem with a shapeless derivation,
 the compiler can get stuck in an infinite loop and must be killed.
 
 
-### Runtime Performance
+#### Runtime Performance
 
-FIXME: limitations where only Shapeless works. But also point out how easy it
-would be to add a new feature, such as an option to encode coproducts as a
-key/value lookup. Exercise to the reader.
+If we move to runtime performance, the answer is always *it depends*.
 
-However, hand optimised custom instances are an escape hatch if extra CPU cycles
-are required, outperforming all automated derivations by significant margin at
-scale.
+Assuming that the derivation logic has been written in an efficient way, it is
+only possible to know which is faster through experimentation.
 
-For encoders / decoders, if raw performance is the most important concern,
-[`GenCodec`](https://github.com/AVSystem/scala-commons/blob/master/docs/GenCodec.md) is a niche solution that avoids constructing an intermediate ADT,
-obtaining performance that is far beyond the reach of a typical typeclass and
-ADT solution.
+The `jsonformat` library uses the [Java Microbenchmark Harness (JMH)](http://openjdk.java.net/projects/code-tools/jmh/) on models
+that map to GeoJSON, Google Maps, and Twitter, contributed by Andriy
+Plokhotnyuk. There are three tests per model:
+
+-   encoding the `ADT` to a `JsValue`
+-   a successful decoding of the same `JsValue` back into an ADT
+-   a failure decoding of a `JsValue` with a data error
+
+applied to the following implementations:
+
+-   Magnolia
+-   Shapeless
+-   manually written
+
+with the equivalent optimisations in each. The results are in operations per
+second (higher is better), on a powerful desktop computer, using a single
+thread:
+
+{lang="text"}
+~~~~~~~~
+  > jsonformat/jmh:run -i 5 -wi 5 -f1 -t1 -w1 -r1 .*encode*
+  Benchmark                                 Mode  Cnt       Score      Error  Units
+  
+  GeoJSONBenchmarks.encodeMagnolia         thrpt    5   70527.223 ±  546.991  ops/s
+  GeoJSONBenchmarks.encodeShapeless        thrpt    5   65925.215 ±  309.623  ops/s
+  GeoJSONBenchmarks.encodeManual           thrpt    5   96435.691 ±  334.652  ops/s
+  
+  GoogleMapsAPIBenchmarks.encodeMagnolia   thrpt    5   73107.747 ±  439.803  ops/s
+  GoogleMapsAPIBenchmarks.encodeShapeless  thrpt    5   53867.845 ±  510.888  ops/s
+  GoogleMapsAPIBenchmarks.encodeManual     thrpt    5  127608.402 ± 1584.038  ops/s
+  
+  TwitterAPIBenchmarks.encodeMagnolia      thrpt    5  133425.164 ± 1281.331  ops/s
+  TwitterAPIBenchmarks.encodeShapeless     thrpt    5   84233.065 ±  352.611  ops/s
+  TwitterAPIBenchmarks.encodeManual        thrpt    5  281606.574 ± 1975.873  ops/s
+~~~~~~~~
+
+We see that the manual implementations are in the lead, followed by Magnolia,
+with Shapeless from 30% to 70% the performance of the manual instances. Now for
+decoding
+
+{lang="text"}
+~~~~~~~~
+  > jsonformat/jmh:run -i 5 -wi 5 -f1 -t1 -w1 -r1 .*decode.*Success
+  Benchmark                                        Mode  Cnt       Score      Error  Units
+  
+  GeoJSONBenchmarks.decodeMagnoliaSuccess         thrpt    5   40850.270 ±  201.457  ops/s
+  GeoJSONBenchmarks.decodeShapelessSuccess        thrpt    5   41173.199 ±  373.048  ops/s
+  GeoJSONBenchmarks.decodeManualSuccess           thrpt    5  110961.246 ±  468.384  ops/s
+  
+  GoogleMapsAPIBenchmarks.decodeMagnoliaSuccess   thrpt    5   44577.796 ±  457.861  ops/s
+  GoogleMapsAPIBenchmarks.decodeShapelessSuccess  thrpt    5   31649.792 ±  861.169  ops/s
+  GoogleMapsAPIBenchmarks.decodeManualSuccess     thrpt    5   56250.913 ±  394.105  ops/s
+  
+  TwitterAPIBenchmarks.decodeMagnoliaSuccess      thrpt    5   55868.832 ± 1106.543  ops/s
+  TwitterAPIBenchmarks.decodeShapelessSuccess     thrpt    5   47711.161 ±  356.911  ops/s
+  TwitterAPIBenchmarks.decodeManualSuccess        thrpt    5   71962.394 ±  465.752  ops/s
+~~~~~~~~
+
+This is a tighter race, with Shapeless keeping pace with Magnolia, by and large,
+with manual instances performing the best on the GeoJSON data. Finally, decoding
+from a `JsValue` that contains invalid data (in an intentionally awkward
+position)
+
+{lang="text"}
+~~~~~~~~
+  > jsonformat/jmh:run -i 5 -wi 5 -f1 -t1 -w1 -r1 .*decode.*Error
+  Benchmark                                      Mode  Cnt        Score       Error  Units
+  
+  GeoJSONBenchmarks.decodeMagnoliaError         thrpt    5   981094.831 ± 11051.370  ops/s
+  GeoJSONBenchmarks.decodeShapelessError        thrpt    5   816704.635 ±  9781.467  ops/s
+  GeoJSONBenchmarks.decodeManualError           thrpt    5   586733.762 ±  6389.296  ops/s
+  
+  GoogleMapsAPIBenchmarks.decodeMagnoliaError   thrpt    5  1288888.446 ± 11091.080  ops/s
+  GoogleMapsAPIBenchmarks.decodeShapelessError  thrpt    5  1010145.363 ±  9448.110  ops/s
+  GoogleMapsAPIBenchmarks.decodeManualError     thrpt    5  1417662.720 ±  1197.283  ops/s
+  
+  TwitterAPIBenchmarks.decodeMagnoliaError      thrpt    5   128704.299 ±   832.122  ops/s
+  TwitterAPIBenchmarks.decodeShapelessError     thrpt    5   109715.865 ±   826.488  ops/s
+  TwitterAPIBenchmarks.decodeManualError        thrpt    5   148814.730 ±  1105.316  ops/s
+~~~~~~~~
+
+Just when we thought we were seeing a pattern, both Magnolia and Shapeless win
+the race when decoding invalid GeoJSON data, but manual instances win the Google
+Maps and Twitter challenges.
+
+We want to include `scalaz-deriving` in the comparison, so we compare an
+equivalent implementation of `Equal`, tested on two values that contain the same
+contents (`True`) and two values that contain slightly different contents
+(`False`)
+
+{lang="text"}
+~~~~~~~~
+  > jsonformat/jmh:run -i 5 -wi 5 -f1 -t1 -w1 -r1 .*equal*
+  Benchmark                                     Mode  Cnt        Score       Error  Units
+  
+  GeoJSONBenchmarks.equalScalazTrue            thrpt    5   276851.493 ±  1776.428  ops/s
+  GeoJSONBenchmarks.equalMagnoliaTrue          thrpt    5    93106.945 ±  1051.062  ops/s
+  GeoJSONBenchmarks.equalShapelessTrue         thrpt    5   266633.522 ±  4972.167  ops/s
+  GeoJSONBenchmarks.equalManualTrue            thrpt    5   599219.169 ±  8331.308  ops/s
+  
+  GoogleMapsAPIBenchmarks.equalScalazTrue      thrpt    5    35442.577 ±   281.597  ops/s
+  GoogleMapsAPIBenchmarks.equalMagnoliaTrue    thrpt    5    91016.557 ±   688.308  ops/s
+  GoogleMapsAPIBenchmarks.equalShapelessTrue   thrpt    5   107245.505 ±   468.427  ops/s
+  GoogleMapsAPIBenchmarks.equalManualTrue      thrpt    5   302247.760 ±  1927.858  ops/s
+  
+  TwitterAPIBenchmarks.equalScalazTrue         thrpt    5    99066.013 ±  1125.422  ops/s
+  TwitterAPIBenchmarks.equalMagnoliaTrue       thrpt    5   236289.706 ±  3182.664  ops/s
+  TwitterAPIBenchmarks.equalShapelessTrue      thrpt    5   251578.931 ±  2430.738  ops/s
+  TwitterAPIBenchmarks.equalManualTrue         thrpt    5   865845.158 ±  6339.379  ops/s
+~~~~~~~~
+
+As expected, the manual instances are far ahead of the crowd, with Shapeless
+mostly leading the automatic derivations. `scalaz-deriving` makes a great effort
+for GeoJSON but falls far behind in both the Google Maps and Twitter tests. The
+`False` tests are more of the same:
+
+{lang="text"}
+~~~~~~~~
+  > jsonformat/jmh:run -i 5 -wi 5 -f1 -t1 -w1 -r1 .*equal*
+  Benchmark                                     Mode  Cnt        Score       Error  Units
+  
+  GeoJSONBenchmarks.equalScalazFalse           thrpt    5    89552.875 ±   821.791  ops/s
+  GeoJSONBenchmarks.equalMagnoliaFalse         thrpt    5    86044.021 ±  7790.350  ops/s
+  GeoJSONBenchmarks.equalShapelessFalse        thrpt    5   262979.062 ±  3310.750  ops/s
+  GeoJSONBenchmarks.equalManualFalse           thrpt    5   599989.203 ± 23727.672  ops/s
+  
+  GoogleMapsAPIBenchmarks.equalScalazFalse     thrpt    5    35970.818 ±   288.609  ops/s
+  GoogleMapsAPIBenchmarks.equalMagnoliaFalse   thrpt    5    82381.975 ±   625.407  ops/s
+  GoogleMapsAPIBenchmarks.equalShapelessFalse  thrpt    5   110721.122 ±   579.331  ops/s
+  GoogleMapsAPIBenchmarks.equalManualFalse     thrpt    5   303588.815 ±  2562.747  ops/s
+  
+  TwitterAPIBenchmarks.equalScalazFalse        thrpt    5   193930.568 ±  1176.421  ops/s
+  TwitterAPIBenchmarks.equalMagnoliaFalse      thrpt    5   429764.654 ± 11944.057  ops/s
+  TwitterAPIBenchmarks.equalShapelessFalse     thrpt    5   494510.588 ±  1455.647  ops/s
+  TwitterAPIBenchmarks.equalManualFalse        thrpt    5  1631964.531 ± 13110.291  ops/s
+~~~~~~~~
+
+The runtime performance of `scalaz-deriving`, Magnolia and Shapeless is usually
+good enough. Let's be honest: we are not writing applications that need to be
+able to encode more than 130,000 values to JSON, per second, on a single core,
+on the JVM. If that's a problem, you might want to look into C++.
+
+It is unlikely that typeclass derivation of an ADT will be an application's
+bottleneck, and if it is there is always the manually written escape hatch,
+which is more powerful and therefore more dangerous: it is easy to introduce
+typos, bugs, and even performance regressions by accident when writing a manual
+instance.
+
+In conclusion: hokey derivations and ancient macros are no match for a good hand
+written instance at your side, kid.
+
+A> We could spend a lifetime with the [`async-profiler`](https://github.com/jvm-profiling-tools/async-profiler) investigating CPU and object
+A> allocation flame graphs to make any of these implementations faster. For
+A> example, there are some optimisations in the actual `jsonformat` codebase not
+A> reproduced in this book to avoid the digression, such as a more optimised
+A> `JsObject` field lookup, and inclusion of `.xmap`, `.map` and `.contramap` on
+A> the relevant typeclasses, but it's fair to say that the codebase primarily
+A> focuses on readability over optimisation and still achieves incredible
+A> performance.
+
+
+## Summary
+
+When deciding on a technology to use for typeclass derivation, this feature
+chart may help:
+
+| Feature        | Scalaz | Magnolia | Shapeless    | Manual       |
+|-------------- |------ |-------- |------------ |------------ |
+| `@deriving`    | yes    | yes      | yes          |              |
+| Laws           | yes    |          |              |              |
+| Fast compiles  | yes    | yes      |              | yes          |
+| Field names    |        | yes      | yes          |              |
+| Annotations    |        | yes      | partially    |              |
+| Default values |        | yes      | with caveats |              |
+| Complicated    |        |          | painfully so |              |
+| Performance    |        |          |              | hold my beer |
+
+Prefer `scalaz-deriving` if possible, using Magnolia for encoders / decoders or
+if performance is a larger concern, escalating to Shapeless for complicated
+derivations only if compilation times are not a concern.
+
+Manual instances are always an escape hatch for special cases and to achieve the
+ultimate performance. Avoid introducing typo bugs with manual instances by using
+a code generation tool.
 
 
 # TODO Implementing the Application
