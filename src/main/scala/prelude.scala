@@ -275,7 +275,13 @@ package object prelude {
   object Z
       extends scalaz.syntax.ToTypeClassOps
       with scalaz.syntax.ToDataOps
-      with scalaz.IdInstances
+      with scalaz.IdInstances {
+    implicit def refinedEqual[T: Equal, P]: Equal[T Refined P] =
+      Equal[T].contramap(_.value)
+
+    implicit def refinedShow[T: Show, P]: Show[T Refined P] =
+      Contravariant[Show].contramap(Show[T])(_.value)
+  }
 
   // Modularised `scalaz.Scalaz`, stdlib interop
   object S

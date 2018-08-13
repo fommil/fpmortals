@@ -10,7 +10,6 @@ import scala.Left
 import eu.timepit.refined.refineV
 import eu.timepit.refined.auto._
 import eu.timepit.refined.string.Url
-import eu.timepit.refined.scalaz.{ refTypeEqual, refTypeShow }
 import org.scalatest._
 import org.scalatest.Matchers._
 
