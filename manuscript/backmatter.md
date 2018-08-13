@@ -10,12 +10,15 @@
 | `Functor`          | `map`           | `F[A]`          | `A => B`               | `F[B]`         |
 | `Apply`            | `ap` / `<*>`    | `F[A]`          | `F[A => B]`            | `F[B]`         |
 |                    | `apply2`        | `F[A], F[B]`    | `(A, B) => C`          | `F[C]`         |
+| `Alt`              | `altly2`        | `F[A], F[B]`    | `(A \/ B) => C`        | `F[C]`         |
 | `Divide`           | `divide2`       | `F[A], F[B]`    | `C => (A, B)`          | `F[C]`         |
+| `Decidable`        | `choose2`       | `F[A], F[B]`    | `C => (A \/ B)`        | `F[C]`         |
 | `Bind`             | `bind` / `>>=`  | `F[A]`          | `A => F[B]`            | `F[B]`         |
 |                    | `join`          | `F[F[A]]`       |                        | `F[A]`         |
 | `Cobind`           | `cobind`        | `F[A]`          | `F[A] => B`            | `F[B]`         |
 |                    | `cojoin`        | `F[A]`          |                        | `F[F[A]]`      |
 | `Applicative`      | `point`         | `A`             |                        | `F[A]`         |
+| `Divisible`        | `conquer`       |                 |                        | `F[A]`         |
 | `Comonad`          | `copoint`       | `F[A]`          |                        | `A`            |
 | `Semigroup`        | `append`        | `A, A`          |                        | `A`            |
 | `Plus`             | `plus` / `<+>`  | `F[A], F[A]`    |                        | `F[A]`         |

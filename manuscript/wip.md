@@ -89,7 +89,7 @@ project's `build.sbt` with
 
 {lang="text"}
 ~~~~~~~~
-  val derivingVersion = "1.0.0-RC7"
+  val derivingVersion = "1.0.0-RC8"
   libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
 ~~~~~~~~
 
@@ -402,7 +402,7 @@ isomorphism to `(String, Int)`
   }
 ~~~~~~~~
 
-and then derive `Equal[Bar]` because there is already a `Equal` for all tuples:
+and then derive `Equal[Bar]` because there is already an `Equal` for all tuples:
 
 {lang="text"}
 ~~~~~~~~
@@ -865,8 +865,8 @@ which can be instantiated:
 
 {lang="text"}
 ~~~~~~~~
-  val vader: Prod[VaderT] = Prod("hello", 1)
-  val maul: Prod[JarJarT]  = Prod(1, "hello")
+  val vader: Prod[VaderT]    = Prod("hello", 1)
+  val jarjar: Prod[JarJarT]  = Prod(1, "hello")
   
   val VaderI = Cop.Inject[Vader, Cop[DarthT]]
   val darth: Cop[DarthT] = VaderI.inj(Vader("hello", 1))
@@ -1126,11 +1126,12 @@ possible to define one for general products. We can use the arbitrary arity
 
 #### `JsEncoder` and `JsDecoder`
 
-We have already noted that a lawful `Divisible[JsEncoder]` is not possible, but
-we can implement `Deriving` directly, which has no laws, and provides access to
-field names. The answer is no: `scalaz-deriving` does not provide access to
-field names so it is not possible, which is why we will study Magnolia in the
-next section.
+`scalaz-deriving` does not provide access to field names so it is not possible,
+which is why we will study Magnolia in the next section.
+
+A> An earlier version of `scalaz-deriving` supported field names but it was clear
+A> that there was no advantage over using Magnolia, so the support was dropped to
+A> remain focused on `Alt` and `Decidable`.
 
 
 ## Magnolia
@@ -1140,7 +1141,7 @@ derivations. It is installed with the following `build.sbt` entry
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "com.propensive" %% "magnolia" % "0.9.0"
+  libraryDependencies += "com.propensive" %% "magnolia" % "0.10.0"
 ~~~~~~~~
 
 A typeclass author implements the following members:
@@ -1498,12 +1499,6 @@ some optimisations:
   }
 ~~~~~~~~
 
-A> In `.combine` we created a lookup `HashMap` to reduce the cost of linear
-A> searches. This pays off if there is more than 2 or 3 entries in the JSON.
-A> However, Scala's `HashMap` is especially slow to construct compared to Java's
-A> implementation, although is faster to look up. Field lookup, typically incurring
-A> one lookup per entry, often benefits from a wrapped Java `HashMap`.
-
 We call the `JsMagnoliaEncoder.gen` or `JsMagnoliaDecoder.gen` method from the
 companion of our data types. For example, the Google Maps API
 
@@ -1654,12 +1649,7 @@ Leibniz relationship (`<~<` and `===`), and to `Inject` a free algebra into a
 `scalaz.Coproduct` of algebras.
 
 A> If you struggle to understand this section of the book, please feel free to skip
-A> the remainder of this chapter: Shapeless is rarely justified.
-A> 
-A> Shapeless bloats compile times by a factor of 100 compared to `scalaz-deriving`
-A> and Magnolia, hanging the compiler indefinitely if there are compile errors,
-A> requires an immortal being to debug implicit resolution problems, and is not
-A> compatible with IDEs such as IntelliJ.
+A> to the next section, "Performance".
 
 To install Shapeless, add the following to `build.sbt`
 
@@ -1759,24 +1749,19 @@ There is a complementary `LabelledGeneric` that includes the field names
 ~~~~~~~~
 
 Note that the **value** of a `LabelledGeneric` representation is the same as the
-`Generic` representation. Field names are encoded in types, using the *singleton
-type* mechanism that we learnt with `Refined` in Chapter 4. `LabelledGeneric`
-representations are a subtype of `Generic` representations because `HList` and
-`Coproduct` have covariant type parameters. Although this is an interesting
-intellectual curiosity, there is no benefit: we must be mindful of the pitfalls
-of covariant type parameters outlined in Chapter 6.1.
+`Generic` representation: field names only exist in the type and are erased at
+runtime.
 
-A type alias helps to simplify the type signature of the labelled representations:
+We never need to type `KeyTag` manually, we use the type alias:
 
 {lang="text"}
 ~~~~~~~~
   type FieldType[K, +V] = V with KeyTag[K, V]
 ~~~~~~~~
 
-If we want to access the value of a complicated type like `A with KeyTag[Symbol
-with Tagged[String(...)], A]`, or `FieldType[K, A]`, we can ask for the implicit
-evidence `Witness.Aux[K]` and from there access the value of `K`, the label, at
-runtime.
+If we want to access the field name from a `FieldType[K, A]`, we ask for
+implicit evidence `Witness.Aux[K]`, which allows us to access the value of `K`
+at runtime.
 
 Superficially, this is all we need to know about Shapeless to be able to derive
 a typeclass. However, things get increasingly complex, so we will proceed with
@@ -1976,7 +1961,7 @@ different solutions to `DerivedEqual[R]` before constraining it with the
 `Generic.Aux[A, R]`. Another way to solve this is to not use context bounds.
 
 A> Rather than present the fully working version, we feel it is important to show
-A> when obvious code fails, such as is the reality of Shapeless. Another thing we
+A> when obvious code fails, such is the reality of Shapeless. Another thing we
 A> could have reasonably done here is to have `sealed` the `DerivedEqual` trait so
 A> that only derived versions are valid. But `sealed trait` is not compatible with
 A> SAM types! When you live this close to the razor's edge, expect to get cut.
@@ -1988,7 +1973,7 @@ implementation)
 
 {lang="text"}
 ~~~~~~~~
-  scalaz.Equal=fpmortals.DerivedEqual.gen
+  scalaz.Equal=fommil.DerivedEqual.gen
 ~~~~~~~~
 
 and write
@@ -2039,10 +2024,10 @@ It must be loaded lazily, not eagerly.
 Both `scalaz-deriving` and Magnolia deal with lazy automatically, but in
 Shapeless it is the responsibility of the typeclass author.
 
-The macro types `Cached, Strict, Lazy` modify the compiler's type inference
-behaviour allowing us to achieve the laziness we require. The pattern to follow
-is to use `Cached[Strict[_]]` on the entry point and `Lazy[_]` around the `H`
-instances.
+The macro types `Cached`, `Strict` and `Lazy` modify the compiler's type
+inference behaviour allowing us to achieve the laziness we require. The pattern
+to follow is to use `Cached[Strict[_]]` on the entry point and `Lazy[_]` around
+the `H` instances.
 
 It is best to depart from context bounds and SAM types entirely at this point:
 
@@ -2831,32 +2816,36 @@ not possible with Magnolia, consider this simple XML model from [`xmlformat`](ht
 
 {lang="text"}
 ~~~~~~~~
-  @deriving(Equal, Show)
+  @deriving(Equal, Show, Arbitrary)
   sealed abstract class XNode
-  final case class XChildren(tree: IList[XTag]) extends XNode
-  @xderiving(Semigroup)
-  final case class XString(text: String)        extends XNode
   
+  @deriving(Equal, Show, Arbitrary)
   final case class XTag(
     name: String,
     attrs: IList[XAttr],
     children: IList[XTag],
     body: Maybe[XString]
   )
-  final case class XAttr(
-    name: String,
-    value: XString
-  )
+  
+  @deriving(Equal, Show, Arbitrary)
+  final case class XAttr(name: String, value: XString)
+  
+  @deriving(Show)
+  @xderiving(Equal, Monoid, Arbitrary)
+  final case class XChildren(tree: IList[XTag]) extends XNode
+  
+  @deriving(Show)
+  @xderiving(Equal, Semigroup, Arbitrary)
+  final case class XString(text: String) extends XNode
 ~~~~~~~~
 
 Given the nature of XML it makes sense to have separate encoder / decoder pairs
 for `XChildren` and `XString` content. We could provide a derivation for the
-`XChildren` with Shapeless but we would want to special case fields based on the
-kind of typeclass they have, as well as `Option` fields which cannot be handled
-as elegantly as JSON. In addition, when decoding we wish to have different
-strategies for handling XML element bodies, which can be multipart, depending on
-if our type has a `Semigroup`, `Monoid` or neither. `xmlformat` achieves all of
-these things with Shapeless.
+`XChildren` with Shapeless but we want to special case fields based on the kind
+of typeclass they have, as well as `Option` fields. We could even require that
+fields are annotated with their encoded name. In addition, when decoding we wish
+to have different strategies for handling XML element bodies, which can be
+multipart, depending on if our type has a `Semigroup`, `Monoid` or neither.
 
 A> Many developers believe XML is simply a more verbose form of JSON, with angle
 A> brackets instead of curlies. However, an attempt to write a round trip converter
@@ -2947,20 +2936,16 @@ To investigate compilation issues, we can profile our applications with the
 
 It produces output that can generate a *flame graph*.
 
-The following is a profile of the `jsonformat` tests and is typical output when
-using `scalaz-deriving`, Magnolia or manual instances has do not have many
-implicit searches, since everything is easily found on the companions:
-
-{width=90%}
-![](images/implicit-flamegraph-jsonformat-test.png)
-
-For Shapeless derivation, we get a lively chart
+For a typical Shapeless derivation, we get a lively chart
 
 {width=90%}
 ![](images/implicit-flamegraph-jsonformat-jmh.png)
 
-Note that this also includes compiling the `scalaz-deriving`, Magnolia and
-manual instances, but Shapeless dominates.
+almost the entire compile time is spent in implicit resolution. Note that this
+also includes compiling the `scalaz-deriving`, Magnolia and manual instances,
+but the Shapeless computations dominate. Implicit resolution for
+`scalaz-deriving`, Magnolia and manual instances are simple: everything is on
+the data type companions.
 
 And this is when it works. If there is a problem with a shapeless derivation,
 the compiler can get stuck in an infinite loop and must be killed.
@@ -3032,7 +3017,7 @@ decoding
 ~~~~~~~~
 
 This is a tighter race, with Shapeless keeping pace with Magnolia, by and large,
-with manual instances performing the best on the GeoJSON data. Finally, decoding
+and manual instances performing the best on the GeoJSON data. Finally, decoding
 from a `JsValue` that contains invalid data (in an intentionally awkward
 position)
 
@@ -3115,11 +3100,10 @@ good enough. Let's be honest: we are not writing applications that need to be
 able to encode more than 130,000 values to JSON, per second, on a single core,
 on the JVM. If that's a problem, you might want to look into C++.
 
-It is unlikely that typeclass derivation of an ADT will be an application's
-bottleneck, and if it is there is always the manually written escape hatch,
-which is more powerful and therefore more dangerous: it is easy to introduce
-typos, bugs, and even performance regressions by accident when writing a manual
-instance.
+It is unlikely that derived instances will be an application's bottleneck. Even
+if it is, there is the manually written escape hatch, which is more powerful and
+therefore more dangerous: it is easy to introduce typos, bugs, and even
+performance regressions by accident when writing a manual instance.
 
 In conclusion: hokey derivations and ancient macros are no match for a good hand
 written instance at your side, kid.
@@ -3127,11 +3111,10 @@ written instance at your side, kid.
 A> We could spend a lifetime with the [`async-profiler`](https://github.com/jvm-profiling-tools/async-profiler) investigating CPU and object
 A> allocation flame graphs to make any of these implementations faster. For
 A> example, there are some optimisations in the actual `jsonformat` codebase not
-A> reproduced in this book to avoid the digression, such as a more optimised
-A> `JsObject` field lookup, and inclusion of `.xmap`, `.map` and `.contramap` on
-A> the relevant typeclasses, but it's fair to say that the codebase primarily
-A> focuses on readability over optimisation and still achieves incredible
-A> performance.
+A> reproduced here, such as a more optimised `JsObject` field lookup, and inclusion
+A> of `.xmap`, `.map` and `.contramap` on the relevant typeclasses, but it's fair
+A> to say that the codebase primarily focuses on readability over optimisation and
+A> still achieves incredible performance.
 
 
 ## Summary
