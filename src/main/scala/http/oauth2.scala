@@ -113,7 +113,6 @@ import scala.concurrent.duration._
 
 import eu.timepit.refined.string.Url
 import jsonformat._
-import jsonformat.JsDecoder.ops._
 
 import http.client._
 import http.encoding._
@@ -257,22 +256,13 @@ package api {
     scope: String = "",
     grant_type: String = "authorization_code"
   )
+  @deriving(JsDecoder)
   final case class AccessResponse(
     access_token: String,
     token_type: String,
     expires_in: Long,
     refresh_token: String
   )
-  object AccessResponse {
-    implicit val json: JsDecoder[AccessResponse] = j =>
-      for {
-        obj <- j.asJsObject
-        acc <- obj.getAs[String]("access_token")
-        tpe <- obj.getAs[String]("token_type")
-        exp <- obj.getAs[Long]("expires_in")
-        ref <- obj.getAs[String]("refresh_token")
-      } yield AccessResponse(acc, tpe, exp, ref)
-  }
 
   @deriving(UrlEncodedWriter)
   final case class RefreshRequest(
@@ -281,19 +271,10 @@ package api {
     client_id: String,
     grant_type: String = "refresh_token"
   )
-  @deriving(UrlEncodedWriter)
+  @deriving(UrlEncodedWriter, JsDecoder)
   final case class RefreshResponse(
     access_token: String,
     token_type: String,
     expires_in: Long
   )
-  object RefreshResponse {
-    implicit val json: JsDecoder[RefreshResponse] = j =>
-      for {
-        obj <- j.asJsObject
-        acc <- obj.getAs[String]("access_token")
-        tpe <- obj.getAs[String]("token_type")
-        exp <- obj.getAs[Long]("expires_in")
-      } yield RefreshResponse(acc, tpe, exp)
-  }
 }

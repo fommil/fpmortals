@@ -24,13 +24,11 @@ libraryDependencies ++= Seq(
   "com.chuusai"          %% "shapeless"       % "2.3.3",
   "eu.timepit"           %% "refined-scalaz"  % "0.9.2",
   "org.scalaz"           %% "scalaz-ioeffect" % "2.10.1",
-  "org.scalaz"           %% "scalaz-core"     % "7.2.25",
-  "com.propensive"       %% "magnolia"        % "0.8.0",
   "com.propensive"       %% "contextual"      % "1.1.0",
   "org.scalatest"        %% "scalatest"       % "3.0.5" % "test"
 )
 
-val derivingVersion = "1.0.0-RC7"
+val derivingVersion = "1.0.0-RC8"
 libraryDependencies ++= Seq(
   "com.fommil" %% "deriving-macro" % derivingVersion % "provided",
   compilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion),
@@ -58,26 +56,15 @@ scalacOptions ++= Seq(
   "-opt-inline-from:scalaz.**"
 )
 
-addCompilerPlugin(
-  ("org.scalameta" % "semanticdb-scalac" % "4.0.0-M7").cross(CrossVersion.full)
-)
-
-managedClasspath in Compile := {
-  val res = (resourceDirectory in Compile).value
-  val old = (managedClasspath in Compile).value
-  Attributed.blank(res) +: old
-}
-
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
+addCompilerPlugin(scalafixSemanticdb)
+addCompilerPlugin("org.spire-math" %% "kind-projector"     % "0.9.7")
+addCompilerPlugin("com.olegpy"     %% "better-monadic-for" % "0.2.4")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
 
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4")
-
 scalacOptions in (Compile, console) -= "-Yno-imports"
 scalacOptions in (Compile, console) -= "-Yno-predef"
 initialCommands in (Compile, console) := Seq(
-  "scalaz._, Scalaz._",
-  "shapeless._"
+  "scalaz._, Scalaz._"
 ).mkString("import ", ",", "")
