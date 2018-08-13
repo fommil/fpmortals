@@ -24,6 +24,12 @@ package object prelude {
   type Array[A] = scala.Array[A]
   type String   = java.lang.String
 
+  // allows custom string interpolators, but we have no way to disable the
+  // broken s interpolator in a way that is compatible with Contextual.
+  type StringContext = scala.StringContext
+  @inline final def StringContext(parts: String*): StringContext =
+    new scala.StringContext(parts: _*)
+
   // annotations
   type inline  = scala.inline
   type tailrec = scala.annotation.tailrec

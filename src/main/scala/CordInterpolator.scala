@@ -3,7 +3,6 @@
 
 package fommil.prelude
 
-import scala.StringContext
 import scala.StringContext.treatEscapes
 import Z._
 

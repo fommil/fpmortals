@@ -21,10 +21,9 @@ class UrlQuerySpec extends FlatSpec {
     url
       .withQuery(
         UrlQuery(
-          List(
-            ("blah", "bloo"),
-            (" meh ", "#")
-          )
+          ("blah"    -> "bloo") ::
+            (" meh " -> "#") ::
+            IList.empty
         )
       )
       .value

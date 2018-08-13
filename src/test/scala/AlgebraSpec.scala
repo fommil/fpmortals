@@ -31,7 +31,7 @@ object DummyDrone extends Drone[Task] {
   def getBacklog: Task[Int] = Task(1)
 }
 object DummyMachines extends Machines[Task] {
-  def getAlive: Task[Map[MachineNode, Epoch]]     = Task(Map.empty)
+  def getAlive: Task[MachineNode ==>> Epoch]      = Task(IMap.empty)
   def getManaged: Task[NonEmptyList[MachineNode]] = ???
   def getTime: Task[Epoch]                        = ???
   def start(node: MachineNode): Task[Unit]        = ???
@@ -104,8 +104,8 @@ class AlgebraSpec extends FlatSpec with RTS {
     val D: Drone.Ast ~> Id = stub[Int] {
       case Drone.GetBacklog() => 1
     }
-    val M: Machines.Ast ~> Id = stub[Map[MachineNode, Epoch]] {
-      case Machines.GetAlive() => Map.empty
+    val M: Machines.Ast ~> Id = stub[MachineNode ==>> Epoch] {
+      case Machines.GetAlive() => IMap.empty
     }
 
     Demo.program
@@ -116,7 +116,7 @@ class AlgebraSpec extends FlatSpec with RTS {
   it should "support monkey patching part 1" in {
     type S = ISet[MachineNode]
     val M = Mocker.stubAny[Machines.Ast, State[S, ?]] {
-      case Machines.Stop(node) => State.modify[S](_ + node)
+      case Machines.Stop(node) => State.modify[S](_.insert(node))
     }
 
     val monkey = λ[Machines.Ast ~> Free[Machines.Ast, ?]] {

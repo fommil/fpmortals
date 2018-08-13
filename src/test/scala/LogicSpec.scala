@@ -24,10 +24,10 @@ object Data {
   val time4: Epoch = epoch"2017-03-03T23:07:00Z" // +5 hours
 
   val needsAgents: WorldView =
-    WorldView(5, 0, managed, Map.empty, Map.empty, time1)
+    WorldView(5, 0, managed, IMap.empty, IMap.empty, time1)
 
   val hungry: World =
-    World(5, 0, managed, Map.empty, ISet.empty, ISet.empty, time1)
+    World(5, 0, managed, IMap.empty, ISet.empty, ISet.empty, time1)
 
 }
 import Data._
@@ -37,7 +37,7 @@ final case class World(
   backlog: Int,
   agents: Int,
   managed: NonEmptyList[MachineNode],
-  alive: Map[MachineNode, Epoch],
+  alive: MachineNode ==>> Epoch,
   started: ISet[MachineNode],
   stopped: ISet[MachineNode],
   time: Epoch
@@ -54,15 +54,15 @@ object StateImpl {
   }
 
   private val M: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Epoch]]     = get.map(_.alive)
+    def getAlive: F[MachineNode ==>> Epoch]      = get.map(_.alive)
     def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
     def getTime: F[Epoch]                        = get.map(_.time)
 
     // will rewrite to use lenses later...
     def start(node: MachineNode): F[Unit] =
-      modify(w => w.copy(started = w.started + node))
+      modify(w => w.copy(started = w.started.insert(node)))
     def stop(node: MachineNode): F[Unit] =
-      modify(w => w.copy(stopped = w.stopped + node))
+      modify(w => w.copy(stopped = w.stopped.insert(node)))
   }
 
   val program: DynAgents[F] = new DynAgents[F](D, M)
@@ -77,7 +77,7 @@ object ConstImpl {
   }
 
   private val M: Machines[F] = new Machines[F] {
-    def getAlive: F[Map[MachineNode, Epoch]]     = Const("alive")
+    def getAlive: F[MachineNode ==>> Epoch]      = Const("alive")
     def getManaged: F[NonEmptyList[MachineNode]] = Const("managed")
     def getTime: F[Epoch]                        = Const("time")
     def start(node: MachineNode): F[Unit]        = Const("start")
@@ -104,15 +104,15 @@ final class LogicSpec extends FlatSpec {
     val view1           = needsAgents
     val (world2, view2) = act(view1).run(world1)
 
-    view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
+    view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time1)))
 
     world2.stopped.shouldBe(world1.stopped)
-    world2.started.shouldBe(ISet(node1))
+    world2.started.shouldBe(ISet.singleton(node1))
   }
 
   it should "not request agents when pending" in {
     val world1          = hungry
-    val view1           = needsAgents.copy(pending = Map(node1 -> time1))
+    val view1           = needsAgents.copy(pending = IMap.singleton(node1, time1))
     val (world2, view2) = act(view1).run(world1)
 
     view2.shouldBe(view1)
@@ -122,8 +122,9 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "don't shut down agents if nodes are too young" in {
-    val world1          = hungry
-    val view1           = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time2)
+    val world1 = hungry
+    val view1 =
+      WorldView(0, 1, managed, IMap.singleton(node1, time1), IMap.empty, time2)
     val (world2, view2) = act(view1).run(world1)
 
     view2.shouldBe(view1)
@@ -133,20 +134,28 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents when there is no backlog and nodes will shortly incur new costs" in {
-    val world1          = hungry
-    val view1           = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time3)
+    val world1 = hungry
+    val view1 =
+      WorldView(0, 1, managed, IMap.singleton(node1, time1), IMap.empty, time3)
     val (world2, view2) = act(view1).run(world1)
 
-    view2.shouldBe(view1.copy(pending = Map(node1 -> time3)))
+    view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time3)))
 
-    world2.stopped.shouldBe(ISet(node1))
+    world2.stopped.shouldBe(ISet.singleton(node1))
     world2.started.shouldBe(world1.started)
   }
 
   it should "not shut down agents if there are pending actions" in {
     val world1 = hungry
     val view1 =
-      WorldView(0, 1, managed, Map(node1 -> time1), Map(node1 -> time3), time3)
+      WorldView(
+        0,
+        1,
+        managed,
+        IMap.singleton(node1, time1),
+        IMap.singleton(node1, time3),
+        time3
+      )
 
     val (world2, view2) = act(view1).run(world1)
 
@@ -157,36 +166,47 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "shut down agents when there is no backlog if they are too old" in {
-    val world1          = hungry
-    val view1           = WorldView(0, 1, managed, Map(node1 -> time1), Map.empty, time4)
+    val world1 = hungry
+    val view1 =
+      WorldView(0, 1, managed, IMap.singleton(node1, time1), IMap.empty, time4)
     val (world2, view2) = act(view1).run(world1)
 
-    view2.shouldBe(view1.copy(pending = Map(node1 -> time4)))
+    view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time4)))
 
-    world2.stopped.shouldBe(ISet(node1))
+    world2.stopped.shouldBe(ISet.singleton(node1))
     world2.started.shouldBe(world1.started)
   }
 
   it should "shut down agents, even if they are potentially doing work, if they are too old" in {
-    val old           = WorldView(1, 1, managed, Map(node1 -> time1), Map.empty, time4)
+    val old =
+      WorldView(1, 1, managed, IMap.singleton(node1, time1), IMap.empty, time4)
     val (world, view) = act(old).run(hungry)
 
-    view.shouldBe(old.copy(pending = Map(node1 -> time4)))
+    view.shouldBe(old.copy(pending = IMap.singleton(node1, time4)))
 
-    world.stopped.shouldBe(ISet(node1))
+    world.stopped.shouldBe(ISet.singleton(node1))
     world.started.size.shouldBe(0)
   }
 
   it should "remove changed nodes from pending" in {
     val world1 =
-      World(0, 0, managed, Map(node1 -> time3), ISet.empty, ISet.empty, time3)
+      World(
+        0,
+        0,
+        managed,
+        IMap.singleton(node1, time3),
+        ISet.empty,
+        ISet.empty,
+        time3
+      )
 
-    val view1 = WorldView(0, 0, managed, Map.empty, Map(node1 -> time2), time2)
+    val view1 =
+      WorldView(0, 0, managed, IMap.empty, IMap.singleton(node1, time2), time2)
 
     val (world2, view2) = update(view1).run(world1)
 
     view2.shouldBe(
-      view1.copy(alive = world1.alive, pending = Map.empty, time = time3)
+      view1.copy(alive = world1.alive, pending = IMap.empty, time = time3)
     )
 
     world2.stopped.shouldBe(world1.stopped)
@@ -194,12 +214,14 @@ final class LogicSpec extends FlatSpec {
   }
 
   it should "ignore unresponsive pending actions during update" in {
-    val view1  = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time1)
-    val world1 = World(0, 0, managed, Map.empty, ISet(node1), ISet.empty, time2)
+    val view1 =
+      WorldView(0, 0, managed, IMap.empty, IMap.singleton(node1, time1), time1)
+    val world1 =
+      World(0, 0, managed, IMap.empty, ISet.singleton(node1), ISet.empty, time2)
 
     val (world2, view2) = update(view1).run(world1)
 
-    view2.shouldBe(view1.copy(pending = Map.empty, time = time2))
+    view2.shouldBe(view1.copy(pending = IMap.empty, time = time2))
 
     world2.stopped.shouldBe(world1.stopped)
     world2.started.shouldBe(world1.started)
@@ -212,8 +234,8 @@ final class LogicSpec extends FlatSpec {
       1,
       1,
       managed,
-      Map(node1 -> time1, node2 -> time1),
-      Map.empty,
+      IMap.singleton(node1, time1).insert(node2, time1),
+      IMap.empty,
       time4
     )
 
@@ -226,18 +248,19 @@ final class LogicSpec extends FlatSpec {
       1,
       1,
       managed,
-      Map(node1 -> time1, node2 -> time1),
-      Map.empty,
+      IMap.singleton(node1, time1).insert(node2, time1),
+      IMap.empty,
       time4
     )
 
     val monitored       = new Monitored(StateImpl.program)
     val (world2, view2) = monitored.act(view1).run(world1)
 
-    world2.stopped.shouldBe(ISet(node1, node2))
+    world2.stopped.shouldBe(ISet.singleton(node1).insert(node2))
 
-    val expected = view1.copy(pending = Map(node1 -> time4, node2 -> time4))
-    view2.shouldBe(expected -> ISet(node1, node2))
+    val expected =
+      view1.copy(pending = IMap.singleton(node1, time4).insert(node2, time4))
+    view2.shouldBe(expected -> ISet.singleton(node1).insert(node2))
   }
 
 }

@@ -4,7 +4,7 @@
 package fommil
 package http.encoding
 
-import prelude._
+import prelude._, Z._, S._
 
 import org.scalatest._
 import org.scalatest.Matchers._
@@ -12,12 +12,11 @@ import UrlQueryWriter.ops._
 
 class UrlQueryWriterSpec extends FlatSpec {
   "UrlQueryWriter" should "encode case classes" in
-    (Foo("http://foo", 10, "%").toUrlQuery.params should contain)
-      .theSameElementsInOrderAs(
-        List(
-          "apple"   -> "http://foo",
-          "bananas" -> "10",
-          "pears"   -> "%"
-        )
+    Foo("http://foo", 10, "%").toUrlQuery.params.assert_===(
+      IList(
+        "apple"   -> "http://foo",
+        "bananas" -> "10",
+        "pears"   -> "%"
       )
+    )
 }

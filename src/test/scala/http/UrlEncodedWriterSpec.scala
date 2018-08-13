@@ -4,12 +4,13 @@
 package fommil
 package http.encoding
 
-import prelude._, S._
+import prelude._, S._, Z._
 
 import scala.Left
 import eu.timepit.refined.refineV
 import eu.timepit.refined.auto._
 import eu.timepit.refined.string.Url
+import eu.timepit.refined.scalaz.{ refTypeEqual, refTypeShow }
 import org.scalatest._
 import org.scalatest.Matchers._
 
@@ -38,12 +39,12 @@ class UrlEncodedWriterSpec extends FlatSpec {
   }
 
   it should "encode stringy maps" in {
-    val stringy = List(
+    val stringy = IList(
       "apple"   -> "http://foo",
       "bananas" -> "10",
       "pears"   -> "%"
     )
-    stringy.toUrlEncoded should be(
+    stringy.toUrlEncoded.assert_===(
       "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25": String Refined UrlEncoded
     )
   }
