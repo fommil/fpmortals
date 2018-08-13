@@ -23,12 +23,12 @@ object DerivedUrlQueryWriter {
     implicit
     G: LabelledGeneric.Aux[T, Repr],
     CR: Cached[Strict[DerivedUrlQueryWriter[Repr]]]
-  ): DerivedUrlQueryWriter[T] = { t =>
+  ): UrlQueryWriter[T] = { t =>
     CR.value.value.toUrlQuery(G.to(t))
   }
 
   implicit val hnil: DerivedUrlQueryWriter[HNil] = { _ =>
-    UrlQuery(Nil)
+    UrlQuery(IList.empty)
   }
   implicit def hcons[Key <: Symbol, A, Remaining <: HList](
     implicit Key: Witness.Aux[Key],

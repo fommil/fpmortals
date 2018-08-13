@@ -22,12 +22,7 @@ package object prelude {
   type Null     = scala.Null
   type Nothing  = scala.Nothing
   type Array[A] = scala.Array[A]
-
-  // String interpolation
-  type String        = java.lang.String
-  type StringContext = scala.StringContext
-  @inline final def StringContext(parts: String*): StringContext =
-    new scala.StringContext(parts: _*)
+  type String   = java.lang.String
 
   // annotations
   type inline  = scala.inline
@@ -42,22 +37,6 @@ package object prelude {
   @inline final val Option: scala.Option.type = scala.Option
   @inline final val Some: scala.Some.type     = scala.Some
   @inline final val None: scala.None.type     = scala.None
-
-  type Either[A, B] = scala.Either[A, B]
-  @inline final val Left: scala.util.Left.type   = scala.Left
-  @inline final val Right: scala.util.Right.type = scala.Right
-
-  import scala.collection.immutable
-  type Map[K, V] = immutable.Map[K, V]
-  type List[A]   = immutable.List[A]
-  type Set[A]    = immutable.Set[A]
-  @inline final val Map: immutable.Map.type   = immutable.Map
-  @inline final val List: immutable.List.type = immutable.List
-  @inline final val Nil: immutable.Nil.type   = immutable.Nil
-  @inline final val Set: immutable.Set.type   = immutable.Set
-
-  type Try[A] = scala.util.Try[A]
-  @inline final val Try: scala.util.Try.type = scala.util.Try
 
   // Predef things
   import scala.Predef

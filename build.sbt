@@ -10,6 +10,8 @@ inThisBuild(
   )
 )
 
+resourcesOnCompilerCp(Compile)
+
 addCommandAlias("cpl", "all compile test:compile")
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias(

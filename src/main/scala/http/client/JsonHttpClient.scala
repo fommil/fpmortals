@@ -17,19 +17,19 @@ import eu.timepit.refined.string.Url
 
 import http.encoding._
 
-final case class Response[T](headers: Map[String, String], body: T)
+final case class Response[T](headers: IList[(String, String)], body: T)
 
 trait JsonHttpClient[F[_]] {
   def get[B: JsDecoder](
     uri: String Refined Url,
-    headers: Map[String, String] = Map.empty
+    headers: IList[(String, String)] = IList.empty
   ): F[Response[B]]
 
   // using application/x-www-form-urlencoded
   def postUrlEncoded[A: UrlEncodedWriter, B: JsDecoder](
     uri: String Refined Url,
     payload: A,
-    headers: Map[String, String] = Map.empty
+    headers: IList[(String, String)] = IList.empty
   ): F[Response[B]]
 
 }

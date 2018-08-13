@@ -10,13 +10,13 @@ import prelude._
 final case class NodeConfig(
   machineType: String,
   diskSizeGb: Int,
-  oauthScopes: List[String],
+  oauthScopes: IList[String],
   serviceAccount: String,
-  metadata: Map[String, String],
+  metadata: String ==>> String,
   imageType: String,
-  labels: Map[String, String],
+  labels: String ==>> String,
   localSsdCount: Int,
-  tags: Map[String, String],
+  tags: String ==>> String,
   preemptible: Boolean
 )
 
@@ -57,7 +57,7 @@ final case class NodePool(
   initialNodeCount: Int,
   selfLink: String,
   version: String,
-  instanceGroupUrls: List[String],
+  instanceGroupUrls: IList[String],
   status: Status,
   statusMessage: String,
   autoscaling: NodePoolAutoscaling,
@@ -86,8 +86,8 @@ final case class Cluster(
   clusterIpv4Cidr: String,
   addonsConfig: AddonsConfig,
   subnetwork: String,
-  nodePools: List[NodePool],
-  locations: List[String],
+  nodePools: IList[NodePool],
+  locations: IList[String],
   enableKubernetesAlpha: Boolean,
   selfLink: String,
   zone: String,
@@ -100,7 +100,7 @@ final case class Cluster(
   statusMessage: String,
   nodeIpv4CidrSize: Int,
   servicesIpv4Cidr: String,
-  instanceGroupUrls: List[String],
+  instanceGroupUrls: IList[String],
   currentNodeCount: Int,
   expireTime: String
 )

@@ -44,13 +44,16 @@ object UrlEncodedWriter extends UrlEncodedWriter1 {
   implicit val long: UrlEncodedWriter[Long] =
     instance(s => Refined.unsafeApply(s.toString)) // scalafix:ok
 
-  implicit def kvs[F[_]: Traverse, K: UrlEncodedWriter, V: UrlEncodedWriter]
-    : UrlEncodedWriter[F[(K, V)]] = instance { m =>
+  implicit def ilist[K: UrlEncodedWriter, V: UrlEncodedWriter]
+    : UrlEncodedWriter[IList[(K, V)]] = instance { m =>
     val raw = m.map {
-      case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}"
+      case (k, v) => k.toUrlEncoded.value + "=" + v.toUrlEncoded.value
     }.intercalate("&")
     Refined.unsafeApply(raw) // by deduction
   }
+
+  implicit def imap[K: UrlEncodedWriter, V: UrlEncodedWriter]
+    : UrlEncodedWriter[K ==>> V] = ilist[K, V].contramap(_.toList.toIList)
 
 }
 private[encoding] sealed abstract class UrlEncodedWriter1 {
@@ -81,10 +84,10 @@ object DerivedUrlEncodedWriter {
     case head :: tail =>
       val rest = {
         val rest = DR.toUrlEncoded(tail)
-        if (rest.value.isEmpty) "" else s"&$rest"
+        if (rest.value.isEmpty) "" else ("&" + rest.value)
       }
       val key   = Key.value.name.toUrlEncoded
       val value = LV.value.toUrlEncoded(head)
-      Refined.unsafeApply(s"$key=$value$rest")
+      Refined.unsafeApply(key.value + "=" + value.value + rest)
   }
 }

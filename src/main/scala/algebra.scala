@@ -4,7 +4,7 @@
 package fommil
 package algebra
 
-import prelude._, Z._
+import prelude._, Z._, S._
 import time.Epoch
 
 trait Drone[F[_]] {
@@ -12,12 +12,13 @@ trait Drone[F[_]] {
   def getAgents: F[Int]
 }
 
+@deriving(Order, Show)
 final case class MachineNode(id: String)
 
 trait Machines[F[_]] {
   def getTime: F[Epoch]
   def getManaged: F[NonEmptyList[MachineNode]]
-  def getAlive: F[Map[MachineNode, Epoch]]
+  def getAlive: F[MachineNode ==>> Epoch]
   def start(node: MachineNode): F[Unit]
   def stop(node: MachineNode): F[Unit]
 }
@@ -76,7 +77,7 @@ object Machines {
     new Machines[G[F, ?]] {
       def getTime: G[F, Epoch]                        = f.getTime.liftM[G]
       def getManaged: G[F, NonEmptyList[MachineNode]] = f.getManaged.liftM[G]
-      def getAlive: G[F, Map[MachineNode, Epoch]]     = f.getAlive.liftM[G]
+      def getAlive: G[F, MachineNode ==>> Epoch]      = f.getAlive.liftM[G]
       def start(node: MachineNode): G[F, Unit]        = f.start(node).liftM[G]
       def stop(node: MachineNode): G[F, Unit]         = f.stop(node).liftM[G]
     }
@@ -86,7 +87,7 @@ object Machines {
   )(implicit M: MonadIO[F, E]): Machines[F] = new Machines[F] {
     def getTime: F[Epoch]                        = M.liftIO(io.getTime)
     def getManaged: F[NonEmptyList[MachineNode]] = M.liftIO(io.getManaged)
-    def getAlive: F[Map[MachineNode, Epoch]]     = M.liftIO(io.getAlive)
+    def getAlive: F[MachineNode ==>> Epoch]      = M.liftIO(io.getAlive)
     def start(node: MachineNode): F[Unit]        = M.liftIO(io.start(node))
     def stop(node: MachineNode): F[Unit]         = M.liftIO(io.stop(node))
   }
@@ -94,7 +95,7 @@ object Machines {
   sealed abstract class Ast[A]
   final case class GetTime()                extends Ast[Epoch]
   final case class GetManaged()             extends Ast[NonEmptyList[MachineNode]]
-  final case class GetAlive()               extends Ast[Map[MachineNode, Epoch]]
+  final case class GetAlive()               extends Ast[MachineNode ==>> Epoch]
   final case class Start(node: MachineNode) extends Ast[Unit]
   final case class Stop(node: MachineNode)  extends Ast[Unit]
 
@@ -103,7 +104,7 @@ object Machines {
       def getTime: Free[F, Epoch] = Free.liftF(I.inj(GetTime()))
       def getManaged: Free[F, NonEmptyList[MachineNode]] =
         Free.liftF(I.inj(GetManaged()))
-      def getAlive: Free[F, Map[MachineNode, Epoch]] =
+      def getAlive: Free[F, MachineNode ==>> Epoch] =
         Free.liftF(I.inj(GetAlive()))
       def start(node: MachineNode): Free[F, Unit] =
         Free.liftF(I.inj(Start(node)))
@@ -115,7 +116,7 @@ object Machines {
       def getTime: FreeAp[F, Epoch] = FreeAp.lift(I.inj(GetTime()))
       def getManaged: FreeAp[F, NonEmptyList[MachineNode]] =
         FreeAp.lift(I.inj(GetManaged()))
-      def getAlive: FreeAp[F, Map[MachineNode, Epoch]] =
+      def getAlive: FreeAp[F, MachineNode ==>> Epoch] =
         FreeAp.lift(I.inj(GetAlive()))
       def start(node: MachineNode): FreeAp[F, Unit] =
         FreeAp.lift(I.inj(Start(node)))
@@ -128,7 +129,7 @@ object Machines {
       def getTime: Coyoneda[F, Epoch] = Coyoneda.lift(I.inj(GetTime()))
       def getManaged: Coyoneda[F, NonEmptyList[MachineNode]] =
         Coyoneda.lift(I.inj(GetManaged()))
-      def getAlive: Coyoneda[F, Map[MachineNode, Epoch]] =
+      def getAlive: Coyoneda[F, MachineNode ==>> Epoch] =
         Coyoneda.lift(I.inj(GetAlive()))
       def start(node: MachineNode): Coyoneda[F, Unit] =
         Coyoneda.lift(I.inj(Start(node)))
@@ -139,7 +140,7 @@ object Machines {
   def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
     case GetTime()    => f.getTime: F[Epoch]
     case GetManaged() => f.getManaged: F[NonEmptyList[MachineNode]]
-    case GetAlive()   => f.getAlive: F[Map[MachineNode, Epoch]]
+    case GetAlive()   => f.getAlive: F[MachineNode ==>> Epoch]
     case Start(node)  => f.start(node): F[Unit]
     case Stop(node)   => f.stop(node): F[Unit]
   }

@@ -5,6 +5,7 @@ package fommil
 
 import fommil.prelude._
 import java.time.Instant
+import scala.{ Either, Left, Right, StringContext }
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import contextual._

@@ -27,7 +27,7 @@ object Data {
     WorldView(5, 0, managed, Map.empty, Map.empty, time1)
 
   val hungry: World =
-    World(5, 0, managed, Map.empty, Set.empty, Set.empty, time1)
+    World(5, 0, managed, Map.empty, ISet.empty, ISet.empty, time1)
 
 }
 import Data._
@@ -38,8 +38,8 @@ final case class World(
   agents: Int,
   managed: NonEmptyList[MachineNode],
   alive: Map[MachineNode, Epoch],
-  started: Set[MachineNode],
-  stopped: Set[MachineNode],
+  started: ISet[MachineNode],
+  stopped: ISet[MachineNode],
   time: Epoch
 )
 
@@ -107,7 +107,7 @@ final class LogicSpec extends FlatSpec {
     view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
 
     world2.stopped.shouldBe(world1.stopped)
-    world2.started.shouldBe(Set(node1))
+    world2.started.shouldBe(ISet(node1))
   }
 
   it should "not request agents when pending" in {
@@ -139,7 +139,7 @@ final class LogicSpec extends FlatSpec {
 
     view2.shouldBe(view1.copy(pending = Map(node1 -> time3)))
 
-    world2.stopped.shouldBe(Set(node1))
+    world2.stopped.shouldBe(ISet(node1))
     world2.started.shouldBe(world1.started)
   }
 
@@ -163,7 +163,7 @@ final class LogicSpec extends FlatSpec {
 
     view2.shouldBe(view1.copy(pending = Map(node1 -> time4)))
 
-    world2.stopped.shouldBe(Set(node1))
+    world2.stopped.shouldBe(ISet(node1))
     world2.started.shouldBe(world1.started)
   }
 
@@ -173,13 +173,13 @@ final class LogicSpec extends FlatSpec {
 
     view.shouldBe(old.copy(pending = Map(node1 -> time4)))
 
-    world.stopped.shouldBe(Set(node1))
+    world.stopped.shouldBe(ISet(node1))
     world.started.size.shouldBe(0)
   }
 
   it should "remove changed nodes from pending" in {
     val world1 =
-      World(0, 0, managed, Map(node1 -> time3), Set.empty, Set.empty, time3)
+      World(0, 0, managed, Map(node1 -> time3), ISet.empty, ISet.empty, time3)
 
     val view1 = WorldView(0, 0, managed, Map.empty, Map(node1 -> time2), time2)
 
@@ -195,7 +195,7 @@ final class LogicSpec extends FlatSpec {
 
   it should "ignore unresponsive pending actions during update" in {
     val view1  = WorldView(0, 0, managed, Map.empty, Map(node1 -> time1), time1)
-    val world1 = World(0, 0, managed, Map.empty, Set(node1), Set.empty, time2)
+    val world1 = World(0, 0, managed, Map.empty, ISet(node1), ISet.empty, time2)
 
     val (world2, view2) = update(view1).run(world1)
 
@@ -234,10 +234,10 @@ final class LogicSpec extends FlatSpec {
     val monitored       = new Monitored(StateImpl.program)
     val (world2, view2) = monitored.act(view1).run(world1)
 
-    world2.stopped.shouldBe(Set(node1, node2))
+    world2.stopped.shouldBe(ISet(node1, node2))
 
     val expected = view1.copy(pending = Map(node1 -> time4, node2 -> time4))
-    view2.shouldBe(expected -> Set(node1, node2))
+    view2.shouldBe(expected -> ISet(node1, node2))
   }
 
 }

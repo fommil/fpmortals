@@ -114,7 +114,7 @@ class AlgebraSpec extends FlatSpec with RTS {
   }
 
   it should "support monkey patching part 1" in {
-    type S = Set[MachineNode]
+    type S = ISet[MachineNode]
     val M = Mocker.stubAny[Machines.Ast, State[S, ?]] {
       case Machines.Stop(node) => State.modify[S](_ + node)
     }
@@ -129,8 +129,8 @@ class AlgebraSpec extends FlatSpec with RTS {
       .stop(MachineNode("#c0ffee"))
       .foldMap(monkey)
       .foldMap(M)
-      .exec(Set.empty)
-      .shouldBe(Set.empty)
+      .exec(ISet.empty)
+      .shouldBe(ISet.empty)
   }
 
   it should "support monkey patching part 2" in {

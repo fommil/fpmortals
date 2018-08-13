@@ -15,7 +15,7 @@ import http.encoding.UrlEncodedWriter
  * URL query key=value pairs, in unencoded form.
  */
 @xderiving(UrlEncodedWriter)
-final case class UrlQuery(params: List[(String, String)]) extends AnyVal
+final case class UrlQuery(params: IList[(String, String)]) extends AnyVal
 object UrlQuery {
   object ops {
     implicit class UrlOps(private val encoded: String Refined Url) {
@@ -28,7 +28,7 @@ object UrlQuery {
           uri.getPort,
           uri.getPath,
           // not a mistake: URI takes the decoded versions
-          query.params.map { case (k, v) => s"$k=$v" }.intercalate("&"),
+          query.params.map { case (k, v) => k + "=" + v }.intercalate("&"),
           uri.getFragment
         )
         Refined.unsafeApply(update.toASCIIString)
