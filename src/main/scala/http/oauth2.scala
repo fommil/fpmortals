@@ -171,10 +171,11 @@ package logic {
   import http.client.algebra.JsonHttpClient
   import algebra._
 
+  // FIXME: split this into two
+
   class OAuth2Client[F[_]: Monad](
     config: ServerConfig
   )(
-    implicit
     user: UserInteraction[F],
     server: JsonHttpClient[F],
     clock: LocalClock[F]

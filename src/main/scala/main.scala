@@ -11,17 +11,21 @@ import org.http4s.client.blaze.BlazeClientConfig
 import logic._
 import interpreters._
 import http.client.interpreters._
+import http.oauth2.client.CodeToken
 import DynAgents.liftTask
 
 object Main extends SafeApp {
+
+  def readToken: Task[CodeToken] = ???
 
   def run(args: List[String]): IO[Void, ExitStatus] = {
     type F[a] = StateT[Task, WorldView, a]
     val F: MonadState[F, WorldView] = MonadState[F, WorldView]
 
     for {
+      token  <- readToken
       client <- BlazeJsonHttpClient(BlazeClientConfig.defaultConfig)
-      oauth  = new OAuth2JsonHttpClient[Task](client)
+      oauth  = new OAuth2JsonHttpClient[Task](token, client)
       agents = new DynAgentsModule[Task](
         new DroneModule(oauth),
         new MachinesModule(oauth)

@@ -9,6 +9,7 @@ import prelude._
 import eu.timepit.refined.string.Url
 import jsonformat._
 import http.client.algebra._
+import http.oauth2.client.CodeToken
 import http.encoding._
 
 /**
@@ -16,6 +17,7 @@ import http.encoding._
  * authentication.
  */
 final class OAuth2JsonHttpClient[F[_]](
+  auth: CodeToken,
   H: JsonHttpClient[F]
 ) extends JsonHttpClient[F] {
 

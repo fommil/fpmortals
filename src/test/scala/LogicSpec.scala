@@ -65,7 +65,7 @@ object StateImpl {
       modify(w => w.copy(stopped = w.stopped.insert(node)))
   }
 
-  val program: DynAgents[F] = new DynAgents[F](D, M)
+  val program: DynAgents[F] = new DynAgentsModule[F](D, M)
 }
 
 object ConstImpl {
@@ -84,7 +84,7 @@ object ConstImpl {
     def stop(node: MachineNode): F[Unit]         = Const("stop")
   }
 
-  val program: DynAgents[F] = new DynAgents[F](D, M)
+  val program: DynAgents[F] = new DynAgentsModule[F](D, M)
 
 }
 
