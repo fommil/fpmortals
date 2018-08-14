@@ -38,6 +38,11 @@ package object prelude {
   @inline final def StringContext(parts: String*): StringContext =
     new scala.StringContext(parts: _*)
 
+  // exceptions are a part of life
+  type Exception    = java.lang.Exception
+  type Throwable    = java.lang.Throwable
+  type NoStackTrace = scala.util.control.NoStackTrace
+
   // annotations
   type inline  = scala.inline
   type tailrec = scala.annotation.tailrec
@@ -201,7 +206,6 @@ package object prelude {
   type OneAnd[F[_], A]          = scalaz.OneAnd[F, A]
   type IO[E, A]                 = scalaz.ioeffect.IO[E, A]
   type Task[A]                  = scalaz.ioeffect.Task[A]
-  type Throwable                = java.lang.Throwable
   type MonadIO[F[_], E]         = scalaz.ioeffect.MonadIO[F, E]
   type Free[S[_], A]            = scalaz.Free[S, A]
   type FreeAp[S[_], A]          = scalaz.FreeAp[S, A]
@@ -292,6 +296,7 @@ package object prelude {
       with scalaz.std.AnyValInstances
       with scalaz.std.FunctionInstances
       with scalaz.std.StringInstances
+      with scalaz.std.TupleInstances
       with scalaz.std.BooleanFunctions
       with scalaz.std.StringFunctions
       with scalaz.std.FunctionFunctions {
@@ -339,7 +344,6 @@ package object prelude {
       with scalaz.std.OptionInstances
       with scalaz.std.SetInstances
       with scalaz.std.StreamInstances
-      with scalaz.std.TupleInstances
       with scalaz.std.VectorInstances
       with scalaz.std.FutureInstances
       with scalaz.std.EitherInstances
@@ -384,6 +388,12 @@ package object prelude {
 
     type OptionT[F[_], A] = scalaz.OptionT[F, A]
     @inline final val OptionT: scalaz.OptionT.type = scalaz.OptionT
+  }
+
+  // typelevel interop
+  object T extends shims.ShimsCore {
+    implicit val catsEffectInstance: cats.effect.Effect[Task] =
+      scalaz.ioeffect.catz.catsEffectInstance
   }
 
 }

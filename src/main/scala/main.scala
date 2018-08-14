@@ -4,7 +4,9 @@
 package fommil
 package app
 
-import prelude._, Z._, S._
+import prelude._, Z._
+
+import scala.collection.immutable.List
 
 import org.http4s.client.blaze.BlazeClientConfig
 

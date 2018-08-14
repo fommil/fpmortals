@@ -4,7 +4,9 @@
 package fommil
 package http.client.interpreters
 
-import prelude._, S._, Z._
+import prelude._, T._, Z._
+
+import scala.collection.immutable.List
 
 import jsonformat._
 import jsonformat.JsDecoder.ops._
@@ -17,13 +19,7 @@ import UrlEncodedWriter.ops._
 import org.http4s
 import org.http4s.client.blaze._
 
-import scalaz.ioeffect.catz._
-import shims._
-
-sealed abstract class BlazeError
-    extends java.lang.Exception
-    with scala.util.control.NoStackTrace
-
+sealed abstract class BlazeError                     extends Exception with NoStackTrace
 final case class DecodingError(message: String)      extends BlazeError
 final case class ServerError(message: http4s.Status) extends BlazeError
 
@@ -33,7 +29,7 @@ final class BlazeJsonHttpClient(
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(
-      headers.foldRight(Nil: List[http4s.Header]) {
+      headers.foldRight(List[http4s.Header]()) {
         case ((key, value), acc) => http4s.Header(key, value) :: acc
       }
     )
