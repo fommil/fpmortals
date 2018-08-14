@@ -24,9 +24,11 @@ package object prelude {
   type Array[A] = scala.Array[A]
   type String   = java.lang.String
 
-  // allows custom string interpolators, but we have no way to disable the
-  // broken s interpolator in a way that is compatible with Contextual.
+  // allows custom string interpolators
   type StringContext = scala.StringContext
+  // but we have no way to disable the broken default interpolators in a way
+  // that is compatible with Contextual.
+  // https://github.com/propensive/contextual/issues/41
   @inline final def StringContext(parts: String*): StringContext =
     new scala.StringContext(parts: _*)
 
@@ -59,6 +61,10 @@ package object prelude {
   @inline final val Refined: eu.timepit.refined.api.Refined.type =
     eu.timepit.refined.api.Refined
   //type @:@[A, B] = eu.timepit.refined.api.Refined[A, B]
+
+  type Arbitrary[A] = org.scalacheck.Arbitrary[A]
+  @inline final val Arbitrary: org.scalacheck.Arbitrary.type =
+    org.scalacheck.Arbitrary
 
   // macro annotations don't work: https://github.com/scalamacros/paradise/issues/8
   // type typeclass = simulacrum.typeclass
@@ -271,23 +277,70 @@ package object prelude {
   @inline final val ICons: scalaz.ICons.type       = scalaz.ICons
   @inline final val INil: scalaz.INil.type         = scalaz.INil
 
-  // Minimal `scalaz.Scalaz`
+  // Minimal `scalaz.Scalaz` for scalaz and JVM primitives
   object Z
       extends scalaz.syntax.ToTypeClassOps
       with scalaz.syntax.ToDataOps
-      with scalaz.IdInstances {
-    implicit def refinedEqual[T: Equal, P]: Equal[T Refined P] =
+      with scalaz.IdInstances
+      with scalaz.syntax.std.ToBooleanOps
+      with scalaz.syntax.std.ToFunction2Ops
+      with scalaz.syntax.std.ToFunction1Ops
+      with scalaz.syntax.std.ToStringOps
+      with scalaz.syntax.std.ToTupleOps
+      with scalaz.std.AnyValInstances
+      with scalaz.std.FunctionInstances
+      with scalaz.std.StringInstances
+      with scalaz.std.BooleanFunctions
+      with scalaz.std.StringFunctions
+      with scalaz.std.FunctionFunctions {
+    implicit def RefinedEqual[T: Equal, P]: Equal[T Refined P] =
       Equal[T].contramap(_.value)
 
-    implicit def refinedShow[T: Show, P]: Show[T Refined P] =
+    implicit def RefinedShow[T: Show, P]: Show[T Refined P] =
       Contravariant[Show].contramap(Show[T])(_.value)
+
+    implicit def ArbitraryIList[A](
+      implicit A: Arbitrary[scala.collection.immutable.List[A]]
+    ): Arbitrary[IList[A]] =
+      scalaz.scalacheck.ScalazArbitrary.ilistArbitrary[A]
+
+    implicit val ArbitraryMonad: Monad[Arbitrary] =
+      scalaz.scalacheck.ScalaCheckBinding.ArbitraryMonad
+
   }
 
   // Modularised `scalaz.Scalaz`, stdlib interop
   object S
-      extends scalaz.std.AllInstances
-      with scalaz.std.AllFunctions
-      with scalaz.syntax.std.ToAllStdOps {
+      extends scalaz.syntax.std.ToOptionOps
+      with scalaz.syntax.std.ToOptionIdOps
+      with scalaz.syntax.std.ToListOps
+      with scalaz.syntax.std.ToStreamOps
+      with scalaz.syntax.std.ToVectorOps
+      with scalaz.syntax.std.ToMapOps
+      with scalaz.syntax.std.ToEitherOps
+      with scalaz.syntax.std.ToTryOps
+      with scalaz.std.ListInstances
+      with scalaz.std.MapInstances
+      with scalaz.std.OptionInstances
+      with scalaz.std.SetInstances
+      with scalaz.std.StreamInstances
+      with scalaz.std.TupleInstances
+      with scalaz.std.VectorInstances
+      with scalaz.std.FutureInstances
+      with scalaz.std.EitherInstances
+      with scalaz.std.PartialFunctionInstances
+      with scalaz.std.TypeConstraintInstances
+      with scalaz.std.math.BigDecimalInstances
+      with scalaz.std.math.BigInts
+      with scalaz.std.math.OrderingInstances
+      with scalaz.std.java.util.MapInstances
+      with scalaz.std.java.math.BigIntegerInstances
+      with scalaz.std.java.EnumInstances
+      with scalaz.std.java.util.concurrent.CallableInstances
+      with scalaz.std.ListFunctions
+      with scalaz.std.OptionFunctions
+      with scalaz.std.StreamFunctions
+      with scalaz.std.math.OrderingFunctions {
     type OptionT[F[_], A] = scalaz.OptionT[F, A]
     @inline final val OptionT: scalaz.OptionT.type = scalaz.OptionT
   }

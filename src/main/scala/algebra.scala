@@ -4,7 +4,7 @@
 package fommil
 package algebra
 
-import prelude._, Z._, S._
+import prelude._, Z._
 import time.Epoch
 
 trait Drone[F[_]] {

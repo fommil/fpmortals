@@ -4,7 +4,7 @@
 package fommil
 package http.client
 
-import prelude._, Z._, S._
+import prelude._, Z._
 
 import java.net.URI
 import eu.timepit.refined.string.Url

@@ -4,7 +4,7 @@
 package fommil
 package tests
 
-import prelude._, S._
+import prelude._, Z._
 
 import fommil.time._
 import org.scalatest._

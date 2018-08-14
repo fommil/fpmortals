@@ -47,7 +47,7 @@ final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
       val changed = symdiff(old.alive, snap.alive)
       val pending = (old.pending.difference(changed)).filterWithKey {
         (_, started) =>
-          started.diff(snap.time) < 10.minutes
+          snap.time - started < 10.minutes
       }
       snap.copy(pending = pending)
     }
@@ -96,8 +96,8 @@ final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
           alive
             .difference(pending)
             .filterWithKey { (n, started) =>
-              (backlog == 0 && started.diff(time).toMinutes % 60 >= 58) ||
-              (started.diff(time) >= 5.hours)
+              (backlog == 0 && (time - started).toMinutes % 60 >= 58) ||
+              (time - started >= 5.hours)
             }
             .keys
             .toNel

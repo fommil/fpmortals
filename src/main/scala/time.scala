@@ -3,11 +3,15 @@
 
 package fommil
 
-import fommil.prelude._
+import prelude._, Z._
+
 import java.time.Instant
+import java.lang.System
+
 import scala.{ Either, Left, Right, StringContext }
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+
 import contextual._
 
 package object time {
@@ -18,9 +22,17 @@ package object time {
 }
 
 package time {
+  @xderiving(Order, Arbitrary)
   final case class Epoch(millis: Long) extends AnyVal {
-    def +(d: FiniteDuration): Epoch    = Epoch(millis + d.toMillis)
-    def diff(e: Epoch): FiniteDuration = (e.millis - millis).millis
+    def +(d: FiniteDuration): Epoch = Epoch(millis + d.toMillis)
+    def -(e: FiniteDuration): Epoch = Epoch(millis - e.toMillis)
+    def -(e: Epoch): FiniteDuration = (millis - e.millis).millis
+  }
+  object Epoch {
+    def now: Task[Epoch] = Task(Epoch(System.currentTimeMillis))
+
+    implicit val show: Show[Epoch] =
+      Show.shows(e => Instant.ofEpochMilli(e.millis).toString)
   }
 
   object EpochInterpolator extends Verifier[Epoch] {
