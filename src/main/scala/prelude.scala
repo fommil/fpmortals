@@ -3,6 +3,9 @@
 
 package fommil
 
+// in scala 2.13 this can be enabled automatically thanks to
+// https://github.com/scala/scala/pull/6764
+
 /** The prelude for the project */
 package object prelude {
   // primitive types
@@ -24,6 +27,9 @@ package object prelude {
   type Array[A] = scala.Array[A]
   type String   = java.lang.String
 
+  type Duration       = scala.concurrent.duration.Duration
+  type FiniteDuration = scala.concurrent.duration.FiniteDuration
+
   // allows custom string interpolators
   type StringContext = scala.StringContext
   // but we have no way to disable the broken default interpolators in a way
@@ -36,15 +42,6 @@ package object prelude {
   type inline  = scala.inline
   type tailrec = scala.annotation.tailrec
   type sp      = scala.specialized
-
-  // scala stdlib data types
-  //
-  // Note that we try to avoid exposing subtypes, preferring to only see the ADT
-  // and its constructors.
-  type Option[A] = scala.Option[A]
-  @inline final val Option: scala.Option.type = scala.Option
-  @inline final val Some: scala.Some.type     = scala.Some
-  @inline final val None: scala.None.type     = scala.None
 
   // Predef things
   import scala.Predef
@@ -82,6 +79,7 @@ package object prelude {
   type Bifoldable[F[_, _]]    = scalaz.Bifoldable[F]
   type Bifunctor[F[_, _]]     = scalaz.Bifunctor[F]
   type Bind[F[_]]             = scalaz.Bind[F]
+  type BindRec[F[_]]          = scalaz.BindRec[F]
   type Bitraverse[F[_, _]]    = scalaz.Bitraverse[F]
   type Contravariant[F[_]]    = scalaz.Contravariant[F]
   type Cozip[F[_]]            = scalaz.Cozip[F]
@@ -123,6 +121,7 @@ package object prelude {
   @inline final val Bifoldable: scalaz.Bifoldable.type = scalaz.Bifoldable
   @inline final val Bifunctor: scalaz.Bifunctor.type   = scalaz.Bifunctor
   @inline final val Bind: scalaz.Bind.type             = scalaz.Bind
+  @inline final val BindRec: scalaz.BindRec.type       = scalaz.BindRec
   @inline final val Bitraverse: scalaz.Bitraverse.type = scalaz.Bitraverse
   @inline final val Contravariant: scalaz.Contravariant.type =
     scalaz.Contravariant
@@ -165,6 +164,7 @@ package object prelude {
   type Need[A]        = scalaz.Need[A]
   type Value[A]       = scalaz.Value[A]
   type Memo[K, V]     = scalaz.Memo[K, V]
+  type SafeApp        = scalaz.ioeffect.SafeApp
   @inline final val Liskov: scalaz.Liskov.type   = scalaz.Liskov
   @inline final val Leibniz: scalaz.Leibniz.type = scalaz.Leibniz
   @inline final val Name: scalaz.Name.type       = scalaz.Name
@@ -209,6 +209,7 @@ package object prelude {
   type :<:[F[_], G[_]]          = scalaz.Inject[F, G]
   type Coproduct[F[_], G[_], A] = scalaz.Coproduct[F, G, A]
   type Trampoline[A]            = scalaz.Free.Trampoline[A]
+  type Void                     = scalaz.ioeffect.Void
   @inline final val Maybe: scalaz.Maybe.type               = scalaz.Maybe
   @inline final val Disjunction: scalaz.\/.type            = scalaz.\/
   @inline final val Validation: scalaz.Validation.type     = scalaz.Validation
@@ -307,6 +308,12 @@ package object prelude {
     implicit val ArbitraryMonad: Monad[Arbitrary] =
       scalaz.scalacheck.ScalaCheckBinding.ArbitraryMonad
 
+    implicit def DurationInt(n: Int): scala.concurrent.duration.DurationInt =
+      new scala.concurrent.duration.DurationInt(n)
+
+    implicit def DurationLong(n: Long): scala.concurrent.duration.DurationLong =
+      new scala.concurrent.duration.DurationLong(n)
+
   }
 
   // Modularised `scalaz.Scalaz`, stdlib interop
@@ -341,6 +348,32 @@ package object prelude {
       with scalaz.std.OptionFunctions
       with scalaz.std.StreamFunctions
       with scalaz.std.math.OrderingFunctions {
+
+    // scala stdlib data types
+    //
+    // Note that we try to avoid exposing subtypes, preferring to only see the ADT
+    // and its constructors.
+    type Option[A] = scala.Option[A]
+    @inline final val Option: scala.Option.type = scala.Option
+    @inline final val Some: scala.Some.type     = scala.Some
+    @inline final val None: scala.None.type     = scala.None
+
+    type Either[A, B] = scala.Either[A, B]
+    @inline final val Left: scala.util.Left.type   = scala.Left
+    @inline final val Right: scala.util.Right.type = scala.Right
+
+    import scala.collection.immutable
+    type Map[K, V] = immutable.Map[K, V]
+    type List[A]   = immutable.List[A]
+    type Set[A]    = immutable.Set[A]
+    @inline final val Map: immutable.Map.type   = immutable.Map
+    @inline final val List: immutable.List.type = immutable.List
+    @inline final val Nil: immutable.Nil.type   = immutable.Nil
+    @inline final val Set: immutable.Set.type   = immutable.Set
+
+    type Try[A] = scala.util.Try[A]
+    @inline final val Try: scala.util.Try.type = scala.util.Try
+
     type OptionT[F[_], A] = scalaz.OptionT[F, A]
     @inline final val OptionT: scalaz.OptionT.type = scalaz.OptionT
   }

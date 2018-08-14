@@ -4,9 +4,7 @@
 package fommil
 package logic
 
-import prelude._, Z._, S._
-
-import scala.concurrent.duration._
+import prelude._, S._, Z._
 
 import algebra._
 import time.Epoch
@@ -45,10 +43,11 @@ final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
   def update(old: WorldView): F[WorldView] =
     initial.map { snap =>
       val changed = symdiff(old.alive, snap.alive)
-      val pending = (old.pending.difference(changed)).filterWithKey {
-        (_, started) =>
-          snap.time - started < 10.minutes
-      }
+      val pending = (old.pending
+        .difference(changed))
+        .filterWithKey(
+          (_, started) => snap.time - started < 10.minutes
+        )
       snap.copy(pending = pending)
     }
 

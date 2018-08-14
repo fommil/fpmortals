@@ -109,7 +109,6 @@ package http.oauth2
 package client
 
 import prelude._, Z._
-import scala.concurrent.duration._
 
 import eu.timepit.refined.string.Url
 import jsonformat._

@@ -4,9 +4,7 @@
 package fommil
 package time
 
-import scala.concurrent.duration._
-
-import prelude._
+import prelude._, Z._
 import org.scalatest._
 import org.scalatest.Matchers._
 
