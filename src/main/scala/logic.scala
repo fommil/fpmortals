@@ -33,7 +33,15 @@ final case class WorldView(
   time: Epoch
 )
 
-final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
+trait DynAgents[F[_]] {
+  def initial: F[WorldView]
+  def update(old: WorldView): F[WorldView]
+  def act(world: WorldView): F[WorldView]
+}
+object DynAgents extends DynAgentsBoilerplate
+
+final class DynAgentsModule[F[_]: Applicative](D: Drone[F], M: Machines[F])
+    extends DynAgents[F] {
 
   def initial: F[WorldView] =
     (D.getBacklog |@| D.getAgents |@| M.getManaged |@| M.getAlive |@| M.getTime) {

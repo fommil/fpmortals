@@ -7,20 +7,35 @@ package app
 import prelude._, Z._, S._
 
 import logic._
+import interpreters._
 
 object Main extends SafeApp {
-  def run(args: List[String]): IO[Void, ExitStatus] = ???
 
-  def step(D: DynAgents[Task]): StateT[Task, WorldView, Unit] =
+  def run(args: List[String]): IO[Void, ExitStatus] = {
+    type F[a] = StateT[Task, WorldView, a]
+    val F: MonadState[F, WorldView] = MonadState[F, WorldView]
+
+    val AgentsTask: DynAgents[Task] = new DynAgentsModule(
+      new DroneModule[Task],
+      new MachinesModule[Task]
+    )
+    val Agents: DynAgents[F] = DynAgents.liftIO(AgentsTask)
+
     for {
-      old     <- StateT.get[Task, WorldView]
-      updated <- StateT.liftM(D.update(old))
-      changed <- StateT.liftM(D.act(updated))
-      _       <- StateT.put[Task, WorldView](changed)
-      _       <- StateT.liftM(Task.sleep(10.seconds))
+      start <- AgentsTask.initial
+      _ <- {
+        for {
+          old     <- F.get
+          updated <- Agents.update(old)
+          changed <- Agents.act(updated)
+          _       <- F.put(changed)
+          _       <- StateT.liftM(Task.sleep(10.seconds))
+        } yield ()
+      }.forever[Unit].run(start)
     } yield ()
-
-  def loop(D: DynAgents[Task]): StateT[Task, WorldView, Unit] =
-    BindRec[StateT[Task, WorldView, ?]].forever(step(D))
+  }.attempt[Void].map {
+    case \/-(_) => ExitStatus.ExitNow(0)
+    case -\/(_) => ExitStatus.ExitNow(1)
+  }
 
 }

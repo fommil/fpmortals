@@ -314,6 +314,13 @@ package object prelude {
     implicit def DurationLong(n: Long): scala.concurrent.duration.DurationLong =
       new scala.concurrent.duration.DurationLong(n)
 
+    // https://github.com/scalaz/scalaz/pull/1961
+    implicit final class BindRecExtras[F[_]: BindRec, A](
+      private val self: F[A]
+    ) {
+      def forever[B]: F[B] = BindRec[F].forever(self)
+    }
+
   }
 
   // Modularised `scalaz.Scalaz`, stdlib interop
