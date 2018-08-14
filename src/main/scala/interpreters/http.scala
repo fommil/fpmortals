@@ -21,14 +21,14 @@ final class OAuth2JsonHttpClient[F[_]](
 
   def get[B: JsDecoder](
     uri: String Refined Url,
-    headers: IList[(String, String)] = IList.empty
+    headers: IList[(String, String)]
   ): F[Response[B]] = ???
 
   // using application/x-www-form-urlencoded
   def postUrlEncoded[A: UrlEncodedWriter, B: JsDecoder](
     uri: String Refined Url,
     payload: A,
-    headers: IList[(String, String)] = IList.empty
+    headers: IList[(String, String)]
   ): F[Response[B]] = ???
 
 }

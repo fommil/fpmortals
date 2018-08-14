@@ -29,6 +29,11 @@ package algebra {
         def getAgents: F[Int]  = M.liftIO(io.getAgents)
       }
 
+    def liftTask[F[_]: Monad](
+      io: Drone[Task]
+    )(implicit M: MonadIO[F, Throwable]): Drone[F] =
+      liftIO[F, Throwable](io)
+
     sealed abstract class Ast[A]
     case class GetBacklog() extends Ast[Int]
     case class GetAgents()  extends Ast[Int]
@@ -81,6 +86,11 @@ package algebra {
       def start(node: MachineNode): F[Unit]        = M.liftIO(io.start(node))
       def stop(node: MachineNode): F[Unit]         = M.liftIO(io.stop(node))
     }
+
+    def liftTask[F[_]: Monad](
+      io: Machines[Task]
+    )(implicit M: MonadIO[F, Throwable]): Machines[F] =
+      liftIO[F, Throwable](io)
 
     sealed abstract class Ast[A]
     case class GetTime()                extends Ast[Epoch]
@@ -164,11 +174,7 @@ package logic {
     def liftTask[F[_]: Monad](
       io: DynAgents[Task]
     )(implicit M: MonadIO[F, Throwable]): DynAgents[F] =
-      new DynAgents[F] {
-        def initial: F[WorldView]                = M.liftIO(io.initial)
-        def update(old: WorldView): F[WorldView] = M.liftIO(io.update(old))
-        def act(world: WorldView): F[WorldView]  = M.liftIO(io.act(world))
-      }
+      liftIO[F, Throwable](io)
 
   }
 
