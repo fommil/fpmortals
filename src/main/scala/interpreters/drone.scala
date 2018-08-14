@@ -7,7 +7,9 @@ package interpreters
 import prelude._
 import algebra._
 
-final class DroneModule[F[_]] extends Drone[F] {
+final class DroneModule[F[_]](
+  H: OAuth2JsonHttpClient[F]
+) extends Drone[F] {
   def getAgents: F[Int]  = ???
   def getBacklog: F[Int] = ???
 }

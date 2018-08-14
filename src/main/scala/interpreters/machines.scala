@@ -8,7 +8,9 @@ import prelude._
 import algebra._
 import time._
 
-final class MachinesModule[F[_]] extends Machines[F] {
+final class MachinesModule[F[_]](
+  H: OAuth2JsonHttpClient[F]
+) extends Machines[F] {
 
   def getAlive: F[MachineNode ==>> Epoch]      = ???
   def getManaged: F[NonEmptyList[MachineNode]] = ???

@@ -8,6 +8,7 @@ import prelude._, Z._, S._
 
 import logic._
 import interpreters._
+import http.client.interpreters._
 
 object Main extends SafeApp {
 
@@ -15,9 +16,12 @@ object Main extends SafeApp {
     type F[a] = StateT[Task, WorldView, a]
     val F: MonadState[F, WorldView] = MonadState[F, WorldView]
 
-    val AgentsTask: DynAgents[Task] = new DynAgentsModule(
-      new DroneModule[Task],
-      new MachinesModule[Task]
+    val H = new OAuth2JsonHttpClient[Task](
+      new BlazeJsonHttpClient
+    )
+    val AgentsTask = new DynAgentsModule[Task](
+      new DroneModule(H),
+      new MachinesModule(H)
     )
     val Agents: DynAgents[F] = DynAgents.liftIO(AgentsTask)
 
