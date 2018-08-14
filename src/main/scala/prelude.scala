@@ -201,6 +201,7 @@ package object prelude {
   type OneAnd[F[_], A]          = scalaz.OneAnd[F, A]
   type IO[E, A]                 = scalaz.ioeffect.IO[E, A]
   type Task[A]                  = scalaz.ioeffect.Task[A]
+  type Throwable                = java.lang.Throwable
   type MonadIO[F[_], E]         = scalaz.ioeffect.MonadIO[F, E]
   type Free[S[_], A]            = scalaz.Free[S, A]
   type FreeAp[S[_], A]          = scalaz.FreeAp[S, A]

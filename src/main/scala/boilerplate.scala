@@ -161,6 +161,15 @@ package logic {
         def act(world: WorldView): F[WorldView]  = M.liftIO(io.act(world))
       }
 
+    def liftTask[F[_]: Monad](
+      io: DynAgents[Task]
+    )(implicit M: MonadIO[F, Throwable]): DynAgents[F] =
+      new DynAgents[F] {
+        def initial: F[WorldView]                = M.liftIO(io.initial)
+        def update(old: WorldView): F[WorldView] = M.liftIO(io.update(old))
+        def act(world: WorldView): F[WorldView]  = M.liftIO(io.act(world))
+      }
+
   }
 
 }

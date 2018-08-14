@@ -6,9 +6,12 @@ package app
 
 import prelude._, Z._, S._
 
+import org.http4s.client.blaze.BlazeClientConfig
+
 import logic._
 import interpreters._
 import http.client.interpreters._
+import DynAgents.liftTask
 
 object Main extends SafeApp {
 
@@ -16,22 +19,19 @@ object Main extends SafeApp {
     type F[a] = StateT[Task, WorldView, a]
     val F: MonadState[F, WorldView] = MonadState[F, WorldView]
 
-    val H = new OAuth2JsonHttpClient[Task](
-      new BlazeJsonHttpClient
-    )
-    val AgentsTask = new DynAgentsModule[Task](
-      new DroneModule(H),
-      new MachinesModule(H)
-    )
-    val Agents: DynAgents[F] = DynAgents.liftIO(AgentsTask)
-
     for {
-      start <- AgentsTask.initial
+      client <- BlazeJsonHttpClient(BlazeClientConfig.defaultConfig)
+      oauth  = new OAuth2JsonHttpClient[Task](client)
+      agents = new DynAgentsModule[Task](
+        new DroneModule(oauth),
+        new MachinesModule(oauth)
+      )
+      start <- agents.initial
       _ <- {
         for {
           old     <- F.get
-          updated <- Agents.update(old)
-          changed <- Agents.act(updated)
+          updated <- liftTask[F](agents).update(old)
+          changed <- liftTask[F](agents).act(updated)
           _       <- F.put(changed)
           _       <- StateT.liftM(Task.sleep(10.seconds))
         } yield ()

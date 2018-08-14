@@ -4,9 +4,10 @@
 package fommil
 package http.client.interpreters
 
-import prelude._, S._
+import prelude._, S._, Z._
 
-import jsonformat.JsDecoder
+import jsonformat._
+import jsonformat.JsDecoder.ops._
 import eu.timepit.refined.string.Url
 
 import http.client.algebra._
@@ -16,7 +17,7 @@ import org.http4s
 import org.http4s.client.blaze._
 
 import scalaz.ioeffect.catz._
-//import shims._
+import shims._
 
 sealed abstract class BlazeError
     extends java.lang.Exception
@@ -25,9 +26,9 @@ sealed abstract class BlazeError
 final case class DecodingError(message: String)      extends BlazeError
 final case class ServerError(message: http4s.Status) extends BlazeError
 
-final class BlazeJsonHttpClient[F[_]: Monad](
-  client: http4s.client.Client[F]
-) extends JsonHttpClient[F] {
+final class BlazeJsonHttpClient(
+  client: http4s.client.Client[Task]
+) extends JsonHttpClient[Task] {
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(
@@ -44,12 +45,14 @@ final class BlazeJsonHttpClient[F[_]: Monad](
   private[this] def convert(uri: String Refined Url): http4s.Uri =
     http4s.Uri.unsafeFromString(uri.value)
 
+  // reading the body could be optimised with .chunks and Cord in order to avoid
+  // building intermediate Strings.
   def get[B: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)] = IList.empty
   ): Task[Response[B]] =
-    client.fetch(
-      http4s.Request(
+    client.fetch[Response[B]](
+      http4s.Request[Task](
         uri = convert(uri),
         headers = convert(headers)
       )
@@ -58,18 +61,13 @@ final class BlazeJsonHttpClient[F[_]: Monad](
         Task.fail(ServerError(resp.status))
       else
         for {
-          bytes  <- resp.body.compile.toList
-          text   <- new String(bytes.toArray, "UTF-8")
-          parsed = JsonParser(text).flatMap(_.as[B])
-          body <- parsed {
+          text   <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
+          parsed = JsParser(text).flatMap(_.as[B])
+          body <- parsed match {
                    case \/-(b)   => Task.now(b)
                    case -\/(err) => Task.fail(DecodingError(err))
                  }
-        } yield
-          Response(
-            convert(resp.headers),
-            body
-          )
+        } yield Response(convert(resp.headers), body)
     }
 
   // using application/x-www-form-urlencoded
