@@ -92,6 +92,7 @@ object Main extends SafeApp {
   ): AuthJsonClient[M] =
     new AuthJsonClientModule[M](config.token)(
       H,
+      T,
       new RefreshModule(config.server)(H, T)(M)
     )
 
