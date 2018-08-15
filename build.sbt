@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "io.estatico"          %% "newtype"         % "0.4.2"
 )
 
-val derivingVersion = "1.0.0-RC7"
+val derivingVersion = "1.0.0-RC8"
 libraryDependencies ++= Seq(
   "com.fommil" %% "deriving-macro" % derivingVersion,
   compilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion),
