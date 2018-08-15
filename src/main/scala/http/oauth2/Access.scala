@@ -8,7 +8,7 @@ package oauth2
 import prelude._, Z._
 
 import time._
-import http.client.algebra.JsonHttpClient
+import http.JsonClient
 import api._
 
 /**
@@ -21,16 +21,16 @@ final case class RefreshToken(token: String)
  * Turns a one-shot `CodeToken` into a `BearerToken` than can be securely
  * persisted, and a `RefreshToken` that can be used temporarily.
  */
-trait OAuthAccess[F[_]] {
+trait Access[F[_]] {
   def access(code: CodeToken): F[(RefreshToken, BearerToken)]
 }
 
-final class OAuthAccessModule[F[_]: Monad](
+final class AccessModule[F[_]: Monad](
   config: ServerConfig
 )(
-  server: JsonHttpClient[F],
+  server: JsonClient[F],
   clock: LocalClock[F]
-) extends OAuthAccess[F] {
+) extends Access[F] {
 
   def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
     for {

@@ -7,10 +7,10 @@ package interpreters
 
 import prelude._
 import algebra._
-import http.oauth2._
+import http._
 
 final class DroneModule[F[_]](
-  H: OAuth2JsonHttpClient[F]
+  H: AuthJsonClient[F]
 ) extends Drone[F] {
   def getAgents: F[Int]  = ???
   def getBacklog: F[Int] = ???

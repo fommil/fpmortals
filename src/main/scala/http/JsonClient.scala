@@ -2,13 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
-package http.client
-
-/**
- * An algebra for issuing basic GET / POST requests to a web server that returns
- * JSON.
- */
-package algebra
+package http
 
 import prelude._
 
@@ -19,7 +13,11 @@ import http.encoding._
 
 final case class Response[T](headers: IList[(String, String)], body: T)
 
-trait JsonHttpClient[F[_]] {
+/**
+ * An algebra for issuing basic GET / POST requests to a web server that returns
+ * JSON.
+ */
+trait JsonClient[F[_]] {
   def get[B: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]

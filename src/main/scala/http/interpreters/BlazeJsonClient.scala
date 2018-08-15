@@ -2,7 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
-package http.client.interpreters
+package http
+package interpreters
 
 import prelude._, T._, Z._
 
@@ -12,7 +13,6 @@ import jsonformat._
 import jsonformat.JsDecoder.ops._
 import eu.timepit.refined.string.Url
 
-import http.client.algebra._
 import http.encoding._
 import UrlEncodedWriter.ops._
 
@@ -23,9 +23,9 @@ sealed abstract class BlazeError                     extends Exception with NoSt
 final case class DecodingError(message: String)      extends BlazeError
 final case class ServerError(message: http4s.Status) extends BlazeError
 
-final class BlazeJsonHttpClient(
+final class BlazeJsonClient(
   client: http4s.client.Client[Task]
-) extends JsonHttpClient[Task] {
+) extends JsonClient[Task] {
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(
@@ -98,7 +98,7 @@ final class BlazeJsonHttpClient(
     }
 
 }
-object BlazeJsonHttpClient {
-  def apply(config: BlazeClientConfig): Task[BlazeJsonHttpClient] =
-    Http1Client(config).map(new BlazeJsonHttpClient(_))
+object BlazeJsonClient {
+  def apply(config: BlazeClientConfig): Task[BlazeJsonClient] =
+    Http1Client(config).map(new BlazeJsonClient(_))
 }

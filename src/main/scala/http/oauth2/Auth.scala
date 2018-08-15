@@ -32,15 +32,15 @@ final case class CodeToken(
 )
 
 /** The beginning of an OAuth2 setup */
-trait OAuth2Auth[F[_]] {
+trait Auth[F[_]] {
   def authenticate: F[CodeToken]
 }
 
-final class OAuth2AuthModule[F[_]: Monad](
+final class AuthModule[F[_]: Monad](
   config: ServerConfig
 )(
-  user: OAuth2UserInteraction[F]
-) extends OAuth2Auth[F] {
+  user: UserInteraction[F]
+) extends Auth[F] {
   def authenticate: F[CodeToken] =
     for {
       callback <- user.start
@@ -54,7 +54,7 @@ final class OAuth2AuthModule[F[_]: Monad](
  * Algebra for the part of OAuth2 to obtain a `CodeToken` through user
  * interaction.
  */
-trait OAuth2UserInteraction[F[_]] {
+trait UserInteraction[F[_]] {
 
   /** returns the URL of the local server */
   def start: F[String Refined Url]

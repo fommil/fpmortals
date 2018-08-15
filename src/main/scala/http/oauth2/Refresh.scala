@@ -7,7 +7,7 @@ package http.oauth2
 import prelude._, Z._
 
 import time._
-import http.client.algebra.JsonHttpClient
+import http._
 
 import api._
 
@@ -18,11 +18,10 @@ import api._
  */
 final case class BearerToken(token: String, expires: Epoch)
 
-// TODO: split into two
-final class OAuthRefresh[F[_]: Monad](
+final class Refresh[F[_]: Monad](
   config: ServerConfig
 )(
-  server: JsonHttpClient[F],
+  server: JsonClient[F],
   clock: LocalClock[F]
 ) {
   def bearer(refresh: RefreshToken): F[BearerToken] =

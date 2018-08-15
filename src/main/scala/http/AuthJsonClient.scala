@@ -3,23 +3,25 @@
 
 package fommil
 package http
-package oauth2
 
 import prelude._
 
 import eu.timepit.refined.string.Url
 import jsonformat._
-import http.client.algebra._
 import http.encoding._
+import http.oauth2._
 
 /**
  * A JSON HTTP client that transparently uses OAUTH 2.0 under the hood for
  * authentication.
  */
-final class OAuth2JsonHttpClient[F[_]](
-  auth: CodeToken,
-  H: JsonHttpClient[F]
-) extends JsonHttpClient[F] {
+trait AuthJsonClient[F[_]] extends JsonClient[F]
+
+final class AuthJsonClientModule[F[_]](
+  auth: RefreshToken
+)(
+  H: http.JsonClient[F]
+) extends AuthJsonClient[F] {
 
   def get[B: JsDecoder](
     uri: String Refined Url,
