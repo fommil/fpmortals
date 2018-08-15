@@ -7759,7 +7759,7 @@ we wrote in the introduction:
   
     implicit val monad: Monad[IO] = new Monad[IO] {
       def point[A](a: =>A): IO[A] = IO(a)
-      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] = f(fa.interpret())
+      def bind[A, B](fa: IO[A])(f: A => IO[B]): IO[B] = IO(f(fa.interpret()).interpret())
     }
   }
 ~~~~~~~~
