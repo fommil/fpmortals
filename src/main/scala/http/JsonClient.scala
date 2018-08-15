@@ -17,15 +17,13 @@ import http.encoding._
  */
 trait JsonClient[F[_]] {
 
-  // FIXME: Refined types for Header keys
-
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
   ): F[A]
 
   // using application/x-www-form-urlencoded
-  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+  def post[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]

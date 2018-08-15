@@ -71,9 +71,14 @@ object Main extends SafeApp {
       }.forever[Unit].run(start)
     } yield ()
   }.run(bearer).run.flatMap {
-    case -\/(_) => Task.fail(new Exception("HTTP server badness"))
-    case \/-(_) => Task.now(())
+    case -\/(err) => Task.fail(new WrappedError(err))
+    case \/-(_)   => Task.now(())
   }
+
+  final class WrappedError(
+    val err: JsonClient.Error
+  ) extends Exception
+      with NoStackTrace
 
   private def oauth[M[_]](
     config: OAuth2Config

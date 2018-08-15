@@ -37,7 +37,7 @@ final class BlazeJsonClient(
     )(handler)
   )
 
-  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+  def post[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
@@ -58,10 +58,6 @@ final class BlazeJsonClient(
         case ((key, value), acc) => http4s.Header(key, value) :: acc
       }
     )
-  private[this] def convert(headers: http4s.Headers): IList[(String, String)] =
-    headers.foldRight(IList.empty[(String, String)]) { (h, acc) =>
-      (h.name.value -> h.value) :: acc
-    }
 
   // we already validated the Url. If this fails, it's a bug in http4s
   private[this] def convert(uri: String Refined Url): http4s.Uri =

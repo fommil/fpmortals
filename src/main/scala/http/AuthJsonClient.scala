@@ -23,7 +23,7 @@ trait AuthJsonClient[F[_]] {
     headers: IList[(String, String)]
   ): F[A]
 
-  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+  def post[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
@@ -32,14 +32,14 @@ trait AuthJsonClient[F[_]] {
 }
 
 final class AuthJsonClientModule[F[_]](
-  token: RefreshToken
+  @unused token: RefreshToken
 )(
-  H: JsonClient[F],
-  A: RefreshModule[F]
+  @unused H: JsonClient[F],
+  @unused A: RefreshModule[F]
 )(
   implicit
-  F: MonadError[F, JsonClient.Error],
-  S: MonadState[F, BearerToken]
+  @unused F: MonadError[F, JsonClient.Error],
+  @unused S: MonadState[F, BearerToken]
 ) extends AuthJsonClient[F] {
 
   def get[A: JsDecoder](
@@ -47,8 +47,7 @@ final class AuthJsonClientModule[F[_]](
     headers: IList[(String, String)]
   ): F[A] = ???
 
-  // using application/x-www-form-urlencoded
-  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+  def post[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]

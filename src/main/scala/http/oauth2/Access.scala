@@ -40,7 +40,7 @@ final class AccessModule[F[_]: Monad](
                   config.clientId,
                   config.clientSecret
                 ).pure[F]
-      msg <- H.postUrlEncoded[AccessRequest, AccessResponse](
+      msg <- H.post[AccessRequest, AccessResponse](
               config.access,
               request,
               IList.empty

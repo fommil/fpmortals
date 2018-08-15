@@ -35,7 +35,7 @@ final class RefreshModule[F[_]: Monad](
                   refresh.token,
                   config.clientId
                 ).pure[F]
-      msg <- H.postUrlEncoded[RefreshRequest, RefreshResponse](
+      msg <- H.post[RefreshRequest, RefreshResponse](
               config.refresh,
               request,
               IList.empty

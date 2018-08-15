@@ -23,11 +23,11 @@ private[http] abstract class JsonClientBoilerplate {
         headers: IList[(String, String)]
       ): G[F, A] = f.get(uri, headers).liftM[G]
 
-      def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+      def post[P: UrlEncodedWriter, A: JsDecoder](
         uri: String Refined Url,
         payload: P,
         headers: IList[(String, String)]
-      ): G[F, A] = f.postUrlEncoded(uri, payload, headers).liftM[G]
+      ): G[F, A] = f.post(uri, payload, headers).liftM[G]
     }
 
 }
