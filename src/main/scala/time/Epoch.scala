@@ -31,7 +31,7 @@ package time {
     def now: Task[Epoch] = Task(Epoch(System.currentTimeMillis))
 
     implicit val show: Show[Epoch] =
-      Show.shows(e => Instant.ofEpochMilli(e.millis).toString)
+      Show.shows(e => Instant.ofEpochMilli(e.millis).toString) // scalafix:ok
   }
 
   object EpochInterpolator extends Verifier[Epoch] {

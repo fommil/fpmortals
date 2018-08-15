@@ -2,14 +2,14 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
-package interpreters
+package http
+package oauth2
 
 import prelude._
 
 import eu.timepit.refined.string.Url
 import jsonformat._
 import http.client.algebra._
-import http.oauth2.client.CodeToken
 import http.encoding._
 
 /**

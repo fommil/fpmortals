@@ -39,8 +39,8 @@ package object prelude {
     new scala.StringContext(parts: _*)
 
   // exceptions are a part of life
-  type Exception    = java.lang.Exception
-  type Throwable    = java.lang.Throwable
+  type Exception    = java.lang.Exception // scalafix:ok
+  type Throwable    = java.lang.Throwable // scalafix:ok
   type NoStackTrace = scala.util.control.NoStackTrace
 
   // annotations
@@ -314,11 +314,13 @@ package object prelude {
     implicit val ArbitraryMonad: Monad[Arbitrary] =
       scalaz.scalacheck.ScalaCheckBinding.ArbitraryMonad
 
+    // scalafix:off
     implicit def DurationInt(n: Int): scala.concurrent.duration.DurationInt =
       new scala.concurrent.duration.DurationInt(n)
 
     implicit def DurationLong(n: Long): scala.concurrent.duration.DurationLong =
       new scala.concurrent.duration.DurationLong(n)
+    // scalafix:on
 
     // https://github.com/scalaz/scalaz/pull/1961
     implicit final class BindRecExtras[F[_]: BindRec, A](

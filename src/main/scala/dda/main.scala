@@ -2,7 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
-package app
+package dda
 
 import prelude._, Z._
 
@@ -13,7 +13,7 @@ import org.http4s.client.blaze.BlazeClientConfig
 import logic._
 import interpreters._
 import http.client.interpreters._
-import http.oauth2.client.CodeToken
+import http.oauth2._
 import DynAgents.liftTask
 
 object Main extends SafeApp {

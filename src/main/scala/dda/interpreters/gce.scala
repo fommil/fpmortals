@@ -2,7 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
-package apis.gce
+package dda
+package gce
 
 import prelude._
 

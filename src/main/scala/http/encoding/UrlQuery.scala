@@ -2,14 +2,12 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
-package http.client
+package http.encoding
 
 import prelude._, Z._
 
 import java.net.URI
 import eu.timepit.refined.string.Url
-
-import http.encoding.UrlEncodedWriter
 
 /**
  * URL query key=value pairs, in unencoded form.

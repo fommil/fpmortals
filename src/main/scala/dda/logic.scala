@@ -2,6 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
+package dda
 package logic
 
 import prelude._, S._, Z._

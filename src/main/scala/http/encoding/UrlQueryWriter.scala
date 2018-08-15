@@ -12,8 +12,6 @@ import shapeless._
 import shapeless.labelled._
 import simulacrum._
 
-import http.client.UrlQuery
-
 @typeclass trait UrlQueryWriter[A] {
   def toUrlQuery(a: A): UrlQuery
 }
