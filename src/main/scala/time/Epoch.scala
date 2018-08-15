@@ -28,7 +28,8 @@ package time {
     def -(e: Epoch): FiniteDuration = (millis - e.millis).millis
   }
   object Epoch {
-    def now: Task[Epoch] = Task(Epoch(System.currentTimeMillis))
+    def now: IO[Void, Epoch] =
+      IO.sync(Epoch(System.currentTimeMillis)) // scalafix:ok
 
     implicit val show: Show[Epoch] =
       Show.shows(e => Instant.ofEpochMilli(e.millis).toString) // scalafix:ok

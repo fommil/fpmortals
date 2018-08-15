@@ -15,7 +15,7 @@ import interpreters._
 import http._
 import http.interpreters._
 import http.oauth2._
-import DynAgents.liftTask
+import time._
 
 object Main extends SafeApp {
 
@@ -32,29 +32,62 @@ object Main extends SafeApp {
 
   // runs the app, requires that refresh tokens are provided
   def agents: Task[Unit] = {
-    type F[a] = StateT[Task, WorldView, a]
-    val F: MonadState[F, WorldView] = MonadState[F, WorldView]
+    type GT[f[_], a] = EitherT[f, JsonClient.Error, a]
+    type G[a]        = GT[Task, a]
+    val T = LocalClock.liftM[Task, GT](new LocalClockTask)
 
     for {
-      token  <- readToken
-      client <- BlazeJsonClient(BlazeClientConfig.defaultConfig)
-      oauth  = new AuthJsonClientModule[Task](token)(client)
-      agents = new DynAgentsModule[Task](
-        new DroneModule(oauth),
-        new MachinesModule(oauth)
-      )
-      start <- agents.initial
+      config   <- EitherT.rightT(readConfig)
+      blaze    <- EitherT.rightT(BlazeJsonClient(config.blaze))
+      drone    = new DroneModule(oauth[G](config.drone)(blaze, T))
+      machines = new MachinesModule(oauth[G](config.machines)(blaze, T))
+      agents   = new DynAgentsModule(drone, machines)
+      start    <- agents.initial
       _ <- {
+        type FT[f[_], a] = StateT[f, WorldView, a]
+        type F[a]        = FT[G, a]
+        val F = MonadState[F, WorldView]
+        val A = DynAgents.liftM[G, FT](agents)
+        val S: Sleep[F] = Sleep.liftM[G, FT](
+          Sleep.liftM[Task, GT](new SleepTask)
+        )
+
         for {
           old     <- F.get
-          updated <- liftTask[F](agents).update(old)
-          changed <- liftTask[F](agents).act(updated)
+          updated <- A.update(old)
+          changed <- A.act(updated)
           _       <- F.put(changed)
-          _       <- StateT.liftM(Task.sleep(10.seconds))
+          _       <- S.sleep(10.seconds)
         } yield ()
       }.forever[Unit].run(start)
     } yield ()
+  }.run.flatMap {
+    case -\/(_) => Task.fail(new Exception("HTTP server badness"))
+    case \/-(_) => Task.now(())
   }
 
-  def readToken: Task[RefreshToken] = ???
+  private def oauth[M[_]](
+    config: OAuth2Config
+  )(
+    H: JsonClient[M],
+    T: LocalClock[M]
+  )(
+    implicit
+    M: MonadError[M, JsonClient.Error]
+  ): AuthJsonClient[M] =
+    new AuthJsonClientModule[M](config.token)(
+      H,
+      new RefreshModule(config.server)(H, T)
+    )
+
+  final case class OAuth2Config(
+    token: RefreshToken,
+    server: ServerConfig
+  )
+  final case class Config(
+    drone: OAuth2Config,
+    machines: OAuth2Config,
+    blaze: BlazeClientConfig
+  )
+  def readConfig: Task[Config] = ???
 }

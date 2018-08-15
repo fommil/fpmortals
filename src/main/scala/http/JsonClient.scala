@@ -11,19 +11,9 @@ import eu.timepit.refined.string.Url
 
 import http.encoding._
 
-case class Response[A](
-  headers: IList[(String, String)],
-  body: Response.Error \/ A
-)
-object Response {
-  sealed abstract class Error
-  final case class ServerError(status: Int)       extends Error
-  final case class DecodingError(message: String) extends Error
-}
-
 /**
  * An algebra for issuing basic GET / POST requests to a web server that returns
- * JSON.
+ * JSON. Errors are captured in the `F[_]`.
  */
 trait JsonClient[F[_]] {
 
@@ -32,13 +22,18 @@ trait JsonClient[F[_]] {
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): F[Response[A]]
+  ): F[A]
 
   // using application/x-www-form-urlencoded
   def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
-  ): F[Response[A]]
+  ): F[A]
 
+}
+object JsonClient extends JsonClientBoilerplate {
+  sealed abstract class Error
+  final case class ServerError(status: Int)       extends Error
+  final case class DecodingError(message: String) extends Error
 }

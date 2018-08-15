@@ -25,13 +25,11 @@ trait Access[F[_]] {
   def access(code: CodeToken): F[(RefreshToken, BearerToken)]
 }
 
-final class AccessModule[F[_]](
+final class AccessModule[F[_]: Monad](
   config: ServerConfig
 )(
   H: JsonClient[F],
   T: LocalClock[F]
-)(
-  implicit F: MonadError[F, Response.Error]
 ) extends Access[F] {
 
   def access(code: CodeToken): F[(RefreshToken, BearerToken)] =
@@ -42,13 +40,12 @@ final class AccessModule[F[_]](
                   config.clientId,
                   config.clientSecret
                 ).pure[F]
-      response <- H.postUrlEncoded[AccessRequest, AccessResponse](
-                     config.access,
-                     request,
-                     IList.empty
-                   )
+      msg <- H.postUrlEncoded[AccessRequest, AccessResponse](
+              config.access,
+              request,
+              IList.empty
+            )
       time    <- T.now
-      msg     <- response.body.orRaiseError
       expires = time + msg.expires_in.seconds
       refresh = RefreshToken(msg.refresh_token)
       bearer  = BearerToken(msg.access_token, expires)

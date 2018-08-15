@@ -22,13 +22,11 @@ trait Refresh[F[_]] {
   def bearer(refresh: RefreshToken): F[BearerToken]
 }
 
-final class RefreshModule[F[_]](
+final class RefreshModule[F[_]: Monad](
   config: ServerConfig
 )(
   H: JsonClient[F],
   T: LocalClock[F]
-)(
-  implicit F: MonadError[F, Response.Error]
 ) extends Refresh[F] {
   def bearer(refresh: RefreshToken): F[BearerToken] =
     for {
@@ -37,13 +35,12 @@ final class RefreshModule[F[_]](
                   refresh.token,
                   config.clientId
                 ).pure[F]
-      response <- H.postUrlEncoded[RefreshRequest, RefreshResponse](
-                   config.refresh,
-                   request,
-                   IList.empty
-                 )
+      msg <- H.postUrlEncoded[RefreshRequest, RefreshResponse](
+              config.refresh,
+              request,
+              IList.empty
+            )
       time    <- T.now
-      msg     <- response.body.orRaiseError
       expires = time + msg.expires_in.seconds
       bearer  = BearerToken(msg.access_token, expires)
     } yield bearer

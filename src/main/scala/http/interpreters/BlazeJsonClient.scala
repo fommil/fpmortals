@@ -21,24 +21,27 @@ import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
 
 final class BlazeJsonClient(
   H: http4s.client.Client[Task]
-) extends JsonClient[Task] {
+) extends JsonClient[EitherT[Task, JsonClient.Error, ?]] {
+
+  type F[a] = EitherT[Task, JsonClient.Error, a]
 
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): Task[Response[A]] =
+  ): F[A] = EitherT(
     H.fetch(
       http4s.Request[Task](
         uri = convert(uri),
         headers = convert(headers)
       )
     )(handler)
+  )
 
   def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
-  ): Task[Response[A]] =
+  ): EitherT[Task, JsonClient.Error, A] = EitherT(
     H.fetch(
       http4s.Request[Task](
         method = http4s.Method.POST,
@@ -47,6 +50,7 @@ final class BlazeJsonClient(
         body = convert(payload.toUrlEncoded.value)
       )
     )(handler)
+  )
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(
@@ -67,17 +71,16 @@ final class BlazeJsonClient(
     fs2.Stream(body).through(fs2.text.utf8Encode).covary[Task]
 
   private[this] def handler[A: JsDecoder]
-    : http4s.Response[Task] => Task[Response[A]] = { resp =>
-    val headers = convert(resp.headers)
+    : http4s.Response[Task] => Task[JsonClient.Error \/ A] = { resp =>
     if (!resp.status.isSuccess)
-      Task.now(Response(headers, Response.ServerError(resp.status.code).left))
+      Task.now(JsonClient.ServerError(resp.status.code).left)
     else
       for {
         text <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
-        body = JsParser(text)
+        res = JsParser(text)
           .flatMap(_.as[A])
-          .leftMap(Response.DecodingError(_))
-      } yield Response(headers, body)
+          .leftMap(JsonClient.DecodingError(_))
+      } yield res
   }
 
 }

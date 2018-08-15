@@ -13,40 +13,44 @@ import http.oauth2._
 
 /**
  * A JSON HTTP client that transparently uses OAUTH 2.0 under the hood for
- * authentication. Methods look the same as on JsonClient but they have
- * different semantics, so are reproduced.
+ * authentication. Methods are the same as on JsonClient but are not inherited,
+ * to emphasise the different semantics.
  */
 trait AuthJsonClient[F[_]] {
 
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): F[Response[A]]
+  ): F[A]
 
   def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
-  ): F[Response[A]]
+  ): F[A]
 
 }
 
 final class AuthJsonClientModule[F[_]](
-  @unused auth: RefreshToken
+  token: RefreshToken
 )(
-  @unused H: JsonClient[F]
+  H: JsonClient[F],
+  A: RefreshModule[F]
+)(
+  implicit
+  F: MonadError[F, JsonClient.Error]
 ) extends AuthJsonClient[F] {
 
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): F[Response[A]] = ???
+  ): F[A] = ???
 
   // using application/x-www-form-urlencoded
   def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
-  ): F[Response[A]] = ???
+  ): F[A] = ???
 
 }

@@ -4,6 +4,13 @@
 package fommil
 package time
 
+import prelude._
+
 trait LocalClock[F[_]] {
   def now: F[Epoch]
+}
+object LocalClock extends LocalClockBoilerplate
+
+final class LocalClockTask extends LocalClock[Task] {
+  def now: Task[Epoch] = Epoch.now.widenError
 }
