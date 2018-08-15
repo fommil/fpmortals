@@ -33,20 +33,22 @@ object Main extends SafeApp {
   // runs the app, requires that refresh tokens are provided
   def agents(bearer: BearerToken): Task[Unit] = {
     type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
-    type H[a]        = HT[Task, a]
-
     type GT[f[_], a] = StateT[f, BearerToken, a]
-    type G[a]        = GT[H, a]
 
-    val T: LocalClock[G] =
-      LocalClock.liftM(LocalClock.liftM(new LocalClockTask))
+    type H[a] = HT[Task, a]
+    type G[a] = GT[H, a]
+
+    val T: LocalClock[G] = {
+      import LocalClock.liftM
+      liftM(liftM(new LocalClockTask))
+    }
 
     for {
       config   <- readConfig.liftM[HT].liftM[GT]
       blaze    <- BlazeJsonClient(config.blaze).liftM[HT].liftM[GT]
       hblaze   = JsonClient.liftM[H, GT](blaze)
-      drone    = new DroneModule(oauth[G](config.drone)(hblaze, T))
-      machines = new MachinesModule(oauth[G](config.machines)(hblaze, T))
+      drone    = new DroneModule(oauth(config.drone)(hblaze, T))
+      machines = new MachinesModule(oauth(config.machines)(hblaze, T))
       agents   = new DynAgentsModule(drone, machines)
       start    <- agents.initial
       _ <- {
@@ -54,8 +56,10 @@ object Main extends SafeApp {
         type F[a]        = FT[G, a]
         val F: MonadState[F, WorldView] = MonadState[F, WorldView]
         val A: DynAgents[F]             = DynAgents.liftM(agents)
-        val S: Sleep[F] =
-          Sleep.liftM(Sleep.liftM(Sleep.liftM(new SleepTask)))
+        val S: Sleep[F] = {
+          import Sleep.liftM
+          liftM(liftM(liftM(new SleepTask)))
+        }
 
         for {
           old     <- F.get
