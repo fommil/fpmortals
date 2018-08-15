@@ -21,7 +21,7 @@ object Main extends SafeApp {
 
   def run(args: List[String]): IO[Void, ExitStatus] = {
     if (args.contains("--auth")) auth
-    else agents
+    else agents(BearerToken("<invalid>", Epoch(0)))
   }.attempt[Void].map {
     case \/-(_) => ExitStatus.ExitNow(0)
     case -\/(_) => ExitStatus.ExitNow(1)
@@ -31,26 +31,31 @@ object Main extends SafeApp {
   def auth: Task[Unit] = ???
 
   // runs the app, requires that refresh tokens are provided
-  def agents: Task[Unit] = {
-    type GT[f[_], a] = EitherT[f, JsonClient.Error, a]
-    type G[a]        = GT[Task, a]
-    val T = LocalClock.liftM[Task, GT](new LocalClockTask)
+  def agents(bearer: BearerToken): Task[Unit] = {
+    type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+    type H[a]        = HT[Task, a]
+
+    type GT[f[_], a] = StateT[f, BearerToken, a]
+    type G[a]        = GT[H, a]
+
+    val T: LocalClock[G] =
+      LocalClock.liftM(LocalClock.liftM(new LocalClockTask))
 
     for {
-      config   <- EitherT.rightT(readConfig)
-      blaze    <- EitherT.rightT(BlazeJsonClient(config.blaze))
-      drone    = new DroneModule(oauth[G](config.drone)(blaze, T))
-      machines = new MachinesModule(oauth[G](config.machines)(blaze, T))
+      config   <- readConfig.liftM[HT].liftM[GT]
+      blaze    <- BlazeJsonClient(config.blaze).liftM[HT].liftM[GT]
+      hblaze   = JsonClient.liftM[H, GT](blaze)
+      drone    = new DroneModule(oauth[G](config.drone)(hblaze, T))
+      machines = new MachinesModule(oauth[G](config.machines)(hblaze, T))
       agents   = new DynAgentsModule(drone, machines)
       start    <- agents.initial
       _ <- {
         type FT[f[_], a] = StateT[f, WorldView, a]
         type F[a]        = FT[G, a]
-        val F = MonadState[F, WorldView]
-        val A = DynAgents.liftM[G, FT](agents)
-        val S: Sleep[F] = Sleep.liftM[G, FT](
-          Sleep.liftM[Task, GT](new SleepTask)
-        )
+        val F: MonadState[F, WorldView] = MonadState[F, WorldView]
+        val A: DynAgents[F]             = DynAgents.liftM(agents)
+        val S: Sleep[F] =
+          Sleep.liftM(Sleep.liftM(Sleep.liftM(new SleepTask)))
 
         for {
           old     <- F.get
@@ -61,7 +66,7 @@ object Main extends SafeApp {
         } yield ()
       }.forever[Unit].run(start)
     } yield ()
-  }.run.flatMap {
+  }.run(bearer).run.flatMap {
     case -\/(_) => Task.fail(new Exception("HTTP server badness"))
     case \/-(_) => Task.now(())
   }
@@ -73,11 +78,12 @@ object Main extends SafeApp {
     T: LocalClock[M]
   )(
     implicit
-    M: MonadError[M, JsonClient.Error]
+    M: MonadError[M, JsonClient.Error],
+    S: MonadState[M, BearerToken]
   ): AuthJsonClient[M] =
     new AuthJsonClientModule[M](config.token)(
       H,
-      new RefreshModule(config.server)(H, T)
+      new RefreshModule(config.server)(H, T)(M)
     )
 
   final case class OAuth2Config(

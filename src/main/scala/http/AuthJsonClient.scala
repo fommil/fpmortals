@@ -38,7 +38,8 @@ final class AuthJsonClientModule[F[_]](
   A: RefreshModule[F]
 )(
   implicit
-  F: MonadError[F, JsonClient.Error]
+  F: MonadError[F, JsonClient.Error],
+  S: MonadState[F, BearerToken]
 ) extends AuthJsonClient[F] {
 
   def get[A: JsDecoder](
