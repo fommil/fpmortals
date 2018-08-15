@@ -19,9 +19,19 @@ import DynAgents.liftTask
 
 object Main extends SafeApp {
 
-  def readToken: Task[RefreshToken] = ???
-
   def run(args: List[String]): IO[Void, ExitStatus] = {
+    if (args.contains("--auth")) auth
+    else agents
+  }.attempt[Void].map {
+    case \/-(_) => ExitStatus.ExitNow(0)
+    case -\/(_) => ExitStatus.ExitNow(1)
+  }
+
+  // performs the OAuth 2.0 dance to obtain refresh tokens
+  def auth: Task[Unit] = ???
+
+  // runs the app, requires that refresh tokens are provided
+  def agents: Task[Unit] = {
     type F[a] = StateT[Task, WorldView, a]
     val F: MonadState[F, WorldView] = MonadState[F, WorldView]
 
@@ -44,9 +54,7 @@ object Main extends SafeApp {
         } yield ()
       }.forever[Unit].run(start)
     } yield ()
-  }.attempt[Void].map {
-    case \/-(_) => ExitStatus.ExitNow(0)
-    case -\/(_) => ExitStatus.ExitNow(1)
   }
 
+  def readToken: Task[RefreshToken] = ???
 }

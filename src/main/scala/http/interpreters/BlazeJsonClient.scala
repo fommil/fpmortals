@@ -17,15 +17,36 @@ import http.encoding._
 import UrlEncodedWriter.ops._
 
 import org.http4s
-import org.http4s.client.blaze._
-
-sealed abstract class BlazeError                     extends Exception with NoStackTrace
-final case class DecodingError(message: String)      extends BlazeError
-final case class ServerError(message: http4s.Status) extends BlazeError
+import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
 
 final class BlazeJsonClient(
-  client: http4s.client.Client[Task]
+  H: http4s.client.Client[Task]
 ) extends JsonClient[Task] {
+
+  def get[A: JsDecoder](
+    uri: String Refined Url,
+    headers: IList[(String, String)]
+  ): Task[Response[A]] =
+    H.fetch(
+      http4s.Request[Task](
+        uri = convert(uri),
+        headers = convert(headers)
+      )
+    )(handler)
+
+  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+    uri: String Refined Url,
+    payload: P,
+    headers: IList[(String, String)]
+  ): Task[Response[A]] =
+    H.fetch(
+      http4s.Request[Task](
+        method = http4s.Method.POST,
+        uri = convert(uri),
+        headers = convert(headers),
+        body = convert(payload.toUrlEncoded.value)
+      )
+    )(handler)
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(
@@ -45,57 +66,19 @@ final class BlazeJsonClient(
   private[this] def convert(body: String): fs2.Stream[Task, Byte] =
     fs2.Stream(body).through(fs2.text.utf8Encode).covary[Task]
 
-  // reading the body could be optimised with .chunks and Cord in order to avoid
-  // building intermediate Strings.
-  def get[B: JsDecoder](
-    uri: String Refined Url,
-    headers: IList[(String, String)]
-  ): Task[Response[B]] =
-    client.fetch[Response[B]](
-      http4s.Request[Task](
-        uri = convert(uri),
-        headers = convert(headers)
-      )
-    ) { (resp: http4s.Response[Task]) =>
-      if (!resp.status.isSuccess)
-        Task.fail(ServerError(resp.status))
-      else
-        for {
-          text   <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
-          parsed = JsParser(text).flatMap(_.as[B])
-          body <- parsed match {
-                   case \/-(b)   => Task.now(b)
-                   case -\/(err) => Task.fail(DecodingError(err))
-                 }
-        } yield Response(convert(resp.headers), body)
-    }
-
-  // using application/x-www-form-urlencoded
-  def postUrlEncoded[A: UrlEncodedWriter, B: JsDecoder](
-    uri: String Refined Url,
-    payload: A,
-    headers: IList[(String, String)]
-  ): Task[Response[B]] =
-    client.fetch[Response[B]](
-      http4s.Request[Task](
-        method = http4s.Method.POST,
-        uri = convert(uri),
-        headers = convert(headers),
-        body = convert(payload.toUrlEncoded.value)
-      )
-    ) { (resp: http4s.Response[Task]) =>
-      if (!resp.status.isSuccess)
-        Task.fail(ServerError(resp.status))
-      else
-        for {
-          text   <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
-          parsed = JsParser(text).flatMap(_.as[B])
-          body <- parsed match {
-                   case \/-(b)   => Task.now(b)
-                   case -\/(err) => Task.fail(DecodingError(err))
-                 }
-        } yield Response(convert(resp.headers), body)
-    }
+  private[this] def handler[A: JsDecoder]
+    : http4s.Response[Task] => Task[Response[A]] = { resp =>
+    val headers = convert(resp.headers)
+    if (!resp.status.isSuccess)
+      Task.now(Response(headers, Response.ServerError(resp.status.code).left))
+    else
+      for {
+        text <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
+        body = JsParser(text)
+          .flatMap(_.as[A])
+          .leftMap(Response.DecodingError(_))
+      } yield Response(headers, body)
+  }
 
 }
 object BlazeJsonClient {

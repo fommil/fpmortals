@@ -11,23 +11,34 @@ import eu.timepit.refined.string.Url
 
 import http.encoding._
 
-final case class Response[T](headers: IList[(String, String)], body: T)
+case class Response[A](
+  headers: IList[(String, String)],
+  body: Response.Error \/ A
+)
+object Response {
+  sealed abstract class Error
+  final case class ServerError(status: Int)       extends Error
+  final case class DecodingError(message: String) extends Error
+}
 
 /**
  * An algebra for issuing basic GET / POST requests to a web server that returns
  * JSON.
  */
 trait JsonClient[F[_]] {
-  def get[B: JsDecoder](
+
+  // FIXME: Refined types for Header keys
+
+  def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): F[Response[B]]
+  ): F[Response[A]]
 
   // using application/x-www-form-urlencoded
-  def postUrlEncoded[A: UrlEncodedWriter, B: JsDecoder](
+  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
-    payload: A,
+    payload: P,
     headers: IList[(String, String)]
-  ): F[Response[B]]
+  ): F[Response[A]]
 
 }

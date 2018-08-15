@@ -13,26 +13,40 @@ import http.oauth2._
 
 /**
  * A JSON HTTP client that transparently uses OAUTH 2.0 under the hood for
- * authentication.
+ * authentication. Methods look the same as on JsonClient but they have
+ * different semantics, so are reproduced.
  */
-trait AuthJsonClient[F[_]] extends JsonClient[F]
+trait AuthJsonClient[F[_]] {
+
+  def get[A: JsDecoder](
+    uri: String Refined Url,
+    headers: IList[(String, String)]
+  ): F[Response[A]]
+
+  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
+    uri: String Refined Url,
+    payload: P,
+    headers: IList[(String, String)]
+  ): F[Response[A]]
+
+}
 
 final class AuthJsonClientModule[F[_]](
-  auth: RefreshToken
+  @unused auth: RefreshToken
 )(
-  H: http.JsonClient[F]
+  @unused H: JsonClient[F]
 ) extends AuthJsonClient[F] {
 
-  def get[B: JsDecoder](
+  def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): F[Response[B]] = ???
+  ): F[Response[A]] = ???
 
   // using application/x-www-form-urlencoded
-  def postUrlEncoded[A: UrlEncodedWriter, B: JsDecoder](
+  def postUrlEncoded[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
-    payload: A,
+    payload: P,
     headers: IList[(String, String)]
-  ): F[Response[B]] = ???
+  ): F[Response[A]] = ???
 
 }

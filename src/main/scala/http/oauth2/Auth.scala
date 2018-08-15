@@ -39,14 +39,14 @@ trait Auth[F[_]] {
 final class AuthModule[F[_]: Monad](
   config: ServerConfig
 )(
-  user: UserInteraction[F]
+  I: UserInteraction[F]
 ) extends Auth[F] {
   def authenticate: F[CodeToken] =
     for {
-      callback <- user.start
+      callback <- I.start
       params   = AuthRequest(callback, config.scope, config.clientId)
-      _        <- user.open(config.auth.withQuery(params.toUrlQuery))
-      code     <- user.stop
+      _        <- I.open(config.auth.withQuery(params.toUrlQuery))
+      code     <- I.stop
     } yield code
 }
 

@@ -11,7 +11,7 @@ import time._
 import http._
 
 final class MachinesModule[F[_]](
-  H: AuthJsonClient[F]
+  @unused H: AuthJsonClient[F]
 ) extends Machines[F] {
 
   def getAlive: F[MachineNode ==>> Epoch]      = ???

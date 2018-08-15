@@ -18,12 +18,18 @@ import api._
  */
 final case class BearerToken(token: String, expires: Epoch)
 
-final class Refresh[F[_]: Monad](
+trait Refresh[F[_]] {
+  def bearer(refresh: RefreshToken): F[BearerToken]
+}
+
+final class RefreshModule[F[_]](
   config: ServerConfig
 )(
-  server: JsonClient[F],
-  clock: LocalClock[F]
-) {
+  H: JsonClient[F],
+  T: LocalClock[F]
+)(
+  implicit F: MonadError[F, Response.Error]
+) extends Refresh[F] {
   def bearer(refresh: RefreshToken): F[BearerToken] =
     for {
       request <- RefreshRequest(
@@ -31,14 +37,13 @@ final class Refresh[F[_]: Monad](
                   refresh.token,
                   config.clientId
                 ).pure[F]
-      response <- server
-                   .postUrlEncoded[RefreshRequest, RefreshResponse](
-                     config.refresh,
-                     request,
-                     IList.empty
-                   )
-      time    <- clock.now
-      msg     = response.body
+      response <- H.postUrlEncoded[RefreshRequest, RefreshResponse](
+                   config.refresh,
+                   request,
+                   IList.empty
+                 )
+      time    <- T.now
+      msg     <- response.body.orRaiseError
       expires = time + msg.expires_in.seconds
       bearer  = BearerToken(msg.access_token, expires)
     } yield bearer
