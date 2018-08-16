@@ -89,7 +89,7 @@ object ConstImpl {
 final class LogicSpec extends Test {
   import StateImpl.program.{ act, initial, update }
 
-  "Business Logic".should("generate an initial world view") in {
+  "Business Logic".should("generate an initial world view").in {
     val world1          = hungry
     val (world2, view2) = initial.run(world1)
 
@@ -97,7 +97,7 @@ final class LogicSpec extends Test {
     view2.shouldBe(needsAgents)
   }
 
-  it.should("request agents when needed") in {
+  it.should("request agents when needed").in {
     val world1          = hungry
     val view1           = needsAgents
     val (world2, view2) = act(view1).run(world1)
@@ -108,7 +108,7 @@ final class LogicSpec extends Test {
     world2.started.shouldBe(ISet.singleton(node1))
   }
 
-  it.should("not request agents when pending") in {
+  it.should("not request agents when pending").in {
     val world1          = hungry
     val view1           = needsAgents.copy(pending = IMap.singleton(node1, time1))
     val (world2, view2) = act(view1).run(world1)
@@ -119,7 +119,7 @@ final class LogicSpec extends Test {
     world2.started.shouldBe(world1.started)
   }
 
-  it.should("don't shut down agents if nodes are too young") in {
+  it.should("don't shut down agents if nodes are too young").in {
     val world1 = hungry
     val view1 =
       WorldView(0, 1, managed, IMap.singleton(node1, time1), IMap.empty, time2)
@@ -132,20 +132,28 @@ final class LogicSpec extends Test {
   }
 
   it.should(
-    "shut down agents when there is no backlog and nodes will shortly incur new costs"
-  ) in {
-    val world1 = hungry
-    val view1 =
-      WorldView(0, 1, managed, IMap.singleton(node1, time1), IMap.empty, time3)
-    val (world2, view2) = act(view1).run(world1)
+      "shut down agents when there is no backlog and nodes will shortly incur new costs"
+    )
+    .in {
+      val world1 = hungry
+      val view1 =
+        WorldView(
+          0,
+          1,
+          managed,
+          IMap.singleton(node1, time1),
+          IMap.empty,
+          time3
+        )
+      val (world2, view2) = act(view1).run(world1)
 
-    view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time3)))
+      view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time3)))
 
-    world2.stopped.shouldBe(ISet.singleton(node1))
-    world2.started.shouldBe(world1.started)
-  }
+      world2.stopped.shouldBe(ISet.singleton(node1))
+      world2.started.shouldBe(world1.started)
+    }
 
-  it.should("not shut down agents if there are pending actions") in {
+  it.should("not shut down agents if there are pending actions").in {
     val world1 = hungry
     val view1 =
       WorldView(
@@ -165,32 +173,48 @@ final class LogicSpec extends Test {
     world2.started.shouldBe(world1.started)
   }
 
-  it.should("shut down agents when there is no backlog if they are too old") in {
-    val world1 = hungry
-    val view1 =
-      WorldView(0, 1, managed, IMap.singleton(node1, time1), IMap.empty, time4)
-    val (world2, view2) = act(view1).run(world1)
+  it.should("shut down agents when there is no backlog if they are too old")
+    .in {
+      val world1 = hungry
+      val view1 =
+        WorldView(
+          0,
+          1,
+          managed,
+          IMap.singleton(node1, time1),
+          IMap.empty,
+          time4
+        )
+      val (world2, view2) = act(view1).run(world1)
 
-    view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time4)))
+      view2.shouldBe(view1.copy(pending = IMap.singleton(node1, time4)))
 
-    world2.stopped.shouldBe(ISet.singleton(node1))
-    world2.started.shouldBe(world1.started)
-  }
+      world2.stopped.shouldBe(ISet.singleton(node1))
+      world2.started.shouldBe(world1.started)
+    }
 
   it.should(
-    "shut down agents, even if they are potentially doing work, if they are too old"
-  ) in {
-    val old =
-      WorldView(1, 1, managed, IMap.singleton(node1, time1), IMap.empty, time4)
-    val (world, view) = act(old).run(hungry)
+      "shut down agents, even if they are potentially doing work, if they are too old"
+    )
+    .in {
+      val old =
+        WorldView(
+          1,
+          1,
+          managed,
+          IMap.singleton(node1, time1),
+          IMap.empty,
+          time4
+        )
+      val (world, view) = act(old).run(hungry)
 
-    view.shouldBe(old.copy(pending = IMap.singleton(node1, time4)))
+      view.shouldBe(old.copy(pending = IMap.singleton(node1, time4)))
 
-    world.stopped.shouldBe(ISet.singleton(node1))
-    world.started.size.shouldBe(0)
-  }
+      world.stopped.shouldBe(ISet.singleton(node1))
+      world.started.size.shouldBe(0)
+    }
 
-  it.should("remove changed nodes from pending") in {
+  it.should("remove changed nodes from pending").in {
     val world1 =
       World(
         0,
@@ -215,7 +239,7 @@ final class LogicSpec extends Test {
     world2.started.shouldBe(world2.started)
   }
 
-  it.should("ignore unresponsive pending actions during update") in {
+  it.should("ignore unresponsive pending actions during update").in {
     val view1 =
       WorldView(0, 0, managed, IMap.empty, IMap.singleton(node1, time1), time1)
     val world1 =
@@ -229,7 +253,7 @@ final class LogicSpec extends Test {
     world2.started.shouldBe(world1.started)
   }
 
-  it.should("call the expected methods") in {
+  it.should("call the expected methods").in {
     import ConstImpl._
 
     val world1 = WorldView(
@@ -244,7 +268,7 @@ final class LogicSpec extends Test {
     program.act(world1).getConst.shouldBe("stopstop")
   }
 
-  it.should("monitor stopped nodes") in {
+  it.should("monitor stopped nodes").in {
     val world1 = hungry
     val view1 = WorldView(
       1,

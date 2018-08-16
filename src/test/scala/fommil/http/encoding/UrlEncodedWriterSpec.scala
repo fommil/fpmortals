@@ -17,7 +17,7 @@ import UrlEncodedWriter.ops._
 final case class Foo(apple: String, bananas: Long, pears: String)
 
 class UrlEncodedWriterSpec extends Test {
-  "UrlEncodedWriter" should "encode Strings" in {
+  "UrlEncodedWriter".should("encode Strings").in {
     "foo".toUrlEncoded.shouldBe("foo": String Refined UrlEncoded)
 
     "http://foo".toUrlEncoded.shouldBe(
@@ -25,17 +25,17 @@ class UrlEncodedWriterSpec extends Test {
     )
   }
 
-  it should "not validate partially encoded strings" in {
+  it.should("not validate partially encoded strings").in {
     refineV[UrlEncoded]("http%3A%2F foo").shouldBe(
       Left("Predicate failed: http%3A%2F foo.")
     )
   }
 
-  it should "encode Long numbers" in {
+  it.should("encode Long numbers").in {
     10L.toUrlEncoded.shouldBe("10": String Refined UrlEncoded)
   }
 
-  it should "encode stringy maps" in {
+  it.should("encode stringy maps").in {
     val stringy = IList(
       "apple"   -> "http://foo",
       "bananas" -> "10",
@@ -46,7 +46,7 @@ class UrlEncodedWriterSpec extends Test {
     )
   }
 
-  it should "encode Urls" in {
+  it.should("encode Urls").in {
     val url: String Refined Url =
       "http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
     url.toUrlEncoded.shouldBe(
@@ -55,7 +55,7 @@ class UrlEncodedWriterSpec extends Test {
     )
   }
 
-  it should "encode final case classes" in {
+  it.should("encode final case classes").in {
     Foo("http://foo", 10L, "%").toUrlEncoded.shouldBe(
       "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25": String Refined UrlEncoded
     )

@@ -12,7 +12,7 @@ import eu.timepit.refined.string.Url
 class UrlQuerySpec extends Test {
   import UrlQuery.ops._
 
-  "UrlQuery".should("allow changing the query") in {
+  "UrlQuery".should("allow changing the query").in {
     val url: String Refined Url = "http://fommil.com?wibble=wobble"
 
     url

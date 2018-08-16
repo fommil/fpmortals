@@ -62,6 +62,12 @@ scalacOptions ++= Seq(
   "-opt-inline-from:scalaz.**"
 )
 
+// http://www.scalatest.org/user_guide/using_the_runner
+testOptions += Tests.Argument(
+  TestFrameworks.ScalaTest,
+  "-oD" // suppresses stack traces, shows durations
+)
+
 addCompilerPlugin(scalafixSemanticdb)
 addCompilerPlugin("org.spire-math" %% "kind-projector"     % "0.9.7")
 addCompilerPlugin("com.olegpy"     %% "better-monadic-for" % "0.2.4")

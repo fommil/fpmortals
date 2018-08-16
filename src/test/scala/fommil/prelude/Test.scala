@@ -3,8 +3,11 @@
 
 package fommil.prelude
 
+import scala.{ None, Option }
+
 import org.scalactic.source.Position
 import org.scalatest.FlatSpec
+import org.scalatest.exceptions.TestFailedException
 
 abstract class Test extends FlatSpec {
 
@@ -14,7 +17,12 @@ abstract class Test extends FlatSpec {
       that: A
     )(implicit E: Equal[A], S: Show[A], P: Position): Unit =
       if (!E.equal(self, that)) {
-        fail(S.shows(that) + " was not equal to " + S.shows(self))
+        val msg = z"$that was not equal to $self"
+        throw new TestFailedException(
+          _ => Option(msg),
+          None,
+          P
+        )
       }
   }
 
