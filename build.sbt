@@ -69,8 +69,8 @@ addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
 )
 
-scalacOptions in (Compile, console) -= "-Yno-imports"
-scalacOptions in (Compile, console) -= "-Yno-predef"
-initialCommands in (Compile, console) := Seq(
+scalacOptions.in(Compile, console) -= "-Yno-imports"
+scalacOptions.in(Compile, console) -= "-Yno-predef"
+initialCommands.in(Compile, console) := Seq(
   "scalaz._, Scalaz._"
 ).mkString("import ", ",", "")

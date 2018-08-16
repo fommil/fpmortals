@@ -181,6 +181,7 @@ package object prelude {
   @inline final val Memo: scalaz.Memo.type       = scalaz.Memo
 
   // scalaz data types
+  type Ordering                 = scalaz.Ordering
   type Maybe[A]                 = scalaz.Maybe[A]
   type \/[A, B]                 = scalaz.\/[A, B]
   type Disjunction[A, B]        = scalaz.\/[A, B]
@@ -218,6 +219,7 @@ package object prelude {
   type Coproduct[F[_], G[_], A] = scalaz.Coproduct[F, G, A]
   type Trampoline[A]            = scalaz.Free.Trampoline[A]
   type Void                     = scalaz.ioeffect.Void
+  @inline final val Ordering: scalaz.Ordering.type         = scalaz.Ordering
   @inline final val Maybe: scalaz.Maybe.type               = scalaz.Maybe
   @inline final val Disjunction: scalaz.\/.type            = scalaz.\/
   @inline final val Validation: scalaz.Validation.type     = scalaz.Validation
@@ -324,6 +326,15 @@ package object prelude {
     implicit def DurationLong(n: Long): scala.concurrent.duration.DurationLong =
       new scala.concurrent.duration.DurationLong(n)
     // scalafix:on
+
+    implicit val FiniteDurationInstances
+      : Order[FiniteDuration] with Show[FiniteDuration] =
+      new Order[FiniteDuration] with Show[FiniteDuration] {
+        def order(x: FiniteDuration, y: FiniteDuration): Ordering =
+          Order[Long].order(x.toMillis, y.toMillis)
+        override def shows(f: FiniteDuration): String =
+          f.toString // scalafix:ok
+      }
 
     // https://github.com/scalaz/scalaz/pull/1961
     implicit final class BindRecExtras[F[_]: BindRec, A](

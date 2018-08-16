@@ -25,6 +25,7 @@ import time.Epoch
  *             the nodes. Note that this is stale by definition, but
  *             there are best endeavours to refresh it regularly.
  */
+@deriving(Equal, Show)
 final case class WorldView(
   backlog: Int,
   agents: Int,

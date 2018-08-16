@@ -6,13 +6,11 @@ package http.encoding
 
 import prelude._, Z._
 
-import org.scalatest._
-import org.scalatest.Matchers._
 import UrlQueryWriter.ops._
 
-class UrlQueryWriterSpec extends FlatSpec {
-  "UrlQueryWriter" should "encode case classes" in
-    Foo("http://foo", 10, "%").toUrlQuery.params.assert_===(
+class UrlQueryWriterSpec extends Test {
+  "UrlQueryWriter".should("encode case classes") in
+    Foo("http://foo", 10, "%").toUrlQuery.params.shouldBe(
       IList(
         "apple"   -> "http://foo",
         "bananas" -> "10",

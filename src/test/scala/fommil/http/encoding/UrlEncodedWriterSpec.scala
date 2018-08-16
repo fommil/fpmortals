@@ -10,31 +10,29 @@ import scala.Left
 import eu.timepit.refined.refineV
 import eu.timepit.refined.auto._
 import eu.timepit.refined.string.Url
-import org.scalatest._
-import org.scalatest.Matchers._
 
 import UrlEncodedWriter.ops._
 
 @deriving(UrlEncodedWriter, UrlQueryWriter)
 final case class Foo(apple: String, bananas: Long, pears: String)
 
-class UrlEncodedWriterSpec extends FlatSpec {
+class UrlEncodedWriterSpec extends Test {
   "UrlEncodedWriter" should "encode Strings" in {
-    "foo".toUrlEncoded should be("foo": String Refined UrlEncoded)
+    "foo".toUrlEncoded.shouldBe("foo": String Refined UrlEncoded)
 
-    "http://foo".toUrlEncoded should be(
+    "http://foo".toUrlEncoded.shouldBe(
       "http%3A%2F%2Ffoo": String Refined UrlEncoded
     )
   }
 
   it should "not validate partially encoded strings" in {
-    refineV[UrlEncoded]("http%3A%2F foo") should be(
+    refineV[UrlEncoded]("http%3A%2F foo").shouldBe(
       Left("Predicate failed: http%3A%2F foo.")
     )
   }
 
   it should "encode Long numbers" in {
-    10L.toUrlEncoded should be("10": String Refined UrlEncoded)
+    10L.toUrlEncoded.shouldBe("10": String Refined UrlEncoded)
   }
 
   it should "encode stringy maps" in {
@@ -43,7 +41,7 @@ class UrlEncodedWriterSpec extends FlatSpec {
       "bananas" -> "10",
       "pears"   -> "%"
     )
-    stringy.toUrlEncoded.assert_===(
+    stringy.toUrlEncoded.shouldBe(
       "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25": String Refined UrlEncoded
     )
   }
@@ -51,14 +49,14 @@ class UrlEncodedWriterSpec extends FlatSpec {
   it should "encode Urls" in {
     val url: String Refined Url =
       "http://foo/?blah=http%3A%2F%2Ffoo&bloo=bar"
-    url.toUrlEncoded should be(
+    url.toUrlEncoded.shouldBe(
       // the %3A must be double escaped to %253A
       "http%3A%2F%2Ffoo%2F%3Fblah%3Dhttp%253A%252F%252Ffoo%26bloo%3Dbar": String Refined UrlEncoded
     )
   }
 
   it should "encode final case classes" in {
-    Foo("http://foo", 10L, "%").toUrlEncoded should be(
+    Foo("http://foo", 10L, "%").toUrlEncoded.shouldBe(
       "apple=http%3A%2F%2Ffoo&bananas=10&pears=%25": String Refined UrlEncoded
     )
   }

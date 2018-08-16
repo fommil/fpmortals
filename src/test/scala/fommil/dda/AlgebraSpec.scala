@@ -8,9 +8,6 @@ package algebra
 import prelude._, Z._, S._
 import Coproduct.{ leftc, rightc }
 
-import org.scalatest._
-import org.scalatest.Matchers._
-
 import scalaz.ioeffect.RTS
 
 import fommil.time.Epoch
@@ -57,13 +54,26 @@ object Batch {
     }
 }
 
-class AlgebraSpec extends FlatSpec with RTS {
+object Monkeys {
+  @deriving(Equal, Show)
+  final case class S(
+    singles: IList[MachineNode],
+    batches: IList[NonEmptyList[MachineNode]]
+  ) {
+    def addSingle(node: MachineNode): S =
+      S(node :: singles, batches)
+    def addBatch(nodes: NonEmptyList[MachineNode]): S =
+      S(singles, nodes :: batches)
+  }
+}
+
+final class AlgebraSpec extends Test with RTS {
 
   // https://github.com/scalaz/scalaz/pull/1753
   def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G =
     λ[Coproduct[F, H, ?] ~> G](_.fold(fg, hg))
 
-  "Free Algebra Interpreters" should "combine their powers" in {
+  "Free Algebra Interpreters".should("combine their powers") in {
     val iD: Drone.Ast ~> Task         = Drone.interpreter(DummyDrone)
     val iM: Machines.Ast ~> Task      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> Task = or(iM, iD)
@@ -74,7 +84,7 @@ class AlgebraSpec extends FlatSpec with RTS {
     ).shouldBe(1)
   }
 
-  it should "support monitoring" in {
+  it.should("support monitoring") in {
     val iD: Drone.Ast ~> Task         = Drone.interpreter(DummyDrone)
     val iM: Machines.Ast ~> Task      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> Task = or(iM, iD)
@@ -99,7 +109,7 @@ class AlgebraSpec extends FlatSpec with RTS {
     count.shouldBe(1)
   }
 
-  it should "allow smocking" in {
+  it.should("allow smocking") in {
     import Mocker._
 
     val D: Drone.Ast ~> Id = stub[Int] {
@@ -114,7 +124,7 @@ class AlgebraSpec extends FlatSpec with RTS {
       .shouldBe(1)
   }
 
-  it should "support monkey patching part 1" in {
+  it.should("support monkey patching part 1") in {
     type S = ISet[MachineNode]
     val M = Mocker.stubAny[Machines.Ast, State[S, ?]] {
       case Machines.Stop(node) => State.modify[S](_.insert(node))
@@ -134,17 +144,8 @@ class AlgebraSpec extends FlatSpec with RTS {
       .shouldBe(ISet.empty)
   }
 
-  it should "support monkey patching part 2" in {
-    final case class S(
-      singles: IList[MachineNode],
-      batches: IList[NonEmptyList[MachineNode]]
-    ) {
-      def addSingle(node: MachineNode): S =
-        S(node :: singles, batches)
-      def addBatch(nodes: NonEmptyList[MachineNode]): S =
-        S(singles, nodes :: batches)
-    }
-
+  it.should("support monkey patching part 2") in {
+    import Monkeys.S
     type T[a] = State[S, a]
 
     type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
@@ -216,7 +217,7 @@ class AlgebraSpec extends FlatSpec with RTS {
 
   }
 
-  it should "batch calls without any crazy hacks" in {
+  it.should("batch calls without any crazy hacks") in {
     type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
 
     // pretend this is the DynAgents.act method...
@@ -247,15 +248,7 @@ class AlgebraSpec extends FlatSpec with RTS {
     def optimise[A](orig: FreeAp[Orig, A]): FreeAp[Extended, A] =
       (batch(orig.analyze(gather)) *> orig.foldMap(nostart))
 
-    final case class S(
-      singles: IList[MachineNode],
-      batches: IList[NonEmptyList[MachineNode]]
-    ) {
-      def addSingle(node: MachineNode): S =
-        S(node :: singles, batches)
-      def addBatch(nodes: NonEmptyList[MachineNode]): S =
-        S(singles, nodes :: batches)
-    }
+    import Monkeys.S
     type T[a] = State[S, a]
     val M: Machines.Ast ~> T = Mocker.stub[Unit] {
       case Machines.Start(node) => State.modify[S](_.addSingle(node))
