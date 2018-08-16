@@ -19,12 +19,13 @@ object orphans {
   // Derivation indirection.
   def readConfig[A: ConfigReader]: Task[A] =
     Task(loadConfig(Derivation.Successful(ConfigReader[A]))).flatMap {
-      case Left(e)  => Task.fail(new IllegalArgumentException(e.toString))
+      case Left(e) =>
+        Task.fail(new IllegalArgumentException(e.toString)) // scalafix:ok
       case Right(a) => Task.now(a)
     }
 
-  // I am unconvinced about the utility of pureconfig's error "ADT", that isn't
-  // even sealed... and certainly not easy to create entries.
+  // I am unconvinced about the utility of pureconfig's error "ADT": it isn't
+  // sealed and it is not easy to create entries.
   private[this] def readerFailure[A](
     msg: String
   ): Either[ConfigReaderFailures, A] =

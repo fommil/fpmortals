@@ -39,8 +39,6 @@ package object prelude {
     new scala.StringContext(parts: _*)
 
   // exceptions are a part of life
-  type Exception    = java.lang.Exception // scalafix:ok
-  type Throwable    = java.lang.Throwable // scalafix:ok
   type NoStackTrace = scala.util.control.NoStackTrace
 
   // annotations

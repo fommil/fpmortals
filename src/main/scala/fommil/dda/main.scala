@@ -78,7 +78,7 @@ object Main extends SafeApp {
 
   final class WrappedError(
     val err: JsonClient.Error
-  ) extends Exception
+  ) extends java.lang.Exception // scalafix:ok
       with NoStackTrace
 
   private def oauth[M[_]](
