@@ -21,6 +21,7 @@ addCommandAlias(
 addCommandAlias("lint", "all compile:scalafixTest test:scalafixTest")
 addCommandAlias("fix", "all compile:scalafixCli test:scalafixCli")
 
+val http4sVersion = "0.18.16"
 libraryDependencies ++= Seq(
   "com.github.mpilquist"  %% "simulacrum"          % "0.13.0",
   "com.chuusai"           %% "shapeless"           % "2.3.3",
@@ -28,13 +29,16 @@ libraryDependencies ++= Seq(
   "com.propensive"        %% "contextual"          % "1.1.0",
   "org.scalatest"         %% "scalatest"           % "3.0.5" % "test",
   "com.github.pureconfig" %% "pureconfig"          % "0.9.1",
-  "org.http4s"            %% "http4s-blaze-client" % "0.19.0-M1",
+  "org.http4s"            %% "http4s-dsl"          % http4sVersion,
+  "org.http4s"            %% "http4s-blaze-server" % http4sVersion,
+  "org.http4s"            %% "http4s-blaze-client" % http4sVersion,
   // and because we're using http4s, all the compat stuff too...
   "com.codecommit" %% "shims"                % "1.4.0",
   "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"
 )
 
-val derivingVersion = "1.0.0-RC8"
+//val derivingVersion = "1.0.0-RC8"
+val derivingVersion = "SNAPSHOT"
 libraryDependencies ++= Seq(
   "com.fommil" %% "deriving-macro" % derivingVersion % "provided",
   compilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion),

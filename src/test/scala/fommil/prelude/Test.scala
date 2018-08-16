@@ -22,7 +22,7 @@ abstract class Test extends FlatSpec {
           _ => Option(msg),
           None,
           P
-        )
+        ) // scalafix:ok
       }
   }
 

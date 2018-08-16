@@ -345,6 +345,7 @@ package object prelude {
       def forever[B]: F[B] = BindRec[F].forever(self)
     }
 
+    // scalafix:off
     implicit final class IOExtras[E <: java.lang.Throwable, A](io: IO[E, A]) {
       def toTask: Task[A] = io.widenError
     }
@@ -355,10 +356,10 @@ package object prelude {
           case -\/(err) => Task.fail(new UnhandledError(err))
         }
     }
-
     final class UnhandledError(val err: Any)
-        extends java.lang.Exception // scalafix:ok
+        extends java.lang.Exception
         with NoStackTrace
+    // scalafix:on
   }
 
   // Modularised `scalaz.Scalaz`, stdlib interop

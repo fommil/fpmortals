@@ -5,9 +5,13 @@ package fommil
 package dda
 package gce
 
-import prelude._
+import prelude._, Z._
+
+import jsonformat._
+import JsDecoder.fail
 
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
+@deriving(Equal, Show, JsDecoder)
 final case class NodeConfig(
   machineType: String,
   diskSizeGb: Int,
@@ -22,6 +26,7 @@ final case class NodeConfig(
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#MasterAuth
+@deriving(Equal, Show, JsDecoder)
 final case class MasterAuth(
   username: String,
   password: String,
@@ -31,27 +36,34 @@ final case class MasterAuth(
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#AddonsConfig
+@deriving(Equal, Show, JsDecoder)
 final case class HttpLoadBalancing(disabled: Boolean)
+@deriving(Equal, Show, JsDecoder)
 final case class HorizontalPodAutoscaling(disabled: Boolean)
+@deriving(Equal, Show, JsDecoder)
 final case class AddonsConfig(
   httpLoadBalancing: HttpLoadBalancing,
   horizontalPodAutoscaling: HorizontalPodAutoscaling
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters.nodePools#NodePool
+@deriving(Equal, Show, JsDecoder)
 final case class NodePoolAutoscaling(
   enabled: Boolean,
   minNodeCount: Int,
   maxNodeCount: Int
 )
+@deriving(Equal, Show, JsDecoder)
 final case class AutoUpgradeOptions(
   autoUpgradeStartTime: String,
   description: String
 )
+@deriving(Equal, Show, JsDecoder)
 final case class NodeManagement(
   autoUpgrade: Boolean,
   upgradeOptions: AutoUpgradeOptions
 )
+@deriving(Equal, Show, JsDecoder)
 final case class NodePool(
   name: String,
   config: NodeConfig,
@@ -66,15 +78,29 @@ final case class NodePool(
 )
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#Status
+@deriving(Equal, Show)
 sealed abstract class Status
-case object STATUS_UNSPECIFIED extends Status
-case object PROVISIONING       extends Status
-case object RUNNING            extends Status
-case object RECONCILING        extends Status
-case object STOPPING           extends Status
-case object ERROR              extends Status
+object Status {
+  case object STATUS_UNSPECIFIED extends Status
+  case object PROVISIONING       extends Status
+  case object RUNNING            extends Status
+  case object RECONCILING        extends Status
+  case object STOPPING           extends Status
+  case object ERROR              extends Status
+
+  implicit val decoder: JsDecoder[Status] = JsDecoder[String].emap {
+    case "STATUS_UNSPECIFIED" => STATUS_UNSPECIFIED.right
+    case "PROVISIONING"       => PROVISIONING.right
+    case "RUNNING"            => RUNNING.right
+    case "RECONCILING"        => RECONCILING.right
+    case "STOPPING"           => STOPPING.right
+    case "ERROR"              => ERROR.right
+    case other                => fail("a valid status", JsString(other))
+  }
+}
 
 // https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters#Cluster
+@deriving(Equal, Show, JsDecoder)
 final case class Cluster(
   name: String,
   description: String,
