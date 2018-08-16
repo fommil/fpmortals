@@ -22,12 +22,13 @@ addCommandAlias("lint", "all compile:scalafixTest test:scalafixTest")
 addCommandAlias("fix", "all compile:scalafixCli test:scalafixCli")
 
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"          % "0.13.0",
-  "com.chuusai"          %% "shapeless"           % "2.3.3",
-  "eu.timepit"           %% "refined-scalaz"      % "0.9.2",
-  "com.propensive"       %% "contextual"          % "1.1.0",
-  "org.scalatest"        %% "scalatest"           % "3.0.5" % "test",
-  "org.http4s"           %% "http4s-blaze-client" % "0.19.0-M1",
+  "com.github.mpilquist"  %% "simulacrum"          % "0.13.0",
+  "com.chuusai"           %% "shapeless"           % "2.3.3",
+  "eu.timepit"            %% "refined-scalaz"      % "0.9.2",
+  "com.propensive"        %% "contextual"          % "1.1.0",
+  "org.scalatest"         %% "scalatest"           % "3.0.5" % "test",
+  "com.github.pureconfig" %% "pureconfig"          % "0.9.1",
+  "org.http4s"            %% "http4s-blaze-client" % "0.19.0-M1",
   // and because we're using http4s, all the compat stuff too...
   "com.codecommit" %% "shims"                % "1.4.0",
   "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"

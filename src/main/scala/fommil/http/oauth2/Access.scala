@@ -7,6 +7,8 @@ package oauth2
 
 import prelude._, Z._
 
+import pureconfig.orphans._
+
 import time._
 import http.JsonClient
 import api._
@@ -15,6 +17,7 @@ import api._
  * Refresh tokens do not expire, except in response to a security
  * breach or user / server whim.
  */
+@xderiving(ConfigReader)
 final case class RefreshToken(token: String)
 
 /**

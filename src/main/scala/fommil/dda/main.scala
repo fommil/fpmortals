@@ -9,6 +9,7 @@ import prelude._, Z._
 import scala.collection.immutable.List
 
 import org.http4s.client.blaze.BlazeClientConfig
+import pureconfig.orphans._
 
 import logic._
 import interpreters._
@@ -44,7 +45,7 @@ object Main extends SafeApp {
     }
 
     for {
-      config   <- readConfig.liftM[HT].liftM[GT]
+      config   <- readConfig[AppConfig].liftM[HT].liftM[GT]
       blaze    <- BlazeJsonClient(config.blaze).liftM[HT].liftM[GT]
       hblaze   = JsonClient.liftM[H, GT](blaze)
       drone    = new DroneModule(oauth(config.drone)(hblaze, T))
@@ -96,14 +97,15 @@ object Main extends SafeApp {
       new RefreshModule(config.server)(H, T)(M)
     )
 
+  @deriving(ConfigReader)
   final case class OAuth2Config(
     token: RefreshToken,
     server: ServerConfig
   )
-  final case class Config(
+  @deriving(ConfigReader)
+  final case class AppConfig(
     drone: OAuth2Config,
     machines: OAuth2Config,
-    blaze: BlazeClientConfig
+    blaze: BlazeClientConfig = BlazeClientConfig.defaultConfig
   )
-  def readConfig: Task[Config] = ???
 }

@@ -7,6 +7,7 @@ package oauth2
 
 import prelude._, Z._
 
+import pureconfig.orphans._
 import eu.timepit.refined.string.Url
 
 import api._
@@ -14,6 +15,7 @@ import encoding.UrlQuery.ops._
 import encoding.UrlQueryWriter.ops._
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
+@deriving(ConfigReader)
 final case class ServerConfig(
   auth: String Refined Url,
   access: String Refined Url,

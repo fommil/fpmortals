@@ -68,6 +68,11 @@ package object prelude {
   @inline final val Arbitrary: org.scalacheck.Arbitrary.type =
     org.scalacheck.Arbitrary
 
+  // I'm not overly happy about pureconfig...
+  type ConfigReader[A] = pureconfig.ConfigReader[A]
+  @inline final val ConfigReader: pureconfig.ConfigReader.type =
+    pureconfig.ConfigReader
+
   // macro annotations don't work: https://github.com/scalamacros/paradise/issues/8
   // type typeclass = simulacrum.typeclass
   type deriving  = scalaz.deriving
