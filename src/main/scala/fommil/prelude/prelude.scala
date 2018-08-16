@@ -37,6 +37,8 @@ package object prelude {
   // https://github.com/propensive/contextual/issues/41
   @inline final def StringContext(parts: String*): StringContext =
     new scala.StringContext(parts: _*)
+  implicit final def zInterpolator(sc: StringContext): CordInterpolator = // scalafix:ok
+    new CordInterpolator(sc)
 
   // exceptions are a part of life
   type NoStackTrace = scala.util.control.NoStackTrace
@@ -343,6 +345,20 @@ package object prelude {
       def forever[B]: F[B] = BindRec[F].forever(self)
     }
 
+    implicit final class IOExtras[E <: java.lang.Throwable, A](io: IO[E, A]) {
+      def toTask: Task[A] = io.widenError
+    }
+    implicit final class TaskExtras[A](io: Task[A]) {
+      def swallowError[E, AA](implicit ev: A <~< (E \/ AA)): Task[AA] =
+        io.map(ev).flatMap {
+          case \/-(a)   => Task.now(a)
+          case -\/(err) => Task.fail(new UnhandledError(err))
+        }
+    }
+
+    final class UnhandledError(val err: Any)
+        extends java.lang.Exception // scalafix:ok
+        with NoStackTrace
   }
 
   // Modularised `scalaz.Scalaz`, stdlib interop

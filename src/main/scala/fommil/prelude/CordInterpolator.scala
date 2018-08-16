@@ -9,7 +9,8 @@ import Z._
 /** Cord is very inefficient in Scalaz 7.2, fixed in 7.3 */
 final class CordInterpolator(private val sc: StringContext) extends AnyVal {
   // scalafix:off
-  def show(args: CordInterpolator.Cords*): String = cord(args: _*).toString
+  def str(args: String*): String               = sc.s(args: _*)
+  def z(args: CordInterpolator.Cords*): String = cord(args: _*).toString
   def cord(args: CordInterpolator.Cords*): Cord = {
     val strings = sc.parts.foldRight(IList.empty[Cord])(
       (s, acc) => Cord(treatEscapes(s)) :: acc

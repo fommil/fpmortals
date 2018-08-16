@@ -17,14 +17,11 @@ import http.encoding._
 import UrlEncodedWriter.ops._
 
 import org.http4s
+import org.http4s.client.Client
 import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
 
-final class BlazeJsonClient(
-  H: http4s.client.Client[Task]
-) extends JsonClient[EitherT[Task, JsonClient.Error, ?]] {
-
-  type F[a] = EitherT[Task, JsonClient.Error, a]
-
+import BlazeJsonClient.F
+final class BlazeJsonClient(H: Client[Task]) extends JsonClient[F] {
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
@@ -81,6 +78,7 @@ final class BlazeJsonClient(
 
 }
 object BlazeJsonClient {
+  type F[a] = EitherT[Task, JsonClient.Error, a]
   def apply(config: BlazeClientConfig): Task[BlazeJsonClient] =
     Http1Client(config).map(new BlazeJsonClient(_))
 }

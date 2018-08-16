@@ -26,6 +26,7 @@ final case class ServerConfig(
 )
 
 /** Code tokens are one-shot and expire on use. */
+@deriving(Equal, Show)
 final case class CodeToken(
   token: String,
   // for some stupid reason, the protocol needs the exact same

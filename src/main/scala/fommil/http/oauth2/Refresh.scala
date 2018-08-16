@@ -16,6 +16,7 @@ import api._
  * be expired on a whim by the server. For example, Google only allow
  * 50 tokens, per user.
  */
+@deriving(Equal, Show)
 final case class BearerToken(token: String, expires: Epoch)
 
 trait Refresh[F[_]] {

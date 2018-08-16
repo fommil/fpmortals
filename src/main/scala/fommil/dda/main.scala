@@ -10,18 +10,21 @@ import scala.collection.immutable.List
 
 import org.http4s.client.blaze.BlazeClientConfig
 import pureconfig.orphans._
+import scalaz.ioeffect.console._
 
 import logic._
 import interpreters._
 import http._
 import http.interpreters._
 import http.oauth2._
+import http.oauth2.interpreters._
 import time._
 
 object Main extends SafeApp {
 
   def run(args: List[String]): IO[Void, ExitStatus] = {
-    if (args.contains("--auth")) auth
+    if (args.contains("--machines")) auth("machines")
+    else if (args.contains("--drone")) auth("drone")
     else agents(BearerToken("<invalid>", Epoch(0)))
   }.attempt[Void].map {
     case \/-(_) => ExitStatus.ExitNow(0)
@@ -29,7 +32,25 @@ object Main extends SafeApp {
   }
 
   // performs the OAuth 2.0 dance to obtain refresh tokens
-  def auth: Task[Unit] = ???
+  def auth(name: String): Task[Unit] =
+    for {
+      config    <- readConfig[ServerConfig](name + ".server")
+      ui        <- BlazeUserInteraction()
+      auth      = new AuthModule(config)(ui)
+      codetoken <- auth.authenticate.eval(Tokens())
+      bconfig   <- readConfig[BlazeClientConfig]("blaze")
+      client    <- BlazeJsonClient(bconfig)
+      token <- {
+        type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+        type H[a]        = HT[Task, a]
+
+        val T: LocalClock[H] = LocalClock.liftM(new LocalClockTask)
+        val access           = new AccessModule(config)(client, T)
+
+        access.access(codetoken)
+      }.run.swallowError
+      _ <- putStrLn(z"got token: ${token._2}").toTask
+    } yield ()
 
   // runs the app, requires that refresh tokens are provided
   def agents(bearer: BearerToken): Task[Unit] = {
@@ -43,6 +64,8 @@ object Main extends SafeApp {
       import LocalClock.liftM
       liftM(liftM(new LocalClockTask))
     }
+
+    // TODO: should we have an outer layer that is just Task ?
 
     for {
       config   <- readConfig[AppConfig].liftM[HT].liftM[GT]
@@ -71,15 +94,7 @@ object Main extends SafeApp {
         } yield ()
       }.forever[Unit].run(start)
     } yield ()
-  }.run(bearer).run.flatMap {
-    case -\/(err) => Task.fail(new WrappedError(err))
-    case \/-(_)   => Task.now(())
-  }
-
-  final class WrappedError(
-    val err: JsonClient.Error
-  ) extends java.lang.Exception // scalafix:ok
-      with NoStackTrace
+  }.eval(bearer).run.swallowError
 
   private def oauth[M[_]](
     config: OAuth2Config

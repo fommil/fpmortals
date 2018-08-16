@@ -17,8 +17,9 @@ import pureconfig.error._
 object orphans {
   // superior alternative to loadConfig, deferring I/O, and avoiding the
   // Derivation indirection.
-  def readConfig[A: ConfigReader]: Task[A] =
-    Task(loadConfig(Derivation.Successful(ConfigReader[A]))).flatMap {
+  def readConfig[A: ConfigReader]: Task[A] = readConfig("")
+  def readConfig[A: ConfigReader](path: String): Task[A] =
+    Task(loadConfig(path)(Derivation.Successful(ConfigReader[A]))).flatMap {
       case Left(e) =>
         Task.fail(new IllegalArgumentException(e.toString)) // scalafix:ok
       case Right(a) => Task.now(a)
