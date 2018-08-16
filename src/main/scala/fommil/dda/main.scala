@@ -12,6 +12,7 @@ import org.http4s.client.blaze.BlazeClientConfig
 import pureconfig.orphans._
 import scalaz.ioeffect.console._
 
+import algebra._
 import logic._
 import interpreters._
 import http._
@@ -43,58 +44,54 @@ object Main extends SafeApp {
       token <- {
         type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
         type H[a]        = HT[Task, a]
-
-        val T: LocalClock[H] = LocalClock.liftM(new LocalClockTask)
-        val access           = new AccessModule(config)(client, T)
-
+        val T: LocalClock[H]  = LocalClock.liftM(new LocalClockTask)
+        val access: Access[H] = new AccessModule(config)(client, T)
         access.access(codetoken)
       }.run.swallowError
       _ <- putStrLn(z"got token: ${token._2}").toTask
     } yield ()
 
   // runs the app, requires that refresh tokens are provided
-  def agents(bearer: BearerToken): Task[Unit] = {
-    type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
-    type GT[f[_], a] = StateT[f, BearerToken, a]
-
-    type H[a] = HT[Task, a]
-    type G[a] = GT[H, a]
-
-    val T: LocalClock[G] = {
-      import LocalClock.liftM
-      liftM(liftM(new LocalClockTask))
-    }
-
-    // TODO: should we have an outer layer that is just Task ?
-
+  def agents(bearer: BearerToken): Task[Unit] =
     for {
-      config   <- readConfig[AppConfig].liftM[HT].liftM[GT]
-      blaze    <- BlazeJsonClient(config.blaze).liftM[HT].liftM[GT]
-      hblaze   = JsonClient.liftM[H, GT](blaze)
-      drone    = new DroneModule(oauth(config.drone)(hblaze, T))
-      machines = new MachinesModule(oauth(config.machines)(hblaze, T))
-      agents   = new DynAgentsModule(drone, machines)
-      start    <- agents.initial
+      config <- readConfig[AppConfig]
+      blaze  <- BlazeJsonClient(config.blaze)
       _ <- {
-        type FT[f[_], a] = StateT[f, WorldView, a]
-        type F[a]        = FT[G, a]
-        val F: MonadState[F, WorldView] = MonadState[F, WorldView]
-        val A: DynAgents[F]             = DynAgents.liftM(agents)
-        val S: Sleep[F] = {
-          import Sleep.liftM
-          liftM(liftM(liftM(new SleepTask)))
+        type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+        type GT[f[_], a] = StateT[f, BearerToken, a]
+        type H[a]        = HT[Task, a]
+        type G[a]        = GT[H, a]
+        val T: LocalClock[G] = {
+          import LocalClock.liftM
+          liftM(liftM(new LocalClockTask))
         }
-
+        val hblaze: JsonClient[G] = JsonClient.liftM(blaze)
+        val drone: Drone[G]       = new DroneModule(oauth(config.drone)(hblaze, T))
+        val machines: Machines[G] =
+          new MachinesModule(oauth(config.machines)(hblaze, T))
+        val agents: DynAgents[G] = new DynAgentsModule(drone, machines)
         for {
-          old     <- F.get
-          updated <- A.update(old)
-          changed <- A.act(updated)
-          _       <- F.put(changed)
-          _       <- S.sleep(10.seconds)
+          start <- agents.initial
+          _ <- {
+            type FT[f[_], a] = StateT[f, WorldView, a]
+            type F[a]        = FT[G, a]
+            val F: MonadState[F, WorldView] = MonadState[F, WorldView]
+            val A: DynAgents[F]             = DynAgents.liftM(agents)
+            val S: Sleep[F] = {
+              import Sleep.liftM
+              liftM(liftM(liftM(new SleepTask)))
+            }
+            for {
+              old     <- F.get
+              updated <- A.update(old)
+              changed <- A.act(updated)
+              _       <- F.put(changed)
+              _       <- S.sleep(10.seconds)
+            } yield ()
+          }.forever[Unit].run(start)
         } yield ()
-      }.forever[Unit].run(start)
+      }.eval(bearer).run.swallowError
     } yield ()
-  }.eval(bearer).run.swallowError
 
   private def oauth[M[_]](
     config: OAuth2Config
