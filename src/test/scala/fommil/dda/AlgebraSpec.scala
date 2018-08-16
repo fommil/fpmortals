@@ -11,6 +11,7 @@ import Coproduct.{ leftc, rightc }
 import scalaz.ioeffect.RTS
 
 import fommil.time.Epoch
+import Test.unimplemented
 
 object Demo {
   def todo[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] =
@@ -25,15 +26,15 @@ object Demo {
 }
 
 object DummyDrone extends Drone[Task] {
-  def getAgents: Task[Int]  = ???
+  def getAgents: Task[Int]  = unimplemented
   def getBacklog: Task[Int] = Task(1)
 }
 object DummyMachines extends Machines[Task] {
   def getAlive: Task[MachineNode ==>> Epoch]      = Task(IMap.empty)
-  def getManaged: Task[NonEmptyList[MachineNode]] = ???
-  def getTime: Task[Epoch]                        = ???
-  def start(node: MachineNode): Task[Unit]        = ???
-  def stop(node: MachineNode): Task[Unit]         = ???
+  def getManaged: Task[NonEmptyList[MachineNode]] = unimplemented
+  def getTime: Task[Epoch]                        = unimplemented
+  def start(node: MachineNode): Task[Unit]        = unimplemented
+  def stop(node: MachineNode): Task[Unit]         = unimplemented
 }
 
 trait Batch[F[_]] {
@@ -73,7 +74,7 @@ final class AlgebraSpec extends Test with RTS {
   def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G =
     λ[Coproduct[F, H, ?] ~> G](_.fold(fg, hg))
 
-  "Free Algebra Interpreters".should("combine their powers") in {
+  "Free Algebra Interpreters".should("combine their powers").in {
     val iD: Drone.Ast ~> Task         = Drone.interpreter(DummyDrone)
     val iM: Machines.Ast ~> Task      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> Task = or(iM, iD)
@@ -84,7 +85,7 @@ final class AlgebraSpec extends Test with RTS {
     ).shouldBe(1)
   }
 
-  it.should("support monitoring") in {
+  it.should("support monitoring").in {
     val iD: Drone.Ast ~> Task         = Drone.interpreter(DummyDrone)
     val iM: Machines.Ast ~> Task      = Machines.interpreter(DummyMachines)
     val interpreter: Demo.Ast ~> Task = or(iM, iD)
@@ -109,7 +110,7 @@ final class AlgebraSpec extends Test with RTS {
     count.shouldBe(1)
   }
 
-  it.should("allow smocking") in {
+  it.should("allow smocking").in {
     import Mocker._
 
     val D: Drone.Ast ~> Id = stub[Int] {
@@ -124,7 +125,7 @@ final class AlgebraSpec extends Test with RTS {
       .shouldBe(1)
   }
 
-  it.should("support monkey patching part 1") in {
+  it.should("support monkey patching part 1").in {
     type S = ISet[MachineNode]
     val M = Mocker.stubAny[Machines.Ast, State[S, ?]] {
       case Machines.Stop(node) => State.modify[S](_.insert(node))
@@ -144,7 +145,7 @@ final class AlgebraSpec extends Test with RTS {
       .shouldBe(ISet.empty)
   }
 
-  it.should("support monkey patching part 2") in {
+  it.should("support monkey patching part 2").in {
     import Monkeys.S
     type T[a] = State[S, a]
 
@@ -217,7 +218,7 @@ final class AlgebraSpec extends Test with RTS {
 
   }
 
-  it.should("batch calls without any crazy hacks") in {
+  it.should("batch calls without any crazy hacks").in {
     type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
 
     // pretend this is the DynAgents.act method...

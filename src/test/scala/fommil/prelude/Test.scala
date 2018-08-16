@@ -19,3 +19,6 @@ abstract class Test extends FlatSpec {
   }
 
 }
+object Test {
+  def unimplemented: Nothing = scala.sys.error("unimplemented")
+}
