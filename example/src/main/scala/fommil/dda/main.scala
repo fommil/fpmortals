@@ -38,7 +38,7 @@ object Main extends SafeApp {
       config    <- readConfig[ServerConfig](name + ".server")
       ui        <- BlazeUserInteraction()
       auth      = new AuthModule(config)(ui)
-      codetoken <- auth.authenticate.eval(Tokens())
+      codetoken <- auth.authenticate
       bconfig   <- readConfig[BlazeClientConfig]("blaze")
       client    <- BlazeJsonClient(bconfig)
       token <- {

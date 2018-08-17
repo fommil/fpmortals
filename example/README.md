@@ -8,12 +8,12 @@ That said, this application could probably save millions of dollars per year in 
 
 Several parts of the application have been left unimplemented and may be completed as a personal exercise. For example:
 
-- add unit tests for modules that do not have any.
+- add unit tests for untested modules.
 - harden `AuthJsonClient` (see comments in the file)
-- implement the `DroneModule` interpreter by transcribing the JSON API (use `MachinesModule` as a worked example)
+- implement the `GoogleMachinesModule` interpreter by transcribing the JSON API, and write a stub docker server to test against, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
 - add support for other CI platforms, e.g. Jenkins
-- add stub (docker) servers and integration tests using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
 - design a logging algebra and interpreter
+- can `BlazeUserInteraction` be rewritten to use `IndexedState` instead of a state machine ADT?
 - rewrite `main.scala` to use the `Free` monad as per [Chapter 7.5](https://leanpub.com/fpmortals/read#leanpub-auto-a-free-lunch).
 - add AWS support using [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat), as opposed to the [AWS SDK](https://aws.amazon.com/developers/getting-started/java/).
 - write a compiler plugin and macro to generate the contents of the `boilerplate.scala` files for all algebras

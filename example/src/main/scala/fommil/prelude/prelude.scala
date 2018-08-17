@@ -211,6 +211,7 @@ package object prelude {
   type Diev[A]                  = scalaz.Diev[A]
   type OneAnd[F[_], A]          = scalaz.OneAnd[F, A]
   type IO[E, A]                 = scalaz.ioeffect.IO[E, A]
+  type IORef[A]                 = scalaz.ioeffect.IORef[A]
   type Task[A]                  = scalaz.ioeffect.Task[A]
   type MonadIO[F[_], E]         = scalaz.ioeffect.MonadIO[F, E]
   type Free[S[_], A]            = scalaz.Free[S, A]
@@ -247,6 +248,7 @@ package object prelude {
   @inline final val Diev: scalaz.Diev.type             = scalaz.Diev
   @inline final val OneAnd: scalaz.OneAnd.type         = scalaz.OneAnd
   @inline final val IO: scalaz.ioeffect.IO.type        = scalaz.ioeffect.IO
+  @inline final val IORef: scalaz.ioeffect.IORef.type  = scalaz.ioeffect.IORef
   @inline final val Task: scalaz.ioeffect.Task.type    = scalaz.ioeffect.Task
   @inline final val MonadIO: scalaz.ioeffect.MonadIO.type =
     scalaz.ioeffect.MonadIO
@@ -355,6 +357,9 @@ package object prelude {
           case \/-(a)   => Task.now(a)
           case -\/(err) => Task.fail(new UnhandledError(err))
         }
+    }
+    implicit final class TaskCompanionExtras(io: Task.type) {
+      def failMessage[A](s: String): Task[A] = Task.fail(new UnhandledError(s))
     }
     final class UnhandledError(val err: Any)
         extends java.lang.Exception
