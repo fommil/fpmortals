@@ -17,6 +17,8 @@ import http.encoding._
 import UrlEncodedWriter.ops._
 
 import org.http4s
+import org.http4s.{ EntityEncoder, MediaType }
+import org.http4s.headers.`Content-Type`
 import org.http4s.client.Client
 import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
 
@@ -34,18 +36,31 @@ final class BlazeJsonClient(H: Client[Task]) extends JsonClient[F] {
     )(handler)
   )
 
+  // This is not a typeclass, but http4s treats it implicitly. We'll treat it
+  // explicitly, which may mean having to treat other implicit parameters
+  // explicitly too (see cats.Monad below).
+  private val encoder: EntityEncoder[Task, String Refined UrlEncoded] =
+    EntityEncoder[Task, String]
+      .contramap[String Refined UrlEncoded](_.value)
+      .withContentType(
+        `Content-Type`(MediaType.`application/x-www-form-urlencoded`)
+      )
+
   def post[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
   ): EitherT[Task, JsonClient.Error, A] = EitherT(
     H.fetch(
-      http4s.Request[Task](
-        method = http4s.Method.POST,
-        uri = convert(uri),
-        headers = convert(headers),
-        body = convert(payload.toUrlEncoded.value)
-      )
+      http4s
+        .Request[Task](
+          method = http4s.Method.POST,
+          uri = convert(uri),
+          headers = convert(headers)
+        )
+        .withBody(
+          payload.toUrlEncoded
+        )(cats.Monad[Task], encoder)
     )(handler)
   )
 
@@ -59,9 +74,6 @@ final class BlazeJsonClient(H: Client[Task]) extends JsonClient[F] {
   // we already validated the Url. If this fails, it's a bug in http4s
   private[this] def convert(uri: String Refined Url): http4s.Uri =
     http4s.Uri.unsafeFromString(uri.value)
-
-  private[this] def convert(body: String): fs2.Stream[Task, Byte] =
-    fs2.Stream(body).through(fs2.text.utf8Encode).covary[Task]
 
   private[this] def handler[A: JsDecoder]
     : http4s.Response[Task] => Task[JsonClient.Error \/ A] = { resp =>
@@ -79,6 +91,6 @@ final class BlazeJsonClient(H: Client[Task]) extends JsonClient[F] {
 }
 object BlazeJsonClient {
   type F[a] = EitherT[Task, JsonClient.Error, a]
-  def apply(config: BlazeClientConfig): Task[BlazeJsonClient] =
-    Http1Client(config).map(new BlazeJsonClient(_))
+  def apply(): Task[BlazeJsonClient] =
+    Http1Client(BlazeClientConfig.defaultConfig).map(new BlazeJsonClient(_))
 }

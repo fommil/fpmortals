@@ -8,7 +8,6 @@ import prelude._, Z._
 
 import scala.collection.immutable.List
 
-import org.http4s.client.blaze.BlazeClientConfig
 import pureconfig.orphans._
 import scalaz.ioeffect.console._
 
@@ -41,8 +40,7 @@ object Main extends SafeApp {
       ui        <- BlazeUserInteraction()
       auth      = new AuthModule(config)(ui)
       codetoken <- auth.authenticate
-      bconfig   = BlazeClientConfig.defaultConfig
-      client    <- BlazeJsonClient(bconfig)
+      client    <- BlazeJsonClient()
       token <- {
         type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
         type H[a]        = HT[Task, a]
@@ -57,7 +55,7 @@ object Main extends SafeApp {
   def agents(bearer: BearerToken): Task[Unit] =
     for {
       config <- readConfig[AppConfig]
-      blaze  <- BlazeJsonClient(config.blaze)
+      blaze  <- BlazeJsonClient()
       _ <- {
         type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
         type GT[f[_], a] = StateT[f, BearerToken, a]
@@ -119,7 +117,6 @@ object Main extends SafeApp {
   @deriving(ConfigReader)
   final case class AppConfig(
     drone: OAuth2Config,
-    machines: OAuth2Config,
-    blaze: BlazeClientConfig = BlazeClientConfig.defaultConfig
+    machines: OAuth2Config
   )
 }

@@ -10,7 +10,7 @@ Several parts of the application have been left unimplemented and may be complet
 
 - add unit tests for untested modules.
 - harden `AuthJsonClient` (see comments in the file)
-- implement the `GoogleMachinesModule` interpreter by transcribing the JSON API, and write a stub docker server to test against, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
+- implement the `GoogleMachinesModule` interpreter by using the JSON API in `gce.scala`, and write a stub docker server to test against, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
 - add support for other CI platforms, e.g. Jenkins
 - design a logging algebra and interpreter
 - can `BlazeUserInteraction` be rewritten to use `IndexedState` instead of a state machine ADT?
