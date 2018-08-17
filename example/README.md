@@ -16,6 +16,7 @@ Several parts of the application have been left unimplemented and may be complet
 - design a logging algebra and interpreter
 - rewrite `main.scala` to use the `Free` monad as per [Chapter 7.5](https://leanpub.com/fpmortals/read#leanpub-auto-a-free-lunch).
 - add AWS support using [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat), as opposed to the [AWS SDK](https://aws.amazon.com/developers/getting-started/java/).
+- write a compiler plugin and macro to generate the contents of the `boilerplate.scala` files for all algebras
 
 The https://gitter.im/scalaz/scalaz chat room is recommended for anybody seeking volunteer assistance. The issue tracker is closed to encourage live engagement with the community: you will learn a lot by asking questions, although do not assume that anybody knows this codebase.
 

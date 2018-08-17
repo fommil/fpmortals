@@ -648,8 +648,11 @@ reorder `flatMap` calls according to
 
 # Application Design
 
-In this chapter we will write the business logic and tests for a
-purely functional server application.
+In this chapter we will write the business logic and tests for a purely
+functional server application. The source code for this application is included
+under the `example` directory along with the book's source, however it is
+recommended not to read the source code until the final chapter as there will be
+significant refactors as we learn more about FP.
 
 
 ## Specification
@@ -9811,9 +9814,9 @@ it:
   val L: Lookup[Ctx] = Lookup.liftIO(LookupRandom)
 ~~~~~~~~
 
-A> A compiler plugin that automatically produces the `.liftM` and `.liftIO` would
-A> be a great contribution to the ecosystem! A work in progress can be seen at
-A> <https://gitlab.com/fommil/scalaz-free> and welcomes contributors.
+A> A compiler plugin that automatically produces `.liftM`, `.liftIO`, and
+A> additional boilerplate that arises in this chapter, would be a great
+A> contribution to the ecosystem!
 
 
 #### Performance
