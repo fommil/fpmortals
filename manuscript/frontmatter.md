@@ -30,7 +30,7 @@ physics.
 
 A computer is not necessary to follow along, although we hope that you will gain
 the confidence to independently study the scalaz source code. Some of the more
-complex code snippets are available with [the book's source code](https://bitbucket.org/fommil/fpmortals/src/) and those who
+complex code snippets are available with [the book's source code](https://github.com/fommil/fpmortals/) and those who
 want practical exercises are encouraged to (re-)implement scalaz (and the
 example application) using the partial descriptions presented in this book.
 
@@ -42,7 +42,7 @@ Learning training course if you can.
 # Copyleft Notice
 
 This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you can use
-this book as you like, the [source is available](https://bitbucket.org/fommil/fpmortals/src/), you can redistribute this book
+this book as you like, the [source is available](https://githum.com/fommil/fpmortals/) you can redistribute this book
 and you can distribute your own version. That means you can print it, photocopy
 it, e-mail it, upload it to websites, change it, translate it, charge for it,
 remix it, delete bits, and draw all over it.
