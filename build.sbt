@@ -37,8 +37,8 @@ libraryDependencies ++= Seq(
   "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"
 )
 
-//val derivingVersion = "1.0.0-RC8"
-val derivingVersion = "SNAPSHOT"
+val derivingVersion = "1.0.0-RC9"
+//val derivingVersion = "SNAPSHOT"
 libraryDependencies ++= Seq(
   "com.fommil" %% "deriving-macro" % derivingVersion % "provided",
   compilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion),
