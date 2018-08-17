@@ -23,11 +23,12 @@ final class BlazeUserInteraction private (
   private val dsl = new Http4sDsl[Task] {}
   import dsl._
 
-  // WORKAROUND "capture" is for https://github.com/http4s/http4s/issues/2004
   private object Code extends QueryParamDecoderMatcher[String]("code")
   private val service: HttpService[Task] = HttpService[Task] {
-    case GET -> Root / "capture" :? Code(code) =>
-      ptoken.complete(code).toTask >> Ok(z"WE GOT ALL YUR CODEZ $code")
+    case GET -> Root :? Code(code) =>
+      ptoken.complete(code).toTask >> Ok(
+        "That seems to have worked, go back to the console."
+      )
   }
 
   private val launch: Task[Server[Task]] =
@@ -55,7 +56,7 @@ final class BlazeUserInteraction private (
 
   private def mkUrl(s: Server[Task]): String Refined Url = {
     val port = s.address.getPort // scalafix:ok
-    Refined.unsafeApply(str"http://localhost:${port.toString}/capture") // scalafix:ok
+    Refined.unsafeApply(str"http://localhost:${port.toString}/") // scalafix:ok
   }
 
 }
