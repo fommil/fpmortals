@@ -1,0 +1,19 @@
+image: fommil/docker-openjdk-sbt:latest
+cache:
+  paths:
+    - project/.sbt
+variables:
+  SBT_TASK_LIMIT: "4"
+  COURSIER_CACHE: "project/.sbt/coursier"
+
+stages:
+  - build
+
+build_job:
+  stage: build
+  script:
+    - if $(git grep -qE "TODO|FIXME" *) ; then
+        echo "Please remove TODO or FIXME." ;
+        exit 1 ;
+      fi
+    - sbt ";check ;test:compile ;lint ;test";
