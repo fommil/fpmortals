@@ -1,0 +1,5 @@
+This file clarifies the social and community aspects of the project:
+
+1. There is no support. If you depend on this software, you are responsible for it.
+2. You are encouraged to fork. Offering your changes is appreciated.
+3. Chat rooms and repositories are recreational: not regulated and not a workplace.
