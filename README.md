@@ -17,6 +17,50 @@ Several parts of the application have been left unimplemented and may be complet
 - rewrite `main.scala` to use the `Free` monad as per [Chapter 7.5](https://leanpub.com/fpmortals/read#leanpub-auto-a-free-lunch).
 - add AWS support using [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat), as opposed to the [AWS SDK](https://aws.amazon.com/developers/getting-started/java/).
 
+The https://gitter.im/scalaz/scalaz chat room is recommended for anybody seeking volunteer assistance. The issue tracker is closed to encourage live engagement with the community: you will learn a lot by asking questions, although do not assume that anybody knows this codebase.
+
+# Custom `prelude`
+
+This project uses a custom `prelude.scala` instead of the default Scala imports. By default, new files will have nothing imported into scope, not even primitives like `Int`, `Boolean` or `String`.
+
+All of the concepts covered in `#fpmortals` can be imported by using this import at the top of the file
+
+```scala
+import fommil.prelude._
+```
+
+Scalaz typeclass syntax is opt-in with
+
+```scala
+import fommil.prelude.Z._
+```
+
+If scala stdlib data types, compatibility or typeclass instances are required, use
+
+```scala
+import fommil.prelude.S._
+```
+
+If compatibility with Typelevel libraries is required, use
+
+```scala
+import fommil.prelude.T._
+```
+
+These imports are often written relatively, e.g.
+
+```scala
+import prelude._, S._, T._, Z._
+```
+
+See `prelude.scala` to understand exactly what is being imported. If you are starting a fresh application, consider creating such a prelude. One of the advantages of Scalaz is that it allows users to construct an *a la carte* set of imports, rather than being forced to import everything at once with
+
+```scala
+import scalaz._, Scalaz._
+```
+
+which is, however, useful for beginners.
+
 # Linting and Testing
 
 All commands are from the `sbt` shell.
