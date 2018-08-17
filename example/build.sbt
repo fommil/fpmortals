@@ -12,8 +12,8 @@ inThisBuild(
 
 resourcesOnCompilerCp(Compile)
 
-addCommandAlias("cpl", "all compile test:compile")
-addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
+addCommandAlias("cpl", "all compile test:compile it:compile")
+addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt it:scalafmt")
 addCommandAlias(
   "check",
   "all headerCheck test:headerCheck scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
   "com.chuusai"           %% "shapeless"           % "2.3.3",
   "eu.timepit"            %% "refined-scalaz"      % "0.9.2",
   "com.propensive"        %% "contextual"          % "1.1.0",
-  "org.scalatest"         %% "scalatest"           % "3.0.5" % "test",
+  "org.scalatest"         %% "scalatest"           % "3.0.5" % "test,it",
   "com.github.pureconfig" %% "pureconfig"          % "0.9.1",
   "org.http4s"            %% "http4s-dsl"          % http4sVersion,
   "org.http4s"            %% "http4s-blaze-server" % http4sVersion,
@@ -84,3 +84,11 @@ scalacOptions.in(Compile, console) -= "-Yno-predef"
 initialCommands.in(Compile, console) := Seq(
   "scalaz._, Scalaz._"
 ).mkString("import ", ",", "")
+
+configs(IntegrationTest)
+inConfig(IntegrationTest)(
+  Defaults.testSettings ++
+    sensibleTestSettings ++
+    dockerComposeSettings ++
+    org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings
+)

@@ -1,0 +1,16 @@
+<configuration>
+  <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+    <resetJUL>true</resetJUL>
+  </contextListener>
+  <appender name="file" class="ch.qos.logback.core.FileAppender">
+    <file>${sbt.sensible.root}/${sbt.sensible.name}-it.log</file>
+      <append>true</append>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %X{akkaSource} %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="file" />
+  </root>
+
+</configuration>

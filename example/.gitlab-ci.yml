@@ -16,4 +16,4 @@ build_job:
         echo "Please remove TODO or FIXME." ;
         exit 1 ;
       fi
-    - sbt ";check ;test:compile ;lint ;test";
+    - sbt ";check ;test:compile ;lint ;test ;it:dockerComposeUp ;test:it ;it:dockerComposeDown";

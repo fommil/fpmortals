@@ -1,0 +1,34 @@
+version: "2.2"
+
+services:
+  # ready:
+  #   image: hello-world
+  #   depends_on:
+  #     drone-server:
+  #       condition: service_healthy
+
+  ## http://docs.drone.io/installation/
+  ## https://discourse.drone.io/t/spinning-up-a-drone-for-integration-testing/2448
+  # drone-server:
+  #   image: drone/drone:0.8
+  #   ports:
+  #     - 8000:8000
+  #   volumes:
+  #     - ./drone/certs:/etc/certs/localhost
+  #   restart: always
+  #   environment:
+  #     - DRONE_OPEN=true
+  #     - DRONE_GITEA=true
+  #     - DRONE_GITEA_URL=https://try.gitea.io
+  #     - DRONE_HOST=https://localhost:8000
+  #     - DRONE_HOST=http://localhost:8000
+  #     - DRONE_SECRET=supertopsecret
+  #     - DRONE_SERVER_CERT=/etc/certs/localhost/drone.crt
+  #     - DRONE_SERVER_KEY=/etc/certs/localhost/drone.key
+
+  hello:
+    image: cakesolutions/hmonad:2.0
+    ports:
+      - "1337:80"
+    volumes:
+      - ./hello/src:/opt/src

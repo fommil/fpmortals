@@ -9,10 +9,11 @@ That said, this application could probably save millions of dollars per year in 
 Several parts of the application have been left unimplemented and may be completed as a personal exercise. For example:
 
 - add unit tests for untested modules.
-- harden `AuthJsonClient` (see comments in the file)
-- implement the `GoogleMachinesModule` interpreter by using the JSON API in `gce.scala`, and write a stub docker server to test against, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
+- add integration tests for client `POST` requests
+- harden `AuthJsonClient`
+- implement `GoogleMachinesModule` by using the JSON API in `gce.scala`, and write a stub docker server to test against, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
 - add support for other CI platforms, e.g. Jenkins
-- design a logging algebra and interpreter
+- design a logging algebra and interpreter, scatter logs throughout the app
 - can `BlazeUserInteraction` be rewritten to use `IndexedState` instead of a state machine ADT?
 - rewrite `main.scala` to use the `Free` monad as per [Chapter 7.5](https://leanpub.com/fpmortals/read#leanpub-auto-a-free-lunch).
 - add AWS support using [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat), as opposed to the [AWS SDK](https://aws.amazon.com/developers/getting-started/java/).

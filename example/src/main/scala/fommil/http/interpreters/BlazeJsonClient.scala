@@ -1,4 +1,4 @@
-// Copyright: 2018 Sam Halliday
+// Copyright: 2017 - 2018 Sam Halliday
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 package fommil
@@ -23,7 +23,7 @@ import org.http4s.client.Client
 import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
 
 import BlazeJsonClient.F
-final class BlazeJsonClient(H: Client[Task]) extends JsonClient[F] {
+final class BlazeJsonClient private (H: Client[Task]) extends JsonClient[F] {
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
