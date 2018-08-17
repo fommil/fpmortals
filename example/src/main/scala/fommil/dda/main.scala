@@ -29,7 +29,9 @@ object Main extends SafeApp {
     else agents(BearerToken("<invalid>", Epoch(0)))
   }.attempt[Void].map {
     case \/-(_) => ExitStatus.ExitNow(0)
-    case -\/(_) => ExitStatus.ExitNow(1)
+    case -\/(err) =>
+      java.lang.System.err.println(err)
+      ExitStatus.ExitNow(1)
   }
 
   // performs the OAuth 2.0 dance to obtain refresh tokens
@@ -39,7 +41,7 @@ object Main extends SafeApp {
       ui        <- BlazeUserInteraction()
       auth      = new AuthModule(config)(ui)
       codetoken <- auth.authenticate
-      bconfig   <- readConfig[BlazeClientConfig]("blaze")
+      bconfig   = BlazeClientConfig.defaultConfig
       client    <- BlazeJsonClient(bconfig)
       token <- {
         type HT[f[_], a] = EitherT[f, JsonClient.Error, a]

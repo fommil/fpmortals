@@ -3,6 +3,8 @@
 
 package fommil
 
+// This file, prelude.scala, is available alternatively under the LGPL 3.0
+
 // in scala 2.13 this can be enabled automatically thanks to
 // https://github.com/scala/scala/pull/6764
 
@@ -212,6 +214,7 @@ package object prelude {
   type OneAnd[F[_], A]          = scalaz.OneAnd[F, A]
   type IO[E, A]                 = scalaz.ioeffect.IO[E, A]
   type IORef[A]                 = scalaz.ioeffect.IORef[A]
+  type Promise[E, A]            = scalaz.ioeffect.Promise[E, A]
   type Task[A]                  = scalaz.ioeffect.Task[A]
   type MonadIO[F[_], E]         = scalaz.ioeffect.MonadIO[F, E]
   type Free[S[_], A]            = scalaz.Free[S, A]
@@ -249,7 +252,9 @@ package object prelude {
   @inline final val OneAnd: scalaz.OneAnd.type         = scalaz.OneAnd
   @inline final val IO: scalaz.ioeffect.IO.type        = scalaz.ioeffect.IO
   @inline final val IORef: scalaz.ioeffect.IORef.type  = scalaz.ioeffect.IORef
-  @inline final val Task: scalaz.ioeffect.Task.type    = scalaz.ioeffect.Task
+  @inline final val Promise: scalaz.ioeffect.Promise.type =
+    scalaz.ioeffect.Promise
+  @inline final val Task: scalaz.ioeffect.Task.type = scalaz.ioeffect.Task
   @inline final val MonadIO: scalaz.ioeffect.MonadIO.type =
     scalaz.ioeffect.MonadIO
   @inline final val Free: scalaz.Free.type             = scalaz.Free
@@ -348,8 +353,9 @@ package object prelude {
     }
 
     // scalafix:off
-    implicit final class IOExtras[E <: java.lang.Throwable, A](io: IO[E, A]) {
-      def toTask: Task[A] = io.widenError
+    implicit final class IOExtras[E, A](io: IO[E, A]) {
+      def toTask(implicit ev: E <~< java.lang.Throwable): Task[A] =
+        io.widenError
     }
     implicit final class TaskExtras[A](io: Task[A]) {
       def swallowError[E, AA](implicit ev: A <~< (E \/ AA)): Task[AA] =
@@ -363,7 +369,9 @@ package object prelude {
     }
     final class UnhandledError(val err: Any)
         extends java.lang.Exception
-        with NoStackTrace
+        with NoStackTrace {
+      override def toString: String = err.toString
+    }
     // scalafix:on
   }
 

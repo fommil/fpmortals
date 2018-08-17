@@ -17,64 +17,53 @@ import org.http4s.server.blaze._
 import fommil.os.Browser
 
 final class BlazeUserInteraction private (
-  ref: IORef[FSM]
+  pserver: Promise[Void, Server[Task]],
+  ptoken: Promise[Void, String]
 ) extends UserInteraction[Task] {
   private val dsl = new Http4sDsl[Task] {}
   import dsl._
 
+  // WORKAROUND "capture" is for https://github.com/http4s/http4s/issues/2004
+  private object Code extends QueryParamDecoderMatcher[String]("code")
   private val service: HttpService[Task] = HttpService[Task] {
-    case GET -> Root / "hello" / name => Ok(s"Hello, $name.") // FIXME
+    case GET -> Root / "capture" :? Code(code) =>
+      ptoken.complete(code).toTask >> Ok(z"WE GOT ALL YUR CODEZ $code")
   }
 
   private val launch: Task[Server[Task]] =
     BlazeBuilder[Task].bindHttp(0, "localhost").mountService(service, "/").start
 
+  // we could put failures into pserver if we wanted "start once" semantics.
   def start: Task[String Refined Url] =
     for {
-      _ <- ref.read.flatMap[Unit] {
-            case Nuthin => Task.unit
-            case other =>
-              Task.failMessage(z"bad state during start, got $other")
-          }
-      server <- launch
-      _      <- ref.write(Waiting(server))
-      port   = server.address.getPort // scalafix:ok
-    } yield mkUrl(port)
+      server  <- launch
+      updated <- pserver.complete(server)
+      _ <- if (updated) Task.unit
+          else server.shutdown *> Task.failMessage("a server was already up")
+    } yield mkUrl(server)
 
+  // the 1 second sleep is necessary to avoid shutting down the server before
+  // the response is sent back to the browser (yes, we are THAT quick!)
   def stop: Task[CodeToken] =
-    ref.read.flatMap[CodeToken] {
-      case Waiting(server)         => server.shutdown *> Task.failMessage(z"no token")
-      case Finished(server, token) => server.shutdown *> Task.now(token)
-      case other                   => Task.failMessage(z"bad state during stop, got $other")
-    }
+    for {
+      server <- pserver.get.toTask
+      token  <- ptoken.get.toTask
+      _      <- IO.sleep(1.second) *> server.shutdown
+    } yield CodeToken(token, mkUrl(server))
 
   def open(url: String Refined Url): Task[Unit] = Browser.open(url)
 
-  private def mkUrl(port: Int): String Refined Url =
-    Refined.unsafeApply(str"http://localhost:${port.toString}/") // scalafix:ok
+  private def mkUrl(s: Server[Task]): String Refined Url = {
+    val port = s.address.getPort // scalafix:ok
+    Refined.unsafeApply(str"http://localhost:${port.toString}/capture") // scalafix:ok
+  }
 
 }
 object BlazeUserInteraction {
-  def apply(): Task[BlazeUserInteraction] =
-    IORef(Nuthin.widen).map(new BlazeUserInteraction(_))
-}
-
-// IndexedStateT would be superior to FSM... but ensuring that service can only
-// call a Waiting state is not possible to enforce.
-@deriving(Show)
-private[interpreters] sealed abstract class FSM { def widen: FSM = this }
-private[interpreters] case object Nuthin extends FSM
-private[interpreters] final case class Finished(
-  server: Server[Task],
-  token: CodeToken
-) extends FSM
-private[interpreters] final case class Waiting(
-  server: Server[Task]
-) extends FSM
-
-private[interpreters] object Finished {
-  implicit val show: Show[Finished] = Show.shows(f => z"Waiting(${f.token})")
-}
-private[interpreters] object Waiting {
-  implicit val show: Show[Waiting] = Show.shows(_ => "Waiting")
+  def apply(): Task[BlazeUserInteraction] = {
+    for {
+      p1 <- Promise.make[Void, Server[Task]]
+      p2 <- Promise.make[Void, String]
+    } yield new BlazeUserInteraction(p1, p2)
+  }.widenError
 }

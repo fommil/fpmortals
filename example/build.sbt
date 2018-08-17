@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
   "com.fommil" %% "scalaz-deriving-magnolia"   % derivingVersion,
   "com.fommil" %% "scalaz-deriving-scalacheck" % derivingVersion,
   "com.fommil" %% "jsonformat"                 % derivingVersion
-)
+) ++ logback
 
 scalacOptions ++= Seq(
   "-language:_",

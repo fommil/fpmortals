@@ -19,14 +19,12 @@ import eu.timepit.refined.string.Url
 object Browser {
 
   def open(url: String Refined Url): Task[Unit] =
-    Task {
-      if (Desktop.isDesktopSupported)
-        Desktop.getDesktop().browse(new java.net.URI(url.value))
-      else {
+    Task(Desktop.getDesktop().browse(new java.net.URI(url.value))).orElse(
+      Task {
         // we could use BrowserLauncher2 for that true retro feel...
         if (str"xdg-open ${url.value}".! != 0)
           throw new java.lang.IllegalStateException("non-compliant browser") // scalafix:ok
       }
-    }
+    )
 
 }
