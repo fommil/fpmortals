@@ -3147,6 +3147,14 @@ a code generation tool.
 To finish, we will apply what we have learnt to wire up the example application,
 and implement an HTTP client and server using the [http4s](https://http4s.org/) pure FP library.
 
+The source code to the `drone-dynamic-agents` application is available along
+with the book's source code at `https://github.com/fommil/fpmortals` under the
+`examples` folder. It is not necessary to be at a computer to read this chapter,
+but many readers may prefer to explore the codebase in addition to this text.
+
+Some parts of the application have been left unimplemented, as an exercise to
+the reader. See the `README` for further instructions.
+
 
 ## Overview
 
@@ -3351,19 +3359,16 @@ Note that the `BlazeJsonClient` constructor returns a `Task[JsonClient[F]]`, not
 a `JsonClient[F]`. This is because the act of creating the client is effectful:
 mutable connection pools are created and managed internally by http4s.
 
-We must not forget that we must create a `RefreshToken` for
-`GoogleMachinesModule`. This is a separate application that is only run once and
-has the logic (pseudocode)
+Now that we require both a `MonadError` (i.e. `EitherT`) and a `MonadState`
+(i.e. `StateT`) our application's context just grew into an
+`EitherT[StateT[Task, ...], ...]` monad stack. We'll deal with this in the next
+section.
 
-{lang="text"}
-~~~~~~~~
-  codetoken = AuthModule.authenticate
-  // user interaction with a web browser, redirected to a local web server
-  refresh   = AccessModule.access(codetoken)
-~~~~~~~~
-
-The `AuthModule` and `AccessModule` classes bring in additional dependencies,
-but thankfully no change to the application's `F[_]` context.
+Meanwhile, we must not forget that we need to provide a `RefreshToken` for
+`GoogleMachinesModule`. We could ask the user to do this, but we provide a
+separate one-shot application that uses the `Auth` and `Access` algebras. The
+`AuthModule` and `AccessModule` implementations bring in additional
+dependencies, but thankfully no change to the application's `F[_]` context.
 
 {lang="text"}
 ~~~~~~~~
@@ -3389,15 +3394,19 @@ but thankfully no change to the application's `F[_]` context.
   }
 ~~~~~~~~
 
-The interpreter for `UserInteraction` must manage state: it is starting a
-server, awaiting the user to visit a page, capture a result, and then pass the
-result to us. Rather than using a `StateT`, we are able to use a `Promise`
-primitive (from `ioeffect`). We should always use `Promise` (or `IORef`) instead
-of a `StateT` when we are writing an `IO` interpreter since it allows us to
-contain the abstraction. If we were to use a `StateT`, not only would it have a
+The interpreter for `UserInteraction` is the most complex part of our codebase:
+it starts an HTTP server, sends the user to visit a webpage in their browser,
+captures a callback in the server, and then returns the result while safely
+shutting down the web server.
+
+Rather than using a `StateT` to manage this state, we use a `Promise` primitive
+(from `ioeffect`). We should always use `Promise` (or `IORef`) instead of a
+`StateT` when we are writing an `IO` interpreter since it allows us to contain
+the abstraction. If we were to use a `StateT`, not only would it have a
 performance impact on the entire application, but it would also leak internal
 state management to the main application, which would become responsible for
-providing the initial value.
+providing the initial value. We also couldn't use `StateT` in this scenario
+because we need "wait for" semantics that are only provided by `Promise`.
 
 
 ## TODO Main
