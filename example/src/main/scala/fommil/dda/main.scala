@@ -65,9 +65,10 @@ object Main extends SafeApp {
           import LocalClock.liftM
           liftM(liftM(new LocalClockTask))
         }
-        val C: JsonClient[G]     = JsonClient.liftM(blaze)
-        val D: Drone[G]          = new DroneModule(oauth(config.drone)(C))
-        val M: Machines[G]       = new MachinesModule(oauth(config.machines)(C, T))
+        val C: JsonClient[G] = JsonClient.liftM(blaze)
+        val D: Drone[G]      = new DroneModule(oauth(config.drone)(C))
+        val M: Machines[G] =
+          new GoogleMachinesModule(oauth(config.machines)(C, T))
         val agents: DynAgents[G] = new DynAgentsModule(D, M)
         for {
           start <- agents.initial

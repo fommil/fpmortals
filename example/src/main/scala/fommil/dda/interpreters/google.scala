@@ -10,7 +10,7 @@ import algebra._
 import time._
 import http._
 
-final class MachinesModule[F[_]](
+final class GoogleMachinesModule[F[_]](
   @unused H: OAuth2JsonClient[F]
 ) extends Machines[F] {
 
