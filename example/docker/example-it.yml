@@ -1,6 +1,8 @@
-version: "2.2"
+version: "3.2"
 
 services:
+  ## https://discourse.drone.io/t/spinning-up-a-drone-for-integration-testing/2448
+  # drone does not have a health service
   # ready:
   #   image: hello-world
   #   depends_on:
@@ -8,23 +10,16 @@ services:
   #       condition: service_healthy
 
   ## http://docs.drone.io/installation/
-  ## https://discourse.drone.io/t/spinning-up-a-drone-for-integration-testing/2448
-  # drone-server:
-  #   image: drone/drone:0.8
-  #   ports:
-  #     - 8000:8000
-  #   volumes:
-  #     - ./drone/certs:/etc/certs/localhost
-  #   restart: always
-  #   environment:
-  #     - DRONE_OPEN=true
-  #     - DRONE_GITEA=true
-  #     - DRONE_GITEA_URL=https://try.gitea.io
-  #     - DRONE_HOST=https://localhost:8000
-  #     - DRONE_HOST=http://localhost:8000
-  #     - DRONE_SECRET=supertopsecret
-  #     - DRONE_SERVER_CERT=/etc/certs/localhost/drone.crt
-  #     - DRONE_SERVER_KEY=/etc/certs/localhost/drone.key
+  drone-server:
+    ports:
+      - 8000:443
+    build: ./drone
+#    volumes:
+#      - ./drone/build/:/var/lib/drone
+    environment:
+      - DRONE_ADMIN=${DRONE_ADMIN-fommil}
+      - DRONE_GITHUB_CLIENT=${DRONE_GITHUB_CLIENT}
+      - DRONE_GITHUB_SECRET=${DRONE_GITHUB_SECRET}
 
   hello:
     image: cakesolutions/hmonad:2.0
@@ -32,3 +27,6 @@ services:
       - "1337:80"
     volumes:
       - ./hello/src:/opt/src
+
+volumes:
+  drone:

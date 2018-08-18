@@ -73,4 +73,10 @@ To run the unit tests, type `test`.
 
 To run the integration tests you must have [`docker-compose`](https://github.com/docker/compose) installed. Bring up the stub services by typing `it:dockerComposeUp`, run the tests with `it:test`, and bring down the services with `it:dockerComposeDown`. If you forget to do this, the services will continue to run after `sbt` has been closed. You can manually clean up using a combination of `docker ps` and `docker kill`.
 
+The drone server needs a token, set this environment variable. Or read the instructions under `docker/drone` to use your own github projects and user
+
+```
+export DRONE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZXh0IjoiZm9tbWlsIiwidHlwZSI6InVzZXIifQ.vbVQNiFX2z9gLlUxG3sbbRA00DAjjZ9qQEjE_gILShE"
+```
+
 Happy hacking!

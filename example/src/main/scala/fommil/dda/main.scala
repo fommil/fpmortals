@@ -114,6 +114,7 @@ object Main extends SafeApp {
     token: RefreshToken,
     server: ServerConfig
   )
+  // FIXME: handle the fact that drone gives us a BearerToken from the beginning
   @deriving(ConfigReader)
   final case class AppConfig(
     drone: OAuth2Config,
