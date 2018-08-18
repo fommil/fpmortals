@@ -27,7 +27,7 @@ object orphans {
 
   // I am unconvinced about the utility of pureconfig's error "ADT": it isn't
   // sealed and it is not easy to create entries.
-  private[this] def readerFailure[A](
+  def configReaderFailures[A](
     msg: String
   ): Either[ConfigReaderFailures, A] =
     Left(
@@ -39,7 +39,7 @@ object orphans {
       )
     )
 
-  private[this] def otherFailure[A](msg: String): Either[FailureReason, A] =
+  def failureReason[A](msg: String): Either[FailureReason, A] =
     Left(
       new FailureReason {
         def description: String = msg
@@ -47,15 +47,15 @@ object orphans {
     )
 
   implicit val configReaderBlazeClientConfig: ConfigReader[BlazeClientConfig] =
-    _ => readerFailure("BlazeClientConfig")
+    _ => configReaderFailures("BlazeClientConfig")
 
   implicit def configReaderRefined[A: ConfigReader, P](
     implicit V: Validate[A, P]
   ): ConfigReader[A Refined P] =
     ConfigReader[A].emap(
       refineV[P](_) match {
-        case Left(err)      => otherFailure(err)
         case Right(success) => Right(success)
+        case Left(err)      => failureReason(err)
       }
     )
 

@@ -17,7 +17,7 @@ import time._
  * authentication. Methods are the same as on JsonClient but are not inherited,
  * to emphasise the different semantics.
  */
-trait AuthJsonClient[F[_]] {
+trait OAuth2JsonClient[F[_]] {
 
   def get[A: JsDecoder](
     uri: String Refined Url,
@@ -31,8 +31,14 @@ trait AuthJsonClient[F[_]] {
   ): F[A]
 
 }
+object OAuth2JsonClient {
+  private[http] def mkHeader(b: BearerToken): (String, String) =
+    "Authorization" -> ("Bearer " + b.token)
+}
 
-final class AuthJsonClientModule[F[_]](
+import OAuth2JsonClient.mkHeader
+
+final class OAuth2JsonClientModule[F[_]](
   token: RefreshToken
 )(
   H: JsonClient[F],
@@ -40,7 +46,7 @@ final class AuthJsonClientModule[F[_]](
   A: Refresh[F]
 )(
   implicit F: MonadState[F, BearerToken]
-) extends AuthJsonClient[F] {
+) extends OAuth2JsonClient[F] {
 
   // if we wanted to add more resilience and re-obtain a token if the H.get
   // fails, we could do so here, but we would need to request a MonadError to be
@@ -76,6 +82,26 @@ final class AuthJsonClientModule[F[_]](
       }
     } yield valid
 
-  private def mkHeader(b: BearerToken): (String, String) =
-    "Authorization" -> ("Bearer " + b.token)
+}
+
+/**
+ * For simple servers that don't implement OAuth2 refresh.
+ */
+final class BearerJsonClientModule[F[_]: Monad](
+  bearer: BearerToken
+)(
+  H: JsonClient[F]
+) extends OAuth2JsonClient[F] {
+
+  def get[A: JsDecoder](
+    uri: String Refined Url,
+    headers: IList[(String, String)]
+  ): F[A] = H.get(uri, mkHeader(bearer) :: headers)
+
+  def post[P: UrlEncodedWriter, A: JsDecoder](
+    uri: String Refined Url,
+    payload: P,
+    headers: IList[(String, String)]
+  ): F[A] = H.post(uri, payload, mkHeader(bearer) :: headers)
+
 }

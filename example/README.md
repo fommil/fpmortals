@@ -10,12 +10,14 @@ Several parts of the application have been left unimplemented and may be complet
 
 - add unit tests for untested modules.
 - add integration tests for client `POST` requests
-- harden `AuthJsonClient`
-- implement `GoogleMachinesModule` by using the JSON API in `gce.scala`, and write a stub docker server to test against, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad)
+- with a stub docker service that does the OAuth2 handshake, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad).
+- harden `OAuth2JsonClient` and write integration tests against a server with expiring tokens.
+- implement `GoogleMachinesModule` by using the JSON API in `gce.scala`, and write a stub docker server to test against.
 - add support for other CI platforms, e.g. Jenkins
 - design a logging algebra and interpreter, scatter logs throughout the app
 - can `BlazeUserInteraction` be rewritten to use `IndexedState` instead of a state machine ADT?
 - rewrite `main.scala` to use the `Free` monad as per [Chapter 7.5](https://leanpub.com/fpmortals/read#leanpub-auto-a-free-lunch).
+- add support for launching local agents via docker (allowing functional testing of the entire app).
 - add AWS support using [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat), as opposed to the [AWS SDK](https://aws.amazon.com/developers/getting-started/java/).
 - write a compiler plugin and macro to generate the contents of the `boilerplate.scala` files for all algebras
 
@@ -73,10 +75,6 @@ To run the unit tests, type `test`.
 
 To run the integration tests you must have [`docker-compose`](https://github.com/docker/compose) installed. Bring up the stub services by typing `it:dockerComposeUp`, run the tests with `it:test`, and bring down the services with `it:dockerComposeDown`. If you forget to do this, the services will continue to run after `sbt` has been closed. You can manually clean up using a combination of `docker ps` and `docker kill`.
 
-The drone server needs a token, set this environment variable. Or read the instructions under `docker/drone` to use your own github projects and user
-
-```
-export DRONE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZXh0IjoiZm9tbWlsIiwidHlwZSI6InVzZXIifQ.vbVQNiFX2z9gLlUxG3sbbRA00DAjjZ9qQEjE_gILShE"
-```
+Read the instructions under `docker/drone` to use your own github projects, user and `DRONE_TOKEN`.
 
 Happy hacking!

@@ -65,11 +65,10 @@ object Main extends SafeApp {
           import LocalClock.liftM
           liftM(liftM(new LocalClockTask))
         }
-        val hblaze: JsonClient[G] = JsonClient.liftM(blaze)
-        val drone: Drone[G]       = new DroneModule(oauth(config.drone)(hblaze, T))
-        val machines: Machines[G] =
-          new MachinesModule(oauth(config.machines)(hblaze, T))
-        val agents: DynAgents[G] = new DynAgentsModule(drone, machines)
+        val C: JsonClient[G]     = JsonClient.liftM(blaze)
+        val D: Drone[G]          = new DroneModule(oauth(config.drone)(C))
+        val M: Machines[G]       = new MachinesModule(oauth(config.machines)(C, T))
+        val agents: DynAgents[G] = new DynAgentsModule(D, M)
         for {
           start <- agents.initial
           _ <- {
@@ -102,22 +101,28 @@ object Main extends SafeApp {
     implicit
     M: MonadError[M, JsonClient.Error],
     S: MonadState[M, BearerToken]
-  ): AuthJsonClient[M] =
-    new AuthJsonClientModule[M](config.token)(
+  ): OAuth2JsonClient[M] =
+    new OAuth2JsonClientModule[M](config.token)(
       H,
       T,
       new RefreshModule(config.server)(H, T)(M)
     )
+
+  private def oauth[M[_]: Monad](
+    bearer: BearerToken
+  )(
+    H: JsonClient[M]
+  ): OAuth2JsonClient[M] =
+    new BearerJsonClientModule[M](bearer)(H)
 
   @deriving(ConfigReader)
   final case class OAuth2Config(
     token: RefreshToken,
     server: ServerConfig
   )
-  // FIXME: handle the fact that drone gives us a BearerToken from the beginning
   @deriving(ConfigReader)
   final case class AppConfig(
-    drone: OAuth2Config,
+    drone: BearerToken,
     machines: OAuth2Config
   )
 }

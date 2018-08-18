@@ -3,7 +3,7 @@
 
 package fommil
 
-import prelude._, Z._
+import prelude._, S._, Z._
 
 import java.time.Instant
 import java.lang.System
@@ -12,6 +12,7 @@ import scala.{ Either, Left, Right, StringContext }
 import scala.util.control.NonFatal
 
 import contextual._
+import pureconfig.orphans._
 
 package object time {
   implicit class EpochMillisStringContext(sc: StringContext) {
@@ -33,6 +34,15 @@ package time {
 
     implicit val show: Show[Epoch] =
       Show.shows(e => Instant.ofEpochMilli(e.millis).toString) // scalafix:ok
+
+    implicit val configReader: ConfigReader[Epoch] =
+      ConfigReader[String].emap(
+        s =>
+          EpochInterpolator.check(s) match {
+            case Left((_, err)) => failureReason(err)
+            case Right(success) => Right(success)
+          }
+      )
   }
 
   object EpochInterpolator extends Verifier[Epoch] {

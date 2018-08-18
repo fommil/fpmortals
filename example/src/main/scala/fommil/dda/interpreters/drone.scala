@@ -10,7 +10,7 @@ import algebra._
 import http._
 
 final class DroneModule[F[_]](
-  @unused H: AuthJsonClient[F]
+  @unused H: OAuth2JsonClient[F]
 ) extends Drone[F] {
   def getAgents: F[Int]  = ???
   def getBacklog: F[Int] = ???
