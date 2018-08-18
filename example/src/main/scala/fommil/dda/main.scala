@@ -48,7 +48,7 @@ object Main extends SafeApp {
         val access: Access[H] = new AccessModule(config)(client, T)
         access.access(codetoken)
       }.run.swallowError
-      _ <- putStrLn(z"got token: ${token._2}").toTask
+      _ <- putStrLn(z"got token: ${token._1}").toTask
     } yield ()
 
   // runs the app, requires that refresh tokens are provided

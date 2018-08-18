@@ -17,7 +17,7 @@ import api._
  * Refresh tokens do not expire, except in response to a security
  * breach or user / server whim.
  */
-@xderiving(ConfigReader)
+@xderiving(Equal, Show, ConfigReader)
 final case class RefreshToken(token: String)
 
 /**

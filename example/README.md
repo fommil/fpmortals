@@ -12,6 +12,7 @@ Several parts of the application have been left unimplemented and may be complet
 - add integration tests for client `POST` requests
 - with a stub docker service that does the OAuth2 handshake, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad).
 - harden `OAuth2JsonClient` and write integration tests against a server with expiring tokens.
+- implement `DroneModule`, and test against the provided docker drone server.
 - implement `GoogleMachinesModule` by using the JSON API in `gce.scala`, and write a stub docker server to test against.
 - add support for other CI platforms, e.g. Jenkins
 - design a logging algebra and interpreter, scatter logs throughout the app
@@ -76,5 +77,7 @@ To run the unit tests, type `test`.
 To run the integration tests you must have [`docker-compose`](https://github.com/docker/compose) installed. Bring up the stub services by typing `it:dockerComposeUp`, run the tests with `it:test`, and bring down the services with `it:dockerComposeDown`. If you forget to do this, the services will continue to run after `sbt` has been closed. You can manually clean up using a combination of `docker ps` and `docker kill`.
 
 Read the instructions under `docker/drone` to use your own github projects, user and `DRONE_TOKEN`.
+
+The OAuth2 handshake with Google works by running `runMain fommil.dda.Main --machines` if you have set up a [Google Cloud Application](https://console.developers.google.com/apis/credentials) and defined the `MACHINES_CLIENT_SECRET` and `MACHINES_CLIENT_ID` environment variables. It will print a `RefreshToken` to the console which should be used as the `MACHINES_REFRESH_TOKEN` when running the main app.
 
 Happy hacking!
