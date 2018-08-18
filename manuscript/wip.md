@@ -3142,12 +3142,272 @@ ultimate performance. Avoid introducing typo bugs with manual instances by using
 a code generation tool.
 
 
-# TODO Implementing the Application
+# Wiring up the Application
+
+To finish, we will apply what we have learnt to wire up the example application,
+and implement an HTTP client and server using the [http4s](https://http4s.org/) pure FP library.
 
 
-# The Infinite Sadness
+## Overview
 
-You've reached the end of this Early Access book. Please check the website
-regularly for updates.
+Our main application only requires an implementation of the `DynAgents` algebra.
+
+{lang="text"}
+~~~~~~~~
+  trait DynAgents[F[_]] {
+    def initial: F[WorldView]
+    def update(old: WorldView): F[WorldView]
+    def act(world: WorldView): F[WorldView]
+  }
+~~~~~~~~
+
+Everything else is implementation detail. Recall that our main loop should look
+something like
+
+{lang="text"}
+~~~~~~~~
+  state = initial()
+  while True:
+    state = update(state)
+    state = act(state)
+~~~~~~~~
+
+To implement `DynAgents` we require `Drone` and `Machines` algebras, which
+require a `JsonClient`, `LocalClock` and OAuth2 algebras, etc etc. It is helpful
+to get a complete picture of all the algebras, modules and interpreters of the
+application. This is the layout of the files in our application:
+
+{lang="text"}
+~~~~~~~~
+  ├── dda
+  │   ├── algebra.scala
+  │   ├── DynAgents.scala
+  │   ├── main.scala
+  │   └── interpreters
+  │       ├── DroneModule.scala
+  │       └── GoogleMachinesModule.scala
+  ├── http
+  │   ├── encoding
+  │   │   ├── UrlEncoded.scala
+  │   │   ├── UrlEncodedWriter.scala
+  │   │   ├── UrlQuery.scala
+  │   │   └── UrlQueryWriter.scala
+  │   ├── interpreters
+  │   │   └── BlazeJsonClient.scala
+  │   ├── JsonClient.scala
+  │   ├── oauth2
+  │   │   ├── Access.scala
+  │   │   ├── Auth.scala
+  │   │   └── Refresh.scala
+  │   │   └── interpreters
+  │   │       └── BlazeUserInteraction.scala
+  │   └── OAuth2JsonClient.scala
+  ├── os
+  │   └── Browser.scala
+  └── time
+      ├── Epoch.scala
+      ├── LocalClock.scala
+      └── Sleep.scala
+~~~~~~~~
+
+The signatures of all the algebras can be summarised as
+
+{lang="text"}
+~~~~~~~~
+  trait Sleep[F[_]] {
+    def sleep(time: FiniteDuration): F[Unit]
+  }
+  
+  trait LocalClock[F[_]] {
+    def now: F[Epoch]
+  }
+  
+  trait JsonClient[F[_]] {
+    def get[A: JsDecoder](
+      uri: String Refined Url,
+      headers: IList[(String, String)]
+    ): F[A]
+  
+    def post[P: UrlEncodedWriter, A: JsDecoder](
+      uri: String Refined Url,
+      payload: P,
+      headers: IList[(String, String)]
+    ): F[A]
+  }
+  
+  trait Auth[F[_]] {
+    def authenticate: F[CodeToken]
+  }
+  trait Access[F[_]] {
+    def access(code: CodeToken): F[(RefreshToken, BearerToken)]
+  }
+  trait Refresh[F[_]] {
+    def bearer(refresh: RefreshToken): F[BearerToken]
+  }
+  trait OAuth2JsonClient[F[_]] {
+    // same methods as JsonClient, but doing OAuth2 transparently
+  }
+  
+  trait UserInteraction[F[_]] {
+    def start: F[String Refined Url]
+    def open(uri: String Refined Url): F[Unit]
+    def stop: F[CodeToken]
+  }
+  
+  trait Drone[F[_]] {
+    def getBacklog: F[Int]
+    def getAgents: F[Int]
+  }
+  
+  trait Machines[F[_]] {
+    def getTime: F[Epoch]
+    def getManaged: F[NonEmptyList[MachineNode]]
+    def getAlive: F[MachineNode ==>> Epoch]
+    def start(node: MachineNode): F[Unit]
+    def stop(node: MachineNode): F[Unit]
+  }
+~~~~~~~~
+
+Note that some signatures from previous chapters have been refactored to use
+scalaz data types, now that we know why they are superior to the stdlib.
+
+And without going into the detail of how to implement the algebras, we need to know the dependency graph of our `DynAgentsModule`. Let's unravel the thread...
+
+{lang="text"}
+~~~~~~~~
+  final class DynAgentsModule[F[_]: Applicative](
+    D: Drone[F],
+    M: Machines[F]
+  ) extends DynAgents[F] { ... }
+  
+  final class DroneModule[F[_]](
+    H: OAuth2JsonClient[F]
+  ) extends Drone[F] { ... }
+  
+  final class GoogleMachinesModule[F[_]](
+    H: OAuth2JsonClient[F]
+  ) extends Machines[F] { ... }
+~~~~~~~~
+
+There are two modules implementing `OAuth2JsonClient`, one that will use the OAuth2 `Refresh` algebra (for Google) and another that reuses a non-expiring `BearerToken` (for Drone).
+
+{lang="text"}
+~~~~~~~~
+  final class OAuth2JsonClientModule[F[_]](
+    token: RefreshToken
+  )(
+    H: JsonClient[F],
+    T: LocalClock[F],
+    A: Refresh[F]
+  )(
+    implicit F: MonadState[F, BearerToken]
+  ) extends OAuth2JsonClient[F] { ... }
+  
+  final class BearerJsonClientModule[F[_]: Monad](
+    bearer: BearerToken
+  )(
+    H: JsonClient[F]
+  ) extends OAuth2JsonClient[F] { ... }
+~~~~~~~~
+
+So far we have seen requirements for `F` to have an `Applicative[F]`, `Monad[F]`
+and `MonadState[F, BearerToken]`. All of these requirements can be satisfied by
+using `StateT[Task, BearerToken, ?]` as our application's context.
+
+However, some of our algebras only have one interpreter, using `Task`
+
+{lang="text"}
+~~~~~~~~
+  final class LocalClockTask extends LocalClock[Task] { ... }
+  final class SleepTask extends Sleep[Task] { ... }
+~~~~~~~~
+
+But recall that our algebras can provide a `liftM` on their companion, see Chapter 7.4 on the Monad Transformer Library, allowing us to lift a `LocalClock[Task]` into our desired `StateT[Task, BearerToken, ?]` context, and everything is consistent.
+
+Unfortunately, that is not the end of the story. Things get more complicated
+when we go to the next layer. Our `JsonClient` has an interpreter using a different context, an `EitherT[Task, JsonClient.Error, ?]`
+
+{lang="text"}
+~~~~~~~~
+  final class BlazeJsonClient(...) extends JsonClient[F] { ... }
+  object BlazeJsonClient {
+    type F[a] = EitherT[Task, JsonClient.Error, a]
+    def apply(): Task[JsonClient[F]] = ...
+  }
+~~~~~~~~
+
+where the error type is an ADT
+
+{lang="text"}
+~~~~~~~~
+  object JsonClient {
+    sealed abstract class Error
+    final case class ServerError(status: Int)       extends Error
+    final case class DecodingError(message: String) extends Error
+  }
+~~~~~~~~
+
+Note that the `BlazeJsonClient` constructor returns a `Task[JsonClient[F]]`, not
+a `JsonClient[F]`. This is because the act of creating the client is effectful:
+mutable connection pools are created and managed internally by http4s.
+
+We must not forget that we must create a `RefreshToken` for
+`GoogleMachinesModule`. This is a separate application that is only run once and
+has the logic (pseudocode)
+
+{lang="text"}
+~~~~~~~~
+  codetoken = AuthModule.authenticate
+  // user interaction with a web browser, redirected to a local web server
+  refresh   = AccessModule.access(codetoken)
+~~~~~~~~
+
+The `AuthModule` and `AccessModule` classes bring in additional dependencies,
+but thankfully no change to the application's `F[_]` context.
+
+{lang="text"}
+~~~~~~~~
+  final class AuthModule[F[_]: Monad](
+    config: ServerConfig
+  )(
+    I: UserInteraction[F]
+  ) extends Auth[F] { ... }
+  
+  final class AccessModule[F[_]: Monad](
+    config: ServerConfig
+  )(
+    H: JsonClient[F],
+    T: LocalClock[F]
+  ) extends Access[F] { ... }
+  
+  final class BlazeUserInteraction private (
+    pserver: Promise[Void, Server[Task]],
+    ptoken: Promise[Void, String]
+  ) extends UserInteraction[Task] { ... }
+  object BlazeUserInteraction {
+    def apply(): Task[BlazeUserInteraction] = ...
+  }
+~~~~~~~~
+
+The interpreter for `UserInteraction` must manage state: it is starting a
+server, awaiting the user to visit a page, capture a result, and then pass the
+result to us. Rather than using a `StateT`, we are able to use a `Promise`
+primitive (from `ioeffect`). We should always use `Promise` (or `IORef`) instead
+of a `StateT` when we are writing an `IO` interpreter since it allows us to
+contain the abstraction. If we were to use a `StateT`, not only would it have a
+performance impact on the entire application, but it would also leak internal
+state management to the main application, which would become responsible for
+providing the initial value.
+
+
+## TODO Main
+
+
+## TODO Blaze
+
+
+## TODO Thank You
+
+and how to get involved.
 
 

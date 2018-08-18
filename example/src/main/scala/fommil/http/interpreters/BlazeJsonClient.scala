@@ -91,6 +91,6 @@ final class BlazeJsonClient private (H: Client[Task]) extends JsonClient[F] {
 }
 object BlazeJsonClient {
   type F[a] = EitherT[Task, JsonClient.Error, a]
-  def apply(): Task[BlazeJsonClient] =
+  def apply(): Task[JsonClient[F]] =
     Http1Client(BlazeClientConfig.defaultConfig).map(new BlazeJsonClient(_))
 }

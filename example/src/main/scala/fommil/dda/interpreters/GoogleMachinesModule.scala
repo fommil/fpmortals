@@ -3,12 +3,28 @@
 
 package fommil
 package dda
-package gce
+package interpreters
 
 import prelude._, Z._
 
 import jsonformat._
 import JsDecoder.fail
+
+import algebra._
+import time._
+import http._
+
+final class GoogleMachinesModule[F[_]](
+  @unused H: OAuth2JsonClient[F]
+) extends Machines[F] {
+
+  def getAlive: F[MachineNode ==>> Epoch]      = ???
+  def getManaged: F[NonEmptyList[MachineNode]] = ???
+  def getTime: F[Epoch]                        = ???
+  def start(node: MachineNode): F[Unit]        = ???
+  def stop(node: MachineNode): F[Unit]         = ???
+
+}
 
 // https://cloud.google.com/container-engine/reference/rest/v1/NodeConfig
 @deriving(Equal, Show, JsDecoder)

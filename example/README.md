@@ -12,8 +12,8 @@ Several parts of the application have been left unimplemented and may be complet
 - add integration tests for client `POST` requests
 - with a stub docker service that does the OAuth2 handshake, e.g. using [`hmonad`](https://github.com/cakesolutions/docker-images-public/tree/master/hmonad).
 - harden `OAuth2JsonClient` and write integration tests against a server with expiring tokens.
-- implement `DroneModule`, and test against the provided docker drone server.
-- implement `GoogleMachinesModule` by using the JSON API in `gce.scala`, and write a stub docker server to test against.
+- implement `DroneModule` and test against the provided docker drone server.
+- implement `GoogleMachinesModule` and write a stub docker server to test against.
 - add support for other CI platforms, e.g. Jenkins
 - design a logging algebra and interpreter, scatter logs throughout the app
 - can `BlazeUserInteraction` be rewritten to use `IndexedState` instead of a state machine ADT?
