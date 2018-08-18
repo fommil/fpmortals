@@ -714,8 +714,8 @@ a simple thing does not exist in either the Java or Scala standard libraries:
   import scala.concurrent.duration._
   
   final case class Epoch(millis: Long) extends AnyVal {
-    def +(d: FiniteDuration): Epoch    = Epoch(millis + d.toMillis)
-    def diff(e: Epoch): FiniteDuration = (e.millis - millis).millis
+    def +(d: FiniteDuration): Epoch = Epoch(millis + d.toMillis)
+    def -(e: Epoch): FiniteDuration = (millis - e.millis).millis
   }
 ~~~~~~~~
 
@@ -803,17 +803,30 @@ algebras, and adds a *pending* field to track unfulfilled requests.
 Now we are ready to write our business logic, but we need to indicate
 that we depend on `Drone` and `Machines`.
 
-We create a *module* to contain our main business logic. A module is
-pure and depends only on other modules, algebras and pure functions.
+We can write the interface for the business logic
 
 {lang="text"}
 ~~~~~~~~
-  final class DynAgents[F[_]](D: Drone[F], M: Machines[F])
-                             (implicit F: Monad[F]) {
+  trait DynAgents[F[_]] {
+    def initial: F[WorldView]
+    def update(old: WorldView): F[WorldView]
+    def act(world: WorldView): F[WorldView]
+  }
 ~~~~~~~~
 
-The implicit `Monad[F]` means that `F` is *monadic*, allowing us to
-use `map`, `pure` and, of course, `flatMap` via `for` comprehensions.
+and implement it with a *module*. A module depends only on other modules,
+algebras and pure functions, and can be abstracted over `F`. If an
+implementation of an algebraic interface is tied to a specific type, e.g. `IO`,
+it is called an *interpreter*.
+
+{lang="text"}
+~~~~~~~~
+  final class DynAgentsModule[F[_]: Monad](D: Drone[F], M: Machines[F])
+    extends DynAgents[F] {
+~~~~~~~~
+
+The `Monad` context bound means that `F` is *monadic*, allowing us to use `map`,
+`pure` and, of course, `flatMap` via `for` comprehensions.
 
 We have access to the algebra of `Drone` and `Machines` as `D` and `M`,
 respectively. Using a single capital letter name is a common naming convention
@@ -873,7 +886,7 @@ assume that it failed and forget that we asked to do it.
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
     pending = (old.pending -- changed).filterNot {
-      case (_, started) => started.diff(snap.time) >= 10.minutes
+      case (_, started) => (snap.time - started) >= 10.minutes
     }
     update = snap.copy(pending = pending)
   } yield update
@@ -933,9 +946,9 @@ As a financial safety net, all nodes should have a maximum lifetime of
         case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
           (alive -- pending.keys).collect {
             case (n, started)
-                if backlog == 0 && started.diff(time).toMinutes % 60 >= 58 =>
+                if backlog == 0 && (time - started).toMinutes % 60 >= 58 =>
               n
-            case (n, started) if started.diff(time) >= 5.hours => n
+            case (n, started) if (time - started) >= 5.hours => n
           }.toList.toNel
   
         case _ => None
@@ -1055,7 +1068,7 @@ state:
       def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
     }
   
-    val program = new DynAgents[Id](D, M)
+    val program = new DynAgentsModule[Id](D, M)
   }
 ~~~~~~~~
 
@@ -2199,11 +2212,10 @@ We will finish this chapter with a practical example of data modelling
 and typeclass derivation, combined with algebra / module design from
 the previous chapter.
 
-In our `drone-dynamic-agents` application, we must communicate with
-Drone and Google Cloud using JSON over REST. Both services use [OAuth2](https://tools.ietf.org/html/rfc6749)
-for authentication. Although there are many ways to interpret OAuth2,
-we'll focus on the version that works for Google Cloud (the Drone
-version is even simpler).
+In our `drone-dynamic-agents` application, we must communicate with Drone and
+Google Cloud using JSON over REST. Both services use [OAuth2](https://tools.ietf.org/html/rfc6749) for authentication.
+There are many ways to interpret OAuth2, but we will focus on the version that
+works for Google Cloud (the Drone version is even simpler).
 
 
 ### Description
@@ -2293,12 +2305,24 @@ responding with
   }
 ~~~~~~~~
 
+All userland requests to the server should include the header
+
+{lang="text"}
+~~~~~~~~
+  Authorization: Bearer BEARER_TOKEN
+~~~~~~~~
+
+after substituting the actual `BEARER<sub>TOKEN</sub>`.
+
 Google expires all but the most recent 50 *bearer tokens*, so the
 expiry times are just guidance. The *refresh tokens* persist between
 sessions and can be expired manually by the user. We can therefore
 have a one-time setup application to obtain the refresh token and then
 include the refresh token as configuration for the user's install of
 the headless server.
+
+Drone doesn't implement the `/auth` endpoint, or the refresh, and simply
+provides a `BEARER<sub>TOKEN</sub>` through their user interface.
 
 
 ### Data
@@ -2394,7 +2418,7 @@ decoder typeclasses:
     def toJson(obj: A): JsValue
   }
   
-  @typeclass trait JsDecoder[A] { self =>
+  @typeclass trait JsDecoder[A] {
     def fromJson(json: JsValue): String \/ A
   }
 ~~~~~~~~
@@ -2404,21 +2428,12 @@ comprehensions, whereas stdlib `Either` does not support `.flatMap` prior to
 Scala 2.12.
 
 We need instances of `JsDecoder[AccessResponse]` and `JsDecoder[RefreshResponse]`.
-We can do this by making use of jsonformat's helper functions:
+We can do this by making use of a helper function:
 
 {lang="text"}
 ~~~~~~~~
-  object JsDecoder {
-    object ops {
-      implicit class JsValueExtras(j: JsValue) {
-        def asJsObject: String \/ JsObject = ...
-        def as[A: JsDecoder]: String \/ A = ...
-      }
-      implicit class JsObjectExtras(j: JsObject) {
-        def getAs[A: JsDecoder](key: String): String \/ A = ...
-      }
-    }
-    ...
+  implicit class JsValueOps(j: JsValue) {
+    def getAs[A: JsDecoder](key: String): String \/ A = ...
   }
 ~~~~~~~~
 
@@ -2432,21 +2447,19 @@ always in the implicit scope:
   object AccessResponse {
     implicit val json: JsDecoder[AccessResponse] = j =>
       for {
-        obj <- j.asJsObject
-        acc <- obj.getAs[String]("access_token")
-        tpe <- obj.getAs[String]("token_type")
-        exp <- obj.getAs[Long]("expires_in")
-        ref <- obj.getAs[String]("refresh_token")
+        acc <- j.getAs[String]("access_token")
+        tpe <- j.getAs[String]("token_type")
+        exp <- j.getAs[Long]("expires_in")
+        ref <- j.getAs[String]("refresh_token")
       } yield AccessResponse(acc, tpe, exp, ref)
   }
   
   object RefreshResponse {
     implicit val json: JsDecoder[RefreshResponse] = j =>
       for {
-        obj <- j.asJsObject
-        acc <- obj.getAs[String]("access_token")
-        tpe <- obj.getAs[String]("token_type")
-        exp <- obj.getAs[Long]("expires_in")
+        acc <- j.getAs[String]("access_token")
+        tpe <- j.getAs[String]("token_type")
+        exp <- j.getAs[Long]("expires_in")
       } yield RefreshResponse(acc, tpe, exp)
   }
 ~~~~~~~~
@@ -2455,6 +2468,7 @@ We can then parse a string into an `AccessResponse` or a `RefreshResponse`
 
 {lang="text"}
 ~~~~~~~~
+  scala> import jsonformat._, JsDecoder.ops._
   scala> val json = JsParser("""
                        {
                          "access_token": "BEARER_TOKEN",
@@ -2500,22 +2514,23 @@ We need to provide typeclass instances for basic types:
     implicit val long: UrlEncodedWriter[Long] =
       (s => Refined.unsafeApply(s.toString))
   
-    implicit def kvs[F[_]: Traverse, K: UrlEncodedWriter, V: UrlEncodedWriter]
-      : UrlEncodedWriter[F[(K, V)]] = { m =>
-      import ops._
+    implicit def ilist[K: UrlEncodedWriter, V: UrlEncodedWriter]
+      : UrlEncodedWriter[IList[(K, V)]] = { m =>
       val raw = m.map {
-        case (k, v) => s"${k.toUrlEncoded}=${v.toUrlEncoded}"
+        case (k, v) => k.toUrlEncoded.value + "=" + v.toUrlEncoded.value
       }.intercalate("&")
-      Refined.unsafeApply(raw)
+      Refined.unsafeApply(raw) // by deduction
     }
+  
   }
 ~~~~~~~~
 
 We use `Refined.unsafeApply` when we can logically deduce that the contents of
 the string are already url encoded, bypassing any further checks.
 
-`kvs` is an example of simple typeclass derivation, much as we derived
-`Numeric[Complex]` from the underlying numeric representation.
+`ilist` is an example of simple typeclass derivation, much as we derived
+`Numeric[Complex]` from the underlying numeric representation. The
+`.intercalate` method is like `.mkString` but more general.
 
 A> `UrlEncodedWriter` is making use of the *Single Abstract Method* (SAM types)
 A> Scala language feature. The full form of the above is
@@ -2620,21 +2635,21 @@ responses must have a `JsDecoder` and our `POST` payload must have a
 ~~~~~~~~
   package http.client.algebra
   
-  final case class Response[T](header: HttpResponseHeader, body: T)
-  
-  trait JsonHttpClient[F[_]] {
-    def get[B: JsDecoder](
+  trait JsonClient[F[_]] {
+    def get[A: JsDecoder](
       uri: String Refined Url,
-      headers: List[HttpHeader] = Nil
-    ): F[Response[B]]
+      headers: IList[HttpHeader]
+    ): F[A]
   
-    def postUrlencoded[A: UrlEncoded, B: JsDecoder](
+    def postUrlencoded[P: UrlEncoded, A: JsDecoder](
       uri: String Refined Url,
-      payload: A,
-      headers: List[HttpHeader] = Nil
-    ): F[Response[B]]
+      payload: P,
+      headers: IList[HttpHeader]
+    ): F[A]
   }
 ~~~~~~~~
+
+Note that we only define the happy path in the `JsonClient` API. We will get around to error handling in a later chapter.
 
 {lang="text"}
 ~~~~~~~~
@@ -2685,7 +2700,7 @@ and then write an OAuth2 client:
   )(
     implicit
     user: UserInteraction[F],
-    client: JsonHttpClient[F],
+    client: JsonClient[F],
     clock: LocalClock[F]
   ) {
     def authenticate: F[CodeToken] =
@@ -2702,10 +2717,9 @@ and then write an OAuth2 client:
                                  code.redirect_uri,
                                  config.clientId,
                                  config.clientSecret).pure[F]
-        response <- client.postUrlencoded[AccessRequest, AccessResponse](
+        msg     <- client.postUrlencoded[AccessRequest, AccessResponse](
                      config.access, request)
         time    <- clock.now
-        msg     = response.body
         expires = time + msg.expires_in.seconds
         refresh = RefreshToken(msg.refresh_token)
         bearer  = BearerToken(msg.access_token, expires)
@@ -2716,10 +2730,9 @@ and then write an OAuth2 client:
         request <- RefreshRequest(config.clientSecret,
                                   refresh.token,
                                   config.clientId).pure[F]
-        response <- client.postUrlencoded[RefreshRequest, RefreshResponse](
+        msg     <- client.postUrlencoded[RefreshRequest, RefreshResponse](
                      config.refresh, request)
         time    <- clock.now
-        msg     = response.body
         expires = time + msg.expires_in.seconds
         bearer  = BearerToken(msg.access_token, expires)
       } yield bearer
@@ -6474,7 +6487,8 @@ wrote `logic.scala` before we learnt about `Applicative` and now we know better:
 
 {lang="text"}
 ~~~~~~~~
-  final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
+  final class DynAgentsModule[F[_]: Applicative](D: Drone[F], M: Machines[F])
+    extends DynAgents[F] {
     ...
     def act(world: WorldView): F[WorldView] = world match {
       case NeedsAgent(node) =>
@@ -6516,7 +6530,7 @@ name of the function that is called:
       def stop(node: MachineNode): F[Unit]         = Const("stop")
     }
   
-    val program = new DynAgents[F](D, M)
+    val program = new DynAgentsModule[F](D, M)
   }
 ~~~~~~~~
 
@@ -6564,7 +6578,7 @@ wrapped version of `act`
       def start(node: MachineNode): F[Unit]        = Const(Set.empty)
       def stop(node: MachineNode): F[Unit]         = Const(Set(node))
     }
-    val monitor = new DynAgents[F](D, M)
+    val monitor = new DynAgentsModule[F](D, M)
   
     def act(world: WorldView): U[(WorldView, Set[MachineNode])] = {
       val stopped = monitor.act(world).getConst
@@ -8364,6 +8378,36 @@ Our unit tests for `.stars` might cover these cases:
 As we've now seen several times, we can focus on testing the pure business logic
 without distraction.
 
+Finally, if we return to our `JsonClient` algebra from Chapter 4.3
+
+{lang="text"}
+~~~~~~~~
+  trait JsonClient[F[_]] {
+    def get[A: JsDecoder](
+      uri: String Refined Url,
+      headers: IList[(String, String)]
+    ): F[A]
+    ...
+  }
+~~~~~~~~
+
+recall that we only coded the happy path into the API. If our interpreter for
+this algebra only works for an `F` having a `MonadError` we get to define the
+kinds of errors as a tangential concern. Indeed, we can have ****two**** layers of
+error if we define the interpreter for a `EitherT[IO, JsonClient.Error, ?]`
+
+{lang="text"}
+~~~~~~~~
+  object JsonClient {
+    sealed abstract class Error
+    final case class ServerError(status: Int)       extends Error
+    final case class DecodingError(message: String) extends Error
+  }
+~~~~~~~~
+
+which cover I/O (network) problems, server status problems, and issues with our
+modelling of the server's JSON payloads.
+
 
 #### Choosing an error type
 
@@ -8925,7 +8969,7 @@ interpreters for our application and we stored the number of `started` and
   
     implicit val drone: Drone[Id] = new Drone[Id] { ... }
     implicit val machines: Machines[Id] = new Machines[Id] { ... }
-    val program = new DynAgents[Id]
+    val program = new DynAgentsModule[Id]
   }
 ~~~~~~~~
 
@@ -8996,7 +9040,7 @@ services, may be implemented like this:
         modify(w => w.copy(stopped = w.stopped + node))
     }
   
-    val program = new DynAgents[F](D, M)
+    val program = new DynAgentsModule[F](D, M)
   }
 ~~~~~~~~
 
@@ -10550,7 +10594,8 @@ Luckily, our main business logic only requires an `Applicative`, recall
 
 {lang="text"}
 ~~~~~~~~
-  final class DynAgents[F[_]: Applicative](D: Drone[F], M: Machines[F]) {
+  final class DynAgentsModule[F[_]: Applicative](D: Drone[F], M: Machines[F])
+      extends DynAgents[F] {
     def act(world: WorldView): F[WorldView] = ...
     ...
   }
@@ -10573,14 +10618,14 @@ To begin, we create the `lift` boilerplate for the `Batch` algebra
   }
 ~~~~~~~~
 
-and then we'll create an instance of `DynAgents` with `FreeAp` as the context
+and then we'll create an instance of `DynAgentsModule` with `FreeAp` as the context
 
 {lang="text"}
 ~~~~~~~~
   type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
   
   val world: WorldView = ...
-  val program = new DynAgents(Drone.liftA[Orig], Machines.liftA[Orig])
+  val program = new DynAgentsModule(Drone.liftA[Orig], Machines.liftA[Orig])
   val freeap  = program.act(world)
 ~~~~~~~~
 
