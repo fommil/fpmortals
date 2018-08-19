@@ -6,5 +6,3 @@ introduction.md
 
 complete.md
 
-wip.md
-

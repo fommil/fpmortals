@@ -13050,10 +13050,6 @@ object Lookup {
 6. =IO= gives us the ability to implement algebras as effects on the outside world and interact with legacy systems.
 7. =IO= can perform effects in parallel and provides a high performance implementation of the MTL.
 
-* WIP                                                                 :final:
-  :PROPERTIES:
-  :EXPORT_FILE_NAME: wip.md
-  :END:
 ** Typeclass Derivation
 
 Typeclasses provide polymorphic functionality to our applications. But to use a
@@ -17078,8 +17074,8 @@ this book, please tell your friends. This book does not have a marketing
 department, so word of mouth is the only way that readers find out about it.
 
 Please consider getting involved in Scalaz by joining the [[https://gitter.im/scalaz/scalaz][gitter chat room]]. From
-there you can ask for advice, help newcomers, and contribute to the next
-release.
+there you can ask for advice, help newcomers (you're basically an expert now),
+and contribute to the next release.
 
 * Backmatter                                                          :final:
 :PROPERTIES:
