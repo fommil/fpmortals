@@ -2853,9 +2853,46 @@ A> between `XNode` and `JsValue` should convince us that JSON and XML are differ
 A> species, with conversions only possible on a case-by-case basis.
 
 
-### Example: `UrlQueryEncoded`
+### Example: `UrlQueryWriter`
 
-TODO FIXME
+Along similar lines as `xmlformat`, our `drone-dynamic-agents` application could
+benefit from a typeclass derivation of the `UrlQueryWriter` typeclass, which is
+built out of `UrlEncodedWriter` instances for each field entry. It does not
+support coproducts:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait UrlQueryWriter[A] {
+    def toUrlQuery(a: A): UrlQuery
+  }
+  trait DerivedUrlQueryWriter[T] extends UrlQueryWriter[T]
+  object DerivedUrlQueryWriter {
+    def gen[T, Repr](
+      implicit
+      G: LabelledGeneric.Aux[T, Repr],
+      CR: Cached[Strict[DerivedUrlQueryWriter[Repr]]]
+    ): UrlQueryWriter[T] = { t =>
+      CR.value.value.toUrlQuery(G.to(t))
+    }
+  
+    implicit val hnil: DerivedUrlQueryWriter[HNil] = { _ =>
+      UrlQuery(IList.empty)
+    }
+    implicit def hcons[Key <: Symbol, A, Remaining <: HList](
+      implicit Key: Witness.Aux[Key],
+      LV: Lazy[UrlEncodedWriter[A]],
+      DR: DerivedUrlQueryWriter[Remaining]
+    ): DerivedUrlQueryWriter[FieldType[Key, A] :: Remaining] = {
+      case head :: tail =>
+        val first = Key.value.name -> URLDecoder.decode(LV.value.toUrlEncoded(head).value, "UTF-8")
+        val rest = DR.toUrlQuery(tail)
+        UrlQuery(first :: rest.params)
+    }
+  }
+~~~~~~~~
+
+It is reasonable to ask if these 30 lines are an improvement over the 16 lines
+for the 3 manual instances our application needs.
 
 
 ### The Dark Side of Derivation
@@ -3886,21 +3923,18 @@ and these imports
   import scalaz.ioeffect.catz._
 ~~~~~~~~
 
-A> Cats was created in 2015 when [a Scalaz administrator fell out with the creator
-A> of Scalaz](https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J), shortly after he unilaterally revoked the creator's access to the
-A> project.
+A> Cats was created in 2015 when [a Scalaz administrator fell out with its creator](https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J),
+A> shortly after he revoked the creator's access to the project.
 A> 
-A> When cats was formed, everybody was forced to pick a side between friends. It is
-A> therefore an emotional topic. The fundamental disagreement is about whether
-A> online technical communities should be moderated.
+A> When Cats was formed, everybody was forced to pick a side between friends. It is
+A> therefore an emotional topic for those involved. The fundamental disagreement is
+A> whether online technical communities should be subjected to a Code of Conduct.
 A> 
 A> Cats is a member of the typeLevel organisation, which has a leadership panel who
 A> moderate their chat rooms, and may escalate what they perceive as "abuse" to the
-A> HR department of a participant's employers.
+A> HR department of a participant's employer.
 A> 
 A> Scalaz, on the other hand, does not moderate its chat rooms.
-A> 
-A> Each to their own. It is perfectly reasonable to engage with both communities.
 
 The implementation of `.post` is similar but we must also provide an instance of
 
@@ -3950,11 +3984,129 @@ with a configuration object
 ~~~~~~~~
 
 
-### TODO `BlazeUserInteraction`
+### `BlazeUserInteraction`
+
+We need to spin up an HTTP server, which is a lot easier than it sounds. First,
+the imports
+
+{lang="text"}
+~~~~~~~~
+  import org.http4s._
+  import org.http4s.dsl._
+  import org.http4s.server.Server
+  import org.http4s.server.blaze._
+~~~~~~~~
+
+We need to create a `dsl` for our effect type, which we then import
+
+{lang="text"}
+~~~~~~~~
+  private val dsl = new Http4sDsl[Task] {}
+  import dsl._
+~~~~~~~~
+
+Now we can use the [http4s dsl](https://http4s.org/v0.18/dsl/) to create HTTP endpoints. Rather than describe
+everything that can be done, we will simply implement the endpoint which should
+look familiar to any other HTTP DSL in Scala
+
+{lang="text"}
+~~~~~~~~
+  private object Code extends QueryParamDecoderMatcher[String]("code")
+  private val service: HttpService[Task] = HttpService[Task] {
+    case GET -> Root :? Code(code) => ...
+  }
+~~~~~~~~
+
+The difference, of course, is that this is entirely pure. The return type of each pattern match should be a `Task[Response[Task]]`. In our implementation we want
+to take the `code` and put it into the `ptoken` promise:
+
+{lang="text"}
+~~~~~~~~
+  final class BlazeUserInteraction private (
+    pserver: Promise[Throwable, Server[Task]],
+    ptoken: Promise[Throwable, String]
+  ) extends UserInteraction[Task] {
+    ...
+    private val service: HttpService[Task] = HttpService[Task] {
+      case GET -> Root :? Code(code) =>
+        ptoken.complete(code) >> Ok(
+          "That seems to have worked, go back to the console."
+        )
+    }
+    ...
+  }
+~~~~~~~~
+
+but the definition of our services routes is not enough, we need to launch a
+server, which we do with `BlazeBuilder`
+
+{lang="text"}
+~~~~~~~~
+  private val launch: Task[Server[Task]] =
+    BlazeBuilder[Task].bindHttp(0, "localhost").mountService(service, "/").start
+~~~~~~~~
+
+Binding to port `0` lets the operating system assign a ephemeral port. We can
+discover which port it's actually running on by querying the `server.address`
+field.
+
+Our implementation of the `.start` and `.stop` methods is now straightforward
+
+{lang="text"}
+~~~~~~~~
+  def start: Task[String Refined Url] =
+    for {
+      server  <- launch
+      updated <- pserver.complete(server)
+      _ <- if (updated) Task.unit
+           else server.shutdown *> Task.failMessage("a server was already up")
+    } yield mkUrl(server)
+  
+  def stop: Task[CodeToken] =
+    for {
+      server <- pserver.get
+      token  <- ptoken.get
+      _      <- IO.sleep(1.second) *> server.shutdown
+    } yield CodeToken(token, mkUrl(server))
+  
+  private def mkUrl(s: Server[Task]): String Refined Url = {
+    val port = s.address.getPort
+    Refined.unsafeApply(s"http://localhost:${port}/")
+  }
+~~~~~~~~
+
+The `1.second` sleep is necessary to avoid shutting down the server before the
+response is sent back to the browser. IO doesn't mess around when it comes to
+concurrency performance!
+
+Finally, to create a `BlazeUserInteraction`, we just need the two uninitialised
+promises
+
+{lang="text"}
+~~~~~~~~
+  object BlazeUserInteraction {
+    def apply(): Task[BlazeUserInteraction] = {
+      for {
+        p1 <- Promise.make[Void, Server[Task]].widenError[Throwable]
+        p2 <- Promise.make[Void, String].widenError[Throwable]
+      } yield new BlazeUserInteraction(p1, p2)
+    }
+  }
+~~~~~~~~
+
+We could use `IO[Void, ?]` instead, but since the rest of our application is
+using `Task` (i.e. `IO[Throwable, ?]`), we `.widenError` to avoid introducing
+any boilerplate that would distract us.
 
 
-## TODO Thank You
+## Thank You
 
-and how to get involved.
+And that's it! Congratulations on reaching the end. If you learnt something from
+this book, please tell your friends. This book does not have a marketing
+department, so word of mouth is the only way that readers find out about it.
+
+Please consider getting involved in Scalaz by joining the [gitter chat room](https://gitter.im/scalaz/scalaz). From
+there you can ask for advice, help newcomers, and contribute to the next
+release.
 
 
