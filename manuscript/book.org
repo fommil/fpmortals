@@ -15883,6 +15883,10 @@ between =XNode= and =JsValue= should convince us that JSON and XML are different
 species, with conversions only possible on a case-by-case basis.
 #+END_ASIDE
 
+**** Example: =UrlQueryEncoded=
+
+TODO FIXME
+
 **** The Dark Side of Derivation
 
 #+BEGIN_QUOTE
@@ -16665,7 +16669,268 @@ and then run it!
 
 Yay!
 
-*** TODO Blaze
+*** Blaze
+
+We implement the HTTP client and server with the third party library =http4s=.
+The interpreters for their client and server algebras are called /Blaze/.
+
+We need the following dependencies
+
+#+BEGIN_SRC scala
+val http4sVersion = "0.18.16"
+libraryDependencies ++= Seq(
+  "org.http4s"            %% "http4s-dsl"          % http4sVersion,
+  "org.http4s"            %% "http4s-blaze-server" % http4sVersion,
+  "org.http4s"            %% "http4s-blaze-client" % http4sVersion
+)
+#+END_SRC
+
+**** =BlazeJsonClient=
+
+We'll need some imports
+
+#+BEGIN_SRC scala
+import org.http4s
+import org.http4s.{ EntityEncoder, MediaType }
+import org.http4s.headers.`Content-Type`
+import org.http4s.client.Client
+import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
+#+END_SRC
+
+The =Client= module can be summarised as
+
+#+BEGIN_SRC scala
+final class Client[F[_]](
+  shutdown: F[Unit]
+)(implicit F: MonadError[F, Throwable]) {
+  def fetch[A](req: Request[F])(f: Response[F] => F[A]): F[A] = ...
+  ...
+}
+#+END_SRC
+
+where =Request= and =Response= are data types:
+
+#+BEGIN_SRC scala
+final case class Request[F[_]](
+  method: Method
+  uri: Uri,
+  headers: Headers,
+  body: EntityBody[F]
+) {
+  def withBody[A](a: A)
+                 (implicit F: Monad[F], A: EntityEncoder[F, A]): F[Request[F]] = ...
+  ...
+}
+
+final case class Response[F[_]](
+  status: Status,
+  headers: Headers,
+  body: EntityBody[F]
+)
+#+END_SRC
+
+made of
+
+#+BEGIN_SRC scala
+final case class Headers(headers: List[Header])
+final case class Header(name: String, value: String)
+
+final case class Uri( ... )
+object Uri {
+  // not total, only use if your string is guaranteed to be a URL
+  def unsafeFromString(s: String): Uri = ...
+  ...
+}
+
+final case class Status(code: Int) {
+  def isSuccess: Boolean = ...
+  ...
+}
+
+type EntityBody[F[_]] = fs2.Stream[F, Byte]
+#+END_SRC
+
+The =EntityBody= type is just an alias to =Stream= from the [[https://github.com/functional-streams-for-scala/fs2][=fs2=]] library. The
+=Stream= data type is very powerful and can be thought of as an effectful, lazy,
+pull-based stream of data. It is implemented as a =Free= monad with exception
+catching and interruption. =Stream= takes two type parameters: an effect type
+and a content type, and has an efficient internal representation for batching
+the data. For example, although we are using =Stream[F, Byte]=, it is actually
+wrapping the raw =Array[Byte]= that arrives over the network.
+
+We need to convert our header and URL representations into the versions required
+by http4s:
+
+#+BEGIN_SRC scala
+  def convert(headers: IList[(String, String)]): http4s.Headers =
+    http4s.Headers(
+      headers.foldRight(List[http4s.Header]()) {
+        case ((key, value), acc) => http4s.Header(key, value) :: acc
+      }
+    )
+
+  def convert(uri: String Refined Url): http4s.Uri =
+    http4s.Uri.unsafeFromString(uri.value) // we already validated our String
+#+END_SRC
+
+Both our =.get= and =.post= methods require a conversion from the http4s
+=Response= type into an =A=. We can factor this out into a single function,
+=.handler=
+
+#+BEGIN_SRC scala
+import JsonClient.Error
+
+final class BlazeJsonClient[F[_]] private (H: Client[Task])(
+  implicit
+  F: MonadError[F, Error],
+  I: MonadIO[F, Throwable]
+) extends JsonClient[F] {
+  ...
+  def handler[A: JsDecoder](resp: http4s.Response[Task]): Task[Error \/ A] = {
+    if (!resp.status.isSuccess)
+      Task.now(JsonClient.ServerError(resp.status.code).left)
+    else
+      for {
+        text <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
+        res = JsParser(text)
+          .flatMap(_.as[A])
+          .leftMap(JsonClient.DecodingError(_))
+      } yield res
+  }
+}
+#+END_SRC
+
+The =.through(fs2.text.utf8Decode)= is to convert a =Stream[Task, Byte]= into a
+=Stream[Task, String]=, with =.compile.foldMonoid= interpreting it with our
+=Task= and combining all the parts using the =Monoid[String]=, giving us a
+=Task[String]=.
+
+We then parse the string as JSON and use the =JsDecoder[A]= to create the
+required output.
+
+This is our implementation of =.get=
+
+#+BEGIN_SRC scala
+  def get[A: JsDecoder](
+    uri: String Refined Url,
+    headers: IList[(String, String)]
+  ): F[A] =
+    I.liftIO(
+        H.fetch(
+          http4s.Request[Task](
+            uri = convert(uri),
+            headers = convert(headers)
+          )
+        )(handler[A])
+      )
+      .flatMap {
+        case -\/(err)     => F.raiseError(err)
+        case \/-(success) => F.point(success)
+      }
+#+END_SRC
+
+=.get= is all plumbing: we convert our input types into the =http4s.Request=,
+then call =.fetch= on the =Client= with our =handler=. This gives us back a
+=Task[Error \/ A]=, but we need to return a =F[A]=. Therefore we use the
+=MonadIO.liftIO= to create a =F[Error \/ A]= and then =.flatMap= over the
+disjunction to push the error into the =F=, using =MonadError.raiseError=.
+
+Unfortunately, if we try to compile this code it will fail. The error will look
+something like
+
+#+BEGIN_SRC
+[error] BlazeJsonClient.scala:95:64: could not find implicit value for parameter
+[error]  F: cats.effect.Sync[scalaz.ioeffect.Task]
+[error]         text <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
+[error]                                                                ^
+#+END_SRC
+
+Basically something about a missing `cats` instance. The reason for this failure
+is that http4s is using the Cats library, instead of Scalaz. Cats is a much
+smaller library than Scalaz and amounts to a renaming of a subset of typeclasses
+and datatypes. Thankfully, =scalaz-ioeffect= provides a compatibility layer and
+the [[https://github.com/djspiewak/shims][shims]] project provides seamless (until it isn't) implicit conversions
+between scalaz and cats types. We can get our code to compile with these
+dependencies:
+
+#+BEGIN_SRC scala
+libraryDependencies ++= Seq(
+  "com.codecommit" %% "shims"                % "1.4.0",
+  "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"
+)
+#+END_SRC
+
+and these imports
+
+#+BEGIN_SRC scala
+import shims._
+import scalaz.ioeffect.catz._
+#+END_SRC
+
+#+BEGIN_ASIDE
+Cats was created in 2015 when [[https://twitter.com/larsr_h/statuses/552934438158729218][a Scalaz administrator fell out with the creator
+of Scalaz]], shortly after he unilaterally revoked the creator's access to the
+project.
+
+When cats was formed, everybody was forced to pick a side between friends. It is
+therefore an emotional topic. The fundamental disagreement is about whether
+online technical communities should be moderated.
+
+Cats is a member of the typeLevel organisation, which has a leadership panel who
+moderate their chat rooms, and may escalate what they perceive as "abuse" to the
+HR department of a participant's employers.
+
+Scalaz, on the other hand, does not moderate its chat rooms.
+
+Each to their own. It is perfectly reasonable to engage with both communities.
+#+END_ASIDE
+
+The implementation of =.post= is similar but we must also provide an instance of
+
+#+BEGIN_SRC scala
+EntityEncoder[Task, String Refined UrlEncoded]
+#+END_SRC
+
+Thankfully, the =EntityEncoder= typeclass provides convenience methods to let us
+simply derive one from the existing =String= encoder
+
+#+BEGIN_SRC scala
+  implicit val encoder: EntityEncoder[Task, String Refined UrlEncoded] =
+    EntityEncoder[Task, String]
+      .contramap[String Refined UrlEncoded](_.value)
+      .withContentType(
+        `Content-Type`(MediaType.`application/x-www-form-urlencoded`)
+      )
+#+END_SRC
+
+The only difference between =.get= and =.post= is the way we construct our =http4s.Request=
+
+#+BEGIN_SRC scala
+  http4s.Request[Task](
+    method = http4s.Method.POST,
+    uri = convert(uri),
+    headers = convert(headers)
+  )
+  .withBody(payload.toUrlEncoded)
+#+END_SRC
+
+and the final piece is the constructor, which is a case of calling =Http1Client=
+with a configuration object
+
+#+BEGIN_SRC scala
+object BlazeJsonClient {
+  def apply[F[_]](
+    implicit
+    F: MonadError[F, JsonClient.Error],
+    I: MonadIO[F, Throwable]
+  ): Task[JsonClient[F]] =
+    Http1Client(BlazeClientConfig.defaultConfig).map(new BlazeJsonClient(_))
+}
+#+END_SRC
+
+**** TODO =BlazeUserInteraction=
+
+
 
 *** TODO Thank You
 

@@ -39,17 +39,14 @@ final class BlazeJsonClient[F[_]] private (H: Client[Task])(
             uri = convert(uri),
             headers = convert(headers)
           )
-        )(handler)
+        )(handler[A])
       )
       .flatMap {
         case -\/(err)     => F.raiseError(err)
         case \/-(success) => F.point(success)
       }
 
-  // This is not a typeclass, but http4s treats it implicitly. We'll treat it
-  // explicitly, which may mean having to treat other implicit parameters
-  // explicitly too (see cats.Monad below).
-  private val encoder: EntityEncoder[Task, String Refined UrlEncoded] =
+  private implicit val encoder: EntityEncoder[Task, String Refined UrlEncoded] =
     EntityEncoder[Task, String]
       .contramap[String Refined UrlEncoded](_.value)
       .withContentType(
@@ -71,8 +68,8 @@ final class BlazeJsonClient[F[_]] private (H: Client[Task])(
             )
             .withBody(
               payload.toUrlEncoded
-            )(cats.Monad[Task], encoder)
-        )(handler)
+            )
+        )(handler[A])
       )
       .flatMap {
         case -\/(err)     => F.raiseError(err)
@@ -90,8 +87,9 @@ final class BlazeJsonClient[F[_]] private (H: Client[Task])(
   private[this] def convert(uri: String Refined Url): http4s.Uri =
     http4s.Uri.unsafeFromString(uri.value)
 
-  private[this] def handler[A: JsDecoder]
-    : http4s.Response[Task] => Task[JsonClient.Error \/ A] = { resp =>
+  private[this] def handler[A: JsDecoder](
+    resp: http4s.Response[Task]
+  ): Task[JsonClient.Error \/ A] =
     if (!resp.status.isSuccess)
       Task.now(JsonClient.ServerError(resp.status.code).left)
     else
@@ -101,7 +99,6 @@ final class BlazeJsonClient[F[_]] private (H: Client[Task])(
           .flatMap(_.as[A])
           .leftMap(JsonClient.DecodingError(_))
       } yield res
-  }
 
 }
 object BlazeJsonClient {
