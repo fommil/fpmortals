@@ -16868,7 +16868,7 @@ import scalaz.ioeffect.catz._
 #+END_SRC
 
 #+BEGIN_ASIDE
-Cats was created in 2015 when [[https://twitter.com/larsr_h/statuses/552934438158729218][a Scalaz administrator fell out with the creator
+Cats was created in 2015 when [[https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J][a Scalaz administrator fell out with the creator
 of Scalaz]], shortly after he unilaterally revoked the creator's access to the
 project.
 

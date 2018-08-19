@@ -3887,7 +3887,7 @@ and these imports
 ~~~~~~~~
 
 A> Cats was created in 2015 when [a Scalaz administrator fell out with the creator
-A> of Scalaz](https://twitter.com/larsr_h/statuses/552934438158729218), shortly after he unilaterally revoked the creator's access to the
+A> of Scalaz](https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J), shortly after he unilaterally revoked the creator's access to the
 A> project.
 A> 
 A> When cats was formed, everybody was forced to pick a side between friends. It is
