@@ -1131,6 +1131,8 @@ budget. It will listen to a [[https://github.com/drone/drone][Drone]] Continuous
 spawn worker agents using [[https://cloud.google.com/container-engine/][Google Container Engine]] (GKE) to meet the
 demand of the work queue.
 
+# FIXME find out the dimensions they actually want by looking at the webpage PNG
+
 #+BEGIN_SRC dot :cmd circo :file images/architecture.png :exports results
 digraph G {
     graph [dpi=300, rankdir=BT];
@@ -16441,9 +16443,10 @@ mutable connection pools are created and managed internally by http4s.
 =MonadError= and =MonadIO=. Our application's context will now likely be the
 combination of both: a =EitherT[StateT[Task, ...], ...]= monad stack. Monad
 stacks automatically provide appropriate instances of =MonadState= and
-=MonadError= when nested, so we don't need to think about it. However, if we had
+=MonadError= when nested, so we don't need to think about it. If we had
 hard-coded the implementation in the interpreter, and returned an =EitherT[Task,
-Error, ?]= from =BlazeJsonClient=, it would make it a lot harder to instantiate. #+END_ASIDE
+Error, ?]= from =BlazeJsonClient=, it would make it a lot harder to instantiate.
+#+END_ASIDE
 
 We must not forget that we need to provide a =RefreshToken= for
 =GoogleMachinesModule=. We could ask the user to do all the legwork, but we are

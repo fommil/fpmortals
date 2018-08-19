@@ -3428,14 +3428,13 @@ Note that the `BlazeJsonClient` constructor returns a `Task[JsonClient[F]]`, not
 a `JsonClient[F]`. This is because the act of creating the client is effectful:
 mutable connection pools are created and managed internally by http4s.
 
-\#+BEGIN<sub>ASIDE</sub>
-`OAuth2JsonClientModule` requires a `MonadState` and `BlazeJsonClient` requires
-`MonadError` and `MonadIO`. Our application's context will now likely be the
-combination of both: a `EitherT[StateT[Task, ...], ...]` monad stack. Monad
-stacks automatically provide appropriate instances of `MonadState` and
-`MonadError` when nested, so we don't need to think about it. However, if we had
-hard-coded the implementation in the interpreter, and returned an `EitherT[Task,
-Error, ?]` from `BlazeJsonClient`, it would make it a lot harder to instantiate. #+END<sub>ASIDE</sub>
+A> `OAuth2JsonClientModule` requires a `MonadState` and `BlazeJsonClient` requires
+A> `MonadError` and `MonadIO`. Our application's context will now likely be the
+A> combination of both: a `EitherT[StateT[Task, ...], ...]` monad stack. Monad
+A> stacks automatically provide appropriate instances of `MonadState` and
+A> `MonadError` when nested, so we don't need to think about it. If we had
+A> hard-coded the implementation in the interpreter, and returned an `EitherT[Task,
+A> Error, ?]` from `BlazeJsonClient`, it would make it a lot harder to instantiate.
 
 We must not forget that we need to provide a `RefreshToken` for
 `GoogleMachinesModule`. We could ask the user to do all the legwork, but we are
