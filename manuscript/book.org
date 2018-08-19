@@ -16347,20 +16347,17 @@ Unfortunately, that is not the end of the story. Things get more complicated
 when we go to the next layer. Our =JsonClient= has an interpreter using a different context, an =EitherT[Task, JsonClient.Error, ?]=
 
 #+BEGIN_SRC scala
-final class BlazeJsonClient(...) extends JsonClient[F] { ... }
+final class BlazeJsonClient[F[_]](H: Client[Task])(
+  implicit
+  F: MonadError[F, JsonClient.Error],
+  I: MonadIO[F, Throwable]
+) extends JsonClient[F] { ... }
 object BlazeJsonClient {
-  type F[a] = EitherT[Task, JsonClient.Error, a]
-  def apply(): Task[JsonClient[F]] = ...
-}
-#+END_SRC
-
-where the error type is an ADT
-
-#+BEGIN_SRC scala
-object JsonClient {
-  sealed abstract class Error
-  final case class ServerError(status: Int)       extends Error
-  final case class DecodingError(message: String) extends Error
+  def apply[F[_]](
+    implicit
+    F: MonadError[F, JsonClient.Error],
+    I: MonadIO[F, Throwable]
+  ): Task[JsonClient[F]] = ...
 }
 #+END_SRC
 
@@ -16368,16 +16365,21 @@ Note that the =BlazeJsonClient= constructor returns a =Task[JsonClient[F]]=, not
 a =JsonClient[F]=. This is because the act of creating the client is effectful:
 mutable connection pools are created and managed internally by http4s.
 
-Now that we require both a =MonadError= (i.e. =EitherT=) and a =MonadState=
-(i.e. =StateT=) our application's context just grew into an
-=EitherT[StateT[Task, ...], ...]= monad stack. We'll deal with this in the next
-section.
+#+BEGIN_ASIDE
+=OAuth2JsonClientModule= requires a =MonadState= and =BlazeJsonClient= requires
+=MonadError= and =MonadIO=. Our application's context will now likely be the
+combination of both: a =EitherT[StateT[Task, ...], ...]= monad stack. Monad
+stacks automatically provide appropriate instances of =MonadState= and
+=MonadError= when nested, so we don't need to think about it. However, if we had
+hard-coded the implementation in the interpreter, and returned an =EitherT[Task,
+Error, ?]= from =BlazeJsonClient=, it would make it a lot harder to instantiate. #+END_ASIDE
 
-Meanwhile, we must not forget that we need to provide a =RefreshToken= for
-=GoogleMachinesModule=. We could ask the user to do this, but we provide a
-separate one-shot application that uses the =Auth= and =Access= algebras. The
-=AuthModule= and =AccessModule= implementations bring in additional
-dependencies, but thankfully no change to the application's =F[_]= context.
+We must not forget that we need to provide a =RefreshToken= for
+=GoogleMachinesModule=. We could ask the user to do all the legwork, but we are
+nice and provide a separate one-shot application that uses the =Auth= and
+=Access= algebras. The =AuthModule= and =AccessModule= implementations bring in
+additional dependencies, but thankfully no change to the application's =F[_]=
+context.
 
 #+BEGIN_SRC scala
 final class AuthModule[F[_]: Monad](

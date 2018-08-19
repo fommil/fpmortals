@@ -313,7 +313,14 @@ package object prelude {
       with scalaz.std.TupleInstances
       with scalaz.std.BooleanFunctions
       with scalaz.std.StringFunctions
-      with scalaz.std.FunctionFunctions {
+      with scalaz.std.FunctionFunctions
+      // extras that are not enabled by default due to bincompat in scalaz 7.2...
+      //with scalaz.syntax.ToBandOps
+      //with scalaz.syntax.ToStrictTreeOps
+      //with scalaz.syntax.ToContTOps
+      with scalaz.syntax.ToMonadTransOps
+      with scalaz.syntax.ToBindRecOps
+      with scalaz.syntax.ToEitherTOps {
     implicit def RefinedEqual[T: Equal, P]: Equal[T Refined P] =
       Equal[T].contramap(_.value)
 
@@ -344,13 +351,6 @@ package object prelude {
         override def shows(f: FiniteDuration): String =
           f.toString // scalafix:ok
       }
-
-    // https://github.com/scalaz/scalaz/pull/1961
-    implicit final class BindRecExtras[F[_]: BindRec, A](
-      private val self: F[A]
-    ) {
-      def forever[B]: F[B] = BindRec[F].forever(self)
-    }
 
     // scalafix:off
     implicit final class IOExtras[E, A](io: IO[E, A]) {

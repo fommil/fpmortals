@@ -7,6 +7,7 @@ package interpreters
 
 import prelude._, T._, Z._
 
+import java.lang.Throwable
 import scala.collection.immutable.List
 
 import jsonformat._
@@ -22,19 +23,28 @@ import org.http4s.headers.`Content-Type`
 import org.http4s.client.Client
 import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
 
-import BlazeJsonClient.F
-final class BlazeJsonClient private (H: Client[Task]) extends JsonClient[F] {
+final class BlazeJsonClient[F[_]] private (H: Client[Task])(
+  implicit
+  F: MonadError[F, JsonClient.Error],
+  I: MonadIO[F, Throwable]
+) extends JsonClient[F] {
+
   def get[A: JsDecoder](
     uri: String Refined Url,
     headers: IList[(String, String)]
-  ): F[A] = EitherT(
-    H.fetch(
-      http4s.Request[Task](
-        uri = convert(uri),
-        headers = convert(headers)
+  ): F[A] =
+    I.liftIO(
+        H.fetch(
+          http4s.Request[Task](
+            uri = convert(uri),
+            headers = convert(headers)
+          )
+        )(handler)
       )
-    )(handler)
-  )
+      .flatMap {
+        case -\/(err)     => F.raiseError(err)
+        case \/-(success) => F.point(success)
+      }
 
   // This is not a typeclass, but http4s treats it implicitly. We'll treat it
   // explicitly, which may mean having to treat other implicit parameters
@@ -50,19 +60,24 @@ final class BlazeJsonClient private (H: Client[Task]) extends JsonClient[F] {
     uri: String Refined Url,
     payload: P,
     headers: IList[(String, String)]
-  ): EitherT[Task, JsonClient.Error, A] = EitherT(
-    H.fetch(
-      http4s
-        .Request[Task](
-          method = http4s.Method.POST,
-          uri = convert(uri),
-          headers = convert(headers)
-        )
-        .withBody(
-          payload.toUrlEncoded
-        )(cats.Monad[Task], encoder)
-    )(handler)
-  )
+  ): F[A] =
+    I.liftIO(
+        H.fetch(
+          http4s
+            .Request[Task](
+              method = http4s.Method.POST,
+              uri = convert(uri),
+              headers = convert(headers)
+            )
+            .withBody(
+              payload.toUrlEncoded
+            )(cats.Monad[Task], encoder)
+        )(handler)
+      )
+      .flatMap {
+        case -\/(err)     => F.raiseError(err)
+        case \/-(success) => F.point(success)
+      }
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(
@@ -90,7 +105,10 @@ final class BlazeJsonClient private (H: Client[Task]) extends JsonClient[F] {
 
 }
 object BlazeJsonClient {
-  type F[a] = EitherT[Task, JsonClient.Error, a]
-  def apply(): Task[JsonClient[F]] =
+  def apply[F[_]](
+    implicit
+    F: MonadError[F, JsonClient.Error],
+    I: MonadIO[F, Throwable]
+  ): Task[JsonClient[F]] =
     Http1Client(BlazeClientConfig.defaultConfig).map(new BlazeJsonClient(_))
 }

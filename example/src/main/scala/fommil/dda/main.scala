@@ -34,41 +34,43 @@ object Main extends SafeApp {
   }
 
   // performs the OAuth 2.0 dance to obtain refresh tokens
-  def auth(name: String): Task[Unit] =
+  def auth(name: String): Task[Unit] = {
+    type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+    type H[a]        = HT[Task, a]
+
     for {
       config    <- readConfig[ServerConfig](name + ".server")
       ui        <- BlazeUserInteraction()
       auth      = new AuthModule(config)(ui)
       codetoken <- auth.authenticate
-      client    <- BlazeJsonClient()
+      client    <- BlazeJsonClient[H]
       token <- {
-        type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
-        type H[a]        = HT[Task, a]
         val T: LocalClock[H]  = LocalClock.liftM(new LocalClockTask)
         val access: Access[H] = new AccessModule(config)(client, T)
         access.access(codetoken)
       }.run.swallowError
       _ <- putStrLn(z"got token: ${token._1}").toTask
     } yield ()
+  }
 
   // runs the app, requires that refresh tokens are provided
-  def agents(bearer: BearerToken): Task[Unit] =
+  def agents(bearer: BearerToken): Task[Unit] = {
+    type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+    type GT[f[_], a] = StateT[f, BearerToken, a]
+    type H[a]        = HT[Task, a]
+    type G[a]        = GT[H, a]
+
     for {
       config <- readConfig[AppConfig]
-      blaze  <- BlazeJsonClient()
+      blaze  <- BlazeJsonClient[G]
       _ <- {
-        type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
-        type GT[f[_], a] = StateT[f, BearerToken, a]
-        type H[a]        = HT[Task, a]
-        type G[a]        = GT[H, a]
         val T: LocalClock[G] = {
           import LocalClock.liftM
           liftM(liftM(new LocalClockTask))
         }
-        val C: JsonClient[G] = JsonClient.liftM(blaze)
-        val D: Drone[G]      = new DroneModule(oauth(config.drone)(C))
+        val D: Drone[G] = new DroneModule(oauth(config.drone)(blaze))
         val M: Machines[G] =
-          new GoogleMachinesModule(oauth(config.machines)(C, T))
+          new GoogleMachinesModule(oauth(config.machines)(blaze, T))
         val agents: DynAgents[G] = new DynAgentsModule(D, M)
         for {
           start <- agents.initial
@@ -92,6 +94,7 @@ object Main extends SafeApp {
         } yield ()
       }.eval(bearer).run.swallowError
     } yield ()
+  }
 
   private def oauth[M[_]](
     config: OAuth2Config
