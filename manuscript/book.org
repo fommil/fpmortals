@@ -16420,6 +16420,116 @@ because we need "wait for" semantics that are only provided by =Promise=.
 
 *** TODO Main
 
+The ugliest part of FP is making sure that monads are all aligned and this tends
+to happen in the =Main= entrypoint. The problem boils down to making sure that
+all the monad contexts are aligned.
+
+Our main loop is
+
+#+BEGIN_SRC python
+state = initial()
+while True:
+  state = update(state)
+  state = act(state)
+#+END_SRC
+
+and the good news is that the actual code will look like
+
+#+BEGIN_SRC scala
+  for {
+    old     <- F.get
+    updated <- A.update(old)
+    changed <- A.act(updated)
+    _       <- F.put(changed)
+    _       <- S.sleep(10.seconds)
+  } yield ()
+#+END_SRC
+
+where =F= holds the state of the world in a =MonadState[F, WorldView]=. We can
+put this into a method called =.step= and repeat it forever by calling
+=.step[F].forever[Unit]=.
+
+We begin the journey to get to this code. There are two approaches we can take,
+and we will explore both. The first, and simplest, is to construct one monad
+stack that all algebras are compatible with. Everything gets a =.liftM= added to
+it to lift it into the larger stack. Let's explore this approach for the
+=--machines= mode of operation.
+
+The code we want to write is
+
+#+BEGIN_SRC scala
+  def auth(name: String): Task[Unit] = {
+    for {
+      config    <- readConfig[ServerConfig](name + ".server")
+      ui        <- BlazeUserInteraction()
+      auth      = new AuthModule(config)(ui)
+      codetoken <- auth.authenticate
+      client    <- BlazeJsonClient
+      clock     = new LocalClockTask
+      access    = new AccessModule(config)(client, clock)
+      token     <- access.access(codetoken)
+      _         <- putStrLn(s"got token: $token")
+    } yield ()
+  }.run
+#+END_SRC
+
+where =.readConfig= and =.putStrLn= are library calls. We can think of them as
+=Task= interpreters of algebras that read the application's runtime
+configuration and print a string to the screen.
+
+But this code does not compile, for two reasons. Firstly, we need to consider
+what our monad stack is going to be. The =BlazeJsonClient= constructor returns a
+=Task= but the =JsonClient= methods require a =MonadError[...,
+JsonClient.Error]=. This can be provided by =EitherT=. We can therefore
+construct the common monad stack for the entire =for= comprehension as
+
+#+BEGIN_SRC scala
+    type H[a] = EitherT[Task, JsonClient.Error, a]
+#+END_SRC
+
+Unfortunately this means we must =.liftM= everything that returns a =Task=,
+which adds quite a lot of boilerplate. Unfortunately, the =.liftM= method does
+not take a type of shape =H[_]=, it takes a type of shape =H[_[_], _]=, so we
+need to create a type alias to help out the compiler:
+
+#+BEGIN_SRC scala
+    type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+    type H[a]        = HT[Task, a]
+#+END_SRC
+
+we can now call =.liftM[HT]= when we receive a =Task=
+
+#+BEGIN_SRC scala
+    for {
+      config    <- readConfig[ServerConfig](name + ".server").liftM[HT]
+      ui        <- BlazeUserInteraction().liftM[HT]
+      auth      = new AuthModule(config)(ui)
+      codetoken <- auth.authenticate.liftM[HT]
+      client    <- BlazeJsonClient[H].liftM[HT]
+      clock     = new LocalClockTask
+      access    = new AccessModule(config)(client, clock)
+      token     <- access.access(codetoken)
+      _         <- putStrLn(s"got token: $token").liftM[HT]
+    } yield ()
+#+END_SRC
+
+But this still doesn't compile, because =clock= is a =LocalClock[Task]= and =AccessModule= requires a =LocalClock[H]=. We simply add the necessary =.liftM= boilerplate to the companion of =LocalClock= and can then lift the entire algebra
+
+#+BEGIN_SRC scala
+      clock     = LocalClock.liftM[Task, HT](new LocalClockTask)
+      access    = new AccessModule[H](config)(client, clock)
+#+END_SRC
+
+and now everything compiles!
+
+The second approach to wiring up an application is more complex, but necessary
+when there are conflicts. It is also more efficient at runtime. This involves
+using the most minimal monad at each stage, and nesting =for= comprehensions
+when a stack is needed.
+
+TODO
+
+
 *** TODO Blaze
 
 *** TODO Thank You

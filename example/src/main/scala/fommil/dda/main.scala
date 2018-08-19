@@ -39,19 +39,17 @@ object Main extends SafeApp {
     type H[a]        = HT[Task, a]
 
     for {
-      config    <- readConfig[ServerConfig](name + ".server")
-      ui        <- BlazeUserInteraction()
+      config    <- readConfig[ServerConfig](name + ".server").liftM[HT]
+      ui        <- BlazeUserInteraction().liftM[HT]
       auth      = new AuthModule(config)(ui)
-      codetoken <- auth.authenticate
-      client    <- BlazeJsonClient[H]
-      token <- {
-        val T: LocalClock[H]  = LocalClock.liftM(new LocalClockTask)
-        val access: Access[H] = new AccessModule(config)(client, T)
-        access.access(codetoken)
-      }.run.swallowError
-      _ <- putStrLn(z"got token: ${token._1}").toTask
+      codetoken <- auth.authenticate.liftM[HT]
+      clock     = LocalClock.liftM[Task, HT](new LocalClockTask)
+      client    <- BlazeJsonClient[H].liftM[HT]
+      access    = new AccessModule(config)(client, clock)
+      token     <- access.access(codetoken)
+      _         <- putStrLn(z"got token: ${token._1}").toTask.liftM[HT]
     } yield ()
-  }
+  }.run.swallowError
 
   // runs the app, requires that refresh tokens are provided
   def agents(bearer: BearerToken): Task[Unit] = {
@@ -83,18 +81,26 @@ object Main extends SafeApp {
               import Sleep.liftM
               liftM(liftM(liftM(new SleepTask)))
             }
-            for {
-              old     <- F.get
-              updated <- A.update(old)
-              changed <- A.act(updated)
-              _       <- F.put(changed)
-              _       <- S.sleep(10.seconds)
-            } yield ()
-          }.forever[Unit].run(start)
+            step(F, A, S).forever[Unit]
+          }.run(start)
         } yield ()
       }.eval(bearer).run.swallowError
     } yield ()
   }
+
+  private def step[F[_]](
+    implicit
+    F: MonadState[F, WorldView],
+    A: DynAgents[F],
+    S: Sleep[F]
+  ): F[Unit] =
+    for {
+      old     <- F.get
+      updated <- A.update(old)
+      changed <- A.act(updated)
+      _       <- F.put(changed)
+      _       <- S.sleep(10.seconds)
+    } yield ()
 
   private def oauth[M[_]](
     config: OAuth2Config
