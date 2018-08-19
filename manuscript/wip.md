@@ -3279,7 +3279,38 @@ The signatures of all the algebras can be summarised as
 Note that some signatures from previous chapters have been refactored to use
 scalaz data types, now that we know why they are superior to the stdlib.
 
-And without going into the detail of how to implement the algebras, we need to know the dependency graph of our `DynAgentsModule`. Let's unravel the thread...
+The data types are:
+
+{lang="text"}
+~~~~~~~~
+  @xderiving(Order, Arbitrary)
+  final case class Epoch(millis: Long) extends AnyVal
+  
+  @deriving(Order, Show)
+  final case class MachineNode(id: String)
+  
+  @deriving(Equal, Show)
+  final case class CodeToken(token: String, redirect_uri: String Refined Url)
+  
+  @xderiving(Equal, Show, ConfigReader)
+  final case class RefreshToken(token: String) extends AnyVal
+  
+  @deriving(Equal, Show, ConfigReader)
+  final case class BearerToken(token: String, expires: Epoch)
+  
+  @deriving(ConfigReader)
+  final case class OAuth2Config(token: RefreshToken, server: ServerConfig)
+  
+  @deriving(ConfigReader)
+  final case class AppConfig(drone: BearerToken, machines: OAuth2Config)
+~~~~~~~~
+
+We derive useful typeclasses using `scalaz-deriving` and Magnolia. The
+`ConfigReader` typeclass is from the `pureconfig` library and is used to read
+runtime configuration from HOCON property files.
+
+And without going into the detail of how to implement the algebras, we need to
+know the dependency graph of our `DynAgentsModule`. Let's unravel the thread...
 
 {lang="text"}
 ~~~~~~~~
@@ -3337,21 +3368,17 @@ when we go to the next layer. Our `JsonClient` has an interpreter using a differ
 
 {lang="text"}
 ~~~~~~~~
-  final class BlazeJsonClient(...) extends JsonClient[F] { ... }
+  final class BlazeJsonClient[F[_]](H: Client[Task])(
+    implicit
+    F: MonadError[F, JsonClient.Error],
+    I: MonadIO[F, Throwable]
+  ) extends JsonClient[F] { ... }
   object BlazeJsonClient {
-    type F[a] = EitherT[Task, JsonClient.Error, a]
-    def apply(): Task[JsonClient[F]] = ...
-  }
-~~~~~~~~
-
-where the error type is an ADT
-
-{lang="text"}
-~~~~~~~~
-  object JsonClient {
-    sealed abstract class Error
-    final case class ServerError(status: Int)       extends Error
-    final case class DecodingError(message: String) extends Error
+    def apply[F[_]](
+      implicit
+      F: MonadError[F, JsonClient.Error],
+      I: MonadIO[F, Throwable]
+    ): Task[JsonClient[F]] = ...
   }
 ~~~~~~~~
 
@@ -3359,16 +3386,21 @@ Note that the `BlazeJsonClient` constructor returns a `Task[JsonClient[F]]`, not
 a `JsonClient[F]`. This is because the act of creating the client is effectful:
 mutable connection pools are created and managed internally by http4s.
 
-Now that we require both a `MonadError` (i.e. `EitherT`) and a `MonadState`
-(i.e. `StateT`) our application's context just grew into an
-`EitherT[StateT[Task, ...], ...]` monad stack. We'll deal with this in the next
-section.
+\#+BEGIN<sub>ASIDE</sub>
+`OAuth2JsonClientModule` requires a `MonadState` and `BlazeJsonClient` requires
+`MonadError` and `MonadIO`. Our application's context will now likely be the
+combination of both: a `EitherT[StateT[Task, ...], ...]` monad stack. Monad
+stacks automatically provide appropriate instances of `MonadState` and
+`MonadError` when nested, so we don't need to think about it. However, if we had
+hard-coded the implementation in the interpreter, and returned an `EitherT[Task,
+Error, ?]` from `BlazeJsonClient`, it would make it a lot harder to instantiate. #+END<sub>ASIDE</sub>
 
-Meanwhile, we must not forget that we need to provide a `RefreshToken` for
-`GoogleMachinesModule`. We could ask the user to do this, but we provide a
-separate one-shot application that uses the `Auth` and `Access` algebras. The
-`AuthModule` and `AccessModule` implementations bring in additional
-dependencies, but thankfully no change to the application's `F[_]` context.
+We must not forget that we need to provide a `RefreshToken` for
+`GoogleMachinesModule`. We could ask the user to do all the legwork, but we are
+nice and provide a separate one-shot application that uses the `Auth` and
+`Access` algebras. The `AuthModule` and `AccessModule` implementations bring in
+additional dependencies, but thankfully no change to the application's `F[_]`
+context.
 
 {lang="text"}
 ~~~~~~~~
@@ -3409,7 +3441,234 @@ providing the initial value. We also couldn't use `StateT` in this scenario
 because we need "wait for" semantics that are only provided by `Promise`.
 
 
-## TODO Main
+## `Main`
+
+The ugliest part of FP is making sure that monads are all aligned and this tends
+to happen in the `Main` entrypoint. The problem boils down to making sure that
+all the monad contexts are aligned.
+
+Our main loop is
+
+{lang="text"}
+~~~~~~~~
+  state = initial()
+  while True:
+    state = update(state)
+    state = act(state)
+~~~~~~~~
+
+and the good news is that the actual code will look like
+
+{lang="text"}
+~~~~~~~~
+  for {
+    old     <- F.get
+    updated <- A.update(old)
+    changed <- A.act(updated)
+    _       <- F.put(changed)
+    _       <- S.sleep(10.seconds)
+  } yield ()
+~~~~~~~~
+
+where `F` holds the state of the world in a `MonadState[F, WorldView]`. We can
+put this into a method called `.step` and repeat it forever by calling
+`.step[F].forever[Unit]`.
+
+We begin the journey to get to this code. There are two approaches we can take,
+and we will explore both. The first, and simplest, is to construct one monad
+stack that all algebras are compatible with. Everything gets a `.liftM` added to
+it to lift it into the larger stack. Let's explore this approach for the
+`--machines` mode of operation.
+
+The code we want to write is
+
+{lang="text"}
+~~~~~~~~
+  def auth(name: String): Task[Unit] = {
+    for {
+      config    <- readConfig[ServerConfig](name + ".server")
+      ui        <- BlazeUserInteraction()
+      auth      = new AuthModule(config)(ui)
+      codetoken <- auth.authenticate
+      client    <- BlazeJsonClient
+      clock     = new LocalClockTask
+      access    = new AccessModule(config)(client, clock)
+      token     <- access.access(codetoken)
+      _         <- putStrLn(s"got token: $token")
+    } yield ()
+  }.run
+~~~~~~~~
+
+where `.readConfig` and `.putStrLn` are library calls. We can think of them as
+`Task` interpreters of algebras that read the application's runtime
+configuration and print a string to the screen.
+
+But this code does not compile, for two reasons. Firstly, we need to consider
+what our monad stack is going to be. The `BlazeJsonClient` constructor returns a
+`Task` but the `JsonClient` methods require a `MonadError[...,
+JsonClient.Error]`. This can be provided by `EitherT`. We can therefore
+construct the common monad stack for the entire `for` comprehension as
+
+{lang="text"}
+~~~~~~~~
+  type H[a] = EitherT[Task, JsonClient.Error, a]
+~~~~~~~~
+
+Unfortunately this means we must `.liftM` everything that returns a `Task`,
+which adds quite a lot of boilerplate. Unfortunately, the `.liftM` method does
+not take a type of shape `H[_]`, it takes a type of shape `H[_[_], _]`, so we
+need to create a type alias to help out the compiler:
+
+{lang="text"}
+~~~~~~~~
+  type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+  type H[a]        = HT[Task, a]
+~~~~~~~~
+
+we can now call `.liftM[HT]` when we receive a `Task`
+
+{lang="text"}
+~~~~~~~~
+  for {
+    config    <- readConfig[ServerConfig](name + ".server").liftM[HT]
+    ui        <- BlazeUserInteraction().liftM[HT]
+    auth      = new AuthModule(config)(ui)
+    codetoken <- auth.authenticate.liftM[HT]
+    client    <- BlazeJsonClient[H].liftM[HT]
+    clock     = new LocalClockTask
+    access    = new AccessModule(config)(client, clock)
+    token     <- access.access(codetoken)
+    _         <- putStrLn(s"got token: $token").liftM[HT]
+  } yield ()
+~~~~~~~~
+
+But this still doesn't compile, because `clock` is a `LocalClock[Task]` and `AccessModule` requires a `LocalClock[H]`. We simply add the necessary `.liftM` boilerplate to the companion of `LocalClock` and can then lift the entire algebra
+
+{lang="text"}
+~~~~~~~~
+  clock     = LocalClock.liftM[Task, HT](new LocalClockTask)
+  access    = new AccessModule[H](config)(client, clock)
+~~~~~~~~
+
+and now everything compiles!
+
+The second approach to wiring up an application is more complex, but necessary
+when there are conflicts in the monad stack, such as we need in our main loop.
+If we perform an analysis we find that the following are needed:
+
+-   `MonadError[F, JsonClient.Error]` for uses of the `JsonClient`
+-   `MonadState[F, BearerToken]` for uses of the `OAuth2JsonClient`
+-   `MonadState[F, WorldView]` for our main loop
+
+Unfortunately, the two `MonadState` requirements are in conflict. We could
+construct a data type that captures all the state of the program, but that is a
+leaky abstraction. Instead, we nest our `for` comprehensions and provide state
+where it is needed.
+
+We now need to think about three layers, which we will call `F`, `G`, `H`
+
+{lang="text"}
+~~~~~~~~
+  type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+  type GT[f[_], a] = StateT[f, BearerToken, a]
+  type FT[f[_], a] = StateT[f, WorldView, a]
+  
+  type H[a]        = HT[Task, a]
+  type G[a]        = GT[H, a]
+  type F[a]        = FT[G, a]
+~~~~~~~~
+
+Now some bad news about `.liftM`... it only works for one layer at a time. If we
+have a `Task[A]` and we want an `F[A]`, we have to go through each step and type
+`ta.liftM[HT].liftM[GT].liftM[FT]`. Likewise, when lifting algebras we have to
+call `liftM` multiple times. To get a `Sleep[F]`, we have to type
+
+{lang="text"}
+~~~~~~~~
+  val S: Sleep[F] = {
+    import Sleep.liftM
+    liftM(liftM(liftM(new SleepTask)))
+  }
+~~~~~~~~
+
+and to get a `LocalClock[G]` we do two lifts
+
+{lang="text"}
+~~~~~~~~
+  val T: LocalClock[G] = {
+    import LocalClock.liftM
+    liftM(liftM(new LocalClockTask))
+  }
+~~~~~~~~
+
+The main application then becomes
+
+{lang="text"}
+~~~~~~~~
+  for {
+    config <- readConfig[AppConfig]
+    blaze  <- BlazeJsonClient[G]
+    _ <- {
+      val bearerClient = new BearerJsonClientModule(bearer)(blaze)
+      val drone        = new DroneModule(bearerClient)
+      val refresh      = new RefreshModule(config.machines.server)(blaze, T)
+      val oauthClient =
+        new OAuth2JsonClientModule(config.machines.token)(blaze, T, refresh)
+      val machines = new GoogleMachinesModule(oauthClient)
+      val agents   = new DynAgentsModule(drone, machines)
+      for {
+        start <- agents.initial
+        _ <- {
+          val fagents = DynAgents.liftM[G, FT](agents)
+          step(fagents, S).forever[Unit]
+        }.run(start)
+      } yield ()
+    }.eval(bearer).run
+  } yield ()
+~~~~~~~~
+
+where the outer loop is using `Task`, the middle loop is using `G`, and the
+inner loop is using `F`.
+
+The calls to `.run(start)` and `.eval(bearer)` are where we provide the initial
+state for the `StateT` parts of our application. The `.run` is to reveal the
+`EitherT` error.
+
+We can call these two application entry points from our `SafeApp`
+
+{lang="text"}
+~~~~~~~~
+  object Main extends SafeApp {
+    def run(args: List[String]): IO[Void, ExitStatus] = {
+      if (args.contains("--machines")) auth("machines")
+      else if (args.contains("--drone")) auth("drone")
+      else agents(BearerToken("<invalid>", Epoch(0)))
+    }.attempt[Void].map {
+      case \/-(_)   => ExitStatus.ExitNow(0)
+      case -\/(err) => ExitStatus.ExitNow(1)
+    }
+  }
+~~~~~~~~
+
+and then run it!
+
+{lang="text"}
+~~~~~~~~
+  > runMain fommil.dda.Main --machines
+  [info] Running (fork) fommil.dda.Main --machines
+  ...
+  [info] Service bound to address /127.0.0.1:46687
+  ...
+  [info] Created new window in existing browser session.
+  ...
+  [info] Headers(Host: localhost:46687, Connection: keep-alive, User-Agent: Mozilla/5.0 ...)
+  ...
+  [info] POST https://www.googleapis.com/oauth2/v4/token
+  ...
+  [info] got token: "<elided>"
+~~~~~~~~
+
+Yay!
 
 
 ## TODO Blaze

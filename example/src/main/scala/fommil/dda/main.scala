@@ -11,7 +11,6 @@ import scala.collection.immutable.List
 import pureconfig.orphans._
 import scalaz.ioeffect.console._
 
-import algebra._
 import logic._
 import interpreters._
 import http._
@@ -55,33 +54,38 @@ object Main extends SafeApp {
   def agents(bearer: BearerToken): Task[Unit] = {
     type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
     type GT[f[_], a] = StateT[f, BearerToken, a]
-    type H[a]        = HT[Task, a]
-    type G[a]        = GT[H, a]
+    type FT[f[_], a] = StateT[f, WorldView, a]
+
+    type H[a] = HT[Task, a]
+    type G[a] = GT[H, a]
+    type F[a] = FT[G, a]
+
+    val T: LocalClock[G] = {
+      import LocalClock.liftM
+      liftM(liftM(new LocalClockTask))
+    }
+
+    val S: Sleep[F] = {
+      import Sleep.liftM
+      liftM(liftM(liftM(new SleepTask)))
+    }
 
     for {
       config <- readConfig[AppConfig]
       blaze  <- BlazeJsonClient[G]
       _ <- {
-        val T: LocalClock[G] = {
-          import LocalClock.liftM
-          liftM(liftM(new LocalClockTask))
-        }
-        val D: Drone[G] = new DroneModule(oauth(config.drone)(blaze))
-        val M: Machines[G] =
-          new GoogleMachinesModule(oauth(config.machines)(blaze, T))
-        val agents: DynAgents[G] = new DynAgentsModule(D, M)
+        val bearerClient = new BearerJsonClientModule(bearer)(blaze)
+        val drone        = new DroneModule(bearerClient)
+        val refresh      = new RefreshModule(config.machines.server)(blaze, T)
+        val oauthClient =
+          new OAuth2JsonClientModule(config.machines.token)(blaze, T, refresh)
+        val machines = new GoogleMachinesModule(oauthClient)
+        val agents   = new DynAgentsModule(drone, machines)
         for {
           start <- agents.initial
           _ <- {
-            type FT[f[_], a] = StateT[f, WorldView, a]
-            type F[a]        = FT[G, a]
-            val F: MonadState[F, WorldView] = MonadState[F, WorldView]
-            val A: DynAgents[F]             = DynAgents.liftM(agents)
-            val S: Sleep[F] = {
-              import Sleep.liftM
-              liftM(liftM(liftM(new SleepTask)))
-            }
-            step(F, A, S).forever[Unit]
+            val fagents = DynAgents.liftM[G, FT](agents)
+            step(fagents, S).forever[Unit]
           }.run(start)
         } yield ()
       }.eval(bearer).run.swallowError
@@ -89,10 +93,11 @@ object Main extends SafeApp {
   }
 
   private def step[F[_]](
-    implicit
-    F: MonadState[F, WorldView],
     A: DynAgents[F],
     S: Sleep[F]
+  )(
+    implicit
+    F: MonadState[F, WorldView]
   ): F[Unit] =
     for {
       old     <- F.get
@@ -101,29 +106,6 @@ object Main extends SafeApp {
       _       <- F.put(changed)
       _       <- S.sleep(10.seconds)
     } yield ()
-
-  private def oauth[M[_]](
-    config: OAuth2Config
-  )(
-    H: JsonClient[M],
-    T: LocalClock[M]
-  )(
-    implicit
-    M: MonadError[M, JsonClient.Error],
-    S: MonadState[M, BearerToken]
-  ): OAuth2JsonClient[M] =
-    new OAuth2JsonClientModule[M](config.token)(
-      H,
-      T,
-      new RefreshModule(config.server)(H, T)(M)
-    )
-
-  private def oauth[M[_]: Monad](
-    bearer: BearerToken
-  )(
-    H: JsonClient[M]
-  ): OAuth2JsonClient[M] =
-    new BearerJsonClientModule[M](bearer)(H)
 
   @deriving(ConfigReader)
   final case class OAuth2Config(

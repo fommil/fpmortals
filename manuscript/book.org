@@ -6323,7 +6323,7 @@ sealed abstract class Option[+A] {
     case Some(value) => ev(value)
   }
 }
-final case class Some[+A](value: A) extends Option[A] 
+final case class Some[+A](value: A) extends Option[A]
 case object None                    extends Option[Nothing]
 #+END_SRC
 
@@ -10454,7 +10454,8 @@ while True:
 and use =StateT= to manage the =state=. However, our =DynAgents= business logic
 requires only =Applicative= and we would be violating the /Rule of Least Power/
 to require the more powerful =MonadState=. It is therefore entirely reasonable
-to handle the state manually by passing it in to =update= and =act=.
+to handle the state manually by passing it in to =update= and =act=, and let
+whoever calls us use a =StateT= if they wish.
 
 **** =IndexedStateT=
 
@@ -16293,7 +16294,37 @@ trait Machines[F[_]] {
 Note that some signatures from previous chapters have been refactored to use
 scalaz data types, now that we know why they are superior to the stdlib.
 
-And without going into the detail of how to implement the algebras, we need to know the dependency graph of our =DynAgentsModule=. Let's unravel the thread...
+The data types are:
+
+#+BEGIN_SRC scala
+@xderiving(Order, Arbitrary)
+final case class Epoch(millis: Long) extends AnyVal
+
+@deriving(Order, Show)
+final case class MachineNode(id: String)
+
+@deriving(Equal, Show)
+final case class CodeToken(token: String, redirect_uri: String Refined Url)
+
+@xderiving(Equal, Show, ConfigReader)
+final case class RefreshToken(token: String) extends AnyVal
+
+@deriving(Equal, Show, ConfigReader)
+final case class BearerToken(token: String, expires: Epoch)
+
+@deriving(ConfigReader)
+final case class OAuth2Config(token: RefreshToken, server: ServerConfig)
+
+@deriving(ConfigReader)
+final case class AppConfig(drone: BearerToken, machines: OAuth2Config)
+#+END_SRC
+
+We derive useful typeclasses using =scalaz-deriving= and Magnolia. The
+=ConfigReader= typeclass is from the =pureconfig= library and is used to read
+runtime configuration from HOCON property files.
+
+And without going into the detail of how to implement the algebras, we need to
+know the dependency graph of our =DynAgentsModule=. Let's unravel the thread...
 
 #+BEGIN_SRC scala
 final class DynAgentsModule[F[_]: Applicative](
@@ -16418,7 +16449,7 @@ state management to the main application, which would become responsible for
 providing the initial value. We also couldn't use =StateT= in this scenario
 because we need "wait for" semantics that are only provided by =Promise=.
 
-*** TODO Main
+*** =Main=
 
 The ugliest part of FP is making sure that monads are all aligned and this tends
 to happen in the =Main= entrypoint. The problem boils down to making sure that
@@ -16523,12 +16554,116 @@ But this still doesn't compile, because =clock= is a =LocalClock[Task]= and =Acc
 and now everything compiles!
 
 The second approach to wiring up an application is more complex, but necessary
-when there are conflicts. It is also more efficient at runtime. This involves
-using the most minimal monad at each stage, and nesting =for= comprehensions
-when a stack is needed.
+when there are conflicts in the monad stack, such as we need in our main loop.
+If we perform an analysis we find that the following are needed:
 
-TODO
+- =MonadError[F, JsonClient.Error]= for uses of the =JsonClient=
+- =MonadState[F, BearerToken]= for uses of the =OAuth2JsonClient=
+- =MonadState[F, WorldView]= for our main loop
 
+Unfortunately, the two =MonadState= requirements are in conflict. We could
+construct a data type that captures all the state of the program, but that is a
+leaky abstraction. Instead, we nest our =for= comprehensions and provide state
+where it is needed.
+
+We now need to think about three layers, which we will call =F=, =G=, =H=
+
+#+BEGIN_SRC scala
+    type HT[f[_], a] = EitherT[f, JsonClient.Error, a]
+    type GT[f[_], a] = StateT[f, BearerToken, a]
+    type FT[f[_], a] = StateT[f, WorldView, a]
+
+    type H[a]        = HT[Task, a]
+    type G[a]        = GT[H, a]
+    type F[a]        = FT[G, a]
+#+END_SRC
+
+Now some bad news about =.liftM=... it only works for one layer at a time. If we
+have a =Task[A]= and we want an =F[A]=, we have to go through each step and type
+=ta.liftM[HT].liftM[GT].liftM[FT]=. Likewise, when lifting algebras we have to
+call =liftM= multiple times. To get a =Sleep[F]=, we have to type
+
+#+BEGIN_SRC scala
+val S: Sleep[F] = {
+  import Sleep.liftM
+  liftM(liftM(liftM(new SleepTask)))
+}
+#+END_SRC
+
+and to get a =LocalClock[G]= we do two lifts
+
+#+BEGIN_SRC scala
+val T: LocalClock[G] = {
+  import LocalClock.liftM
+  liftM(liftM(new LocalClockTask))
+}
+#+END_SRC
+
+The main application then becomes
+
+#+BEGIN_SRC scala
+    for {
+      config <- readConfig[AppConfig]
+      blaze  <- BlazeJsonClient[G]
+      _ <- {
+        val bearerClient = new BearerJsonClientModule(bearer)(blaze)
+        val drone        = new DroneModule(bearerClient)
+        val refresh      = new RefreshModule(config.machines.server)(blaze, T)
+        val oauthClient =
+          new OAuth2JsonClientModule(config.machines.token)(blaze, T, refresh)
+        val machines = new GoogleMachinesModule(oauthClient)
+        val agents   = new DynAgentsModule(drone, machines)
+        for {
+          start <- agents.initial
+          _ <- {
+            val fagents = DynAgents.liftM[G, FT](agents)
+            step(fagents, S).forever[Unit]
+          }.run(start)
+        } yield ()
+      }.eval(bearer).run
+    } yield ()
+#+END_SRC
+
+where the outer loop is using =Task=, the middle loop is using =G=, and the
+inner loop is using =F=.
+
+The calls to =.run(start)= and =.eval(bearer)= are where we provide the initial
+state for the =StateT= parts of our application. The =.run= is to reveal the
+=EitherT= error.
+
+We can call these two application entry points from our =SafeApp=
+
+#+BEGIN_SRC scala
+object Main extends SafeApp {
+  def run(args: List[String]): IO[Void, ExitStatus] = {
+    if (args.contains("--machines")) auth("machines")
+    else if (args.contains("--drone")) auth("drone")
+    else agents(BearerToken("<invalid>", Epoch(0)))
+  }.attempt[Void].map {
+    case \/-(_)   => ExitStatus.ExitNow(0)
+    case -\/(err) => ExitStatus.ExitNow(1)
+  }
+}
+#+END_SRC
+
+and then run it!
+
+#+BEGIN_SRC
+> runMain fommil.dda.Main --machines
+[info] Running (fork) fommil.dda.Main --machines
+...
+[info] Service bound to address /127.0.0.1:46687
+...
+[info] Created new window in existing browser session.
+...
+[info] Headers(Host: localhost:46687, Connection: keep-alive, User-Agent: Mozilla/5.0 ...)
+...
+[info] POST https://www.googleapis.com/oauth2/v4/token
+...
+[info] got token: "<elided>"
+#+END_SRC
+
+Yay!
 
 *** TODO Blaze
 

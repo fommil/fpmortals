@@ -5353,7 +5353,7 @@ implement `.flatten` as
       case Some(value) => ev(value)
     }
   }
-  final case class Some[+A](value: A) extends Option[A] 
+  final case class Some[+A](value: A) extends Option[A]
   case object None                    extends Option[Nothing]
 ~~~~~~~~
 
@@ -9080,7 +9080,8 @@ We would be forgiven for looking back to our business logic loop
 and use `StateT` to manage the `state`. However, our `DynAgents` business logic
 requires only `Applicative` and we would be violating the *Rule of Least Power*
 to require the more powerful `MonadState`. It is therefore entirely reasonable
-to handle the state manually by passing it in to `update` and `act`.
+to handle the state manually by passing it in to `update` and `act`, and let
+whoever calls us use a `StateT` if they wish.
 
 
 ### `IndexedStateT`

@@ -18,7 +18,7 @@ import api._
  * breach or user / server whim.
  */
 @xderiving(Equal, Show, ConfigReader)
-final case class RefreshToken(token: String)
+final case class RefreshToken(token: String) extends AnyVal
 
 /**
  * Turns a one-shot `CodeToken` into a `BearerToken` than can be securely
