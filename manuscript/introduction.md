@@ -258,10 +258,10 @@ use a *for comprehension*, which is just syntax sugar over nested
     } yield in
 ~~~~~~~~
 
-Our `Execution` has the same signature as a trait in scalaz called
+Our `Execution` has the same signature as a trait in Scalaz called
 `Monad`, except `doAndThen` is `flatMap` and `create` is `pure`. We
 say that `C` is *monadic* when there is an implicit `Monad[C]`
-available. In addition, scalaz has the `Id` type alias.
+available. In addition, Scalaz has the `Id` type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write sequential code that abstracts over its execution

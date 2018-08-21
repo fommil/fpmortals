@@ -18,9 +18,8 @@ who is both sceptical and curious about the **Functional Programming** (FP)
 paradigm. This book justifies every concept with practical examples, including
 writing a web application.
 
-There are many ways to do Functional Programming in Scala. This book uses [scalaz
-7.2](https://github.com/scalaz/scalaz), the most popular, stable, principled and comprehensive framework. You could
-instead use the Cats political fork of scalaz, or roll your own framework.
+This book uses [Scalaz 7.2](https://github.com/scalaz/scalaz), the most popular, stable, principled and
+comprehensive Functional Programming framework for Scala.
 
 This book is designed to be read from cover to cover, in the order presented,
 with a rest between chapters. Earlier chapters encourage coding styles that we
@@ -29,9 +28,9 @@ children, and progress to Riemann / Einstein / Maxwell if we become students of
 physics.
 
 A computer is not necessary to follow along, although we hope that you will gain
-the confidence to independently study the scalaz source code. Some of the more
+the confidence to independently study the Scalaz source code. Some of the more
 complex code snippets are available with [the book's source code](https://github.com/fommil/fpmortals/) and those who
-want practical exercises are encouraged to (re-)implement scalaz (and the
+want practical exercises are encouraged to (re-)implement Scalaz (and the
 example application) using the partial descriptions presented in this book.
 
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to write an FP
@@ -54,7 +53,7 @@ This book uses the [Creative Commons Attribution ShareAlike 4.0 International](h
 BY-SA 4.0) license.
 
 All original code snippets in this book are separately [CC0](https://wiki.creativecommons.org/wiki/CC0) licensed, you may use
-them without restriction. Excerpts from `scalaz` and related libraries maintain
+them without restriction. Excerpts from `Scalaz` and related libraries maintain
 their license, reproduced in full in the appendix.
 
 The example application `drone-dynamic-agents` is distributed under the terms of
@@ -66,8 +65,8 @@ the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html): only the snippets in 
 Diego Esteban Alonso Blas, Raúl Raja Martínez and Peter Neyens of 47
 degrees, Rúnar Bjarnason, Tony Morris, John de Goes and Edward Kmett
 for their help explaining the principles of FP. Kenji Yoshida and
-Jason Zaugg for being the main authors of scalaz, and Paul Chuisano /
-Miles Sabin for fixing a critical bug in the scala compiler ([SI-2712](https://issues.scala-lang.org/browse/SI-2712)).
+Jason Zaugg for being the main authors of Scalaz, and Paul Chuisano /
+Miles Sabin for fixing a critical bug in the Scala compiler ([SI-2712](https://issues.scala-lang.org/browse/SI-2712)).
 
 Thank you to the readers who gave feedback on early drafts of this text.
 

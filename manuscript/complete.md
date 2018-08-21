@@ -3,7 +3,7 @@
 
 Scala's `for` comprehension is the ideal FP abstraction for sequential
 programs that interact with the world. Since we'll be using it a lot,
-we're going to relearn the principles of `for` and how scalaz can help
+we're going to relearn the principles of `for` and how Scalaz can help
 us to write cleaner code.
 
 This chapter doesn't try to write pure programs and the techniques are
@@ -166,7 +166,7 @@ values by a predicate
           k => i + j + k }}}
 ~~~~~~~~
 
-Older versions of scala used `filter`, but `Traversable.filter`
+Older versions of Scala used `filter`, but `Traversable.filter`
 creates new collections for every predicate, so `withFilter` was
 introduced as the more performant alternative.
 
@@ -189,7 +189,7 @@ failure), generators are *filtered* and will not fail at runtime.
 However, there is an inefficient double application of the pattern.
 
 A> The compiler plugin [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for) produces alternative, **better**,
-A> desugarings than the scala compiler. This example is interpreted as:
+A> desugarings than the Scala compiler. This example is interpreted as:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -484,7 +484,7 @@ asynchronous:
   } yield c
 ~~~~~~~~
 
-A> If there is an implicit `Monad[T]` for `T[_]` (i.e. `T` is monadic) then scalaz
+A> If there is an implicit `Monad[T]` for `T[_]` (i.e. `T` is monadic) then Scalaz
 A> lets us create a `T[A]` from a value `a: A` by calling `a.pure[T]`.
 A> 
 A> Scalaz provides `Monad[Future]`, and `.pure[Future]` calls `Future.successful`.
@@ -542,7 +542,7 @@ the compiler still doesn't accept our code.
 
 Here we want `for` to take care of the outer context and let us write
 our code on the inner `Option`. Hiding the outer context is exactly
-what a *monad transformer* does, and scalaz provides implementations
+what a *monad transformer* does, and Scalaz provides implementations
 for `Option` and `Either` named `OptionT` and `EitherT` respectively.
 
 The outer context can be anything that normally works in a `for`
@@ -762,7 +762,7 @@ A> otherwise the only course of action would be to exception, breaking totality 
 A> causing a side effect.
 A> 
 A> We prefer `NonEmptyList`, not because it is a `List`, but because of its
-A> non-empty property. When we learn about scalaz's typeclass hierarchy, we will
+A> non-empty property. When we learn about Scalaz's typeclass hierarchy, we will
 A> see a better way to request non-emptyness.
 
 
@@ -1075,7 +1075,7 @@ state:
 A> We will return to this code later on in the book and replace `var` with a
 A> principled way of managing state.
 
-When we write a unit test (here using `FlatSpec` from scalatest), we create an
+When we write a unit test (here using `FlatSpec` from Scalatest), we create an
 instance of `Mutable` and then import all of its members.
 
 Our implicit `drone` and `machines` both use the `Id` execution
@@ -1161,7 +1161,7 @@ be performed in parallel.
 In our definition of `initial` we could ask for all the information we
 need at the same time instead of one query at a time.
 
-As opposed to `flatMap` for sequential operations, scalaz uses
+As opposed to `flatMap` for sequential operations, Scalaz uses
 `Apply` syntax for parallel operations:
 
 {lang="text"}
@@ -1343,7 +1343,7 @@ to arbitrary objects. This is one of the reasons why we restrict what
 can live on an ADT.
 
 We will explore alternatives to the legacy methods when we discuss the
-scalaz library in the next chapter, at the cost of losing
+Scalaz library in the next chapter, at the cost of losing
 interoperability with some legacy Java and Scala code.
 
 
@@ -1441,7 +1441,7 @@ with `final case class` definitions that simply wrap the desired type:
 ~~~~~~~~
 
 Pattern matching on these forms of coproduct can be tedious, which is why [Union
-Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation scala compiler. Macros
+Types](https://contributors.scala-lang.org/t/733) are being explored in the Dotty next-generation Scala compiler. Macros
 such as [totalitarian](https://github.com/propensive/totalitarian) and [iotaz](https://github.com/frees-io/iota) exist as alternative ways of encoding anonymous
 coproducts.
 
@@ -1588,7 +1588,7 @@ maximum size of 10 characters:
 ~~~~~~~~
 
 A> The `W` notation is short for "witness". This syntax will be much simpler in
-A> scala 2.13, which has support for *literal types*:
+A> Scala 2.13, which has support for *literal types*:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -1756,7 +1756,7 @@ exist.
 
 The complexity of a data type also has implications on testing. It is
 practically impossible to test every possible input to a function, but it is
-easy to test a sample of values with the [scalacheck](https://www.scalacheck.org/) property testing framework.
+easy to test a sample of values with the [Scalacheck](https://www.scalacheck.org/) property testing framework.
 If a random sample of a data type has a low probability of being valid, it is a
 sign that the data is modelled incorrectly.
 
@@ -2058,7 +2058,7 @@ provide optimised implementations for the generalised methods:
 Although we are using `+`, `*`, `unary_-`, `<` and `>` here, which are
 the ops (and could be an infinite loop!), these methods exist already
 on `Double`. Class methods are always used in preference to extension
-methods. Indeed, the scala compiler performs special handling of
+methods. Indeed, the Scala compiler performs special handling of
 primitives and converts these method calls into raw `dadd`, `dmul`,
 `dcmpl` and `dcmpg` bytecode instructions, respectively.
 
@@ -2423,7 +2423,7 @@ decoder typeclasses:
   }
 ~~~~~~~~
 
-`\/` is scalaz's `Either` and has a `.flatMap`. We can use it in `for`
+`\/` is Scalaz's `Either` and has a `.flatMap`. We can use it in `for`
 comprehensions, whereas stdlib `Either` does not support `.flatMap` prior to
 Scala 2.12.
 
@@ -2764,7 +2764,7 @@ In this chapter we will tour most of the typeclasses in `scalaz-core`.
 We don't use everything in `drone-dynamic-agents` so we will give
 standalone examples when appropriate.
 
-There has been criticism of the naming in scalaz, and functional
+There has been criticism of the naming in Scalaz, and functional
 programming in general. Most names follow the conventions introduced
 in the Haskell programming language, based on *Category Theory*. Feel
 free to set up `type` aliases in your own codebase if you would prefer
@@ -3135,7 +3135,7 @@ successors and predecessors:
   res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 ~~~~~~~~
 
-A> `|==>` is scalaz's Lightsaber. This is the syntax of a Functional
+A> `|==>` is Scalaz's Lightsaber. This is the syntax of a Functional
 A> Programmer. Not as clumsy or random as `fromStepToL`. An elegant
 A> syntax... for a more civilised age.
 
@@ -3357,7 +3357,7 @@ be parallelised.
 
 A> `foldRight` is conceptually the same as the `foldRight` in the Scala
 A> stdlib. However, there is a problem with the stdlib `foldRight`
-A> signature, solved in scalaz: very large data structures can stack
+A> signature, solved in Scalaz: very large data structures can stack
 A> overflow. `List.foldRight` cheats by implementing `foldRight` as a
 A> reversed `foldLeft`
 A> 
@@ -3395,7 +3395,7 @@ A> which means that the `acc` is not evaluated unless it is needed.
 A> 
 A> It is worth baring in mind that not all operations are stack safe in
 A> `foldRight`. If we were to require evaluation of all elements, we can
-A> also get a `StackOverflowError` with scalaz's `EphemeralStream`
+A> also get a `StackOverflowError` with Scalaz's `EphemeralStream`
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -3493,7 +3493,7 @@ anything with a `Foldable` can be converted into a `List`
   def toList[A](fa: F[A]): List[A] = ...
 ~~~~~~~~
 
-There are also conversions to other stdlib and scalaz data types such
+There are also conversions to other stdlib and Scalaz data types such
 as `.toSet`, `.toVector`, `.toStream`, `.to[T <: TraversableLike]`,
 `.toIList` and so on.
 
@@ -4658,7 +4658,7 @@ type:
 
 ## Lone Wolves
 
-Some of the typeclasses in scalaz are stand-alone and not part of the
+Some of the typeclasses in Scalaz are stand-alone and not part of the
 larger hierarchy.
 
 {width=80%}
@@ -4730,8 +4730,8 @@ In a nutshell, `Zip` and `Unzip` are less powerful versions of
 `Optional` is a generalisation of data structures that can optionally
 contain a value, like `Option` and `Either`.
 
-Recall that `\/` (*disjunction*) is scalaz's improvement of
-`scala.Either`. We will also see `Maybe`, scalaz's improvement of
+Recall that `\/` (*disjunction*) is Scalaz's improvement of
+`scala.Either`. We will also see `Maybe`, Scalaz's improvement of
 `scala.Option`
 
 {lang="text"}
@@ -4813,7 +4813,7 @@ reporting ADT, or left as an indicator to downstream callers that
 *Here be Dragons*.
 
 `fail` permits callers to throw an exception in the `F[_]` context
-and, since this breaks purity, will be removed from scalaz. Exceptions
+and, since this breaks purity, will be removed from Scalaz. Exceptions
 that are raised via `fail` must be later handled by `attempt` since it
 is just as bad as calling legacy code that throws an exception.
 
@@ -4898,7 +4898,7 @@ itself (the `focus`), and all the elements to its right (`rights`).
   final case class Hood[A](lefts: IList[A], focus: A, rights: IList[A])
 ~~~~~~~~
 
-A> We use scalaz data structures `IList` and `Maybe`, instead of stdlib
+A> We use Scalaz data structures `IList` and `Maybe`, instead of stdlib
 A> `List` and `Option`, to protect us from accidentally calling impure
 A> methods.
 
@@ -5130,7 +5130,7 @@ to reorganise them into a collection of `A` and a collection of `B`
 ## Very Abstract Things
 
 What remains of the typeclass hierarchy are things that allow us to
-meta-reason about functional programming and scalaz. We are not going
+meta-reason about functional programming and Scalaz. We are not going
 to discuss these yet as they deserve a full chapter on Category Theory
 and are not needed in typical FP applications.
 
@@ -5143,12 +5143,12 @@ and are not needed in typical FP applications.
 That was a lot of material! We have just explored a standard library
 of polymorphic functionality. But to put it into perspective: there
 are more traits in the Scala stdlib Collections API than typeclasses
-in scalaz.
+in Scalaz.
 
 It is normal for an FP application to only touch a small percentage of
 the typeclass hierarchy, with most functionality coming from
 domain-specific typeclasses. Even if the domain-specific typeclasses
-are just specialised clones of something in scalaz, it is better to
+are just specialised clones of something in Scalaz, it is better to
 write the code and later refactor it, than to over-abstract too early.
 
 To help, we have included a cheat-sheet of the typeclasses and their
@@ -5167,7 +5167,7 @@ To help further, Valentin Kasas explains how to [combine `N` things](https://twi
 Who doesn't love a good data structure? The answer is *nobody*, because data
 structures are awesome.
 
-In this chapter we'll explore the *collection-like* data types in scalaz, as
+In this chapter we'll explore the *collection-like* data types in Scalaz, as
 well as data types that augment the Scala language with useful semantics and
 additional type safety.
 
@@ -5190,7 +5190,7 @@ performance of persistent data structures, otherwise the entire collection is
 rebuilt with every operation.
 
 Unlike the Java and Scala collections, there is no hierarchy to the data types
-in scalaz: these collections are much simpler to understand. Polymorphic
+in Scalaz: these collections are much simpler to understand. Polymorphic
 functionality is provided by optimised instances of the typeclasses we studied
 in the previous chapter. This makes it a lot easier to swap implementations for
 performance reasons, and to provide our own.
@@ -5198,7 +5198,7 @@ performance reasons, and to provide our own.
 
 ## Type Variance
 
-Many of scalaz's data types are *invariant* in their type parameters.
+Many of Scalaz's data types are *invariant* in their type parameters.
 For example, `IList[A]` is **not** a subtype of `IList[B]` when `A <:
 B`.
 
@@ -5403,7 +5403,7 @@ and *Leibniz* (`===`).
 ~~~~~~~~
 
 Other than generally useful methods and implicit conversions, the
-scalaz `<~<` and `===` evidence is more principled than in the stdlib.
+Scalaz `<~<` and `===` evidence is more principled than in the stdlib.
 
 A> Liskov is named after Barbara Liskov of *Liskov substitution
 A> principle* fame, the foundation of Object Oriented Programming.
@@ -5425,7 +5425,7 @@ lot in the typeclasses.
 
 Scala also has *by-need* evaluation of values, with the `lazy`
 keyword: the computation is evaluated at most once to produce the
-value. Unfortunately, scala does not support *by-need* evaluation of
+value. Unfortunately, Scala does not support *by-need* evaluation of
 method parameters.
 
 A> If the calculation of a `lazy val` throws an exception, it is retried
@@ -5585,8 +5585,8 @@ opt-in basis.
 ## Tagging
 
 In the section introducing `Monoid` we built a `Monoid[TradeTemplate]` and
-realised that scalaz does not do what we wanted with `Monoid[Option[A]]`. This
-is not an oversight of scalaz: often we find that a data type can implement a
+realised that Scalaz does not do what we wanted with `Monoid[Option[A]]`. This
+is not an oversight of Scalaz: often we find that a data type can implement a
 fundamental typeclass in multiple valid ways and that the default implementation
 doesn't do what we want, or simply isn't defined.
 
@@ -5703,7 +5703,7 @@ constraints.
 
 ## Natural Transformations
 
-A function from one type to another is written as `A => B` in scala, which is
+A function from one type to another is written as `A => B` in Scala, which is
 syntax sugar for a `Function1[A, B]`. Scalaz provides similar syntax sugar `F ~>
 G` for functions over type constructors `F[_]` to `G[_]`.
 
@@ -5847,7 +5847,7 @@ implementation, it is worth considering if `Isomorphism` is the better solution.
 
 ### Maybe
 
-We have already encountered scalaz's improvement over `scala.Option`,
+We have already encountered Scalaz's improvement over `scala.Option`,
 called `Maybe`. It is an improvement because it does not have any
 unsafe methods like `Option.get`, which can throw an exception, and is
 invariant.
@@ -5920,8 +5920,6 @@ not supported by a polymorphic typeclass.
     def \/>[B](b: =>B): B \/ A = toRight(b)
   
     def orZero(implicit A: Monoid[A]): A = getOrElse(A.zero)
-    def unary_~(implicit A: Monoid[A]): A = orZero
-  
     def orEmpty[F[_]: Applicative: PlusEmpty]: F[A] =
       cata(Applicative[F].point(_), PlusEmpty[F].empty)
     ...
@@ -5934,8 +5932,7 @@ simpler form `|` if the map is `identity` (i.e. just `.getOrElse`).
 `.toLeft` and `.toRight`, and their symbolic aliases, create a disjunction
 (explained in the next section) by taking a fallback for the `Empty` case.
 
-`.orZero` (having `~foo` syntax) takes a `Monoid` to define the
-default value.
+`.orZero` takes a `Monoid` to define the default value.
 
 `.orEmpty` uses an `ApplicativePlus` to create a single element or
 empty container, not forgetting that we already get support for stdlib
@@ -5943,7 +5940,7 @@ collections from the `Foldable` instance's `.to` method.
 
 {lang="text"}
 ~~~~~~~~
-  scala> ~1.just
+  scala> 1.just.orZero
   res: Int = 1
   
   scala> Maybe.empty[Int].orZero
@@ -5961,7 +5958,7 @@ collections from the `Foldable` instance's `.to` method.
 
 A> Methods are defined in OOP style on `Maybe`, contrary to our Chapter 4
 A> lesson to use an `object` or `implicit class`. This is a common theme
-A> in scalaz and the reason is largely historical:
+A> in Scalaz and the reason is largely historical:
 A> 
 A> -   text editors failed to find extension methods, but this now works
 A>     seamlessly in IntelliJ, ENSIME and ScalaIDE.
@@ -6625,7 +6622,7 @@ called under certain inputs. The *Rule of Least Power* demands that we use
 
 ## Collections
 
-Unlike the stdlib Collections API, the scalaz approach describes collection
+Unlike the stdlib Collections API, the Scalaz approach describes collection
 behaviours in the typeclass hierarchy, e.g. `Foldable`, `Traverse`, `Monoid`.
 What remains to be studied are the implementations in terms of data structures,
 which have different performance characteristics and niche methods.
@@ -6673,7 +6670,7 @@ should be familiar. They codify a classic linked list data structure:
   }
 ~~~~~~~~
 
-A> The source code for scalaz 7.3 reveals that `INil` is implemented as
+A> The source code for Scalaz 7.3 reveals that `INil` is implemented as
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -6688,7 +6685,7 @@ A> which exploits JVM implementation details to avoid an object allocation when
 A> creating an `INil`.
 A> 
 A> This optimisation is manually applied to all zero-parameter classes. Indeed,
-A> scalaz is full of many optimisations of this nature: debated and accepted only
+A> Scalaz is full of many optimisations of this nature: debated and accepted only
 A> when presented with evidence of a significant performance boost and no risk of a
 A> semantic change.
 
@@ -7686,7 +7683,7 @@ have.
 
 ### `OneAnd`
 
-Recall that `Foldable` is the scalaz equivalent of a collections API and
+Recall that `Foldable` is the Scalaz equivalent of a collections API and
 `Foldable1` is for non-empty collections. So far we have only seen
 `NonEmptyList` to provide a `Foldable1`. The simple data structure `OneAnd`
 wraps any other collection to turn it into a `Foldable1`:
@@ -7705,7 +7702,7 @@ first element that may also be in the `ISet`.
 
 ## Summary
 
-In this chapter we have skimmed over the data types that scalaz has to offer.
+In this chapter we have skimmed over the data types that Scalaz has to offer.
 
 It is not necessary to remember everything in this chapter: think of each
 section as having planted the kernel of an idea in your mind. If, in a few
@@ -7714,7 +7711,7 @@ that might be useful here" and you return to these pages, we have succeeded.
 
 The world of functional data structures is an active area of research. Academic
 publications appear regularly with new approaches to old problems. If you are
-the kind of person who would like to contribute back to scalaz, finding a
+the kind of person who would like to contribute back to Scalaz, finding a
 functional data structure to implement would be greatly appreciated.
 
 
@@ -7800,8 +7797,8 @@ here remain true: we're modularising the definition of a program and its
 execution, such that we can capture effects in type signatures, allowing us to
 reason about them, and reuse more code.
 
-A> The scala compiler will happily allow us to call side-effecting methods from
-A> unsafe code blocks. The [scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side-effecting methods at
+A> The Scala compiler will happily allow us to call side-effecting methods from
+A> unsafe code blocks. The [Scalafix](https://scalacenter.github.io/scalafix/) linting tool can ban side-effecting methods at
 A> compiletime, unless called from inside a deferred `Monad` like `IO`.
 
 
@@ -7811,7 +7808,7 @@ On the JVM, every method call adds an entry to the call stack of the `Thread`,
 like adding to the front of a `List`. When the method completes, the method at
 the `head` is thrown away. The maximum length of the call stack is determined by
 the `-Xss` flag when starting up `java`. Tail recursive methods are detected by
-the scala compiler and do not add an entry. If we hit the limit, by calling too
+the Scala compiler and do not add an entry. If we hit the limit, by calling too
 many chained methods, we get a `StackOverflowError`.
 
 Unfortunately, every nested call to our `IO`'s `.flatMap` adds another method
@@ -9005,7 +9002,7 @@ data type that captures the ground truth of everything
   )
 ~~~~~~~~
 
-A> We have not yet rewritten the application to fully make use scalaz data types
+A> We have not yet rewritten the application to fully make use Scalaz data types
 A> and typeclasses, and we are still relying on stdlib collections. There is no
 A> urgency to update as this is straightforward and these types can be used in a
 A> pure FP manner.
@@ -9086,7 +9083,7 @@ whoever calls us use a `StateT` if they wish.
 
 ### `IndexedStateT`
 
-The code that we have studied thus far is not how scalaz implements `StateT`.
+The code that we have studied thus far is not how Scalaz implements `StateT`.
 Instead, a type alias points to `IndexedStateT`
 
 {lang="text"}
@@ -9567,7 +9564,7 @@ continuations.
 
 ### Transformer Stacks and Ambiguous Implicits
 
-This concludes our tour of the monad transformers in scalaz.
+This concludes our tour of the monad transformers in Scalaz.
 
 When multiple transformers are combined, we call this a *transformer stack* and
 although it is verbose, it is possible to read off the features by reading the
@@ -10192,7 +10189,7 @@ case by case basis.
 
 A> The library [smock](https://github.com/djspiewak/smock) is more powerful, but for the purposes of this short example
 A> we can define `stub` ourselves using a type inference trick that can be found
-A> all over the scalaz source code. The reason for `Stub` being a separate class is
+A> all over the Scalaz source code. The reason for `Stub` being a separate class is
 A> so that we only need to provide the `A` type parameter, with `F` and `G`
 A> inferred from the left hand side of the expression:
 A> 
@@ -11060,7 +11057,7 @@ for our toy `IO` could use `Future`:
   }
 ~~~~~~~~
 
-and due to [a bug in the scala compiler](https://github.com/scala/bug/issues/10954) that treats all `@@` instances as
+and due to [a bug in the Scala compiler](https://github.com/scala/bug/issues/10954) that treats all `@@` instances as
 orphans, we must explicitly import the implicit:
 
 {lang="text"}
@@ -11068,7 +11065,7 @@ orphans, we must explicitly import the implicit:
   import IO.ParApplicative
 ~~~~~~~~
 
-In the final section of this chapter we will see how scalaz's `IO` is actually
+In the final section of this chapter we will see how Scalaz's `IO` is actually
 implemented.
 
 
@@ -11116,7 +11113,7 @@ for the error type:
 ~~~~~~~~
 
 A> `scalaz.ioeffect.IO` is a high performance `IO` by John de Goes. It has a
-A> separate lifecycle to the core scalaz library and must be manually added to our
+A> separate lifecycle to the core Scalaz library and must be manually added to our
 A> `build.sbt` with
 A> 
 A> {lang="text"}
@@ -11179,7 +11176,7 @@ We can't pass around raw `Future`, because it eagerly evaluates, so must always
 be constructed inside a safe block.
 
 Note that the `ExecutionContext` is **not** `implicit`, contrary to the
-convention. Recall that in scalaz we reserve the `implicit` keyword for
+convention. Recall that in Scalaz we reserve the `implicit` keyword for
 typeclass derivation, to simplify the language: `ExecutionContext` is
 configuration that must be provided explicitly.
 
@@ -11210,7 +11207,7 @@ extending `SafeApp` and implementing `.run`
   }
 ~~~~~~~~
 
-A> `Void` is a type that has no values, like `scala.Nothing`. However, the scala
+A> `Void` is a type that has no values, like `scala.Nothing`. However, the Scala
 A> compiler infers `Nothing` when it fails to correctly infer a type parameter,
 A> causing confusing error messages, whereas `Void` will fail fast during
 A> compilation.
@@ -11232,7 +11229,7 @@ or network to resolve filenames and URLs:
   }
 ~~~~~~~~
 
-we can write a scalatest that extends `RTS` and call `unsafePerformIO` to
+we can write a Scalatest that extends `RTS` and call `unsafePerformIO` to
 interpret the `IO`
 
 {lang="text"}
@@ -11507,7 +11504,7 @@ There are four approaches to typeclass derivation:
     of a `case class`. It is useful only for educational purposes and adhoc
     performance optimisations.
 
-2.  Abstract over the typeclass by an existing scalaz typeclass. This is the
+2.  Abstract over the typeclass by an existing Scalaz typeclass. This is the
     approach of `scalaz-deriving`, producing automated tests and derivations for
     products and coproducts
 
@@ -11571,7 +11568,7 @@ A> Although it is possible to apply the techniques in this chapter to either
 A> typeclass or algebra derivation, the latter involves a ****lot**** more boilerplate.
 A> We therefore consciously choose to restrict our study to encoders and decoders
 A> that are coherent. As we will see later in this chapter, use-site automatic
-A> derivation with Magnolia and Shapeless, combined with limitations of the scala
+A> derivation with Magnolia and Shapeless, combined with limitations of the Scala
 A> compiler's implicit search, commonly leads to typeclass decoherence.
 
 
@@ -11586,14 +11583,14 @@ project's `build.sbt` with
   libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
 ~~~~~~~~
 
-providing new typeclasses, shown below in relation to core scalaz typeclasses:
+providing new typeclasses, shown below in relation to core Scalaz typeclasses:
 
 {width=60%}
 ![](images/scalaz-deriving-base.png)
 
-A> In scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
+A> In Scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
 
-Before we proceed, here is a quick recap of the core scalaz typeclasses:
+Before we proceed, here is a quick recap of the core Scalaz typeclasses:
 
 {lang="text"}
 ~~~~~~~~
@@ -11830,7 +11827,7 @@ A> ~~~~~~~~
 A> 
 A> if there is a `Contravariant` or `MonadError[?, String]` in the implicit scope.
 A> 
-A> However, due to [limitations of the scala compiler](https://github.com/scala/bug/issues/10753) it rarely works in practice
+A> However, due to [limitations of the Scala compiler](https://github.com/scala/bug/issues/10753) it rarely works in practice
 A> and we must write `implicit def refined` derivations for each typeclass.
 
 Similarly we can use `.emap` to derive an `Int` decoder from a `Long`, with
@@ -11863,7 +11860,7 @@ failure detection for compiletime safety. However, we will continue with `String
 
 ### `.fromIso`
 
-All of the typeclasses in scalaz have a method on their companion with a
+All of the typeclasses in Scalaz have a method on their companion with a
 signature similar to the following:
 
 {lang="text"}
@@ -11931,7 +11928,7 @@ effectively for free.
 ### `Divisible` and `Applicative`
 
 To derive the `Equal` for our case class with two parameters, we reused the
-instance that scalaz provides for tuples. But where did the tuple instance come
+instance that Scalaz provides for tuples. But where did the tuple instance come
 from?
 
 A more specific typeclass than `Contravariant` is `Divisible`, and `Equal`
@@ -11961,7 +11958,7 @@ A>   override def contramap[A, B](fa: F[A])(f: B => A): F[B] =
 A>     divide2(conquer[Unit], fa)(c => ((), f(c)))
 A> ~~~~~~~~
 A> 
-A> This has been added to `Divisible` in scalaz 7.3.
+A> This has been added to `Divisible` in Scalaz 7.3.
 
 And from `divide2`, `Divisible` is able to build up derivations all the way to
 `divide22`. We can call these methods directly for our data types:
@@ -12035,7 +12032,7 @@ We therefore cannot provide a `Divisible[JsEncoder]`, even though we can write
 one down, because it breaks the mathematical laws and invalidates all the
 assumptions that users of `Divisible` rely upon.
 
-To aid in testing laws, scalaz typeclasses contain the codified versions of
+To aid in testing laws, Scalaz typeclasses contain the codified versions of
 their laws on the typeclass itself. We can write an automated test, asserting
 that the law fails, to remind us of this fact:
 
@@ -12089,7 +12086,7 @@ library, which provides an `Arbitrary` typeclass that integrates with most
 testing frameworks to repeat a test with randomly generated data.
 
 The `jsonformat` library provides an `Arbitrary[JsValue]` (everybody should
-provide an `Arbitrary` for their ADTs!) allowing us to make use of scalatest's
+provide an `Arbitrary` for their ADTs!) allowing us to make use of Scalatest's
 `forAll` feature:
 
 {lang="text"}
@@ -14812,7 +14809,7 @@ The signatures of all the algebras can be summarised as
 ~~~~~~~~
 
 Note that some signatures from previous chapters have been refactored to use
-scalaz data types, now that we know why they are superior to the stdlib.
+Scalaz data types, now that we know why they are superior to the stdlib.
 
 The data types are:
 
@@ -15396,7 +15393,7 @@ is that http4s is using the Cats library, instead of Scalaz. Cats is a much
 smaller library than Scalaz and amounts to a renaming of a subset of typeclasses
 and datatypes. Thankfully, `scalaz-ioeffect` provides a compatibility layer and
 the [shims](https://github.com/djspiewak/shims) project provides seamless (until it isn't) implicit conversions
-between scalaz and cats types. We can get our code to compile with these
+between Scalaz and cats types. We can get our code to compile with these
 dependencies:
 
 {lang="text"}
