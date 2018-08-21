@@ -27,15 +27,14 @@ will later discredit: similar to how we learn Newton's theory of gravity as
 children, and progress to Riemann / Einstein / Maxwell if we become students of
 physics.
 
-A computer is not necessary to follow along, although we hope that you will gain
-the confidence to independently study the Scalaz source code. Some of the more
-complex code snippets are available with [the book's source code](https://github.com/fommil/fpmortals/) and those who
-want practical exercises are encouraged to (re-)implement Scalaz (and the
-example application) using the partial descriptions presented in this book.
+A computer is not necessary to follow along, but studying the Scalaz source code
+is encouraged. Some of the more complex code snippets are available with [the
+book's source code](https://github.com/fommil/fpmortals/) and those who want practical exercises are encouraged to
+(re-)implement Scalaz (and the example application) using the partial
+descriptions presented in this book.
 
 We also recommend [The Red Book](https://www.manning.com/books/functional-programming-in-scala) as further reading. It teaches how to write an FP
-library in Scala from first principles. Try to attend a Fantasyland Institute of
-Learning training course if you can.
+library in Scala from first principles.
 
 
 # Copyleft Notice
@@ -88,9 +87,8 @@ A. Baker, Alexander Konovalov, Harrison Houghton and Alexandre Archambault.
 
 # Practicalities
 
-If you'd like to set up a project that uses the libraries presented in
-this book, you will need to use a recent version of Scala with
-FP-specific features enabled (e.g. in `build.sbt`):
+To set up a project that uses the libraries presented in this book, use a recent
+version of Scala with FP-specific features enabled (e.g. in `build.sbt`):
 
 {lang="text"}
 ~~~~~~~~

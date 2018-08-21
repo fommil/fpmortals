@@ -57,15 +57,14 @@ will later discredit: similar to how we learn Newton's theory of gravity as
 children, and progress to Riemann / Einstein / Maxwell if we become students of
 physics.
 
-A computer is not necessary to follow along, although we hope that you will gain
-the confidence to independently study the Scalaz source code. Some of the more
-complex code snippets are available with [[https://github.com/fommil/fpmortals/][the book's source code]] and those who
-want practical exercises are encouraged to (re-)implement Scalaz (and the
-example application) using the partial descriptions presented in this book.
+A computer is not necessary to follow along, but studying the Scalaz source code
+is encouraged. Some of the more complex code snippets are available with [[https://github.com/fommil/fpmortals/][the
+book's source code]] and those who want practical exercises are encouraged to
+(re-)implement Scalaz (and the example application) using the partial
+descriptions presented in this book.
 
 We also recommend [[https://www.manning.com/books/functional-programming-in-scala][The Red Book]] as further reading. It teaches how to write an FP
-library in Scala from first principles. Try to attend a Fantasyland Institute of
-Learning training course if you can.
+library in Scala from first principles.
 
 ** Copyleft Notice
 
@@ -115,9 +114,8 @@ A. Baker, Alexander Konovalov, Harrison Houghton and Alexandre Archambault.
 
 ** Practicalities
 
-If you'd like to set up a project that uses the libraries presented in
-this book, you will need to use a recent version of Scala with
-FP-specific features enabled (e.g. in =build.sbt=):
+To set up a project that uses the libraries presented in this book, use a recent
+version of Scala with FP-specific features enabled (e.g. in =build.sbt=):
 
 #+BEGIN_SRC scala
 scalaVersion in ThisBuild := "2.12.6"
@@ -295,9 +293,9 @@ its parameter:
 type Id[T] = T
 #+END_SRC
 
-Before proceeding, convince yourself that =Id[Int]= is the same thing
-as =Int=, by substituting =Int= into =T=. Because =Id= is a valid type
-constructor we can use =Id= in an implementation of =Foo=
+Before proceeding, understand that =Id[Int]= is the same thing as =Int=, by
+substituting =Int= into =T=. Because =Id= is a valid type constructor we can use
+=Id= in an implementation of =Foo=
 
 #+BEGIN_SRC scala
 object FooId extends Foo[Id] {
@@ -331,7 +329,7 @@ object TerminalAsync extends Terminal[Future] {
 }
 #+END_SRC
 
-You can think of =C= as a /Context/ because we say "in the context of
+We can think of =C= as a /Context/ because we say "in the context of
 executing =Now=" or "in the =Future=".
 
 But we know nothing about =C= and we can't do anything with a
@@ -371,7 +369,7 @@ The =implicit class= Scala language feature gives =C= some methods.
 We'll call these methods =flatMap= and =map= for reasons that will
 become clearer in a moment. Each method takes an =implicit
 Execution[C]=, but this is nothing more than the =flatMap= and =map=
-that you're used to on =Seq=, =Option= and =Future=
+that we're used to on =Seq=, =Option= and =Future=
 
 #+BEGIN_SRC scala
 object Execution {
@@ -510,7 +508,7 @@ An application composed of =IO= programs is only interpreted once, in the =main=
 method, which is also called /the end of the world/.
 
 In this book, we expand on the concepts introduced in this chapter and show how
-to write maintainable, pure functions, that achieve your business's objectives.
+to write maintainable, pure functions, that achieve our business's objectives.
 
 * Complete                                                            :final:
   :PROPERTIES:
@@ -644,8 +642,8 @@ scala> for {
 res: Some(hello)
 #+END_SRC
 
-But be careful that you don't miss any cases or you'll get a runtime
-exception (a /totality/ failure).
+But be careful not to miss any cases or there will be a runtime exception (a
+/totality/ failure).
 
 #+BEGIN_SRC scala
 scala> val a :: tail = list
@@ -792,10 +790,10 @@ If any of =a,b,c= are =None=, the comprehension short-circuits with
 
 #+BEGIN_ASIDE
 
-How often have you seen a function that takes =Option= parameters but
-requires them all to exist? An alternative to throwing a runtime
-exception is to use a =for= comprehension, giving us totality (a
-return value for every input):
+There are many functions in the wild that take =Option= parameters but actually
+require all parameters to exist. An alternative to throwing a runtime exception
+is to use a =for= comprehension, giving us totality (a return value for every
+input):
 
 #+BEGIN_SRC scala
 def namedThings(
@@ -809,8 +807,7 @@ def namedThings(
 
 but this is verbose, clunky and bad style. If a function requires
 every input then it should make its requirement explicit, pushing the
-responsibility of dealing with optional parameters to its caller ---
-don't use =for= unless you need to.
+responsibility of dealing with optional parameters to its caller.
 
 #+BEGIN_SRC scala
 def namedThings(name: String, num: Int) = s"$num ${name}s"
@@ -1478,15 +1475,14 @@ we need a catch-all =case _= to do nothing. Recall from Chapter 2 that
 fold may return a monadic value. In our case, each iteration of the
 fold returns =F[WorldView]=.
 
-The =M= is for Monadic and you will find more of these /lifted/
-methods that behave as one would expect, taking monadic values in
-place of values.
+The =M= is for Monadic. We will find more of these /lifted/ methods that behave
+as one would expect, taking monadic values in place of values.
 
 *** Unit Tests
 
-The FP approach to writing applications is a designer's dream: you can
-delegate writing the implementations of algebras to your team members
-while focusing on making your business logic meet the requirements.
+The FP approach to writing applications is a designer's dream: delegate writing
+the implementations of algebras to team members while focusing on making
+business logic meet the requirements.
 
 Our application is highly dependent on timing and third party
 webservices. If this was a traditional OOP application, we'd create
@@ -1613,9 +1609,8 @@ helping us flush out bugs and refine the requirements:
   }
 #+END_SRC
 
-It would be boring to go through the full test suite. Convince
-yourself with a thought experiment that the following tests are easy
-to implement using the same approach:
+It would be boring to go through the full test suite. The following tests are
+easy to implement using the same approach:
 
 - not request agents when pending
 - don't shut down agents if nodes are too young
@@ -1888,7 +1883,7 @@ type |:[L,R] = Either[L, R]
 X.type |: Y.type |: Z
 #+END_SRC
 
-This is useful to create anonymous coproducts when you can't put all
+This is useful to create anonymous coproducts when we can't put all
 the implementations into the same source file.
 
 #+BEGIN_SRC scala
@@ -1913,7 +1908,7 @@ coproducts.
 #+BEGIN_ASIDE
 We can also use a =sealed trait= in place of a =sealed abstract class=
 but there are binary compatibility advantages to using =abstract
-class=. A =sealed trait= is only needed if you need to create a
+class=. A =sealed trait= is only needed if we need to create a
 complicated ADT with multiple inheritance.
 #+END_ASIDE
 
@@ -2239,11 +2234,10 @@ we get /ambiguous reference/ errors. This is the same problem as
 Java's static methods vs class methods.
 
 #+BEGIN_WARNING
-If you like to put methods on a =trait=, requiring users to mix your
-traits into their =classes= or =objects= with the /cake pattern/,
-please get out of this nasty habit: you're leaking internal
-implementation detail to public APIs, bloating your bytecode, and
-creating a lot of noise for IDE autocompleters.
+The sort of developer who puts methods on a =trait=, requiring users to mix it
+with the /cake pattern/, is going straight to hell. It leaks internal
+implementation detail to public APIs, bloats bytecode, makes binary
+compatibility basically impossible, and confuses IDE autocompleters.
 #+END_WARNING
 
 With the =implicit class= language feature (also known as /extension
@@ -2545,11 +2539,6 @@ beyond real numbers. This is a good lesson that smaller, well defined,
 typeclasses are often better than a monolithic collection of overly
 specific features.
 
-If you need to write generic code that works for a wide range of
-number types, prefer [[https://github.com/non/spire][spire]] to the stdlib. Indeed, in the next chapter
-we will see that concepts such as having a zero element, or adding two
-values, are worthy of their own typeclass.
-
 **** Implicit Resolution
 
 We've discussed implicits a lot: this section is to clarify what
@@ -2655,7 +2644,7 @@ set up at
 https://console.developers.google.com/apis/credentials?project={PROJECT_ID}
 #+END_SRC
 
-You will be provided with a /Client ID/ and a /Client secret/.
+Obtaining a /Client ID/ and a /Client secret/.
 
 The application can then obtain a one time /code/ by making the user
 perform an /Authorization Request/ in their browser (yes, really, *in
@@ -2798,7 +2787,7 @@ Avoid using =java.net.URL= at all costs: it uses DNS to resolve the
 hostname part when performing =toString=, =equals= or =hashCode=.
 
 Apart from being insane, and *very very* slow, these methods can throw
-I/O exceptions (are not /pure/), and can change depending on your
+I/O exceptions (are not /pure/), and can change depending on the
 network configuration (are not /deterministic/).
 
 The refined type =String Refined Url= allows us to perform equality checks based
@@ -3160,7 +3149,7 @@ class OAuth2Client[F[_]: Monad](
   convenient syntax for types that have a typeclass instance.
 - /typeclass derivation/ is compiletime composition of typeclass
   instances.
-- /generic instances/ automatically derive instances for your data
+- /generic instances/ automatically derive instances for data
   types.
 
 ** Scalaz Typeclasses
@@ -3169,13 +3158,11 @@ In this chapter we will tour most of the typeclasses in =scalaz-core=.
 We don't use everything in =drone-dynamic-agents= so we will give
 standalone examples when appropriate.
 
-There has been criticism of the naming in Scalaz, and functional
-programming in general. Most names follow the conventions introduced
-in the Haskell programming language, based on /Category Theory/. Feel
-free to set up =type= aliases in your own codebase if you would prefer
-to use verbs based on the primary functionality of the typeclass (e.g.
-=Mappable=, =Pureable=, =FlatMappable=) until you are comfortable with
-the standard names.
+There has been criticism of the naming in Scalaz, and functional programming in
+general. Most names follow the conventions introduced in the Haskell programming
+language, based on /Category Theory/. Feel free to set up =type= aliases if
+verbs based on the primary functionality are easier to remember when learning
+(e.g. =Mappable=, =Pureable=, =FlatMappable=).
 
 Before we introduce the typeclass hierarchy, we will peek at the four
 most important methods from a control flow perspective: the methods we
@@ -3210,19 +3197,17 @@ In between =Monad= and =Functor= is =Applicative=, defining =pure=
 that lets us lift a value into an effect, or create a data structure
 from a single value.
 
-=traverse= is useful for rearranging type constructors. If you find
-yourself with an =F[G[_]]= but you really need a =G[F[_]]= then you
-need =Traverse=. For example, say you have a =List[Future[Int]]= but
-you need it to be a =Future[List[Int]]=, just call
+=traverse= is useful for rearranging type constructors. If we have an =F[G[_]]=
+but need a =G[F[_]]=, then we want =Traverse=. For example, if we have
+=List[Future[Int]]= but need a =Future[List[Int]]=, then call
 =.traverse(identity)=, or its simpler sibling =.sequence=.
 
 *** Agenda
 
-This chapter is longer than usual and jam-packed with information: it
-is perfectly reasonable to attack it over several sittings. You are
-not expected to remember everything (doing so would require
-super-human powers) so treat this chapter as a way of knowing where to
-look for more information.
+This chapter is longer than usual and jam-packed with information: it is
+perfectly reasonable to attack it over several sittings. Remembering everything
+would require super-human powers, so treat this chapter as a way of knowing
+where to look for more information.
 
 Notably absent are typeclasses that extend =Monad=, which get their
 own chapter later.
@@ -3591,8 +3576,7 @@ digraph G {
 
 Indeed ~===~ (/triple equals/) is more typesafe than ~==~ (/double
 equals/) because it can only be compiled when the types are the same
-on both sides of the comparison. You'd be surprised how many bugs this
-catches.
+on both sides of the comparison. This catches a lot of bugs.
 
 =equal= has the same implementation requirements as =Object.equals=
 
@@ -3671,9 +3655,9 @@ Programmer. Not as clumsy or random as =fromStepToL=. An elegant
 syntax... for a more civilised age.
 #+END_ASIDE
 
-We'll discuss =EphemeralStream= in the next chapter, for now you just
-need to know that it is a potentially infinite data structure that
-avoids memory retention problems in the stdlib =Stream=.
+We'll discuss =EphemeralStream= in the next chapter, for now we just need to
+know that it is a potentially infinite data structure that avoids memory
+retention problems in the stdlib =Stream=.
 
 Similarly to =Object.equals=, the concept of a =.toString= on every
 =class= does not make sense in Java. We would like to enforce
@@ -3686,9 +3670,9 @@ trait Show[F] {
 }
 #+END_SRC
 
-We'll explore =Cord= in more detail in the chapter on data types, you
-need only know that it is an efficient data structure for storing and
-manipulating =String=.
+We'll explore =Cord= in more detail in the chapter on data types, we need only
+know that it is an efficient data structure for storing and manipulating
+=String=.
 
 Unfortunately, due to Scala's default implicit conversions in
 =Predef=, and language level support for =toString= in interpolated
@@ -3806,12 +3790,11 @@ fa.map(identity) == fa
 fa.map(x => x) == fa
 #+END_SRC
 
-=Functor= defines some convenience methods around =map= that can be
-optimised by specific instances. The documentation has been
-intentionally omitted in the above definitions to encourage you to
-guess what a method does before looking at the implementation. Please
-spend a moment studying only the type signature of the following
-before reading further:
+=Functor= defines some convenience methods around =map= that can be optimised by
+specific instances. The documentation has been intentionally omitted in the
+above definitions to encourage guessing what a method does before looking at the
+implementation. Please spend a moment studying only the type signature of the
+following before reading further:
 
 #+BEGIN_SRC scala
   def void[A](fa: F[A]): F[Unit]
@@ -3840,8 +3823,8 @@ before reading further:
 1. =lift= takes a function =A => B= and returns a =F[A] => F[B]=. In
    other words, it takes a function over the contents of an =F[A]= and
    returns a function that operates *on* the =F[A]= directly.
-1. =mapply= is a mind bender. Say you have an =F[_]= of functions =A
-   => B= and a value =A=, then you can get an =F[B]=. It has a similar
+1. =mapply= is a mind bender. Say we have an =F[_]= of functions =A
+   => B= and a value =A=, then we can get an =F[B]=. It has a similar
    signature to =pure= but requires the caller to provide the =F[A =>
    B]=.
 
@@ -3910,10 +3893,9 @@ As a bonus, we are now using the less powerful =Functor= instead of
 
 **** Foldable
 
-Technically, =Foldable= is for data structures that can be walked to
-produce a summary value. However, this undersells the fact that it is
-a one-typeclass army that can provide most of what you'd expect to see
-in a Collections API.
+Technically, =Foldable= is for data structures that can be walked to produce a
+summary value. However, this undersells the fact that it is a one-typeclass army
+that can provide most of what we would expect to see in a Collections API.
 
 There are so many methods we are going to have to split them out,
 beginning with the abstract methods:
@@ -3929,10 +3911,10 @@ An instance of =Foldable= need only implement =foldMap= and
 =foldRight= to get all of the functionality in this typeclass,
 although methods are typically optimised for specific data structures.
 
-You might recognise =foldMap= by its marketing buzzword name, *MapReduce*. Given
-an =F[A]=, a function from =A= to =B=, and a way to combine =B= (provided by the
-=Monoid=, along with a zero =B=), we can produce a summary value of type =B=.
-There is no enforced operation order, allowing for parallel computation.
+=.foldMap= has a marketing buzzword name: *MapReduce*. Given an =F[A]=, a
+function from =A= to =B=, and a way to combine =B= (provided by the =Monoid=,
+along with a zero =B=), we can produce a summary value of type =B=. There is no
+enforced operation order, allowing for parallel computation.
 
 =foldRight= does not require its parameters to have a =Monoid=,
 meaning that it needs a starting value =z= and a way to combine each
@@ -4177,10 +4159,9 @@ scala> List("foo", "fazz").maximumOf(_.length)
 res: Option[Int] = Some(4)
 #+END_SRC
 
-This concludes the key features of =Foldable=. You are forgiven for
-already forgetting all the methods you've just seen: the key takeaway
-is that anything you'd expect to find in a collection library is
-probably on =Foldable= and if it isn't already, it [[https://github.com/scalaz/scalaz/issues/1448][probably should be]].
+This concludes the key features of =Foldable=. The takeaway is that anything
+we'd expect to find in a collection library is probably on =Foldable= and if it
+isn't already, it probably should be.
 
 We'll conclude with some variations of the methods we've already seen.
 First there are methods that take a =Semigroup= instead of a =Monoid=:
@@ -4207,7 +4188,7 @@ the elements.
 
 Very importantly, there are variants that take monadic return values.
 We already used =foldLeftM= when we first wrote the business logic of
-our application, now you know that =Foldable= is where it came from:
+our application, now we know that it is from =Foldable=:
 
 #+BEGIN_SRC scala
 def foldLeftM[G[_]: Monad, A, B](fa: F[A], z: B)(f: (B, A) => G[B]): G[B] = ...
@@ -4219,17 +4200,9 @@ def anyM[G[_]: Monad, A](fa: F[A])(p: A => G[Boolean]): G[Boolean] = ...
 ...
 #+END_SRC
 
-You may also see Curried versions, e.g.
-
-#+BEGIN_SRC scala
-def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
-def foldr[A, B](fa: F[A], z: =>B)(f: A => (=> B) => B): B = ...
-...
-#+END_SRC
-
 **** Traverse
 
-=Traverse= is what happens when you cross a =Functor= with a =Foldable=
+=Traverse= is what happens when we cross a =Functor= with a =Foldable=
 
 #+BEGIN_SRC scala
 trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
@@ -4251,8 +4224,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
 
 At the beginning of the chapter we showed the importance of =traverse=
 and =sequence= for swapping around type constructors to fit a
-requirement (e.g. =List[Future[_]]= to =Future[List[_]]=). You will
-use these methods more than you could possibly imagine.
+requirement (e.g. =List[Future[_]]= to =Future[List[_]]=).
 
 In =Foldable= we weren't able to assume that =reverse= was a universal
 concept, but now we can reverse a thing.
@@ -4266,9 +4238,9 @@ special case of =zip= is to add an index to every entry with
 =zipWithL= and =zipWithR= allow combining the two sides of a =zip=
 into a new type, and then returning just an =F[C]=.
 
-=mapAccumL= and =mapAccumR= are regular =map= combined with an
-accumulator. If you find your old Java sins are making you want to
-reach for a =var=, and refer to it from a =map=, you want =mapAccumL=.
+=mapAccumL= and =mapAccumR= are regular =map= combined with an accumulator. If
+we find our old Java ways make us want to reach for a =var=, and refer to it
+from a =map=, we should be using =mapAccumL=.
 
 For example, let's say we have a list of words and we want to blank
 out words we've already seen. The filtering algorithm is not allowed
@@ -4329,9 +4301,6 @@ i.e. it is a data encoding of inclusive logical =OR=.
   def pad[A, B]: (F[A], F[B]) => F[(Option[A], Option[B])] = ...
   def padWith[A, B, C](f: (Option[A], Option[B]) => C): (F[A], F[B]) => F[C] = ...
 #+END_SRC
-
-Hopefully by this point you are becoming more capable of reading type
-signatures to understand the purpose of a method.
 
 =alignWith= takes a function from either an =A= or a =B= (or both) to
 a =C= and returns a lifted function from a tuple of =F[A]= and =F[B]=
@@ -4768,11 +4737,11 @@ which is exactly what we used in Chapter 3:
 #+END_SRC
 
 #+BEGIN_ASIDE
-The =|@|= operator has many names. Some call it the /Cartesian Product
-Syntax/, others call it the /Cinnamon Bun/, the /Admiral Ackbar/ or
-the /Macaulay Culkin/. We prefer to call it /The Scream/ operator,
-after the Munch painting, because it is also the sound your CPU makes
-when it is parallelising All The Things.
+The =|@|= operator has many names. Some call it the /Cartesian Product Syntax/,
+others call it the /Cinnamon Bun/, the /Admiral Ackbar/ or the /Macaulay
+Culkin/. We prefer to call it /The Scream/ operator, after the Munch painting,
+because it is also the sound our CPU makes when it is parallelising All The
+Things.
 #+END_ASIDE
 
 The syntax =<*= and =*>= (left bird and right bird) offer a convenient way to
@@ -4896,15 +4865,8 @@ structures that are then joined.
 }
 #+END_SRC
 
-The =.join= may be familiar if you have ever used =.flatten= in the stdlib, it
-takes a nested context and squashes it into one.
-
-Although not necessarily implemented as such, we can think of =.bind= as being a
-=Functor.map= followed by =.join=
-
-#+BEGIN_SRC scala
-def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
-#+END_SRC
+The =.join= may be familiar to users of =.flatten= in the stdlib, it takes a
+nested context and squashes it into one.
 
 Derived combinators are introduced for =.ap= and =.apply2= that require
 consistency with =.bind=. We will see later that this law has consequences for
@@ -5252,7 +5214,7 @@ It is now easier to spot that =applyX= is how we can derive typeclasses
 for covariant typeclasses.
 
 Mirroring =Apply=, =Divide= also has terse syntax for tuples. A softer
-/divide so that you may reign/ approach to world domination:
+/divide so that we may reign/ approach to world domination:
 
 #+BEGIN_SRC scala
   ...
@@ -5646,11 +5608,6 @@ for example
 scala> val knock_knock: Option[String] = ...
        knock_knock ? "who's there?" | "<tumbleweed>"
 #+END_SRC
-
-Next time you write a function that takes an =Option=, consider
-rewriting it to take =Optional= instead: it'll make it easier to
-migrate to data structures that have better error handling without any
-loss of functionality.
 
 **** Catchable
 
@@ -6109,8 +6066,7 @@ write the code and later refactor it, than to over-abstract too early.
 
 To help, we have included a cheat-sheet of the typeclasses and their
 primary methods in the Appendix, inspired by Adam Rosien's [[http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf][Scalaz
-Cheatsheet]]. These cheat-sheets make an excellent replacement for the
-family portrait on your office desk.
+Cheatsheet]].
 
 To help further, Valentin Kasas explains how to [[https://twitter.com/ValentinKasas/status/879414703340081156][combine =N= things]]:
 
@@ -6396,7 +6352,7 @@ principle/ fame, the foundation of Object Oriented Programming.
 Gottfried Wilhelm Leibniz basically invented /everything/ in the 17th
 century. He believed in a [[https://en.wikipedia.org/wiki/Monad_(philosophy)][God called Monad]]. Eugenio Moggi later reused
 the name for what we know as =scalaz.Monad=. Not a God, just a mere
-mortal like you and me.
+mortal.
 #+END_ASIDE
 
 *** Evaluation
@@ -8699,8 +8655,8 @@ can be used in [[https://arxiv.org/abs/1203.3468][clustering algorithms]] to org
 increasingly similar things. It is possible to represent XML documents with a
 Rose Tree.
 
-If you find yourself working with hierarchical data, consider using a Rose Tree
-instead of rolling a custom data structure.
+When working with hierarchical data, consider using a Rose Tree instead of
+rolling a custom data structure.
 
 **** =FingerTree=
 
@@ -9133,15 +9089,13 @@ first element that may also be in the =ISet=.
 
 In this chapter we have skimmed over the data types that Scalaz has to offer.
 
-It is not necessary to remember everything in this chapter: think of each
-section as having planted the kernel of an idea in your mind. If, in a few
-months, you find yourself thinking "I remember reading about a data structure
-that might be useful here" and you return to these pages, we have succeeded.
+It is not necessary to remember everything from this chapter: think of each
+section as having planted the kernel of an idea.
 
 The world of functional data structures is an active area of research. Academic
-publications appear regularly with new approaches to old problems. If you are
-the kind of person who would like to contribute back to Scalaz, finding a
-functional data structure to implement would be greatly appreciated.
+publications appear regularly with new approaches to old problems. Implementing
+a functional data structure from the literature is a good contribution to the
+Scalaz ecosystem.
 
 ** Advanced Monads
 
@@ -9486,7 +9440,7 @@ beer/.
 
 #+BEGIN_ASIDE
 Always benchmark instead of accepting sweeping statements about performance: it
-may well be the case that the garbage collector performs better for your
+may well be the case that the garbage collector performs better for an
 application when using =Free= because of the reduced size of retained objects in
 the stack.
 #+END_ASIDE
@@ -10022,7 +9976,7 @@ and then refactor the =refresh= parameter to be part of the =Monad=
 #+END_SRC
 
 Fundamentally, any parameter can be moved into the =MonadReader=. This is of
-most value to your immediate caller when they simply want to thread through this
+most value to immediate callers when they simply want to thread through this
 information from above. With =ReaderT=, we can reserve =implicit= parameter
 blocks entirely for the use of typeclasses, reducing the mental burden of using
 Scala.
@@ -11435,8 +11389,8 @@ object allocation matters. Other transformers, such as =StateT=, effectively add
 a trampoline, and =ContT= keeps the entire call-chain retained in memory.
 
 #+BEGIN_ASIDE
-Your application might not care about allocations if it is bounded by network or
-I/O. Always measure.
+Some applications do not care about allocations if they are bounded by network
+or I/O. Always measure.
 #+END_ASIDE
 
 If performance becomes a problem, the solution is to not use Monad Transformers.
@@ -11972,8 +11926,7 @@ along with a stub for the =Batch= algebra
 
 #+BEGIN_ASIDE
 This example is advanced. It is possible to read the remainder of the book
-without understanding how this example works: you may safely skim the rest of
-this section if your brain hurts.
+without understanding how this example works.
 #+END_ASIDE
 
 We can convert from the =Orig= AST into =Patched= by providing a natural
@@ -12067,9 +12020,9 @@ may as well be flipping bits in RAM.
 
 **** =FreeAp= (=Applicative=)
 
-Despite this chapter being called *Advanced Monads*, the takeaway is: /don't use
-monads unless you really *really* have to/. In this section, we will see why
-=FreeAp= (free applicative) is preferable to =Free= monads.
+Despite this chapter being called *Advanced Monads*, the takeaway is: /we
+shouldn't use monads unless we really *really* have to/. In this section, we
+will see why =FreeAp= (free applicative) is preferable to =Free= monads.
 
 =FreeAp= is defined as the data structure representation of the =ap= and =pure=
 methods from the =Applicative= typeclass:
@@ -14728,8 +14681,8 @@ Leibniz relationship (=<~<= and ~===~), and to =Inject= a free algebra into a
 =scalaz.Coproduct= of algebras.
 
 #+BEGIN_ASIDE
-If you struggle to understand this section of the book, please feel free to skip
-to the next section, "Performance".
+It is not necessary to understand Shapeless to be a Functional Programmer. If
+this chapter becomes too much, just skip to the next section.
 #+END_ASIDE
 
 To install Shapeless, add the following to =build.sbt=
@@ -15002,8 +14955,8 @@ final case object Baz extends Foo {
 #+END_SRC
 
 #+BEGIN_ASIDE
-At this point, ignore any red squigglies in your IDE and only trust the
-compiler. This is the point where Shapeless departs from IDE support.
+At this point, ignore any red squigglies and only trust the compiler. This is
+the point where Shapeless departs from IDE support.
 #+END_ASIDE
 
 The reason why this fixes the problem is because the type signature
@@ -15027,7 +14980,7 @@ Rather than present the fully working version, we feel it is important to show
 when obvious code fails, such is the reality of Shapeless. Another thing we
 could have reasonably done here is to have =sealed= the =DerivedEqual= trait so
 that only derived versions are valid. But =sealed trait= is not compatible with
-SAM types! When you live this close to the razor's edge, expect to get cut.
+SAM types! Living at the razor's edge, expect to get cut.
 #+END_ASIDE
 
 With this in mind, we no longer need the =implicit val generic= or the explicit
@@ -16166,7 +16119,7 @@ TwitterAPIBenchmarks.equalManualFalse        thrpt    5  1631964.531 ± 13110.29
 The runtime performance of =scalaz-deriving=, Magnolia and Shapeless is usually
 good enough. Let's be honest: we are not writing applications that need to be
 able to encode more than 130,000 values to JSON, per second, on a single core,
-on the JVM. If that's a problem, you might want to look into C++.
+on the JVM. If that's a problem, look into C++.
 
 It is unlikely that derived instances will be an application's bottleneck. Even
 if it is, there is the manually written escape hatch, which is more powerful and
@@ -16782,7 +16735,7 @@ final case class Header(name: String, value: String)
 
 final case class Uri( ... )
 object Uri {
-  // not total, only use if your string is guaranteed to be a URL
+  // not total, only use if `s` is guaranteed to be a URL
   def unsafeFromString(s: String): Uri = ...
   ...
 }

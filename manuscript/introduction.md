@@ -146,9 +146,9 @@ A> ~~~~~~~~
 A>   type Id[T] = T
 A> ~~~~~~~~
 A> 
-A> Before proceeding, convince yourself that `Id[Int]` is the same thing
-A> as `Int`, by substituting `Int` into `T`. Because `Id` is a valid type
-A> constructor we can use `Id` in an implementation of `Foo`
+A> Before proceeding, understand that `Id[Int]` is the same thing as `Int`, by
+A> substituting `Int` into `T`. Because `Id` is a valid type constructor we can use
+A> `Id` in an implementation of `Foo`
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -182,7 +182,7 @@ terminals:
   }
 ~~~~~~~~
 
-You can think of `C` as a *Context* because we say "in the context of
+We can think of `C` as a *Context* because we say "in the context of
 executing `Now`" or "in the `Future`".
 
 But we know nothing about `C` and we can't do anything with a
@@ -224,7 +224,7 @@ The `implicit class` Scala language feature gives `C` some methods.
 We'll call these methods `flatMap` and `map` for reasons that will
 become clearer in a moment. Each method takes an `implicit
 Execution[C]`, but this is nothing more than the `flatMap` and `map`
-that you're used to on `Seq`, `Option` and `Future`
+that we're used to on `Seq`, `Option` and `Future`
 
 {lang="text"}
 ~~~~~~~~
@@ -369,6 +369,6 @@ An application composed of `IO` programs is only interpreted once, in the `main`
 method, which is also called *the end of the world*.
 
 In this book, we expand on the concepts introduced in this chapter and show how
-to write maintainable, pure functions, that achieve your business's objectives.
+to write maintainable, pure functions, that achieve our business's objectives.
 
 

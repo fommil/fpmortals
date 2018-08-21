@@ -135,8 +135,8 @@ A>          } yield first
 A>   res: Some(hello)
 A> ~~~~~~~~
 A> 
-A> But be careful that you don't miss any cases or you'll get a runtime
-A> exception (a *totality* failure).
+A> But be careful not to miss any cases or there will be a runtime exception (a
+A> *totality* failure).
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -288,10 +288,10 @@ all defined.
 If any of `a,b,c` are `None`, the comprehension short-circuits with
 `None` but it doesn't tell us what went wrong.
 
-A> How often have you seen a function that takes `Option` parameters but
-A> requires them all to exist? An alternative to throwing a runtime
-A> exception is to use a `for` comprehension, giving us totality (a
-A> return value for every input):
+A> There are many functions in the wild that take `Option` parameters but actually
+A> require all parameters to exist. An alternative to throwing a runtime exception
+A> is to use a `for` comprehension, giving us totality (a return value for every
+A> input):
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -306,8 +306,7 @@ A> ~~~~~~~~
 A> 
 A> but this is verbose, clunky and bad style. If a function requires
 A> every input then it should make its requirement explicit, pushing the
-A> responsibility of dealing with optional parameters to its caller ---
-A> don't use `for` unless you need to.
+A> responsibility of dealing with optional parameters to its caller.
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -989,16 +988,15 @@ we need a catch-all `case _` to do nothing. Recall from Chapter 2 that
 fold may return a monadic value. In our case, each iteration of the
 fold returns `F[WorldView]`.
 
-The `M` is for Monadic and you will find more of these *lifted*
-methods that behave as one would expect, taking monadic values in
-place of values.
+The `M` is for Monadic. We will find more of these *lifted* methods that behave
+as one would expect, taking monadic values in place of values.
 
 
 ## Unit Tests
 
-The FP approach to writing applications is a designer's dream: you can
-delegate writing the implementations of algebras to your team members
-while focusing on making your business logic meet the requirements.
+The FP approach to writing applications is a designer's dream: delegate writing
+the implementations of algebras to team members while focusing on making
+business logic meet the requirements.
 
 Our application is highly dependent on timing and third party
 webservices. If this was a traditional OOP application, we'd create
@@ -1126,9 +1124,8 @@ helping us flush out bugs and refine the requirements:
   }
 ~~~~~~~~
 
-It would be boring to go through the full test suite. Convince
-yourself with a thought experiment that the following tests are easy
-to implement using the same approach:
+It would be boring to go through the full test suite. The following tests are
+easy to implement using the same approach:
 
 -   not request agents when pending
 -   don't shut down agents if nodes are too young
@@ -1421,7 +1418,7 @@ allowing infix notation with association from the right:
   X.type |: Y.type |: Z
 ~~~~~~~~
 
-This is useful to create anonymous coproducts when you can't put all
+This is useful to create anonymous coproducts when we can't put all
 the implementations into the same source file.
 
 {lang="text"}
@@ -1447,7 +1444,7 @@ coproducts.
 
 A> We can also use a `sealed trait` in place of a `sealed abstract class`
 A> but there are binary compatibility advantages to using `abstract
-A> class`. A `sealed trait` is only needed if you need to create a
+A> class`. A `sealed trait` is only needed if we need to create a
 A> complicated ADT with multiple inheritance.
 
 
@@ -1796,11 +1793,10 @@ steals the namespace. If we were to define `sin(t: T)` somewhere else
 we get *ambiguous reference* errors. This is the same problem as
 Java's static methods vs class methods.
 
-W> If you like to put methods on a `trait`, requiring users to mix your
-W> traits into their `classes` or `objects` with the *cake pattern*,
-W> please get out of this nasty habit: you're leaking internal
-W> implementation detail to public APIs, bloating your bytecode, and
-W> creating a lot of noise for IDE autocompleters.
+W> The sort of developer who puts methods on a `trait`, requiring users to mix it
+W> with the *cake pattern*, is going straight to hell. It leaks internal
+W> implementation detail to public APIs, bloats bytecode, makes binary
+W> compatibility basically impossible, and confuses IDE autocompleters.
 
 With the `implicit class` language feature (also known as *extension
 methodology* or *syntax*), and a little boilerplate, we can get the
@@ -2116,11 +2112,6 @@ beyond real numbers. This is a good lesson that smaller, well defined,
 typeclasses are often better than a monolithic collection of overly
 specific features.
 
-If you need to write generic code that works for a wide range of
-number types, prefer [spire](https://github.com/non/spire) to the stdlib. Indeed, in the next chapter
-we will see that concepts such as having a zero element, or adding two
-values, are worthy of their own typeclass.
-
 
 ### Implicit Resolution
 
@@ -2228,7 +2219,7 @@ set up at
   https://console.developers.google.com/apis/credentials?project={PROJECT_ID}
 ~~~~~~~~
 
-You will be provided with a *Client ID* and a *Client secret*.
+Obtaining a *Client ID* and a *Client secret*.
 
 The application can then obtain a one time *code* by making the user
 perform an *Authorization Request* in their browser (yes, really, **in
@@ -2378,7 +2369,7 @@ W> Avoid using `java.net.URL` at all costs: it uses DNS to resolve the
 W> hostname part when performing `toString`, `equals` or `hashCode`.
 W> 
 W> Apart from being insane, and **very very** slow, these methods can throw
-W> I/O exceptions (are not *pure*), and can change depending on your
+W> I/O exceptions (are not *pure*), and can change depending on the
 W> network configuration (are not *deterministic*).
 W> 
 W> The refined type `String Refined Url` allows us to perform equality checks based
@@ -2754,7 +2745,7 @@ and then write an OAuth2 client:
     convenient syntax for types that have a typeclass instance.
 -   *typeclass derivation* is compiletime composition of typeclass
     instances.
--   *generic instances* automatically derive instances for your data
+-   *generic instances* automatically derive instances for data
     types.
 
 
@@ -2764,13 +2755,11 @@ In this chapter we will tour most of the typeclasses in `scalaz-core`.
 We don't use everything in `drone-dynamic-agents` so we will give
 standalone examples when appropriate.
 
-There has been criticism of the naming in Scalaz, and functional
-programming in general. Most names follow the conventions introduced
-in the Haskell programming language, based on *Category Theory*. Feel
-free to set up `type` aliases in your own codebase if you would prefer
-to use verbs based on the primary functionality of the typeclass (e.g.
-`Mappable`, `Pureable`, `FlatMappable`) until you are comfortable with
-the standard names.
+There has been criticism of the naming in Scalaz, and functional programming in
+general. Most names follow the conventions introduced in the Haskell programming
+language, based on *Category Theory*. Feel free to set up `type` aliases if
+verbs based on the primary functionality are easier to remember when learning
+(e.g. `Mappable`, `Pureable`, `FlatMappable`).
 
 Before we introduce the typeclass hierarchy, we will peek at the four
 most important methods from a control flow perspective: the methods we
@@ -2805,20 +2794,18 @@ In between `Monad` and `Functor` is `Applicative`, defining `pure`
 that lets us lift a value into an effect, or create a data structure
 from a single value.
 
-`traverse` is useful for rearranging type constructors. If you find
-yourself with an `F[G[_]]` but you really need a `G[F[_]]` then you
-need `Traverse`. For example, say you have a `List[Future[Int]]` but
-you need it to be a `Future[List[Int]]`, just call
+`traverse` is useful for rearranging type constructors. If we have an `F[G[_]]`
+but need a `G[F[_]]`, then we want `Traverse`. For example, if we have
+`List[Future[Int]]` but need a `Future[List[Int]]`, then call
 `.traverse(identity)`, or its simpler sibling `.sequence`.
 
 
 ## Agenda
 
-This chapter is longer than usual and jam-packed with information: it
-is perfectly reasonable to attack it over several sittings. You are
-not expected to remember everything (doing so would require
-super-human powers) so treat this chapter as a way of knowing where to
-look for more information.
+This chapter is longer than usual and jam-packed with information: it is
+perfectly reasonable to attack it over several sittings. Remembering everything
+would require super-human powers, so treat this chapter as a way of knowing
+where to look for more information.
 
 Notably absent are typeclasses that extend `Monad`, which get their
 own chapter later.
@@ -3058,8 +3045,7 @@ even concepts as simple equality are captured at compiletime.
 
 Indeed `===` (*triple equals*) is more typesafe than `==` (*double
 equals*) because it can only be compiled when the types are the same
-on both sides of the comparison. You'd be surprised how many bugs this
-catches.
+on both sides of the comparison. This catches a lot of bugs.
 
 `equal` has the same implementation requirements as `Object.equals`
 
@@ -3139,9 +3125,9 @@ A> `|==>` is Scalaz's Lightsaber. This is the syntax of a Functional
 A> Programmer. Not as clumsy or random as `fromStepToL`. An elegant
 A> syntax... for a more civilised age.
 
-We'll discuss `EphemeralStream` in the next chapter, for now you just
-need to know that it is a potentially infinite data structure that
-avoids memory retention problems in the stdlib `Stream`.
+We'll discuss `EphemeralStream` in the next chapter, for now we just need to
+know that it is a potentially infinite data structure that avoids memory
+retention problems in the stdlib `Stream`.
 
 Similarly to `Object.equals`, the concept of a `.toString` on every
 `class` does not make sense in Java. We would like to enforce
@@ -3155,9 +3141,9 @@ stringyness at compiletime and this is exactly what `Show` achieves:
   }
 ~~~~~~~~
 
-We'll explore `Cord` in more detail in the chapter on data types, you
-need only know that it is an efficient data structure for storing and
-manipulating `String`.
+We'll explore `Cord` in more detail in the chapter on data types, we need only
+know that it is an efficient data structure for storing and manipulating
+`String`.
 
 Unfortunately, due to Scala's default implicit conversions in
 `Predef`, and language level support for `toString` in interpolated
@@ -3212,12 +3198,11 @@ The `map` should also perform a no-op if the provided function is
   fa.map(x => x) == fa
 ~~~~~~~~
 
-`Functor` defines some convenience methods around `map` that can be
-optimised by specific instances. The documentation has been
-intentionally omitted in the above definitions to encourage you to
-guess what a method does before looking at the implementation. Please
-spend a moment studying only the type signature of the following
-before reading further:
+`Functor` defines some convenience methods around `map` that can be optimised by
+specific instances. The documentation has been intentionally omitted in the
+above definitions to encourage guessing what a method does before looking at the
+implementation. Please spend a moment studying only the type signature of the
+following before reading further:
 
 {lang="text"}
 ~~~~~~~~
@@ -3247,8 +3232,8 @@ before reading further:
 6.  `lift` takes a function `A => B` and returns a `F[A] => F[B]`. In
     other words, it takes a function over the contents of an `F[A]` and
     returns a function that operates **on** the `F[A]` directly.
-7.  `mapply` is a mind bender. Say you have an `F[_]` of functions `A
-       => B` and a value `A`, then you can get an `F[B]`. It has a similar
+7.  `mapply` is a mind bender. Say we have an `F[_]` of functions `A
+       => B` and a value `A`, then we can get an `F[B]`. It has a similar
     signature to `pure` but requires the caller to provide the `F[A =>
        B]`.
 
@@ -3324,10 +3309,9 @@ As a bonus, we are now using the less powerful `Functor` instead of
 
 ### Foldable
 
-Technically, `Foldable` is for data structures that can be walked to
-produce a summary value. However, this undersells the fact that it is
-a one-typeclass army that can provide most of what you'd expect to see
-in a Collections API.
+Technically, `Foldable` is for data structures that can be walked to produce a
+summary value. However, this undersells the fact that it is a one-typeclass army
+that can provide most of what we would expect to see in a Collections API.
 
 There are so many methods we are going to have to split them out,
 beginning with the abstract methods:
@@ -3344,10 +3328,10 @@ An instance of `Foldable` need only implement `foldMap` and
 `foldRight` to get all of the functionality in this typeclass,
 although methods are typically optimised for specific data structures.
 
-You might recognise `foldMap` by its marketing buzzword name, **MapReduce**. Given
-an `F[A]`, a function from `A` to `B`, and a way to combine `B` (provided by the
-`Monoid`, along with a zero `B`), we can produce a summary value of type `B`.
-There is no enforced operation order, allowing for parallel computation.
+`.foldMap` has a marketing buzzword name: **MapReduce**. Given an `F[A]`, a
+function from `A` to `B`, and a way to combine `B` (provided by the `Monoid`,
+along with a zero `B`), we can produce a summary value of type `B`. There is no
+enforced operation order, allowing for parallel computation.
 
 `foldRight` does not require its parameters to have a `Monoid`,
 meaning that it needs a starting value `z` and a way to combine each
@@ -3604,10 +3588,9 @@ is the maximum length `Of` the elements.
   res: Option[Int] = Some(4)
 ~~~~~~~~
 
-This concludes the key features of `Foldable`. You are forgiven for
-already forgetting all the methods you've just seen: the key takeaway
-is that anything you'd expect to find in a collection library is
-probably on `Foldable` and if it isn't already, it [probably should be](https://github.com/scalaz/scalaz/issues/1448).
+This concludes the key features of `Foldable`. The takeaway is that anything
+we'd expect to find in a collection library is probably on `Foldable` and if it
+isn't already, it probably should be.
 
 We'll conclude with some variations of the methods we've already seen.
 First there are methods that take a `Semigroup` instead of a `Monoid`:
@@ -3633,7 +3616,7 @@ the elements.
 
 Very importantly, there are variants that take monadic return values.
 We already used `foldLeftM` when we first wrote the business logic of
-our application, now you know that `Foldable` is where it came from:
+our application, now we know that it is from `Foldable`:
 
 {lang="text"}
 ~~~~~~~~
@@ -3646,19 +3629,10 @@ our application, now you know that `Foldable` is where it came from:
   ...
 ~~~~~~~~
 
-You may also see Curried versions, e.g.
-
-{lang="text"}
-~~~~~~~~
-  def foldl[A, B](fa: F[A], z: B)(f: B => A => B): B = ...
-  def foldr[A, B](fa: F[A], z: =>B)(f: A => (=> B) => B): B = ...
-  ...
-~~~~~~~~
-
 
 ### Traverse
 
-`Traverse` is what happens when you cross a `Functor` with a `Foldable`
+`Traverse` is what happens when we cross a `Functor` with a `Foldable`
 
 {lang="text"}
 ~~~~~~~~
@@ -3681,8 +3655,7 @@ You may also see Curried versions, e.g.
 
 At the beginning of the chapter we showed the importance of `traverse`
 and `sequence` for swapping around type constructors to fit a
-requirement (e.g. `List[Future[_]]` to `Future[List[_]]`). You will
-use these methods more than you could possibly imagine.
+requirement (e.g. `List[Future[_]]` to `Future[List[_]]`).
 
 In `Foldable` we weren't able to assume that `reverse` was a universal
 concept, but now we can reverse a thing.
@@ -3696,9 +3669,9 @@ special case of `zip` is to add an index to every entry with
 `zipWithL` and `zipWithR` allow combining the two sides of a `zip`
 into a new type, and then returning just an `F[C]`.
 
-`mapAccumL` and `mapAccumR` are regular `map` combined with an
-accumulator. If you find your old Java sins are making you want to
-reach for a `var`, and refer to it from a `map`, you want `mapAccumL`.
+`mapAccumL` and `mapAccumR` are regular `map` combined with an accumulator. If
+we find our old Java ways make us want to reach for a `var`, and refer to it
+from a `map`, we should be using `mapAccumL`.
 
 For example, let's say we have a list of words and we want to blank
 out words we've already seen. The filtering algorithm is not allowed
@@ -3763,9 +3736,6 @@ i.e. it is a data encoding of inclusive logical `OR`.
     def pad[A, B]: (F[A], F[B]) => F[(Option[A], Option[B])] = ...
     def padWith[A, B, C](f: (Option[A], Option[B]) => C): (F[A], F[B]) => F[C] = ...
 ~~~~~~~~
-
-Hopefully by this point you are becoming more capable of reading type
-signatures to understand the purpose of a method.
 
 `alignWith` takes a function from either an `A` or a `B` (or both) to
 a `C` and returns a lifted function from a tuple of `F[A]` and `F[B]`
@@ -4081,11 +4051,11 @@ which is exactly what we used in Chapter 3:
   (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
 ~~~~~~~~
 
-A> The `|@|` operator has many names. Some call it the *Cartesian Product
-A> Syntax*, others call it the *Cinnamon Bun*, the *Admiral Ackbar* or
-A> the *Macaulay Culkin*. We prefer to call it *The Scream* operator,
-A> after the Munch painting, because it is also the sound your CPU makes
-A> when it is parallelising All The Things.
+A> The `|@|` operator has many names. Some call it the *Cartesian Product Syntax*,
+A> others call it the *Cinnamon Bun*, the *Admiral Ackbar* or the *Macaulay
+A> Culkin*. We prefer to call it *The Scream* operator, after the Munch painting,
+A> because it is also the sound our CPU makes when it is parallelising All The
+A> Things.
 
 The syntax `<*` and `*>` (left bird and right bird) offer a convenient way to
 ignore the output from one of two parallel effects.
@@ -4220,16 +4190,8 @@ structures that are then joined.
   }
 ~~~~~~~~
 
-The `.join` may be familiar if you have ever used `.flatten` in the stdlib, it
-takes a nested context and squashes it into one.
-
-Although not necessarily implemented as such, we can think of `.bind` as being a
-`Functor.map` followed by `.join`
-
-{lang="text"}
-~~~~~~~~
-  def bind[A, B](fa: F[A])(f: A => F[B]): F[B] = join(map(fa)(f))
-~~~~~~~~
+The `.join` may be familiar to users of `.flatten` in the stdlib, it takes a
+nested context and squashes it into one.
 
 Derived combinators are introduced for `.ap` and `.apply2` that require
 consistency with `.bind`. We will see later that this law has consequences for
@@ -4453,7 +4415,7 @@ It is now easier to spot that `applyX` is how we can derive typeclasses
 for covariant typeclasses.
 
 Mirroring `Apply`, `Divide` also has terse syntax for tuples. A softer
-*divide so that you may reign* approach to world domination:
+*divide so that we may reign* approach to world domination:
 
 {lang="text"}
 ~~~~~~~~
@@ -4782,11 +4744,6 @@ for example
   scala> val knock_knock: Option[String] = ...
          knock_knock ? "who's there?" | "<tumbleweed>"
 ~~~~~~~~
-
-Next time you write a function that takes an `Option`, consider
-rewriting it to take `Optional` instead: it'll make it easier to
-migrate to data structures that have better error handling without any
-loss of functionality.
 
 
 ### Catchable
@@ -5153,8 +5110,7 @@ write the code and later refactor it, than to over-abstract too early.
 
 To help, we have included a cheat-sheet of the typeclasses and their
 primary methods in the Appendix, inspired by Adam Rosien's [Scalaz
-Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf). These cheat-sheets make an excellent replacement for the
-family portrait on your office desk.
+Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf).
 
 To help further, Valentin Kasas explains how to [combine `N` things](https://twitter.com/ValentinKasas/status/879414703340081156):
 
@@ -5411,7 +5367,7 @@ A>
 A> Gottfried Wilhelm Leibniz basically invented *everything* in the 17th
 A> century. He believed in a [God called Monad](https://en.wikipedia.org/wiki/Monad_(philosophy)). Eugenio Moggi later reused
 A> the name for what we know as `scalaz.Monad`. Not a God, just a mere
-A> mortal like you and me.
+A> mortal.
 
 
 ## Evaluation
@@ -7311,8 +7267,8 @@ can be used in [clustering algorithms](https://arxiv.org/abs/1203.3468) to organ
 increasingly similar things. It is possible to represent XML documents with a
 Rose Tree.
 
-If you find yourself working with hierarchical data, consider using a Rose Tree
-instead of rolling a custom data structure.
+When working with hierarchical data, consider using a Rose Tree instead of
+rolling a custom data structure.
 
 
 ### `FingerTree`
@@ -7704,15 +7660,13 @@ first element that may also be in the `ISet`.
 
 In this chapter we have skimmed over the data types that Scalaz has to offer.
 
-It is not necessary to remember everything in this chapter: think of each
-section as having planted the kernel of an idea in your mind. If, in a few
-months, you find yourself thinking "I remember reading about a data structure
-that might be useful here" and you return to these pages, we have succeeded.
+It is not necessary to remember everything from this chapter: think of each
+section as having planted the kernel of an idea.
 
 The world of functional data structures is an active area of research. Academic
-publications appear regularly with new approaches to old problems. If you are
-the kind of person who would like to contribute back to Scalaz, finding a
-functional data structure to implement would be greatly appreciated.
+publications appear regularly with new approaches to old problems. Implementing
+a functional data structure from the literature is a good contribution to the
+Scalaz ecosystem.
 
 
 # Advanced Monads
@@ -8051,7 +8005,7 @@ reference. It is `Free` in the sense of *freely generated*, not *free as in
 beer*.
 
 A> Always benchmark instead of accepting sweeping statements about performance: it
-A> may well be the case that the garbage collector performs better for your
+A> may well be the case that the garbage collector performs better for an
 A> application when using `Free` because of the reduced size of retained objects in
 A> the stack.
 
@@ -8612,7 +8566,7 @@ and then refactor the `refresh` parameter to be part of the `Monad`
 ~~~~~~~~
 
 Fundamentally, any parameter can be moved into the `MonadReader`. This is of
-most value to your immediate caller when they simply want to thread through this
+most value to immediate callers when they simply want to thread through this
 information from above. With `ReaderT`, we can reserve `implicit` parameter
 blocks entirely for the use of typeclasses, reducing the mental burden of using
 Scala.
@@ -9869,8 +9823,8 @@ handful of objects, but this can impact high throughput applications where every
 object allocation matters. Other transformers, such as `StateT`, effectively add
 a trampoline, and `ContT` keeps the entire call-chain retained in memory.
 
-A> Your application might not care about allocations if it is bounded by network or
-A> I/O. Always measure.
+A> Some applications do not care about allocations if they are bounded by network
+A> or I/O. Always measure.
 
 If performance becomes a problem, the solution is to not use Monad Transformers.
 At least not the transformer data structures. A big advantage of the `Monad`
@@ -10419,8 +10373,7 @@ along with a stub for the `Batch` algebra
 ~~~~~~~~
 
 A> This example is advanced. It is possible to read the remainder of the book
-A> without understanding how this example works: you may safely skim the rest of
-A> this section if your brain hurts.
+A> without understanding how this example works.
 
 We can convert from the `Orig` AST into `Patched` by providing a natural
 transformation that batches node starts:
@@ -10506,9 +10459,9 @@ W> may as well be flipping bits in RAM.
 
 ### `FreeAp` (`Applicative`)
 
-Despite this chapter being called **Advanced Monads**, the takeaway is: *don't use
-monads unless you really **really** have to*. In this section, we will see why
-`FreeAp` (free applicative) is preferable to `Free` monads.
+Despite this chapter being called **Advanced Monads**, the takeaway is: *we
+shouldn't use monads unless we really **really** have to*. In this section, we
+will see why `FreeAp` (free applicative) is preferable to `Free` monads.
 
 `FreeAp` is defined as the data structure representation of the `ap` and `pure`
 methods from the `Applicative` typeclass:
@@ -13138,8 +13091,8 @@ compiler to provide us with *evidence* relating types. For example Liskov or
 Leibniz relationship (`<~<` and `===`), and to `Inject` a free algebra into a
 `scalaz.Coproduct` of algebras.
 
-A> If you struggle to understand this section of the book, please feel free to skip
-A> to the next section, "Performance".
+A> It is not necessary to understand Shapeless to be a Functional Programmer. If
+A> this chapter becomes too much, just skip to the next section.
 
 To install Shapeless, add the following to `build.sbt`
 
@@ -13429,8 +13382,8 @@ or we can use the `Generic` macro to help us and let the compiler infer the gene
   }
 ~~~~~~~~
 
-A> At this point, ignore any red squigglies in your IDE and only trust the
-A> compiler. This is the point where Shapeless departs from IDE support.
+A> At this point, ignore any red squigglies and only trust the compiler. This is
+A> the point where Shapeless departs from IDE support.
 
 The reason why this fixes the problem is because the type signature
 
@@ -13454,7 +13407,7 @@ A> Rather than present the fully working version, we feel it is important to sho
 A> when obvious code fails, such is the reality of Shapeless. Another thing we
 A> could have reasonably done here is to have `sealed` the `DerivedEqual` trait so
 A> that only derived versions are valid. But `sealed trait` is not compatible with
-A> SAM types! When you live this close to the razor's edge, expect to get cut.
+A> SAM types! Living at the razor's edge, expect to get cut.
 
 With this in mind, we no longer need the `implicit val generic` or the explicit
 type parameters on the call to `.gen`. We can wire up `@deriving` by adding an
@@ -14630,7 +14583,7 @@ for GeoJSON but falls far behind in both the Google Maps and Twitter tests. The
 The runtime performance of `scalaz-deriving`, Magnolia and Shapeless is usually
 good enough. Let's be honest: we are not writing applications that need to be
 able to encode more than 130,000 values to JSON, per second, on a single core,
-on the JVM. If that's a problem, you might want to look into C++.
+on the JVM. If that's a problem, look into C++.
 
 It is unlikely that derived instances will be an application's bottleneck. Even
 if it is, there is the manually written escape hatch, which is more powerful and
@@ -15276,7 +15229,7 @@ made of
   
   final case class Uri( ... )
   object Uri {
-    // not total, only use if your string is guaranteed to be a URL
+    // not total, only use if `s` is guaranteed to be a URL
     def unsafeFromString(s: String): Uri = ...
     ...
   }
