@@ -68,9 +68,8 @@ message to them.
   }
 ~~~~~~~~
 
-But how do we write generic code that does something as simple as echo
-the user's input synchronously or asynchronously depending on our
-runtime implementation?
+How do we write generic code that does something as simple as echo the user's
+input synchronously or asynchronously depending on our runtime implementation?
 
 We could write a synchronous version and wrap it with `Future` but now
 we have to worry about which thread pool we should be using for the
@@ -78,9 +77,8 @@ work, or we could `Await.result` on the `Future` and introduce thread
 blocking. In either case, it is a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
-Let's try to solve the problem like Java 1.2 by introducing a common
-parent. To do this, we need to use the *higher kinded types* (HKT)
-Scala language feature.
+Let's solve the problem like Java 1.2 by introducing a common parent. To do
+this, we need to use the *higher kinded types* (HKT) Scala language feature.
 
 A> **Higher Kinded Types** allow us to use a *type constructor* in our type
 A> parameters, which looks like `C[_]`. This is a way of saying that
@@ -93,9 +91,8 @@ A>     def create(i: Int): C[Int]
 A>   }
 A> ~~~~~~~~
 A> 
-A> `List` is a type constructor because it takes a type (e.g. `Int`) and
-A> constructs a type (`List -> Int -> List[Int]`). We can implement `Foo`
-A> using `List`:
+A> `List` is a type constructor because it takes a type (e.g. `Int`) and constructs
+A> a type (`List[Int]`). We can implement `Foo` using `List`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -194,7 +191,7 @@ need a way of wrapping a value as a `C[_]`. This signature works well:
 {lang="text"}
 ~~~~~~~~
   trait Execution[C[_]] {
-    def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
+    def chain[A, B](c: C[A])(f: A => C[B]): C[B]
     def create[B](b: B): C[B]
   }
 ~~~~~~~~
@@ -204,8 +201,8 @@ letting us write:
 {lang="text"}
 ~~~~~~~~
   def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
-    e.doAndThen(t.read) { in: String =>
-      e.doAndThen(t.write(in)) { _: Unit =>
+    e.chain(t.read) { in: String =>
+      e.chain(t.write(in)) { _: Unit =>
         e.create(in)
       }
     }
@@ -231,9 +228,9 @@ that we're used to on `Seq`, `Option` and `Future`
   object Execution {
     implicit class Ops[A, C[_]](c: C[A]) {
       def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
-            e.doAndThen(c)(f)
+            e.chain(c)(f)
       def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
-            e.doAndThen(c)(f andThen e.create)
+            e.chain(c)(f andThen e.create)
     }
   }
   
@@ -258,10 +255,10 @@ use a *for comprehension*, which is just syntax sugar over nested
     } yield in
 ~~~~~~~~
 
-Our `Execution` has the same signature as a trait in Scalaz called
-`Monad`, except `doAndThen` is `flatMap` and `create` is `pure`. We
-say that `C` is *monadic* when there is an implicit `Monad[C]`
-available. In addition, Scalaz has the `Id` type alias.
+Our `Execution` has the same signature as a trait in Scalaz called `Monad`,
+except `chain` is `bind` and `create` is `pure`. We say that `C` is *monadic*
+when there is an implicit `Monad[C]` available. In addition, Scalaz has the `Id`
+type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write sequential code that abstracts over its execution
@@ -288,7 +285,7 @@ easier to control, and test, when functions are inculpable.
 The kinds of things that break these properties are *side effects*: directly
 accessing or changing mutable state (e.g. maintaining a `var` in a class or
 using a legacy API that is impure), communicating with external resources (e.g.
-files or network lookup), or throwing exceptions.
+files or network lookup), or throwing and catching exceptions.
 
 We write pure functions by avoiding exceptions, and interacting with the world
 only through a safe `F[_]` execution context.
@@ -314,10 +311,9 @@ A>
 A> Pure functions are referentially transparent, allowing for a great deal of code
 A> reuse, performance optimisation, understanding, and control of a program.
 A> 
-A> Impure functions are not referentially transparent, unless we take a liberal
-A> interpretation of "the program's behaviour". We cannot replace `echo[Future]`
-A> with a value, such as `val futureEcho`, since the pesky user will probably type
-A> something different the second time.
+A> Impure functions are not referentially transparent. We cannot replace
+A> `echo[Future]` with a value, such as `val futureEcho`, since the pesky user can
+A> type something different the second time.
 
 We can define a simple safe `F[_]` execution context
 

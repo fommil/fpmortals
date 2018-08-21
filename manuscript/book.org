@@ -69,7 +69,7 @@ library in Scala from first principles.
 ** Copyleft Notice
 
 This book is *Libre* and follows the philosophy of [[https://www.gnu.org/philosophy/free-sw.en.html][Free Software]]: you can use
-this book as you like, the [[https://githum.com/fommil/fpmortals/][source is available]] you can redistribute this book
+this book as you like, the [[https://github.com/fommil/fpmortals/][source is available]] you can redistribute this book
 and you can distribute your own version. That means you can print it, photocopy
 it, e-mail it, upload it to websites, change it, translate it, charge for it,
 remix it, delete bits, and draw all over it.
@@ -95,7 +95,7 @@ for their help explaining the principles of FP. Kenji Yoshida and
 Jason Zaugg for being the main authors of Scalaz, and Paul Chuisano /
 Miles Sabin for fixing a critical bug in the Scala compiler ([[https://issues.scala-lang.org/browse/SI-2712][SI-2712]]).
 
-Thank you to the readers who gave feedback on early drafts of this text.
+Thanks to the readers who gave feedback on early drafts of this text.
 
 Some material was particularly helpful for my own understanding of the concepts
 that are in this book. Thanks to Juan Manuel Serrano for [[https://skillsmatter.com/skillscasts/9904-london-scala-march-meetup#video][All Roads Lead to
@@ -110,7 +110,8 @@ The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmun
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
 Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
-A. Baker, Alexander Konovalov, Harrison Houghton and Alexandre Archambault.
+A. Baker, Alexander Konovalov, Harrison Houghton, Alexandre Archambault,
+Christopher Davenport.
 
 ** Practicalities
 
@@ -127,7 +128,7 @@ scalacOptions in ThisBuild ++= Seq(
 
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum"     % "0.13.0",
-  "org.scalaz"           %% "scalaz-core"    % "7.2.25"
+  "org.scalaz"           %% "scalaz-core"    % "7.2.26"
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
@@ -219,9 +220,8 @@ trait TerminalAsync {
 }
 #+END_SRC
 
-But how do we write generic code that does something as simple as echo
-the user's input synchronously or asynchronously depending on our
-runtime implementation?
+How do we write generic code that does something as simple as echo the user's
+input synchronously or asynchronously depending on our runtime implementation?
 
 We could write a synchronous version and wrap it with =Future= but now
 we have to worry about which thread pool we should be using for the
@@ -229,9 +229,8 @@ work, or we could =Await.result= on the =Future= and introduce thread
 blocking. In either case, it is a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
-Let's try to solve the problem like Java 1.2 by introducing a common
-parent. To do this, we need to use the /higher kinded types/ (HKT)
-Scala language feature.
+Let's solve the problem like Java 1.2 by introducing a common parent. To do
+this, we need to use the /higher kinded types/ (HKT) Scala language feature.
 
 #+BEGIN_ASIDE
 
@@ -245,9 +244,8 @@ trait Foo[C[_]] {
 }
 #+END_SRC
 
-=List= is a type constructor because it takes a type (e.g. =Int=) and
-constructs a type (=List -> Int -> List[Int]=). We can implement =Foo=
-using =List=:
+=List= is a type constructor because it takes a type (e.g. =Int=) and constructs
+a type (=List[Int]=). We can implement =Foo= using =List=:
 
 #+BEGIN_SRC scala
 object FooList extends Foo[List] {
@@ -340,7 +338,7 @@ need a way of wrapping a value as a =C[_]=. This signature works well:
 
 #+BEGIN_SRC scala
 trait Execution[C[_]] {
-  def doAndThen[A, B](c: C[A])(f: A => C[B]): C[B]
+  def chain[A, B](c: C[A])(f: A => C[B]): C[B]
   def create[B](b: B): C[B]
 }
 #+END_SRC
@@ -349,8 +347,8 @@ letting us write:
 
 #+BEGIN_SRC scala
 def echo[C[_]](t: Terminal[C], e: Execution[C]): C[String] =
-  e.doAndThen(t.read) { in: String =>
-    e.doAndThen(t.write(in)) { _: Unit =>
+  e.chain(t.read) { in: String =>
+    e.chain(t.write(in)) { _: Unit =>
       e.create(in)
     }
   }
@@ -375,9 +373,9 @@ that we're used to on =Seq=, =Option= and =Future=
 object Execution {
   implicit class Ops[A, C[_]](c: C[A]) {
     def flatMap[B](f: A => C[B])(implicit e: Execution[C]): C[B] =
-          e.doAndThen(c)(f)
+          e.chain(c)(f)
     def map[B](f: A => B)(implicit e: Execution[C]): C[B] =
-          e.doAndThen(c)(f andThen e.create)
+          e.chain(c)(f andThen e.create)
   }
 }
 
@@ -401,10 +399,10 @@ def echo[C[_]](implicit t: Terminal[C], e: Execution[C]): C[String] =
   } yield in
 #+END_SRC
 
-Our =Execution= has the same signature as a trait in Scalaz called
-=Monad=, except =doAndThen= is =flatMap= and =create= is =pure=. We
-say that =C= is /monadic/ when there is an implicit =Monad[C]=
-available. In addition, Scalaz has the =Id= type alias.
+Our =Execution= has the same signature as a trait in Scalaz called =Monad=,
+except =chain= is =bind= and =create= is =pure=. We say that =C= is /monadic/
+when there is an implicit =Monad[C]= available. In addition, Scalaz has the =Id=
+type alias.
 
 The takeaway is: if we write methods that operate on monadic types,
 then we can write sequential code that abstracts over its execution
@@ -430,7 +428,7 @@ easier to control, and test, when functions are inculpable.
 The kinds of things that break these properties are /side effects/: directly
 accessing or changing mutable state (e.g. maintaining a =var= in a class or
 using a legacy API that is impure), communicating with external resources (e.g.
-files or network lookup), or throwing exceptions.
+files or network lookup), or throwing and catching exceptions.
 
 We write pure functions by avoiding exceptions, and interacting with the world
 only through a safe =F[_]= execution context.
@@ -456,10 +454,9 @@ corresponding value without changing the program's behaviour.
 Pure functions are referentially transparent, allowing for a great deal of code
 reuse, performance optimisation, understanding, and control of a program.
 
-Impure functions are not referentially transparent, unless we take a liberal
-interpretation of "the program's behaviour". We cannot replace =echo[Future]=
-with a value, such as =val futureEcho=, since the pesky user will probably type
-something different the second time.
+Impure functions are not referentially transparent. We cannot replace
+=echo[Future]= with a value, such as =val futureEcho=, since the pesky user can
+type something different the second time.
 #+END_ASIDE
 
 We can define a simple safe =F[_]= execution context
@@ -671,12 +668,10 @@ a.flatMap {
         k => i + j + k }}}
 #+END_SRC
 
-Older versions of Scala used =filter=, but =Traversable.filter=
-creates new collections for every predicate, so =withFilter= was
-introduced as the more performant alternative.
-
-We can accidentally trigger a =withFilter= by providing type
-information: it is actually interpreted as a pattern match.
+Older versions of Scala used =filter=, but =Traversable.filter= creates new
+collections for every predicate, so =withFilter= was introduced as the more
+performant alternative. We can accidentally trigger a =withFilter= by providing
+type information, interpreted as a pattern match.
 
 #+BEGIN_SRC scala
 reify> for { i: Int <- a } yield i
@@ -687,10 +682,10 @@ a.withFilter {
 }.map { case i: Int => i }
 #+END_SRC
 
-Like in assignment, a generator can use a pattern match on the left
-hand side. But unlike assignment (which throws =MatchError= on
-failure), generators are /filtered/ and will not fail at runtime.
-However, there is an inefficient double application of the pattern.
+Like assignment, a generator can use a pattern match on the left hand side. But
+unlike assignment (which throws =MatchError= on failure), generators are
+/filtered/ and will not fail at runtime. However, there is an inefficient double
+application of the pattern.
 
 #+BEGIN_ASIDE
 The compiler plugin [[https://github.com/oleg-py/better-monadic-for][=better-monadic-for=]] produces alternative, *better*,
@@ -914,9 +909,6 @@ for {
 =Future.successful= creates a new =Future=, much like an =Option= or
 =List= constructor.
 
-If functional programming was like this all the time, it'd be a
-nightmare. Thankfully these tricky situations are the corner cases.
-
 **** Early Exit
 
 Let's say we have some condition that should exit early with a successful value.
@@ -1020,9 +1012,8 @@ scala> for {
          a <- getA
          b <- getB
        } yield a * b
-<console>:30: error: value * is not a member of Option[Int]
-       } yield a * b
                  ^
+<console>:30: error: value * is not a member of Option[Int]
 #+END_SRC
 
 Here we want =for= to take care of the outer context and let us write
@@ -1050,10 +1041,6 @@ result: OptionT[Future, Int] = OptionT(Future(<not completed>))
 scala> result.run
 res: Future[Option[Int]] = Future(<not completed>)
 #+END_SRC
-
-Alternatively, =OptionT[Future, Int]= has =getOrElse= and =getOrElseF=
-methods, taking =Int= and =Future[Int]= respectively, returning a
-=Future[Int]=.
 
 The monad transformer also allows us to mix =Future[Option[_]]= calls with
 methods that just return plain =Future= via =.liftM[OptionT]= (provided by
@@ -1120,12 +1107,6 @@ context, but their lifting methods are more complex and require
 parameters. Scalaz provides monad transformers for a lot of its own
 types, so it is worth checking if one is available.
 
-Implementing a monad transformer is an advanced topic. Although
-=ListT= exists, it should be avoided because it can unintentionally
-reorder =flatMap= calls according to
-https://github.com/scalaz/scalaz/issues/921. A better alternative is
-=StreamT=, which we will visit later.
-
 ** Application Design
 
 In this chapter we will write the business logic and tests for a purely
@@ -1159,7 +1140,7 @@ digraph G {
     Drone -> App;
     Google -> App;
 
-    Agents -> Drone [label = "subscribe"];
+    Agents -> Drone [headlabel = "subscribe    "];
 }
 #+END_SRC
 
@@ -1182,7 +1163,7 @@ agents).
 
 GKE charges a fee per minute of uptime, rounded up to the nearest hour
 for each node. One does not simply spawn a new node for each job in
-the work queue, we must re-use nodes and retain them until their 59th
+the work queue, we must re-use nodes and retain them until their 58th
 minute to get the most value for money.
 
 Our app needs to be able to start and stop nodes, as well as check
@@ -1206,8 +1187,9 @@ authentication.
 *** Interfaces / Algebras
 
 Let's codify the architecture diagram from the previous section. Firstly, we
-need a need a simple data type to capture a millisecond timestamp because such
-a simple thing does not exist in either the Java or Scala standard libraries:
+need to define a simple data type to capture a millisecond timestamp because
+such a simple thing does not exist in either the Java or Scala standard
+libraries:
 
 #+BEGIN_SRC scala
   import scala.concurrent.duration._
@@ -1336,9 +1318,6 @@ while True:
   state = act(state)
 #+END_SRC
 
-We must write three functions: =initial=, =update= and =act=, all
-returning an =F[WorldView]=.
-
 **** initial
 
 In =initial= we call all external services and aggregate their results
@@ -1385,10 +1364,10 @@ assume that it failed and forget that we asked to do it.
     (a union b) -- (a intersect b)
 #+END_SRC
 
-Pure functions don't need test mocks, they have explicit inputs and outputs, so
-we could move all pure code into standalone methods on a stateless =object=,
-testable in isolation. We're happy testing only the public methods, preferring
-that our business logic is easy to read.
+Concrete functions like =.symdiff= don't need test interpreters, they have
+explicit inputs and outputs, so we could move all pure code into standalone
+methods on a stateless =object=, testable in isolation. We're happy testing only
+the public methods, preferring that our business logic is easy to read.
 
 **** act
 
@@ -1418,28 +1397,25 @@ actions. We return a candidate node that we would like to start:
   }
 #+END_SRC
 
-If there is no backlog, we should stop all nodes that have become
-stale (they are not doing any work). However, since Google charge per
-hour we only shut down machines in their 58th+ minute to get the most
-out of our money. We return the non-empty list of nodes to stop.
+If there is no backlog, we should stop all nodes that have become stale (they
+are not doing any work). However, since Google charge per hour we only shut down
+machines in their 58th minute to get the most out of our money. We return the
+non-empty list of nodes to stop.
 
 As a financial safety net, all nodes should have a maximum lifetime of
 5 hours.
 
 #+BEGIN_SRC scala
   private object Stale {
-    def unapply(world: WorldView): Option[NonEmptyList[MachineNode]] =
-      world match {
-        case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
-          (alive -- pending.keys).collect {
-            case (n, started)
-                if backlog == 0 && (time - started).toMinutes % 60 >= 58 =>
-              n
-            case (n, started) if (time - started) >= 5.hours => n
-          }.toList.toNel
+    def unapply(world: WorldView): Option[NonEmptyList[MachineNode]] = world match {
+      case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
+        (alive -- pending.keys).collect {
+          case (n, started) if backlog == 0 && (time - started).toMinutes % 60 >= 58 => n
+          case (n, started) if (time - started) >= 5.hours => n
+        }.toList.toNel
 
-        case _ => None
-      }
+      case _ => None
+    }
   }
 #+END_SRC
 
@@ -1471,10 +1447,8 @@ Because =NeedsAgent= and =Stale= do not cover all possible situations,
 we need a catch-all =case _= to do nothing. Recall from Chapter 2 that
 =.pure= creates the =for='s (monadic) context from a value.
 
-=foldLeftM= is like =foldLeft= over =nodes=, but each iteration of the
-fold may return a monadic value. In our case, each iteration of the
-fold returns =F[WorldView]=.
-
+=foldLeftM= is like =foldLeft=, but each iteration of the fold may return a
+monadic value. In our case, each iteration of the fold returns =F[WorldView]=.
 The =M= is for Monadic. We will find more of these /lifted/ methods that behave
 as one would expect, taking monadic values in place of values.
 
@@ -1484,13 +1458,12 @@ The FP approach to writing applications is a designer's dream: delegate writing
 the implementations of algebras to team members while focusing on making
 business logic meet the requirements.
 
-Our application is highly dependent on timing and third party
-webservices. If this was a traditional OOP application, we'd create
-mocks for all the method calls, or test actors for the outgoing
-mailboxes. FP mocking is equivalent to providing an alternative
-implementation of dependency algebras. The algebras already isolate
-the parts of the system that need to be mocked --- everything else is
-pure.
+Our application is highly dependent on timing and third party webservices. If
+this was a traditional OOP application, we'd create mocks for all the method
+calls, or test actors for the outgoing mailboxes. FP mocking is equivalent to
+providing an alternative implementation of dependency algebras. The algebras
+already isolate the parts of the system that need to be /mocked/, i.e.
+interpreted differently in the unit tests.
 
 We'll start with some test data
 
@@ -1556,8 +1529,7 @@ class Mutable(state: WorldView) {
 #+END_SRC
 
 #+BEGIN_ASIDE
-We will return to this code later on in the book and replace =var= with a
-principled way of managing state.
+We will return to this code later on and replace =var= with something safer.
 #+END_ASIDE
 
 When we write a unit test (here using =FlatSpec= from Scalatest), we create an
@@ -1693,25 +1665,13 @@ can deal with in a simple way:
 
 Arguably, this is easier to understand than the sequential version.
 
-**** Parallel Interpretation
-
-Marking something as suitable for parallel execution does not guarantee that it
-will be executed in parallel: that is the responsibility of the implementation.
-Not to state the obvious: parallel execution is supported by =Future=, but not
-=Id=.
-
-Of course, we need to be careful when implementing algebras such that they can
-perform operations safely in parallel, perhaps requiring protecting internal
-state with concurrency locks or actors.
-
 *** Summary
 
 1. /algebras/ define the interface between systems.
-2. /modules/ define pure logic and depend on algebras and other modules.
-3. Test implementations can mock out the side-effecting parts of the system,
-   enabling a high level of test coverage for the business logic.
-4. algebraic methods can be performed in parallel by taking their
-   product or traversing sequences (caveat emptor, revisited later).
+2. /modules/ are implementations of an algebra in terms of other algebras.
+3. /interpreters/ are concrete implementations of an algebra for a fixed =F[_]=.
+4. Test interpreters can replace the side-effecting parts of the system,
+   giving a high amount of test coverage.
 
 ** Data and Functionality
 
@@ -1805,8 +1765,7 @@ far superior alternatives. A common pitfall is forgetting that
 =Serializable= may attempt to serialise the entire closure of a
 function, which can crash production servers. A similar caveat applies
 to legacy Java classes such as =Throwable=, which can carry references
-to arbitrary objects. This is one of the reasons why we restrict what
-can live on an ADT.
+to arbitrary objects.
 
 We will explore alternatives to the legacy methods when we discuss the
 Scalaz library in the next chapter, at the cost of losing
@@ -1863,9 +1822,9 @@ improvement to perform additional pattern matcher checks.
 Another form of product is a tuple, which is like an unlabelled =final
 case class=.
 
-=(A.type, B, C)= is equivalent to =ABC= in the above example but it is
-best to use =final case class= when part of an ADT because the lack of
-names is awkward to deal with.
+=(A.type, B, C)= is equivalent to =ABC= in the above example but it is best to
+use =final case class= when part of an ADT because the lack of names is awkward
+to deal with, and =case class= has much better performance for primitive values.
 
 Another form of coproduct is when we nest =Either= types. e.g.
 
@@ -1905,13 +1864,6 @@ Types]] are being explored in the Dotty next-generation Scala compiler. Macros
 such as [[https://github.com/propensive/totalitarian][totalitarian]] and [[https://github.com/frees-io/iota][iotaz]] exist as alternative ways of encoding anonymous
 coproducts.
 
-#+BEGIN_ASIDE
-We can also use a =sealed trait= in place of a =sealed abstract class=
-but there are binary compatibility advantages to using =abstract
-class=. A =sealed trait= is only needed if we need to create a
-complicated ADT with multiple inheritance.
-#+END_ASIDE
-
 **** Convey Information
 
 Besides being a container for necessary business information, data
@@ -1922,7 +1874,7 @@ final case class NonEmptyList[A](head: A, tail: IList[A])
 #+END_SRC
 
 can never be empty. This makes =scalaz.NonEmptyList= a useful data type despite
-containing the same information as =List=.
+containing the same information as =IList=.
 
 Product types often contain types that are far more general than is allowed. In
 traditional OOP this would be handled with input validation through assertions:
@@ -1972,8 +1924,14 @@ import refined.api.Refined
 #+END_SRC
 
 =Refined= allows us to define =Person= using adhoc refined types to capture
-requirements exactly (typically written =A Refined B= rather than =Refined[A,
-B]=)
+requirements exactly, written =A Refined B=.
+
+#+BEGIN_ASIDE
+All types with two parameters can be written /infix/ in Scala. For example,
+=Either[String, Int]= is the same as =String Either Int=. It is conventional for
+=Refined= to be written infix since =A Refined B= can be read as "an =A= that
+meets the requirements defined in =B=".
+#+END_ASIDE
 
 #+BEGIN_SRC scala
 import refined.numeric.Positive
@@ -1985,9 +1943,8 @@ final case class Person(
 )
 #+END_SRC
 
-=A Refined B= can be read as "an =A= that meets the requirements defined in
-=B=". The underlying value can be obtained with =.value=. We can construct a
-value at runtime using =.refineV=
+The underlying value can be obtained with =.value=. We can construct a
+value at runtime using =.refineV=, returning an =Either=
 
 #+BEGIN_SRC scala
 scala> import refined.refineV
@@ -1998,14 +1955,14 @@ scala> refineV[NonEmpty]("Sam")
 Right(Sam)
 #+END_SRC
 
-And if we add the following import
+If we add the following import
 
 #+BEGIN_SRC scala
 import refined.auto._
 #+END_SRC
 
-we can construct /valid/ values at compiletime and get a compile error if the
-provided value does not meet the requirements
+we can construct valid values at compiletime and get an error if the provided
+value does not meet the requirements
 
 #+BEGIN_SRC scala
 scala> val sam: String Refined NonEmpty = "Sam"
@@ -2046,16 +2003,22 @@ type Name = NonEmpty And MaxSize[10]
 #+END_ASIDE
 
 It is easy to define custom requirements that are not covered by the refined
-library. For example, the requirement that a =String= contains a valid
-=java.net.URL= is as simple as the following, from the refined library:
+library. For example in =drone-dynamaic-agents= we will need a way of ensuring
+that a =String= contains =application/x-www-form-urlencoded= content. We can
+create a =Refined= rule using the Java regular expression library:
 
 #+BEGIN_SRC scala
-object string {
-  final case class Url()
-  object Url {
-    implicit def urlValidate: refined.Validate.Plain[String, Url] =
-      Validate.fromPartial(new java.net.URL(_), "Url", Url())
-  }
+sealed abstract class UrlEncoded
+object UrlEncoded {
+  private[this] val valid: Pattern =
+    Pattern.compile("\\A(\\p{Alnum}++|[-.*_+=&]++|%\\p{XDigit}{2})*\\z")
+
+  implicit def urlValidate: Validate.Plain[String, UrlEncoded] =
+    Validate.fromPredicate(
+      s => valid.matcher(s).find(),
+      identity,
+      new UrlEncoded {}
+    )
 }
 #+END_SRC
 
@@ -2073,44 +2036,43 @@ schemas from other programming languages and wire protocols.
 
 **** Counting Complexity
 
-The complexity of a data type is the number of instances that can
-exist. A good data type has the least amount of complexity it needs to
-hold the information it conveys, and no more.
+The complexity of a data type is the count of values that can exist. A good data
+type has the least amount of complexity it needs to hold the information it
+conveys, and no more.
 
 Values have a built-in complexity:
 
-- =Unit= has one instance (why it is called "unit")
-- =Boolean= has two instances
-- =Int= has 4,294,967,295 instances
-- =String= has effectively infinite instances
+- =Unit= has one value (why it is called "unit")
+- =Boolean= has two values
+- =Int= has 4,294,967,295 values
+- =String= has effectively infinite values
 
 To find the complexity of a product, we multiply the complexity of
 each part.
 
-- =(Boolean, Boolean)= has 4 instances (=2*2=)
-- =(Boolean, Boolean, Boolean)= has 8 instances (=2*2*2=)
+- =(Boolean, Boolean)= has 4 values (=2*2=)
+- =(Boolean, Boolean, Boolean)= has 8 values (=2*2*2=)
 
 To find the complexity of a coproduct, we add the complexity of each
 part.
 
-- =(Boolean |: Boolean)= has 4 instances (=2+2=)
-- =(Boolean |: Boolean |: Boolean)= has 6 instances (=2+2+2=)
+- =(Boolean |: Boolean)= has 4 values (=2+2=)
+- =(Boolean |: Boolean |: Boolean)= has 6 values (=2+2+2=)
 
 To find the complexity of a GADT, multiply each part by the complexity
 of the type parameter:
 
-- =Option[Boolean]= has 3 instances, =Some[Boolean]= and =None= (=2+1=)
+- =Option[Boolean]= has 3 values, =Some[Boolean]= and =None= (=2+1=)
 
-In FP, functions are /total/ and must return an instance for every
+In FP, functions are /total/ and must return an value for every
 input, no =Exception=. Minimising the complexity of inputs and outputs
 is the best way to achieve totality. As a rule of thumb, it is a sign
 of a badly designed function when the complexity of a function's
 return value is larger than the product of its inputs: it is a source
 of entropy.
 
-The complexity of a total function itself is the number of possible
-functions that can satisfy the type signature: the output to the power
-of the input.
+The complexity of a total function is the number of possible functions that can
+satisfy the type signature: the output to the power of the input.
 
 - ~Unit => Boolean~ has complexity 2
 - ~Boolean => Boolean~ has complexity 4
@@ -2206,8 +2168,8 @@ A big advantage of using a simplified subset of the Scala language to
 represent data types is that tooling can optimise the JVM bytecode
 representation.
 
-For example, we can pack =Boolean= and =Option= fields into an =Array[Byte]=,
-cache instances, memoise =hashCode=, optimise =equals=, use =@switch= statements
+For example, we could pack =Boolean= and =Option= fields into an =Array[Byte]=,
+cache values, memoise =hashCode=, optimise =equals=, use =@switch= statements
 when pattern matching, and much more.
 
 These optimisations are not applicable to OOP =class= hierarchies that
@@ -2249,7 +2211,7 @@ scala> implicit class DoubleOps(x: Double) {
          def sin: Double = math.sin(x)
        }
 
-scala> 1.0.sin
+scala> (1.0).sin
 res: Double = 0.8414709848078965
 #+END_SRC
 
@@ -2280,7 +2242,7 @@ There is a slightly more verbose form of =implicit class= that avoids
 the allocation and is therefore preferred:
 
 #+BEGIN_SRC scala
-implicit final class DoubleOps(val x: Double) extends AnyVal {
+implicit final class DoubleOps(private val x: Double) extends AnyVal {
   def sin: Double = java.lang.Math.sin(x)
 }
 #+END_SRC
@@ -2434,9 +2396,9 @@ def signOfTheTimes[T: Numeric](t: T): T = -(t.abs) * t
 #+END_SRC
 
 The good news is that we never need to write this boilerplate because
-[[https://github.com/mpilquist/simulacrum][Simulacrum]] provides a =@typeclass= macro annotation to have the
-companion =apply= and =ops= automatically generated. It even allows us
-to define alternative (usually symbolic) names for common methods. In
+[[https://github.com/mpilquist/simulacrum][Simulacrum]] provides a =@typeclass=
+macro annotation that automatically generates the =apply= and =ops=. It even
+allows us to define alternative (usually symbolic) names for common methods. In
 full:
 
 #+BEGIN_SRC scala
@@ -2459,6 +2421,9 @@ import simulacrum._
 import Numeric.ops._
 def signOfTheTimes[T: Numeric](t: T): T = -(t.abs) * t
 #+END_SRC
+
+When there is a custom symbolic =@op=, it can be pronounced like its method
+name. e.g. =<= is pronounced "less than", not "left angle bracket".
 
 **** Instances
 
@@ -2503,8 +2468,7 @@ implicit val NumericBD: Numeric[BD] = new Numeric[BD] {
 }
 #+END_SRC
 
-We could even take some liberties and create our own data structure
-for complex numbers:
+We could create our own data structure for complex numbers:
 
 #+BEGIN_SRC scala
 final case class Complex[T](r: T, i: T)
@@ -2550,7 +2514,7 @@ caller, with special syntax for typeclass instances. Implicit
 parameters are a clean way to thread configuration through an
 application.
 
-In this example, =foo= requires that typeclasses instances of =Numeric= and
+In this example, =foo= requires that typeclass instances of =Numeric= and
 =Typeable= are available for =A=, as well as an implicit =Handler= object that
 takes two type parameters
 
@@ -2565,7 +2529,7 @@ method exists on the type, then its ancestors (Java-like rules). If it
 fails to find a match, it will search the /implicit scope/ for
 conversions to other types, then search for methods on those types.
 
-Another use for implicit conversion is /typeclass derivation/. In the
+Another use for implicit conversions is /typeclass derivation/. In the
 previous section we wrote an =implicit def= that derived a
 =Numeric[Complex[T]]= if a =Numeric[T]= is in the implicit scope. It
 is possible to chain together many =implicit def= (including
@@ -2581,7 +2545,7 @@ First, the normal variable scope is searched for implicits, in order:
 - outer scope, including scoped imports (e.g. members in the class)
 - ancestors (e.g. members in the super class)
 - the current package object
-- ancestor package objects (only when using nested packages)
+- ancestor package objects (when using nested packages)
 - the file's imports
 
 If that fails to find a match, the special scope is searched, which
@@ -2607,13 +2571,10 @@ rules of thumb that we will use throughout this book, e.g. prefer
 typing. It is a [[https://github.com/scala/bug/issues/10411][quirk of implicit resolution]] that =implicit object= on
 companion objects are not treated the same as =implicit val=.
 
-Implicit resolution falls short when there is a hierarchy of
-typeclasses, like =Ordering= and =Numeric=. If we write a function
-that takes an implicit =Ordering=, and we call it for a type which has
-an instance of =Numeric= defined on the =Numeric= companion, the
-compiler will fail to find it. A workaround is to add implicit
-conversions to the companion of =Ordering= that up-cast more specific
-instances. [[https://github.com/lampepfl/dotty/issues/2047][Fixed In Dotty]].
+Implicit resolution falls short when there is a hierarchy of typeclasses, like
+=Ordering= and =Numeric=. If we write a function that takes an implicit
+=Ordering=, and we call it for a primitive type which has an instance of
+=Numeric= defined on the =Numeric= companion, the compiler will fail to find it.
 
 Implicit resolution is particularly hit-or-miss [[https://github.com/scala/bug/issues/10582][if type aliases are used]] where
 the /shape/ of the implicit parameters are changed. For example an implicit
@@ -2722,7 +2683,7 @@ All userland requests to the server should include the header
 Authorization: Bearer BEARER_TOKEN
 #+END_SRC
 
-after substituting the actual `BEARER_TOKEN`.
+after substituting the actual =BEARER_TOKEN=.
 
 Google expires all but the most recent 50 /bearer tokens/, so the
 expiry times are just guidance. The /refresh tokens/ persist between
@@ -2731,8 +2692,8 @@ have a one-time setup application to obtain the refresh token and then
 include the refresh token as configuration for the user's install of
 the headless server.
 
-Drone doesn't implement the `/auth` endpoint, or the refresh, and simply
-provides a `BEARER_TOKEN` through their user interface.
+Drone doesn't implement the =/auth= endpoint, or the refresh, and simply
+provides a =BEARER_TOKEN= through their user interface.
 
 **** Data
 
@@ -2831,9 +2792,15 @@ final case class JsInteger(value: Long)                     extends JsValue
 }
 #+END_SRC
 
+#+BEGIN_ASIDE
 =\/= is Scalaz's =Either= and has a =.flatMap=. We can use it in =for=
 comprehensions, whereas stdlib =Either= does not support =.flatMap= prior to
 Scala 2.12.
+
+=scala.Either= was [[https://issues.scala-lang.org/browse/SI-250][contributed to
+the Scala standard library]] by the creator of Scalaz, Tony Morris, in 2007.
+=\/= was created when unsafe methods were added to =Either=.
+#+END_ASIDE
 
 We need instances of =JsDecoder[AccessResponse]= and =JsDecoder[RefreshResponse]=.
 We can do this by making use of a helper function:
@@ -2891,9 +2858,7 @@ We need to write our own typeclasses for URL and POST encoding. The
 following is a reasonable design:
 
 #+BEGIN_SRC scala
-package http.encoding
-
-// URL query key=value pairs, in unencoded form.
+// URL query key=value pairs, in un-encoded form.
 final case class UrlQuery(params: List[(String, String)])
 
 @typeclass trait UrlQueryWriter[A] {
@@ -2908,6 +2873,8 @@ final case class UrlQuery(params: List[(String, String)])
 We need to provide typeclass instances for basic types:
 
 #+BEGIN_SRC scala
+import java.net.URLEncoder
+
 object UrlEncodedWriter {
   implicit val encoded: UrlEncodedWriter[String Refined UrlEncoded] = identity
 
@@ -2976,29 +2943,26 @@ strange compiler crashes.
 #+END_ASIDE
 
 In a dedicated chapter on /Typeclass Derivation/ we will calculate instances of
-=UrlQueryWriter= and =UrlEncodedWriter= automatically, as well as clean up what
+=UrlQueryWriter= automatically, as well as clean up what
 we have already written, but for now we will write the boilerplate for the types
 we wish to convert:
 
 #+BEGIN_SRC scala
   import UrlEncodedWriter.ops._
   object AuthRequest {
-    private def stringify[T: UrlEncodedWriter](t: T) =
-      java.net.URLDecoder.decode(t.toUrlEncoded.value, "UTF-8")
-
     implicit val query: UrlQueryWriter[AuthRequest] = { a =>
       UriQuery(List(
-        ("redirect_uri"  -> stringify(a.redirect_uri)),
-        ("scope"         -> stringify(a.scope)),
-        ("client_id"     -> stringify(a.client_id)),
-        ("prompt"        -> stringify(a.prompt)),
-        ("response_type" -> stringify(a.response_type)),
-        ("access_type"   -> stringify(a.access_type)))
+        ("redirect_uri"  -> a.redirect_uri.value),
+        ("scope"         -> a.scope),
+        ("client_id"     -> a.client_id),
+        ("prompt"        -> a.prompt),
+        ("response_type" -> a.response_type),
+        ("access_type"   -> a.access_type))
     }
   }
   object AccessRequest {
     implicit val encoded: UrlEncodedWriter[AccessRequest] = { a =>
-      Seq(
+      List(
         "code"          -> a.code.toUrlEncoded,
         "redirect_uri"  -> a.redirect_uri.toUrlEncoded,
         "client_id"     -> a.client_id.toUrlEncoded,
@@ -3010,7 +2974,7 @@ we wish to convert:
   }
   object RefreshRequest {
     implicit val encoded: UrlEncodedWriter[RefreshRequest] = { r =>
-      Seq(
+      List(
         "client_secret" -> r.client_secret.toUrlEncoded,
         "refresh_token" -> r.refresh_token.toUrlEncoded,
         "client_id"     -> r.client_id.toUrlEncoded,
@@ -3022,56 +2986,65 @@ we wish to convert:
 
 **** Module
 
-That concludes the data and functionality modelling required to
-implement OAuth2. Recall from the previous chapter that we define
-mockable components that need to interact with the world as algebras,
-and we define pure business logic in a module.
+That concludes the data and functionality modelling required to implement
+OAuth2. Recall from the previous chapter that we define components that need to
+interact with the world as algebras, and we define business logic in a module,
+so it can be thoroughly tested.
 
 We define our dependency algebras, and use context bounds to show that our
 responses must have a =JsDecoder= and our =POST= payload must have a
 =UrlEncodedWriter=:
 
 #+BEGIN_SRC scala
-package http.client.algebra
-
 trait JsonClient[F[_]] {
   def get[A: JsDecoder](
     uri: String Refined Url,
-    headers: IList[HttpHeader]
+    headers: IList[(String, String)]
   ): F[A]
 
-  def postUrlencoded[P: UrlEncoded, A: JsDecoder](
+  def post[P: UrlEncodedWriter, A: JsDecoder](
     uri: String Refined Url,
     payload: P,
-    headers: IList[HttpHeader]
+    headers: IList[(String, String]
   ): F[A]
 }
 #+END_SRC
 
-Note that we only define the happy path in the =JsonClient= API. We will get around to error handling in a later chapter.
+Note that we only define the happy path in the =JsonClient= API. We will get
+around to error handling in a later chapter.
+
+Obtaining a =CodeToken= from the Google =OAuth2= server involves
+
+1. starting an HTTP server on the local machine, and obtaining its port number.
+2. making the user open a web page in their browser, which allows them to log in
+   with their Google credentials and authorise the application, with a redirect
+   back to the local machine.
+3. capturing the code, informing the user of next steps, and closing the HTTP
+   server.
+
+We can model this with three methods on a =UserInteraction= algebra.
 
 #+BEGIN_SRC scala
-package http.oauth2.client.algebra
-
 final case class CodeToken(token: String, redirect_uri: String Refined Url)
 
 trait UserInteraction[F[_]] {
-  /** returns the URL of the local server */
   def start: F[String Refined Url]
-
-  /** prompts the user to open this URL */
   def open(uri: String Refined Url): F[Unit]
-
-  /** recover the code from the callback */
   def stop: F[CodeToken]
 }
+#+END_SRC
 
+It almost sounds easy when put like that.
+
+We also need an algebra to abstract over the local system time
+
+#+BEGIN_SRC scala
 trait LocalClock[F[_]] {
   def now: F[Epoch]
 }
 #+END_SRC
 
-some convenient data classes
+And introduce data types that we'll use in the refresh logic
 
 #+BEGIN_SRC scala
 final case class ServerConfig(
@@ -3086,7 +3059,7 @@ final case class RefreshToken(token: String)
 final case class BearerToken(token: String, expires: Epoch)
 #+END_SRC
 
-and then write an OAuth2 client:
+Now we can write an OAuth2 client module:
 
 #+BEGIN_SRC scala
 import http.encoding.UrlQueryWriter.ops._
@@ -3094,7 +3067,6 @@ import http.encoding.UrlQueryWriter.ops._
 class OAuth2Client[F[_]: Monad](
   config: ServerConfig
 )(
-  implicit
   user: UserInteraction[F],
   client: JsonClient[F],
   clock: LocalClock[F]
@@ -3113,7 +3085,7 @@ class OAuth2Client[F[_]: Monad](
                                code.redirect_uri,
                                config.clientId,
                                config.clientSecret).pure[F]
-      msg     <- client.postUrlencoded[AccessRequest, AccessResponse](
+      msg     <- client.post[AccessRequest, AccessResponse](
                    config.access, request)
       time    <- clock.now
       expires = time + msg.expires_in.seconds
@@ -3126,7 +3098,7 @@ class OAuth2Client[F[_]: Monad](
       request <- RefreshRequest(config.clientSecret,
                                 refresh.token,
                                 config.clientId).pure[F]
-      msg     <- client.postUrlencoded[RefreshRequest, RefreshResponse](
+      msg     <- client.post[RefreshRequest, RefreshResponse](
                    config.refresh, request)
       time    <- clock.now
       expires = time + msg.expires_in.seconds
@@ -3137,20 +3109,18 @@ class OAuth2Client[F[_]: Monad](
 
 *** Summary
 
-- data types are defined as /products/ (=final case class=) and
-  /coproducts/ (=sealed abstract class=).
-- =Refined= types can enforce constraints on values
-- specific functions are defined on =implicit class=
-- polymorphic functions are defined as /typeclasses/. Functionality is
-  provided via "has a" /context bounds/, rather than "is a" class
-  hierarchies.
-- /typeclass instances/ are implementations of the typeclass.
+- /algebraic data types/ (ADTs) are defined as /products/ (=final case class=)
+  and /coproducts/ (=sealed abstract class=).
+- =Refined= types enforce constraints on values.
+- concrete functions can be defined in an =implicit class= to maintain
+  left-to-right flow.
+- polymorphic functions are defined in /typeclasses/. Functionality is provided
+  via "has a" /context bounds/, rather than "is a" class hierarchies.
+- typeclass /instances/ are implementations of a typeclass.
 - =@simulacrum.typeclass= generates =.ops= on the companion, providing
-  convenient syntax for types that have a typeclass instance.
+  convenient syntax for typeclass functions.
 - /typeclass derivation/ is compiletime composition of typeclass
   instances.
-- /generic instances/ automatically derive instances for data
-  types.
 
 ** Scalaz Typeclasses
 
@@ -3168,12 +3138,12 @@ Before we introduce the typeclass hierarchy, we will peek at the four
 most important methods from a control flow perspective: the methods we
 will use the most in typical FP applications:
 
-| Typeclass     | Method     | From   | Given       | To        |
-|---------------+------------+--------+-------------+-----------|
-| ~Functor~     | ~map~      | ~F[A]~ | ~A => B~    | ~F[B]~    |
-| ~Applicative~ | ~pure~     | ~A~    |             | ~F[A]~    |
-| ~Monad~       | ~flatMap~  | ~F[A]~ | ~A => F[B]~ | ~F[B]~    |
-| ~Traverse~    | ~traverse~ | ~F[A]~ | ~A => G[B]~ | ~G[F[B]]~ |
+| Typeclass     | Method     | From      | Given       | To        |
+|---------------+------------+-----------+-------------+-----------|
+| ~Functor~     | ~map~      | ~F[A]~    | ~A => B~    | ~F[B]~    |
+| ~Applicative~ | ~pure~     | ~A~       |             | ~F[A]~    |
+| ~Monad~       | ~flatMap~  | ~F[A]~    | ~A => F[B]~ | ~F[B]~    |
+| ~Traverse~    | ~sequence~ | ~F[G[A]]~ |             | ~G[F[A]]~ |
 
 We know that operations which return a =F[_]= can be run sequentially
 in a =for= comprehension by =.flatMap=, defined on its =Monad[F]=. The
@@ -3197,10 +3167,9 @@ In between =Monad= and =Functor= is =Applicative=, defining =pure=
 that lets us lift a value into an effect, or create a data structure
 from a single value.
 
-=traverse= is useful for rearranging type constructors. If we have an =F[G[_]]=
-but need a =G[F[_]]=, then we want =Traverse=. For example, if we have
-=List[Future[Int]]= but need a =Future[List[Int]]=, then call
-=.traverse(identity)=, or its simpler sibling =.sequence=.
+=.sequence= is useful for rearranging type constructors. If we have an =F[G[_]]=
+but need a =G[F[_]]=, e.g. =List[IO[Int]]= but need a =IO[List[Int]]=, that's
+=.sequence=.
 
 *** Agenda
 
@@ -3209,8 +3178,8 @@ perfectly reasonable to attack it over several sittings. Remembering everything
 would require super-human powers, so treat this chapter as a way of knowing
 where to look for more information.
 
-Notably absent are typeclasses that extend =Monad=, which get their
-own chapter later.
+Notably absent are typeclasses that extend =Monad=. They get their own chapter
+later.
 
 Scalaz uses code generation, not simulacrum. However, for brevity, we present
 code snippets with =@typeclass=. Equivalent syntax is available when we =import
@@ -3329,7 +3298,6 @@ digraph G {
     Cozip;
     Show;
     Optional;
-    Catchable;
 }
 #+END_SRC
 
@@ -3376,10 +3344,9 @@ digraph G {
 Fighter in an upcoming section, which is very exciting.
 #+END_ASIDE
 
-A =Semigroup= should exist for a type if two elements can be combined
-to produce another element of the same type. The operation must be
-/associative/, meaning that the order of nested operations should not
-matter, i.e.
+A =Semigroup= can be defined for a type if two values can be combined. The
+operation must be /associative/, meaning that the order of nested operations
+should not matter, i.e.
 
 #+BEGIN_SRC scala
 (a |+| b) |+| c == a |+| (b |+| c)
@@ -3396,11 +3363,9 @@ a |+| zero == a
 a |+| 0 == a
 #+END_SRC
 
-This is probably bringing back memories of =Numeric= from Chapter 4,
-which tried to do too much and was unusable beyond the most basic of
-number types. There are implementations of =Monoid= for all the
-primitive numbers, but the concept of /appendable/ things is useful
-beyond numbers.
+This is probably bringing back memories of =Numeric= from Chapter 4. There are
+implementations of =Monoid= for all the primitive numbers, but the concept of
+/appendable/ things is useful beyond numbers.
 
 #+BEGIN_SRC scala
 scala> "hello" |+| " " |+| "world!"
@@ -3422,11 +3387,12 @@ Viktor Klang, of Lightbend fame, lays claim to the phrase
 operations, i.e. =Band.append=.
 #+END_ASIDE
 
-As a realistic example for =Monoid=, consider a trading system that
-has a large database of reusable trade templates. Creating the default
-values for a new trade involves selecting and combining templates with
-a "last rule wins" merge policy (e.g. if templates have a value for
-the same field).
+As a realistic example for =Monoid=, consider a trading system that has a large
+database of reusable trade templates. Populating the default values for a new
+trade involves selecting and combining multiple templates, with a "last rule
+wins" merge policy if two templates provide a value for the same field. The
+"selecting" work is already done for us by another system, it is our job to
+combine the templates in order.
 
 We'll create a simple template schema to demonstrate the principle,
 but keep in mind that a realistic system would have a more complicated
@@ -5489,7 +5455,6 @@ digraph G {
     Cozip [fontcolor=lightgray,color=lightgray];
     Show [fontcolor=lightslategray,color=lightslategray];
     Optional;
-    Catchable;
 }
 #+END_SRC
 
@@ -5609,40 +5574,6 @@ scala> val knock_knock: Option[String] = ...
        knock_knock ? "who's there?" | "<tumbleweed>"
 #+END_SRC
 
-**** Catchable
-
-Our grand plans to write total functions that return a value for every
-input may be in ruins when exceptions are the norm in the Java
-standard library, the Scala standard library, and the myriad of legacy
-systems that we must interact with.
-
-scalaz does not magically handle exceptions automatically, but it does
-provide the mechanism to protect against bad legacy systems.
-
-#+BEGIN_SRC scala
-@typeclass trait Catchable[F[_]] {
-  def attempt[A](f: F[A]): F[Throwable \/ A]
-  def fail[A](err: Throwable): F[A]
-}
-#+END_SRC
-
-=attempt= will catch any exceptions inside =F[_]= and make the JVM
-=Throwable= an explicit return type that can be mapped into an error
-reporting ADT, or left as an indicator to downstream callers that
-/Here be Dragons/.
-
-=fail= permits callers to throw an exception in the =F[_]= context
-and, since this breaks purity, will be removed from Scalaz. Exceptions
-that are raised via =fail= must be later handled by =attempt= since it
-is just as bad as calling legacy code that throws an exception.
-
-It is worth noting that =Catchable[Id]= cannot be implemented. An
-=Id[A]= cannot exist in a state that may contain an exception.
-However, there are instances for both =scala.concurrent.Future=
-(asynchronous) and =scala.Either= (synchronous), allowing =Catchable=
-to abstract over the unhappy path. =MonadError=, as we will see in a
-later chapter, is a superior replacement.
-
 *** Co-things
 
 A /co-thing/ typically has some opposite type signature to whatever
@@ -5731,7 +5662,6 @@ digraph G {
     Cozip [fontcolor=black,color=black];
     Show [fontcolor=lightslategray,color=lightslategray];
     Optional [fontcolor=lightslategray,color=lightslategray];
-    Catchable [fontcolor=lightslategray,color=lightslategray];
 }
 #+END_SRC
 
@@ -15874,15 +15804,29 @@ object DerivedUrlQueryWriter {
     DR: DerivedUrlQueryWriter[Remaining]
   ): DerivedUrlQueryWriter[FieldType[Key, A] :: Remaining] = {
     case head :: tail =>
-      val first = Key.value.name -> URLDecoder.decode(LV.value.toUrlEncoded(head).value, "UTF-8")
+      val first =
+        Key.value.name -> URLDecoder.decode(LV.value.toUrlEncoded(head).value, "UTF-8")
       val rest = DR.toUrlQuery(tail)
       UrlQuery(first :: rest.params)
   }
 }
 #+END_SRC
 
-It is reasonable to ask if these 30 lines are an improvement over the 16 lines
-for the 3 manual instances our application needs.
+It is reasonable to ask if these 30 lines are an improvement over the 8 lines
+for the 2 manual instances our application needs.
+
+For completeness, the =UrlEncodedWriter= derivation can be written with Magnolia
+
+#+BEGIN_SRC scala
+object UrlEncodedWriterMagnolia {
+  type Typeclass[a] = UrlEncodedWriter[a]
+  def combine[A](ctx: CaseClass[UrlEncodedWriter, A]) = a =>
+    Refined.unsafeApply(ctx.parameters.map { p =>
+      p.label + "=" + p.typeclass.toUrlEncoded(p.dereference(a))
+    }.toList.intercalate("&"))
+  def gen[A]: UrlEncodedWriter[A] = macro Magnolia.gen[A]
+}
+#+END_SRC
 
 **** The Dark Side of Derivation
 
@@ -16843,7 +16787,7 @@ something like
 [error]                                                                ^
 #+END_SRC
 
-Basically something about a missing `cats` instance. The reason for this failure
+Basically something about a missing =cats= instance. The reason for this failure
 is that http4s is using the Cats library, instead of Scalaz. Cats is a much
 smaller library than Scalaz and amounts to a renaming of a subset of typeclasses
 and datatypes. Thankfully, =scalaz-ioeffect= provides a compatibility layer and

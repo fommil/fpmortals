@@ -40,7 +40,7 @@ library in Scala from first principles.
 # Copyleft Notice
 
 This book is **Libre** and follows the philosophy of [Free Software](https://www.gnu.org/philosophy/free-sw.en.html): you can use
-this book as you like, the [source is available](https://githum.com/fommil/fpmortals/) you can redistribute this book
+this book as you like, the [source is available](https://github.com/fommil/fpmortals/) you can redistribute this book
 and you can distribute your own version. That means you can print it, photocopy
 it, e-mail it, upload it to websites, change it, translate it, charge for it,
 remix it, delete bits, and draw all over it.
@@ -67,7 +67,7 @@ for their help explaining the principles of FP. Kenji Yoshida and
 Jason Zaugg for being the main authors of Scalaz, and Paul Chuisano /
 Miles Sabin for fixing a critical bug in the Scala compiler ([SI-2712](https://issues.scala-lang.org/browse/SI-2712)).
 
-Thank you to the readers who gave feedback on early drafts of this text.
+Thanks to the readers who gave feedback on early drafts of this text.
 
 Some material was particularly helpful for my own understanding of the concepts
 that are in this book. Thanks to Juan Manuel Serrano for [All Roads Lead to
@@ -82,7 +82,8 @@ The helpul souls who patiently explained things to me: Merlin Göttlinger, Edmun
 Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
 Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
-A. Baker, Alexander Konovalov, Harrison Houghton and Alexandre Archambault.
+A. Baker, Alexander Konovalov, Harrison Houghton, Alexandre Archambault,
+Christopher Davenport.
 
 
 # Practicalities
@@ -101,7 +102,7 @@ version of Scala with FP-specific features enabled (e.g. in `build.sbt`):
   
   libraryDependencies ++= Seq(
     "com.github.mpilquist" %% "simulacrum"     % "0.13.0",
-    "org.scalaz"           %% "scalaz-core"    % "7.2.25"
+    "org.scalaz"           %% "scalaz-core"    % "7.2.26"
   )
   
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")

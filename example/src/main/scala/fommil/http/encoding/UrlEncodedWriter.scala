@@ -7,8 +7,7 @@ package http.encoding
 import prelude._, Z._, S._
 import java.net.URLEncoder
 
-import shapeless._
-import shapeless.labelled._
+import magnolia._
 import simulacrum._
 
 /**
@@ -61,33 +60,15 @@ private[encoding] sealed abstract class UrlEncodedWriter1 {
     UrlEncodedWriter[A].contramap(_.value)
 }
 
-trait DerivedUrlEncodedWriter[T] extends UrlEncodedWriter[T]
-object DerivedUrlEncodedWriter {
-  import UrlEncodedWriter.ops._
+object UrlEncodedWriterMagnolia {
+  type Typeclass[a] = UrlEncodedWriter[a]
 
-  def gen[T, Repr](
-    implicit
-    G: LabelledGeneric.Aux[T, Repr],
-    R: Cached[Strict[DerivedUrlEncodedWriter[Repr]]]
-  ): DerivedUrlEncodedWriter[T] = { t =>
-    R.value.value.toUrlEncoded(G.to(t))
-  }
+  def combine[A](ctx: CaseClass[UrlEncodedWriter, A]): UrlEncodedWriter[A] =
+    a => Refined.unsafeApply(
+      ctx.parameters.map { p =>
+        p.label + "=" + p.typeclass.toUrlEncoded(p.dereference(a))
+      }.toList.intercalate("&")
+    )
 
-  implicit val hnil: DerivedUrlEncodedWriter[HNil] = { _ =>
-    Refined.unsafeApply("")
-  }
-  implicit def hcons[Key <: Symbol, A, Remaining <: HList](
-    implicit Key: Witness.Aux[Key],
-    LV: Lazy[UrlEncodedWriter[A]],
-    DR: DerivedUrlEncodedWriter[Remaining]
-  ): DerivedUrlEncodedWriter[FieldType[Key, A] :: Remaining] = {
-    case head :: tail =>
-      val rest = {
-        val rest = DR.toUrlEncoded(tail)
-        if (rest.value.isEmpty) "" else ("&" + rest.value)
-      }
-      val key   = Key.value.name.toUrlEncoded
-      val value = LV.value.toUrlEncoded(head)
-      Refined.unsafeApply(key.value + "=" + value.value + rest)
-  }
+  def gen[A]: UrlEncodedWriter[A] = macro Magnolia.gen[A]
 }
