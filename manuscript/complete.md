@@ -2,7 +2,7 @@
 # For Comprehensions
 
 Scala's `for` comprehension is the ideal FP abstraction for sequential
-programs that interact with the world. Since we'll be using it a lot,
+programs that interact with the world. Since we will be using it a lot,
 we're going to relearn the principles of `for` and how Scalaz can help
 us to write cleaner code.
 
@@ -35,7 +35,7 @@ type inference.
 ~~~~~~~~
 
 There is a lot of noise due to additional sugarings (e.g. `+` is
-rewritten `$plus`, etc). We'll skip the `show` and `reify` for brevity
+rewritten `$plus`, etc). We will skip the `show` and `reify` for brevity
 when the REPL line is `reify>`, and manually clean up the generated
 code so that it doesn't become a distraction.
 
@@ -267,9 +267,9 @@ A> computations in a later chapter. Spoiler: don't use `Future`.
 
 ## Unhappy path
 
-So far we've only looked at the rewrite rules, not what is happening
-in `map` and `flatMap`. Let's consider what happens when the `for`
-context decides that it can't proceed any further.
+So far we've only looked at the rewrite rules, not what is happening in `map`
+and `flatMap`. Consider what happens when the `for` context decides that it
+cannot proceed any further.
 
 In the `Option` example, the `yield` is only called when `i,j,k` are
 all defined.
@@ -346,23 +346,23 @@ Short circuiting for the unhappy path is a common and important theme.
 `for` comprehensions cannot express resource cleanup: there is no way
 to `try` / `finally`. This is good, in FP it puts a clear ownership of
 responsibility for unexpected error recovery and resource cleanup onto
-the context (which is usually a `Monad` as we'll see later), not the
+the context (which is usually a `Monad` as we will see later), not the
 business logic.
 
 
 ## Gymnastics
 
 Although it is easy to rewrite simple sequential code as a `for`
-comprehension, sometimes we'll want to do something that appears to
+comprehension, sometimes we will want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
 
 
 ### Fallback Logic
 
-Let's say we are calling out to a method that returns an `Option` and
-if it is not successful we want to fallback to another method (and so
-on and so on), like when we're using a cache:
+Say we are calling out to a method that returns an `Option`. If it is not
+successful we want to fallback to another method (and so on and so on), like
+when we're using a cache:
 
 {lang="text"}
 ~~~~~~~~
@@ -423,7 +423,7 @@ We need to create a `Future` from the `cache`
 
 ### Early Exit
 
-Let's say we have some condition that should exit early with a successful value.
+Say we have some condition that should exit early with a successful value.
 
 If we want to exit early with an error, it is standard practice in OOP to throw
 an exception
@@ -497,7 +497,7 @@ A> ~~~~~~~~
 
 ## Incomprehensible
 
-The context we're comprehending over must stay the same: we can't mix
+The context we're comprehending over must stay the same: we cannot mix
 contexts.
 
 {lang="text"}
@@ -688,8 +688,8 @@ authentication.
 
 ## Interfaces / Algebras
 
-Let's codify the architecture diagram from the previous section. Firstly, we
-need to define a simple data type to capture a millisecond timestamp because
+We will now codify the architecture diagram from the previous section. Firstly,
+we need to define a simple data type to capture a millisecond timestamp because
 such a simple thing does not exist in either the Java or Scala standard
 libraries:
 
@@ -884,7 +884,7 @@ the public methods, preferring that our business logic is easy to read.
 
 ### act
 
-The `act` method is slightly more complex, so we'll split it into two
+The `act` method is slightly more complex, so we will split it into two
 parts for clarity: detection of when an action needs to be taken,
 followed by taking action. This simplification means that we can only
 perform one action per invocation, but that is reasonable because we
@@ -982,7 +982,7 @@ providing an alternative implementation of dependency algebras. The algebras
 already isolate the parts of the system that need to be *mocked*, i.e.
 interpreted differently in the unit tests.
 
-We'll start with some test data
+We will start with some test data
 
 {lang="text"}
 ~~~~~~~~
@@ -1169,7 +1169,7 @@ could stop all the nodes in parallel and then update our view of the
 world.
 
 A disadvantage of doing it this way is that any failures will cause us
-to short-circuit before updating the `pending` field. But that's a
+to short-circuit before updating the `pending` field. But that is a
 reasonable tradeoff since our `update` will gracefully handle the case
 where a `node` is shut down unexpectedly.
 
@@ -1379,7 +1379,7 @@ allowing infix notation with association from the right:
   X.type |: Y.type |: Z
 ~~~~~~~~
 
-This is useful to create anonymous coproducts when we can't put all
+This is useful to create anonymous coproducts when we cannot put all
 the implementations into the same source file.
 
 {lang="text"}
@@ -1837,7 +1837,7 @@ A> Additionally, typeclass coherence allows us to globally cache implicits at
 A> runtime and save memory allocations, gaining performance improvements from
 A> reduced pressure on the garbage collector.
 
-Typeclasses are used in the Scala stdlib. We'll explore a simplified
+Typeclasses are used in the Scala stdlib. We will explore a simplified
 version of `scala.math.Numeric` to demonstrate the principle:
 
 {lang="text"}
@@ -2638,7 +2638,7 @@ We also need an algebra to abstract over the local system time
   }
 ~~~~~~~~
 
-And introduce data types that we'll use in the refresh logic
+And introduce data types that we will use in the refresh logic
 
 {lang="text"}
 ~~~~~~~~
@@ -2755,7 +2755,7 @@ they have a `Monad[F]`. Often they are data structures. By using the
 least specific abstraction, we can reuse code for `List`, `Either`,
 `Future` and more.
 
-If we only need to transform the output from an `F[_]`, that's just
+If we only need to transform the output from an `F[_]`, that is just
 `map`, introduced by `Functor`. In Chapter 3, we ran effects in
 parallel by creating a product and mapping over them. In Functional
 Programming, parallelisable computations are considered **less**
@@ -2767,7 +2767,7 @@ from a single value.
 
 `.sequence` is useful for rearranging type constructors. If we have an `F[G[_]]`
 but need a `G[F[_]]`, e.g. `List[Future[Int]]` but need a `Future[List[Int]]`,
-that's `.sequence`.
+that is `.sequence`.
 
 
 ## Agenda
@@ -2872,7 +2872,7 @@ wins" merge policy if two templates provide a value for the same field. The
 "selecting" work is already done for us by another system, it is our job to
 combine the templates in order.
 
-We'll create a simple template schema to demonstrate the principle,
+We will create a simple template schema to demonstrate the principle,
 but keep in mind that a realistic system would have a more complicated
 ADT.
 
@@ -2902,7 +2902,7 @@ and our job is done!
 
 But to get `zero` or call `|+|` we must have an instance of
 `Monoid[TradeTemplate]`. Although we will generically derive this in a
-later chapter, for now we'll create an instance on the companion:
+later chapter, for now we will create an instance on the companion:
 
 {lang="text"}
 ~~~~~~~~
@@ -3093,7 +3093,7 @@ A> `|-->` is Scalaz's Lightsaber. This is the syntax of a Functional
 A> Programmer. Not as clumsy or random as `fromStepToL`. An elegant
 A> syntax... for a more civilised age.
 
-We'll discuss `EphemeralStream` in the next chapter, for now we just need to
+We will discuss `EphemeralStream` in the next chapter, for now we just need to
 know that it is a potentially infinite data structure that avoids the memory
 retention problems in the stdlib `Stream`.
 
@@ -3109,7 +3109,7 @@ this is exactly what `Show` achieves:
   }
 ~~~~~~~~
 
-We'll explore `Cord` in more detail in the chapter on data types, we need only
+We will explore `Cord` in more detail in the chapter on data types, we need only
 know that it is an efficient data structure for storing and manipulating
 `String`.
 
@@ -3214,7 +3214,14 @@ lost to scope.
   }
 ~~~~~~~~
 
-`as` and `>|` are a way of replacing the output with a constant.
+`.as` and `>|` are a way of replacing the output with a constant.
+
+A> When Scalaz provides additional functionality as syntax, rather than on the
+A> typeclass itself, it is because of binary compatibility.
+A> 
+A> When a `X.Y.0` version of Scalaz is released, it is not possible to add methods
+A> to typeclasses in that release series for Scala 2.10 and 2.11. It is therefore
+A> worth reading both the typeclass source and its syntax.
 
 In our example application, as a nasty hack (which we didn't even
 admit to until now), we defined `start` and `stop` to return their
@@ -3311,9 +3318,9 @@ A>   override def foldRight[B](z: B)(op: (A, B) => B): B =
 A>     reverse.foldLeft(z)((right, left) => op(left, right))
 A> ~~~~~~~~
 A> 
-A> but the concept of reversing is not universal and this workaround
-A> cannot be used for all data structures. Let's say we want to find
-A> out if there is a small number in a `Stream`, with an early exit:
+A> but the concept of reversing is not universal and this workaround cannot be used
+A> for all data structures. Say we want to find a small number in a `Stream`, with
+A> an early exit:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -3552,7 +3559,7 @@ This concludes the key features of `Foldable`. The takeaway is that anything
 we'd expect to find in a collection library is probably on `Foldable` and if it
 isn't already, it probably should be.
 
-We'll conclude with some variations of the methods we've already seen.
+We will conclude with some variations of the methods we've already seen.
 First there are methods that take a `Semigroup` instead of a `Monoid`:
 
 {lang="text"}
@@ -3832,20 +3839,21 @@ to turn an `A` into a `B`, then I can give you an `F` of `B`".
 Likewise, `.contramap` reads as "if you give me an `F` of `A` and a way to turn
 a `B` into a `A`, then I can give you an `F` of `B`".
 
-Let's look at an example. Say we introduce a domain specific type to ensure that
-we don't mix up numbers in a calculation:
+We will consider an example: in our application we introduce domain specific
+types `Alpha`, `Beta`, `Gamma`, etc, to ensure that we don't mix up numbers in a
+financial calculation:
 
 {lang="text"}
 ~~~~~~~~
   final case class Alpha(value: Double)
 ~~~~~~~~
 
-but now we're faced with the problem that we don't have any typeclasses for this
-new type. If we were using the value in JSON documents, we now have to provide a
-manual instance of `JsEncoder` and `JsDecoder`.
+but now we're faced with the problem that we don't have any typeclasses for
+these new types. If we use the values in JSON documents, we have to write
+instances of `JsEncoder` and `JsDecoder`.
 
 However, `JsEncoder` has a `Contravariant` and `JsDecoder` has a `Functor`, so
-we can derive instances. Let's fill in the contract:
+we can derive instances. Filling in the contract:
 
 -   "if you give me a `JsDecoder` for a `Double`, and a way to go from a `Double`
     to an `Alpha`, then I can give you a `JsDecoder` for an `Alpha`".
@@ -4069,7 +4077,7 @@ Finally `.forever`
 ~~~~~~~~
 
 repeating an effect without stopping. The instance of `Apply` must be
-stack safe or we'll get `StackOverflowError`.
+stack safe or we will get `StackOverflowError`.
 
 
 ### Bind
@@ -4937,7 +4945,7 @@ To help further, Valentin Kasas explains how to [combine `N` things](https://twi
 Who doesn't love a good data structure? The answer is *nobody*, because data
 structures are awesome.
 
-In this chapter we'll explore the *collection-like* data types in Scalaz, as
+In this chapter we will explore the *collection-like* data types in Scalaz, as
 well as data types that augment the Scala language with useful semantics and
 additional type safety.
 
@@ -5068,9 +5076,9 @@ results:
   res = 1
 ~~~~~~~~
 
-Implicit resolution flips its definition of "most specific" for
-contravariant types, rendering them useless for typeclasses or
-anything that requires polymorphic functionality.
+Implicit resolution flips its definition of "most specific" for contravariant
+types, rendering them useless for typeclasses or anything that requires
+polymorphic functionality. The behaviour is fixed in Dotty.
 
 
 ### Limitations of subtyping
@@ -5459,15 +5467,14 @@ letting us write a much cleaner `Monoid[TradeTemplate]`
 To create a raw value of type `LastOption`, we apply `Tag` to an `Option`. Here
 we are calling `Tag(None)`.
 
-In the chapter on typeclass derivation, we'll go one step further and
+In the chapter on typeclass derivation, we will go one step further and
 automatically derive the `monoid`.
 
 It is tempting to use `Tag` to markup data types for some form of validation
 (e.g. `String @@ PersonName`), but this should be avoided because there are no
 checks on the content of the runtime value. `Tag` should only be used for
-typeclass selection purposes, and we will dedicate a chapter on *type
-refinement* which is how we can mark up types with arbitrary value-level
-constraints.
+typeclass selection purposes. Prefer the `Refined` library, introduced in
+Chapter 4, to constrain values.
 
 
 ## Natural Transformations
@@ -5519,18 +5526,6 @@ natural transformation to map between algebras. For example, in
 changing all our business logic and tests to use this new `BigMachines`
 interface, we may be able to write a transformation from `Machines ~>
 BigMachines`. We will return to this idea in the chapter on Advanced Monads.
-
-There is also a natural transformation for type constructors with two type
-holes:
-
-{lang="text"}
-~~~~~~~~
-  type ~~>[-F[_,_], +G[_,_]] = BiNaturalTransformation[F, G]
-  trait BiNaturalTransformation[-F[_, _], +G[_, _]] {
-    def apply[A, B](f: F[A, B]): G[A, B]
-    def compose[E[_, _]](f: E ~~> F) = ...
-  }
-~~~~~~~~
 
 
 ## `Isomorphism`
@@ -5616,10 +5611,9 @@ implementation, it is worth considering if `Isomorphism` is the better solution.
 
 ### Maybe
 
-We have already encountered Scalaz's improvement over `scala.Option`,
-called `Maybe`. It is an improvement because it does not have any
-unsafe methods like `Option.get`, which can throw an exception, and is
-invariant.
+We have already encountered Scalaz's improvement over `scala.Option`, called
+`Maybe`. It is an improvement because it is invariant and does not have any
+unsafe methods like `Option.get`, which can throw an exception.
 
 It is typically used to represent when a thing may be
 present or not without giving any extra context as to why it may be
@@ -5668,11 +5662,11 @@ and receive a `Maybe`
 
 and delegate instances depending on `A`
 
--   `Monoid` / `Band` / `SemiLattice`
+-   `Monoid` / `Band`
 -   `Equal` / `Order` / `Show`
 
-In addition to the above, `Maybe` has some niche functionality that is
-not supported by a polymorphic typeclass.
+In addition to the above, `Maybe` has functionality that is not supported by a
+polymorphic typeclass.
 
 {lang="text"}
 ~~~~~~~~
@@ -5765,8 +5759,6 @@ to speak about it as *either* or `Disjunction`
   final case class \/-[+B](b: B) extends (Nothing \/ B)
   
   type Disjunction[+A, +B] = \/[A, B]
-  type DLeft[+A] = -\/[A]
-  type DRight[+B] = \/-[B]
   
   object \/ {
     def left [A, B]: A => A \/ B = -\/(_)
@@ -5833,7 +5825,6 @@ In addition, there are custom methods
       case -\/(a) => \/-(a)
       case \/-(b) => -\/(b)
     }
-    def unary_~ : (B \/ A) = swap
   
     def |[BB >: B](x: =>BB): BB = getOrElse(x) // Optional[_]
     def |||[C, BB >: B](x: =>C \/ BB): C \/ BB = orElse(x) // Optional[_]
@@ -5853,8 +5844,7 @@ In addition, there are custom methods
 `.fold` is similar to `Maybe.cata` and requires that both the left and
 right sides are mapped to the same type.
 
-`.swap` (and the `~foo` syntax) swaps a left into a right and a right
-into a left.
+`.swap` swaps a left into a right and a right into a left.
 
 The `|` alias to `getOrElse` appears similarly to `Maybe`. We also get
 `|||` as an alias to `orElse`.
@@ -5878,22 +5868,9 @@ ignore the contents of an `\/`, but pick a default based on its type
   scala> 1 <<?: foo :?>> 2
   res: Int = 2 // foo is a \/-
   
-  scala> 1 <<?: ~foo :?>> 2
+  scala> 1 <<?: foo.swap :?>> 2
   res: Int = 1
 ~~~~~~~~
-
-Scalaz also comes with `Either3`, for storing one of three values
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Either3[+A, +B, +C]
-  final case class Left3[+A, +B, +C](a: A)   extends Either3[A, B, C]
-  final case class Middle3[+A, +B, +C](b: B) extends Either3[A, B, C]
-  final case class Right3[+A, +B, +C](c: C)  extends Either3[A, B, C]
-~~~~~~~~
-
-However, it is common to use nested disjunctions `A \/ (B \/ C)`, making
-`Either3` redundant.
 
 
 ### Validation
@@ -6062,7 +6039,7 @@ A> not *Total*.
 ### These
 
 We encountered `These`, a data encoding of inclusive logical `OR`,
-when we learnt about `Align`. Let's take a closer look:
+when we learnt about `Align`.
 
 {lang="text"}
 ~~~~~~~~
@@ -6084,17 +6061,12 @@ with convenient construction syntax
 ~~~~~~~~
   implicit class TheseOps[A](self: A) {
     final def wrapThis[B]: A \&/ B = \&/.This(self)
-    final def `this`[B]: A \&/ B = wrapThis
     final def wrapThat[B]: B \&/ A = \&/.That(self)
-    final def that[B]: B \&/ A = wrapThat
   }
   implicit class ThesePairOps[A, B](self: (A, B)) {
     final def both: A \&/ B = \&/.Both(self._1, self._2)
   }
 ~~~~~~~~
-
-Annoyingly, `this` is a keyword in Scala and must be called with
-back-ticks, or as `.wrapThis`.
 
 `These` has typeclass instances for
 
@@ -6117,7 +6089,6 @@ and depending on contents
   sealed abstract class \&/[+A, +B] {
     def fold[X](s: A => X, t: B => X, q: (A, B) => X): X = ...
     def swap: (B \&/ A) = ...
-    def unary_~ : (B \&/ A) = swap
   
     def append[X >: A: Semigroup, Y >: B: Semigroup](o: =>(X \&/ Y)): X \&/ Y = ...
   
@@ -6324,7 +6295,7 @@ is useful if our specification demands that we make certain calls for certain
 input, e.g. for accounting purposes. Furthermore, we've achieved this with
 compiletime safety.
 
-Let's take this line of thinking a little further and say we want to monitor (in
+Taking this line of thinking a little further, say we want to monitor (in
 production) the nodes that we are stopping in `act`. We can create
 implementations of `Drone` and `Machines` with `Const`, calling it from our
 wrapped version of `act`
@@ -6396,8 +6367,13 @@ behaviours in the typeclass hierarchy, e.g. `Foldable`, `Traverse`, `Monoid`.
 What remains to be studied are the implementations in terms of data structures,
 which have different performance characteristics and niche methods.
 
+This section goes into the implementation details for each data type. It is not
+essential to remember everything presented here: the goal is to gain a high
+level understanding of how each data structure works.
+
 Because all the collection data types provide more or less the same list of
-typeclass instances, we shall avoid repeating the list, which is often some variation of:
+typeclass instances, we shall avoid repeating the list, which is often some
+variation of:
 
 -   `Monoid`
 -   `Traverse` / `Foldable`
@@ -6530,9 +6506,8 @@ retention problem, and removing unsafe methods in the same spirit as
 ~~~~~~~~
 
 A> The use of the word *stream* for a data structure of this nature comes down to
-A> legacy. *Stream* is now more commonly used to refer to the *Reactive Manifesto*
-A> and its compatible frameworks such as Akka Streams and *Functional Streams for
-A> Scala* (fs2). We will tour fs2 / `scalaz-stream` in a later chapter.
+A> legacy. *Stream* is now used by marketing departments alongside the ✨ *Reactive
+A> Manifesto* ✨ and implementing frameworks like Akka Streams.
 
 `.cons`, `.unfold` and `.iterate` are mechanisms for creating streams, and the
 convenient syntax `##::` puts a new element at the head of a by-name `EStream`
@@ -6593,8 +6568,8 @@ alternative to `EStream` that may perform better in some circumstances:
 
 Corecursion is useful when implementing `Comonad.cojoin`, like our `Hood`
 example. `CorecursiveList` is a good way to codify non-linear recurrence
-equations like those used in biology population models, drone control systems,
-macro economics, and investment banking models.
+equations like those used in biology population models, control systems, macro
+economics, and investment banking models.
 
 
 ### `ImmutableArray`
@@ -7087,8 +7062,7 @@ rolling a custom data structure.
 ### `FingerTree`
 
 Finger trees are generalised sequences with amortised constant cost lookup and
-logarithmic concatenation. `A` is the type of data and it may help to ignore
-`V`:
+logarithmic concatenation. `A` is the type of data, ignore `V` for now:
 
 {lang="text"}
 ~~~~~~~~
@@ -7171,6 +7145,9 @@ For example, `Reducer[A, IList[A]]` can provide an efficient `.cons`
   }
 ~~~~~~~~
 
+A> `Reducer` should have been called `CanActuallyBuildFrom`, in honour of the
+A> similarly named stdlib `class`, since it is effectively a collection builder.
+
 
 #### `IndSeq`
 
@@ -7213,10 +7190,10 @@ building up an ordered sequence, with duplicates. We can access the underlying
 
 #### `Cord`
 
-The most common use of `FingerTree` is as an efficient intermediate holder for
-`String` representations in `Show`. Building a single `String` can be thousands
-of times faster than the default `case class` implementation of nested
-`.toString`, which builds a `String` for every layer in the ADT.
+The most common use of `FingerTree` is as an intermediate holder for `String`
+representations in `Show`. Building a single `String` can be thousands of times
+faster than the default `case class` implementation of nested `.toString`, which
+builds a `String` for every layer in the ADT.
 
 {lang="text"}
 ~~~~~~~~
@@ -7250,6 +7227,10 @@ Therefore a `String` renders as it is written in source code
   res: Cord = "foo"
 ~~~~~~~~
 
+A> The `Cord` in Scalaz 7.2 is unfortunately not as efficient as it could be. This
+A> has been fixed in Scalaz 7.3 by a [custom data structure optimised for `String`
+A> concatenation](https://github.com/scalaz/scalaz/pull/1793).
+
 
 ### `Heap` Priority Queue
 
@@ -7280,10 +7261,9 @@ order. A naive implementation of a priority queue could be
 This `push` is a very fast `O(1)`, but `reorder` (and therefore `pop`) relies on
 `IList.sorted` costing `O(n log n)`.
 
-Scalaz encodes a priority queue, with a tree structure where every node has a
-value less than its children, called a *Heap Priority Queue*. `Heap` has fast
-push (`insert`), `union`, `size`, pop (`uncons`) and peek (`minimumO`)
-operations:
+Scalaz encodes a priority queue with a tree structure where every node has a
+value less than its children. `Heap` has fast push (`insert`), `union`, `size`,
+pop (`uncons`) and peek (`minimumO`) operations:
 
 {lang="text"}
 ~~~~~~~~
@@ -7375,7 +7355,7 @@ we optimistically put the minimum to the front:
 Avoiding a full ordering of the tree makes `insert` very fast, `O(1)`, such that
 producers adding to the queue are not penalised. However, the consumer pays the
 cost when calling `uncons`, with `deleteMin` costing `O(log n)` because it must
-search for the minimum value, and remove it from the tree by rebuilding. That's
+search for the minimum value, and remove it from the tree by rebuilding. That Is
 fast when compared to the naive implementation.
 
 The `union` operation also delays ordering allowing it to be `O(1)`.
@@ -7485,14 +7465,14 @@ Scalaz ecosystem.
 # Advanced Monads
 
 You have to know things like Advanced Monads in order to be an advanced
-functional programmer. However, we are developers yearning for a simple life,
-and our idea of "advanced" is modest. To put it into context:
-`scala.concurrent.Future` is more complicated and nuanced than any `Monad` in
-this chapter.
+functional programmer.
+
+However, we are developers yearning for a simple life, and our idea of
+"advanced" is modest. To put it into context: `scala.concurrent.Future` is more
+complicated and nuanced than any `Monad` in this chapter.
 
 In this chapter we will study some of the most important implementations of
-`Monad` and explain why `Future` needlessly complicates an application: we will
-offer simpler and faster alternatives.
+`Monad`.
 
 
 ## Always in motion is the `Future`
@@ -7510,7 +7490,8 @@ parallelising work with `Future` can often make it *slower*.
 Combined, eager evaluation and executor submission means that it is impossible
 to know when a job started, when it finished, or the sub-tasks that were spawned
 to calculate the final result. It should not surprise us that performance
-monitoring "solutions" are a solid earner for the modern day snake oil merchant.
+monitoring "solutions" for `Future` based frameworks are a solid earner for the
+modern day snake oil merchant.
 
 Furthermore, `Future.flatMap` requires an `ExecutionContext` to be in implicit
 scope: users are forced to think about business logic and execution semantics at
@@ -7522,7 +7503,7 @@ A> chosen one, rushing in and breaking things without thinking.
 
 ## Effects and Side Effects
 
-If we can't call side-effecting methods in our business logic, or in `Future`
+If we cannot call side-effecting methods in our business logic, or in `Future`
 (or `Id`, or `Either`, or `Const`, etc), **when can** we write them? The answer
 is: in a `Monad` that delays execution until it is interpreted at the
 application's entrypoint. We can now refer to I/O and mutation as an *effect* on
@@ -7636,10 +7617,18 @@ ADT, the `Free` monad:
 A> `SUSPEND`, `RETURN` and `GOSUB` are a tip of the hat to the `BASIC` commands of
 A> the same name: pausing, completing, and continuing a subroutine, respectively.
 
-The `Free` monad is named because it can be *generated for free* for any `S[_]`.
-For example, we could set `S` to be the `Drone` or `Machines` algebras from
-Chapter 3 and generate a data structure representation of our program. We'll
-return to why this is useful at the end of this chapter.
+The `Free` ADT is a natural data type representation of the `Monad` interface:
+
+1.  `Return` represents `.point`
+2.  `Gosub` represents `.bind` / `.flatMap`
+
+When an ADT mirrors the arguments of related functions, it is called a *Church
+encoding*.
+
+`Free` is named because it can be *generated for free* for any `S[_]`. For
+example, we could set `S` to be the `Drone` or `Machines` algebras from Chapter
+3 and generate a data structure representation of our program. We will return to
+why this is useful at the end of this chapter.
 
 
 ### `Trampoline`
@@ -7667,14 +7656,6 @@ a stack safe `Monad`
     ...
   }
 ~~~~~~~~
-
-The `Free` ADT is a natural data type representation of the `Monad` interface:
-
-1.  `Return` represents `.point`
-2.  `Gosub` represents `.bind` / `.flatMap`
-
-When an ADT mirrors the arguments of related functions, it is called a *Church
-encoding*.
 
 The `BindRec` implementation, `.tailrecM`, runs `.bind` until we get a `B`.
 Although this is not technically a `@tailrec` implementation, it uses constant
@@ -7913,8 +7894,7 @@ providing a `MonadPlus`
       MaybeT(fa.run >>= (_.cata(f(_).run, Maybe.empty.pure[F])))
   
     def empty[A]: MaybeT[F, A] = MaybeT.empty
-  
-    def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = ...
+    def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = a orElse b
   }
 ~~~~~~~~
 
@@ -7984,10 +7964,6 @@ don't know anything about the error. `EitherT` (and the lazy variant
 `LazyEitherT`) allows us to use any type we want as the error value, providing
 contextual information about what went wrong.
 
-Where `\/` and `Validation` is the FP equivalent of a checked exception,
-`EitherT` makes it convenient to both create and ignore errors until something
-can be done about it.
-
 `EitherT` is a wrapper around an `F[A \/ B]`
 
 {lang="text"}
@@ -8010,40 +7986,30 @@ The `Monad` is a `MonadError`
   @typeclass trait MonadError[F[_], E] extends Monad[F] {
     def raiseError[A](e: E): F[A]
     def handleError[A](fa: F[A])(f: E => F[A]): F[A]
-  
-    def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] =
-      bind(fa)(a => f(a).fold(raiseError(_), pure(_)))
   }
 ~~~~~~~~
 
 `.raiseError` and `.handleError` are self-descriptive: the equivalent of `throw`
 and `catch` an exception, respectively.
 
-`.emap`, *either* map, is for functions that could fail and is very useful for
-writing decoders in terms of existing ones, much as we used `.contramap` to
-define new encoders in terms of existing ones. For example, say we have an XML
-decoder like
+`MonadError` has some addition syntax for dealing with common problems:
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait XDecoder[A] {
-    def fromXml(x: Xml): String \/ A
-  }
-  object XDecoder {
-    implicit val monad: MonadError[String \/ ?, String] = ...
-    implicit val string: XDecoder[String] = ...
+  implicit final class MonadErrorOps[F[_], E, A](self: F[A])(implicit val F: MonadError[F, E]) {
+    def attempt: F[E \/ A] = ...
+    def recover(f: E => A): F[A] = ...
+    def emap[B](f: A => E \/ B): F[B] = ...
   }
 ~~~~~~~~
 
-we can define a decoder for `Char` in terms of a `String` decoder
+`.attempt` brings errors into the value, which is useful for exposing errors in
+subsystems as first class values.
 
-{lang="text"}
-~~~~~~~~
-  implicit val char: XDecoder[Char] = XDecoder[String].emap { s =>
-    if (s.length == 1) s(0).right
-    else s"not a char: $s".left
-  }
-~~~~~~~~
+`.recover` is for turning an error into a value for all cases, as opposed to
+`.handleError` which takes an `F[A]` and therefore allows partial recovery.
+
+`.emap`, *either* map, is to apply transformations that can fail.
 
 The `MonadError` for `EitherT` is:
 
@@ -8157,7 +8123,7 @@ Finally, if we return to our `JsonClient` algebra from Chapter 4.3
 
 recall that we only coded the happy path into the API. If our interpreter for
 this algebra only works for an `F` having a `MonadError` we get to define the
-kinds of errors as a tangential concern. Indeed, we can have ****two**** layers of
+kinds of errors as a tangential concern. Indeed, we can have **two** layers of
 error if we define the interpreter for a `EitherT[IO, JsonClient.Error, ?]`
 
 {lang="text"}
@@ -8246,35 +8212,6 @@ Yes, we've made a deal with the macro devil, but we could also write the `Meta`
 manually and have it go out of date quicker than our documentation.
 
 
-#### `IO` and `Throwable`
-
-`IO` does not have a `MonadError` but instead implements something similar to
-`throw`, `catch` and `finally` for `Throwable` errors:
-
-{lang="text"}
-~~~~~~~~
-  final class IO[A](val tramp: Trampoline[A]) {
-    ...
-    // catch
-    def except(f: Throwable => IO[A]): IO[A] = ...
-    // finally
-    def ensuring[B](f: IO[B]): IO[A] = ...
-    def onException[B](f: IO[B]): IO[A] = ...
-  }
-  object IO {
-    // throw
-    def throwIO[A](e: Throwable): IO[A] = IO(throw e)
-    ...
-  }
-~~~~~~~~
-
-It is good to avoid using keywords where possible, as it means we have to
-remember less caveats of the language. If we need to interact with a legacy API
-with a **predictable** exception, like a string parser, we can use `Maybe.attempt`
-or `\/.attempt` and convert the non referentially transparent `Throwable` into a
-descriptive `String`.
-
-
 ### `ReaderT`
 
 The reader monad wraps `A => F[B]` allowing a program `F[B]` to depend on a
@@ -8313,8 +8250,8 @@ of a function, so we can provide it as the parameter to a monad's `.bind`, or
 The most common use for `ReaderT` is to provide environment information to a
 program. In `drone-dynamic-agents` we need access to the user's Oauth 2.0
 Refresh Token to be able to contact Google. The obvious thing is to load the
-`RefreshTokens` from disk on startup, and make every method take an `implicit
-tokens: RefreshToken`. In fact, this is such a common requirement that Martin
+`RefreshTokens` from disk on startup, and make every method take a
+`RefreshToken` parameter. In fact, this is such a common requirement that Martin
 Odersky has proposed [implicit functions](https://www.scala-lang.org/blog/2016/12/07/implicit-function-types.html).
 
 A better solution is for our program to have an algebra that provides the
@@ -8378,11 +8315,10 @@ and then refactor the `refresh` parameter to be part of the `Monad`
       refresh <- F.ask
 ~~~~~~~~
 
-Fundamentally, any parameter can be moved into the `MonadReader`. This is of
-most value to immediate callers when they simply want to thread through this
-information from above. With `ReaderT`, we can reserve `implicit` parameter
-blocks entirely for the use of typeclasses, reducing the mental burden of using
-Scala.
+Any parameter can be moved into the `MonadReader`. This is of most value to
+immediate callers when they simply want to thread through this information from
+above. With `ReaderT`, we can reserve `implicit` parameter blocks entirely for
+the use of typeclasses, reducing the mental burden of using Scala.
 
 The other method in `MonadReader` is `.local`
 
@@ -8450,45 +8386,8 @@ function parameter. `MonadReader` is of most use when:
 2.  the value is not needed by intermediate callers
 3.  or, we want to locally scope some variable
 
-In a nutshell, dotty can keep its implicit functions... we already have
-`ReaderT` and `MonadReader`.
-
-One last example. Monad transformers typically provide specialised `Monad`
-instances if their underlying type has one. So, for example, `ReaderT` has a
-`MonadError`, `MonadPlus`, etc if the underlying has one. Decoder typeclasses
-tend to have a signature that looks like `A => F[B]`, recall
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait XDecoder[A] {
-    def fromXml(x: Xml): String \/ A
-  }
-~~~~~~~~
-
-which has a single method of signature `XNode => String \/ A`, isomorphic to
-`ReaderT[String \/ ?, Xml, A]`. We can formalise this relationship with an
-`Isomorphism`. It's easier to read by introducing type aliases
-
-{lang="text"}
-~~~~~~~~
-  type Out[a] = String \/ a
-  type RT[a] = ReaderT[Out, Xml, a]
-  val isoReaderT: XDecoder <~> RT =
-    new IsoFunctorTemplate[XDecoder, RT] {
-      def from[A](fa: RT[A]): XDecoder[A] = fa.run(_)
-      def to[A](fa: XDecoder[A]): RT[A] = ReaderT[Out, Xml, A](fa.fromXml)
-    }
-~~~~~~~~
-
-Now our `XDecoder` has access to all the typeclasses that `ReaderT` has. The
-typeclass we need is `MonadError[Decoder, String]`
-
-{lang="text"}
-~~~~~~~~
-  implicit val monad: MonadError[XDecoder, String] = MonadError.fromIso(isoReaderT)
-~~~~~~~~
-
-which we know to be useful for defining new decoders in terms of existing ones.
+Dotty can keep its implicit functions... we already have `ReaderT` and
+`MonadReader`.
 
 
 ### `WriterT`
@@ -8737,7 +8636,7 @@ interpreters for our application and we stored the number of `started` and
   }
 ~~~~~~~~
 
-We now know that we can write a much better test simulator with `State`. We'll
+We now know that we can write a much better test simulator with `State`. We will
 take the opportunity to upgrade the accuracy of the simulation at the same time.
 Recall that a core domain object is our application's view of the world:
 
@@ -8883,14 +8782,13 @@ type parameter allowing the input state `S1` and output state `S2` to differ:
   }
 ~~~~~~~~
 
-`IndexedStateT` does not have a `MonadState` when `S1 !` S2=, although it has a
+`IndexedStateT` does not have a `MonadState` when `S1 != S2`, although it has a
 `Monad`.
 
 The following example is adapted from [Index your State](https://www.youtube.com/watch?v=JPVagd9W4Lo) by Vincent Marquez.
-Consider the scenario where we must design an algebraic interface to access a
-`key: Int` to `value: String` lookup. This may have a networked implementation
-and the order of calls is essential. Our first attempt at the API may look
-something like:
+Consider the scenario where we must design an algebraic interface for an `Int`
+to `String` lookup. This may have a networked implementation and the order of
+calls is essential. Our first attempt at the API may look something like:
 
 {lang="text"}
 ~~~~~~~~
@@ -9149,7 +9047,7 @@ and convenient syntax to create a `ContT` from a monadic value:
 
 However, the simple callback use of continuations brings nothing to pure
 functional programming because we already know how to sequence non-blocking,
-potentially distributed, computations: that's what `Monad` is for and we can do
+potentially distributed, computations: that is what `Monad` is for and we can do
 this with `.bind` or a `Kleisli` arrow. To see why continuations are useful we
 need to consider a more complex example under a rigid design constraint.
 
@@ -9194,7 +9092,7 @@ syntax and a little bit of extra boilerplate for each step:
   def flow(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
 ~~~~~~~~
 
-So what does this buy us? Firstly, it's worth noting that the control flow of
+So what does this buy us? Firstly, it is worth noting that the control flow of
 this application is left to right
 
 {width=60%}
@@ -9207,9 +9105,8 @@ we receive from the right (downstream), i.e. we want to split our `foo2` into
 {width=75%}
 ![](images/contt-process1.png)
 
-Let's **add the constraint that we cannot change the definition of `flow` or
-`bar0`**, perhaps it is not our code and is defined by the framework we are
-using.
+Add the constraint that we cannot change the definition of `flow` or `bar0`.
+Perhaps it is not our code and is defined by the framework we are using.
 
 It is not possible to process the output of `a0` by modifying any of the
 remaining `barX` methods. However, with `ContT` we can modify `foo2` to process
@@ -9280,7 +9177,7 @@ in this case `IO` which lets us do error handling and resource cleanup:
 
 #### When to Order Spaghetti
 
-It is not an accident that these diagrams look like spaghetti, that's just what
+It is not an accident that these diagrams look like spaghetti, that is just what
 happens when we start messing with control flow. All the mechanisms we've
 discussed in this section are simple to implement directly if we can edit the
 definition of `flow`, therefore we do not typically need to use `ContT`.
@@ -9366,12 +9263,12 @@ their companion `Monad` typeclasses:
     `EitherT` can cause memory allocation problems for high throughput
     applications.
 
-Let's talk about workarounds.
+We need to talk about workarounds.
 
 
 #### No Syntax
 
-Let's say we have an algebra
+Say we have an algebra
 
 {lang="text"}
 ~~~~~~~~
@@ -9686,8 +9583,7 @@ A> much an exercise in how to understand `Free` code as it is to be able to writ
 A> or use it.
 A> 
 A> There is a lot of boilerplate to create a free structure. We shall use this
-A> study of `Free` to learn how to generate the boilerplate, which we will reuse
-A> for the other free structures.
+A> study of `Free` to learn how to generate the boilerplate.
 
 As a refresher, `Free` is the data structure representation of a `Monad` and is
 defined by three members
@@ -9828,7 +9724,7 @@ ASTs. We studied `Coproduct` in Chapter 6, a higher kinded disjunction:
   final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A])
 ~~~~~~~~
 
-Now we can use the context `Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]`.
+We can use the context `Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]`.
 
 We could manually create the coproduct but we would be swimming in boilerplate,
 and we'd have to do it all again if we wanted to add a third algebra.
@@ -9914,7 +9810,7 @@ Then use it to produce an `IO`
 
 But we've gone in circles! We could have used `IO` as the context for our
 program in the first place and avoided `Free`. So why did we put ourselves
-through all this pain? Let's see some reasons why `Free` might be useful.
+through all this pain? Here are some examples of where `Free` might be useful.
 
 
 #### Testing: Mocks and Stubs
@@ -10023,12 +9919,11 @@ or combine the natural transformations and run with a single
 ~~~~~~~~
 
 
-#### Monkey Patching: Part 1
+#### Monkey Patching
 
-As engineers, we know that our business users often ask for bizarre workarounds
-to be added to the core logic of the application. We might want to codify such
-corner cases as *exceptions to the rule* and handle them tangentially to our
-core logic.
+As engineers, we are used to requests for bizarre workarounds to be added to the
+core logic of the application. We might want to codify such corner cases as
+*exceptions to the rule* and handle them tangentially to our core logic.
 
 For example, suppose we get a memo from accounting telling us
 
@@ -10083,191 +9978,6 @@ logic and look for all usages of `.stop`. If our application context is just an
 implementation but an advantage of using `Free` is that we don't need to touch
 the existing code and can instead isolate and test this (temporary) behaviour,
 without being tied to the `IO` implementations.
-
-
-#### Monkey Patching: Part 2
-
-Infrastructure sends a memo:
-
-> *To meet the CEO's vision for this quarter, we are on a cost rationalisation and
-> reorientation initiative.*
-> 
-> *Therefore, we paid Google a million dollars to develop a Batch API so we can
-> start nodes more cost effectively.*
-> 
-> *PS: Your bonus depends on using the new API.*
-
-When we monkey patch, we are not limited to the original instruction set: we can
-introduce new ASTs. Rather than change our core business logic, we might decide
-to *translate* existing instructions into an extended set, introducing `Batch`:
-
-{lang="text"}
-~~~~~~~~
-  trait Batch[F[_]] {
-    def start(nodes: NonEmptyList[MachineNode]): F[Unit]
-  }
-  object Batch {
-    sealed abstract class Ast[A]
-    ...
-    def liftF = ...
-  }
-~~~~~~~~
-
-Let's first set up a test for a simple program by defining the AST and target
-type:
-
-{lang="text"}
-~~~~~~~~
-  type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
-  type T[a]    = State[S, a]
-~~~~~~~~
-
-We track the started nodes in a data container so we can assert on them later
-
-{lang="text"}
-~~~~~~~~
-  final case class S(
-    singles: IList[MachineNode],
-    batches: IList[NonEmptyList[MachineNode]]
-  ) {
-    def addSingle(node: MachineNode) = S(node :: singles, batches)
-    def addBatch(nodes: NonEmptyList[MachineNode]) = S(singles, nodes :: batches)
-  }
-~~~~~~~~
-
-and introduce some stub implementations
-
-{lang="text"}
-~~~~~~~~
-  val M: Machines.Ast ~> T = Mocker.stub[Unit] {
-    case Machines.Start(node) => State.modify[S](_.addSingle(node))
-  }
-  val D: Drone.Ast ~> T = Mocker.stub[Int] {
-    case Drone.GetBacklog() => 2.pure[T]
-  }
-~~~~~~~~
-
-We can expect that the following simple program will behave as expected and call
-`Machines.Start` twice:
-
-{lang="text"}
-~~~~~~~~
-  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Unit] =
-    for {
-      todo <- D.getBacklog
-      _    <- (1 |-> todo).traverse(id => M.start(MachineNode(id.shows)))
-    } yield ()
-  
-  program(Machines.liftF[Orig], Drone.liftF[Orig])
-    .foldMap(or(M, D))
-    .run(S(IList.empty, IList.empty))
-    ._1
-    .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
-~~~~~~~~
-
-But we don't want to use `Machines.Start`, we need `Batch.Start` to get
-our bonus. Expand the AST to keep track of the `Waiting` nodes that we are
-delaying, and add the `Batch` instructions:
-
-{lang="text"}
-~~~~~~~~
-  type Waiting      = IList[MachineNode]
-  type Extension[a] = Coproduct[Batch.Ast, Orig, a]
-  type Patched[a]   = StateT[Free[Extension, ?], Waiting, a]
-~~~~~~~~
-
-along with a stub for the `Batch` algebra
-
-{lang="text"}
-~~~~~~~~
-  val B: Batch.Ast ~> T = Mocker.stub[Unit] {
-    case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
-  }
-~~~~~~~~
-
-A> This example is advanced. It is possible to read the remainder of the book
-A> without understanding how this example works.
-
-We can convert from the `Orig` AST into `Patched` by providing a natural
-transformation that batches node starts:
-
-{lang="text"}
-~~~~~~~~
-  def monkey(max: Int) = new (Orig ~> Patched) {
-    def apply[α](fa: Orig[α]): Patched[α] = fa.run match {
-      case -\/(Machines.Start(node)) =>
-        StateT { waiting =>
-          if (waiting.length >= max) {
-            val start = Batch.Start(NonEmptyList.nel(node, waiting))
-            Free
-              .liftF[Extension, Unit](leftc(start))
-              .strengthL(IList.empty)
-          } else
-            Free
-              .pure[Extension, Unit](())
-              .strengthL(node :: waiting)
-        }
-  
-      case _ =>
-        Free
-          .liftF[Extension, α](rightc(fa))
-          .liftM[StateT[?[_], Waiting, ?]]
-    }
-  }
-~~~~~~~~
-
-A> The Scala compiler struggles a bit to infer all the types in this code, so we
-A> provide a lot of type annotations to help it along.
-
-We're using `.strengthL` to set the value of the `Waiting` state, with `.pure`
-again letting us avoid sending an instruction in this code branch.
-
-We `.foldMap` **twice** because of the state, and combine the stubs again with
-`.or`:
-
-{lang="text"}
-~~~~~~~~
-  program(Machines.liftF[Orig], Drone.liftF[Orig])
-    .foldMap(monkey(1))
-    .run(IList.empty) // starting Waiting list
-    .foldMap(or(B, or(M, D)))
-~~~~~~~~
-
-Then we run the program and assert: that there are no nodes in the `Waiting`
-list, no node has been launched using the old API, and all nodes have been
-launched in one call to the batch API.
-
-{lang="text"}
-~~~~~~~~
-  .run(S(IList.empty, IList.empty))
-  .shouldBe(
-    (
-      S(
-        IList.empty, // no singles
-        IList(NonEmptyList(MachineNode("2"), MachineNode("1"))) // bonus time!
-      ),
-      (
-        IList.empty, // no Waiting
-        () // the program output
-      )
-    )
-  )
-~~~~~~~~
-
-Congratulations, we've saved the company $50 every month, and it only cost a
-million dollars. But that was some other team's budget, so it is OK.
-
-We could have done the same monkey patch by hard coding the batching logic into
-our algebra implementations. In the defence of `Free`, we have decoupled the
-patch from the implementation, which means we can test it more thoroughly.
-
-W> With great power comes great responsibility: we are transforming the meaning of
-W> the program, almost certainly with unintended consequences.
-W> 
-W> Consider an algebra for writing debug messages to the network: we trade a
-W> network performance gain for the risk of dropping some messages. However if we
-W> are relying on the Monad laws in our business logic, and we mess with that, we
-W> may as well be flipping bits in RAM.
 
 
 ### `FreeAp` (`Applicative`)
@@ -10365,7 +10075,7 @@ Luckily, our main business logic only requires an `Applicative`, recall
   }
 ~~~~~~~~
 
-To begin, we create the `lift` boilerplate for the `Batch` algebra
+To begin, we create the `lift` boilerplate for a new `Batch` algebra
 
 {lang="text"}
 ~~~~~~~~
@@ -10382,7 +10092,7 @@ To begin, we create the `lift` boilerplate for the `Batch` algebra
   }
 ~~~~~~~~
 
-and then we'll create an instance of `DynAgentsModule` with `FreeAp` as the context
+and then we will create an instance of `DynAgentsModule` with `FreeAp` as the context
 
 {lang="text"}
 ~~~~~~~~
@@ -10442,7 +10152,8 @@ We also need to remove all the calls to `Machines.Start`, which we can do with a
   }
 ~~~~~~~~
 
-Now we have two programs, and need to combine them. Recall the `*>` syntax for `Functor`
+Now we have two programs, and need to combine them. Recall the `*>` syntax from
+`Apply`
 
 {lang="text"}
 ~~~~~~~~
@@ -10457,7 +10168,7 @@ Putting it all together under a single method:
     (batch(orig.analyze(gather)) *> orig.foldMap(nostart))
 ~~~~~~~~
 
-That's it! We `.optimise` every time we call `act` in our main loop, which is
+That Is it! We `.optimise` every time we call `act` in our main loop, which is
 just a matter of plumbing.
 
 
@@ -10551,8 +10262,8 @@ thousand elements, we save two thousand object allocations because we only map
 over the data structure once.
 
 However it is arguably a lot easier to just make this kind of change in the
-original function by hand, or to wait for the [`better-monadic-for`](https://github.com/oleg-py/better-monadic-for/issues/6) project to
-automatically perform these optimisations across our codebase.
+original function by hand, or to wait for the [`scalaz-plugin`](https://github.com/scalaz/scalaz-plugin) project to be
+released and automatically perform these sorts of optimisations.
 
 
 ### Extensible Effects
@@ -10615,7 +10326,7 @@ A>   }
 A> ~~~~~~~~
 A> 
 A> When we come to interpret a program that uses `MonadError.Ast` we must construct
-A> the coproduct of instructions. Let's say we extend a `Drone` program:
+A> the coproduct of instructions. Say we extend a `Drone` program:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -10838,32 +10549,19 @@ implemented.
 ## `IO`
 
 Scalaz's `IO` is the fastest asynchronous programming construct in the Scala
-ecosystem: up to 50 times faster than `Future` and 20% faster than Monix.
-
-`IO` is a free data structure specialised for use as a general effect monad.
+ecosystem: up to 50 times faster than `Future`. `IO` is a free data structure
+specialised for use as a general effect monad.
 
 {lang="text"}
 ~~~~~~~~
   sealed abstract class IO[E, A] { ... }
   object IO {
-    final class FlatMap         ... extends IO[E, A]
-    final class Point           ... extends IO[E, A]
-    final class Strict          ... extends IO[E, A]
-    final class SyncEffect      ... extends IO[E, A]
-    final class Fail            ... extends IO[E, A]
-    final class AsyncEffect     ... extends IO[E, A]
-    final class AsyncIOEffect   ... extends IO[E, A]
-    final class Attempt         ... extends IO[E2, E1 \/ A]
-    final class Fork            ... extends IO[E2, Fiber[E1, A]]
-    final class Race            ... extends IO[E, A]
-    final class Suspend         ... extends IO[E, A]
-    final class Bracket         ... extends IO[E, B]
-    final class Uninterruptible ... extends IO[E, A]
-    final class Sleep           ... extends IO[E, Unit]
-    final class Supervise       ... extends IO[E, A]
-    final class Terminate       ... extends IO[E, A]
-    final class Supervisor      ... extends IO[E, Throwable => IO[Void, Unit]]
-    final class Run             ... extends IO[E2, ExitResult[E1, A]]
+    private final class FlatMap         ... extends IO[E, A]
+    private final class Point           ... extends IO[E, A]
+    private final class Strict          ... extends IO[E, A]
+    private final class SyncEffect      ... extends IO[E, A]
+    private final class Fail            ... extends IO[E, A]
+    private final class AsyncEffect     ... extends IO[E, A]
     ...
   }
 ~~~~~~~~
@@ -10888,6 +10586,7 @@ A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.10.1"
 A> ~~~~~~~~
 A> 
 A> Do not use the deprecated `scalaz-effect` and `scalaz-concurrency` packages.
+A> 
 A> Prefer the `scalaz.ioeffect` variants of all typeclasses and data types.
 
 
@@ -10938,7 +10637,7 @@ The most common constructors, by far, when dealing with legacy code are
   Task.fromFuture(fa)(ExecutionContext.global): Task[String]
 ~~~~~~~~
 
-We can't pass around raw `Future`, because it eagerly evaluates, so must always
+We cannot pass around raw `Future`, because it eagerly evaluates, so must always
 be constructed inside a safe block.
 
 Note that the `ExecutionContext` is **not** `implicit`, contrary to the
@@ -10984,31 +10683,6 @@ A> have handled all errors by this point.
 If we are integrating with a legacy system and are not in control of the entry
 point of our application, we can extend the `RTS` and gain access to unsafe
 methods to evaluate the `IO` at the entry point to our principled FP code.
-
-For example, if we have an algebra that canonicalises values, and may hit disk
-or network to resolve filenames and URLs:
-
-{lang="text"}
-~~~~~~~~
-  trait Canon[F[_], A] {
-    def canon(a: A): F[A]
-  }
-~~~~~~~~
-
-we can write a Scalatest that extends `RTS` and call `unsafePerformIO` to
-interpret the `IO`
-
-{lang="text"}
-~~~~~~~~
-  import org.scalatest._
-  import scalaz.ioeffect.{ RTS, Task }
-  
-  class CanonSpec extends FlatSpec with RTS {
-    "Canon" should "canon File" in {
-      unsafePerformIO((new File(".")).canon) shouldBe ...
-    }
-  }
-~~~~~~~~
 
 
 ### Features
@@ -11248,11 +10922,11 @@ accounting for the extra `E`:
 
 1.  The `Future` is broke, don't go there.
 2.  Manage stack safety with a `Trampoline`.
-3.  The Monad Transformer Library (MTL) abstracts over common effects.
+3.  The Monad Transformer Library (MTL) abstracts over common effects with typeclasses.
 4.  Monad Transformers provide default implementations of the MTL.
 5.  `Free` data structures let us analyse, optimise and easily test our programs.
-6.  `IO` gives us the ability to implement algebras as effects on the outside world and interact with legacy systems.
-7.  `IO` can perform effects in parallel and provides a high performance implementation of the MTL.
+6.  `IO` gives us the ability to implement algebras as effects on the world.
+7.  `IO` can perform effects in parallel and is a high performance backbone for any application.
 
 
 # Typeclass Derivation
@@ -11331,7 +11005,7 @@ A> same type). The alternative is to use algebras and avoid using the `implicit`
 A> language feature entirely.
 A> 
 A> Although it is possible to apply the techniques in this chapter to either
-A> typeclass or algebra derivation, the latter involves a ****lot**** more boilerplate.
+A> typeclass or algebra derivation, the latter involves a **lot** more boilerplate.
 A> We therefore consciously choose to restrict our study to encoders and decoders
 A> that are coherent. As we will see later in this chapter, use-site automatic
 A> derivation with Magnolia and Shapeless, combined with limitations of the Scala
@@ -11345,7 +11019,7 @@ project's `build.sbt` with
 
 {lang="text"}
 ~~~~~~~~
-  val derivingVersion = "1.0.0-RC8"
+  val derivingVersion = "1.0.0-RC9"
   libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
 ~~~~~~~~
 
@@ -11384,7 +11058,6 @@ Before we proceed, here is a quick recap of the core Scalaz typeclasses:
   @typeclass trait Applicative[F[_]] extends Functor[F] {
     def point[A](a: =>A): F[A]
     def apply2[A,B,C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
-    def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
     ...
     def apply12[...]
   }
@@ -11394,8 +11067,8 @@ Before we proceed, here is a quick recap of the core Scalaz typeclasses:
   }
   @typeclass trait MonadError[F[_], E] extends Monad[F] {
     def raiseError[A](e: E): F[A]
-    def handleError[A](fa: F[A])(f: E => F[A]): F[A]
     def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] = ...
+    ...
   }
 ~~~~~~~~
 
@@ -11619,9 +11292,9 @@ design so that it can never fail, e.g. with the following type signature
 ~~~~~~~~
 
 We would not be able to define a `MonadError`, forcing us to provide instances
-that always succeed. This will result in more boilerplate but trades runtime
-failure detection for compiletime safety. However, we will continue with `String
-\/ A` as the return type as it is by far the more common use case.
+that always succeed. This will result in more boilerplate but gains compiletime
+safety. However, we will continue with `String \/ A` as the return type as it is
+a more general example.
 
 
 ### `.fromIso`
@@ -11697,8 +11370,8 @@ To derive the `Equal` for our case class with two parameters, we reused the
 instance that Scalaz provides for tuples. But where did the tuple instance come
 from?
 
-A more specific typeclass than `Contravariant` is `Divisible`, and `Equal`
-provides an instance:
+A more specific typeclass than `Contravariant` is `Divisible`. `Equal` has an
+instance:
 
 {lang="text"}
 ~~~~~~~~
@@ -11715,8 +11388,9 @@ provides an instance:
   }
 ~~~~~~~~
 
-A> When implementing `Divisible` the compiler will require us to implement
-A> `contramap`, which we can do with the following derived combinator:
+A> When implementing `Divisible` the compiler will require us to provide
+A> `.contramap`, which we can do directly with an optimised implementation or with
+A> this derived combinator:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -11794,9 +11468,9 @@ and on the other
 which are different. We could experiment with variations of the `divide`
 implementation, but it will never satisfy the laws for all inputs.
 
-We therefore cannot provide a `Divisible[JsEncoder]`, even though we can write
-one down, because it breaks the mathematical laws and invalidates all the
-assumptions that users of `Divisible` rely upon.
+We therefore cannot provide a `Divisible[JsEncoder]` because it would break the
+mathematical laws and invalidates all the assumptions that users of `Divisible`
+rely upon.
 
 To aid in testing laws, Scalaz typeclasses contain the codified versions of
 their laws on the typeclass itself. We can write an automated test, asserting
@@ -11887,7 +11561,7 @@ nested disjunctions):
     ...
   }
   
-  trait Decidable[F[_]] extends Divisible[F] with InvariantAlt[F] {
+  @typeclass trait Decidable[F[_]] extends Divisible[F] with InvariantAlt[F] {
     def choose1[Z, A1](a1: =>F[A1])(f: Z => A1): F[Z] = ...
     def choose2[Z, A1, A2](a1: =>F[A1], a2: =>F[A2])(f: Z => A1 \/ A2): F[Z] = ...
     def choose3 ...
@@ -11966,12 +11640,11 @@ we can derive the equal for the whole ADT
 ~~~~~~~~
 
 A> Scalaz 7.2 does not provide a `Decidable[Equal]` out of the box, because it was
-A> a late addition. We must provide one. Coming up is a way that means we don't
-A> need to do this in practice.
+A> a late addition.
 
 Typeclasses that have an `Applicative` can be eligible for an `Alt`. If we want
 to use our `Kleisli.iso` trick, we have to extend `IsomorphismMonadError` and
-mix in `Alt`. Let's upgrade our `MonadError[Default, String]` to have an
+mix in `Alt`. Upgrade our `MonadError[Default, String]` to have an
 `Alt[Default]`:
 
 {lang="text"}
@@ -12051,35 +11724,7 @@ and `Decidable` are:
   }
 ~~~~~~~~
 
-Letting us write consistent boilerplate for all derivations:
-
-{lang="text"}
-~~~~~~~~
-  object Darth {
-    ...
-    implicit val equal: Equal[Darth] =
-      InvariantAlt[Equal].xcoproduct2(Equal[Vader], Equal[JarJar])(f, g)
-    implicit val default: Default[Darth] =
-      InvariantAlt[Default].xcoproduct2(Default[Vader], Default[JarJar])(f, g)
-  }
-  object Vader {
-    ...
-    implicit val equal: Equal[Vader] =
-      InvariantApplicative[Equal].xproduct2(Equal[String], Equal[Int])(f, g)
-    implicit val default: Default[Vader] =
-      InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
-  }
-  object JarJar {
-    ...
-    implicit val equal: Equal[JarJar] =
-      InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
-    implicit val default: Default[JarJar] =
-      InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
-  }
-~~~~~~~~
-
-This boilerplate also works when we have a typeclass like `Semigroup` that can
-only provide an `InvariantApplicative`, not an `Applicative`.
+supporting typeclasses with an `InvariantFunctor` like `Monoid` and `Semigroup`.
 
 
 ### Arbitrary Arity and `@deriving`
@@ -12129,8 +11774,8 @@ which can be instantiated:
 ~~~~~~~~
 
 To be able to use the `scalaz-deriving` API, we need an `Isomorphism` between
-our ADTs and the `iotaz` generic representation. It's a lot of boilerplate, but
-it pays off:
+our ADTs and the `iotaz` generic representation. It is a lot of boilerplate,
+we will get to that in a moment:
 
 {lang="text"}
 ~~~~~~~~
@@ -12193,7 +11838,7 @@ because `scalaz-deriving` provides an optimised instance of `Deriving[Equal]`
 
 A> Typeclasses in the `Deriving` API are wrapped in `Need` (recall `Name` from
 A> Chapter 6), which allows lazy construction, avoiding unnecessary work if the
-A> typeclass is not needed, and avoiding stack overflows for recursive ADTs.
+A> typeclass is not needed, and avoiding stack overflows for recursive GADTs.
 
 To be able to do the same for our `Default` typeclass, we need to provide an
 instance of `Deriving[Default]`. This is just a case of wrapping our existing
@@ -12266,8 +11911,8 @@ structures that share the same type parameter:
   }
   object /~\ {
     type APair[A[_], B[_]]  = A /~\ B
-    @inline final def unapply[A[_], B[_]](p: A /~\ B): Some[(A[p.T], B[p.T])] = ...
-    @inline final def apply[A[_], B[_], Z](az: =>A[Z], bz: =>B[Z]): A /~\ B = ...
+    def unapply[A[_], B[_]](p: A /~\ B): Some[(A[p.T], B[p.T])] = ...
+    def apply[A[_], B[_], Z](az: =>A[Z], bz: =>B[Z]): A /~\ B = ...
   }
 ~~~~~~~~
 
@@ -12302,27 +11947,21 @@ optimisations:
   
     def dividez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Prod[A])(
       implicit ev: A PairedWith FA
-    ): Equal[Z] = (z1, z2) =>
-      (g(z1), g(z2)).zip(tcs).all {
-        case (a1, a2) /~\ fa => (quick(a1, a2) || fa.value.equal(a1, a2))
-      }
+    ): Equal[Z] = (z1, z2) => (g(z1), g(z2)).zip(tcs).all {
+      case (a1, a2) /~\ fa => quick(a1, a2) || fa.value.equal(a1, a2)
+    }
   
     def choosez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Cop[A])(
       implicit ev: A PairedWith FA
-    ): Equal[Z] = (z1, z2) =>
-      (g(z1), g(z2)).zip(tcs) match {
-        case -\/(_)               => false
-        case \/-((a1, a2) /~\ fa) => quick(a1, a2) || fa.value.equal(a1, a2)
-      }
+    ): Equal[Z] = (z1, z2) => (g(z1), g(z2)).zip(tcs) match {
+      case -\/(_)               => false
+      case \/-((a1, a2) /~\ fa) => quick(a1, a2) || fa.value.equal(a1, a2)
+    }
   }
 ~~~~~~~~
 
 
 #### `Default`
-
-We've already seen how to define an `Alt` and lift it to a `Deriving` with the
-`ExtendedInvariantAlt` helper. However, for completeness, say we wish to define
-an `Altz` directly.
 
 Unfortunately, the `iotaz` API for `.traverse` (and its analogy, `.coptraverse`)
 requires us to define natural transformations, which have a clunky syntax, even
@@ -12366,28 +12005,24 @@ possible to define one for general products. We can use the arbitrary arity
     type L[a] = ((a, a), NameF[a])
     val appender = λ[L ~> Id] { case ((a1, a2), fa) => fa.value.append(a1, a2) }
   
-    override def xproductz[Z, A <: TList, FA <: TList](
-      tcs: Prod[FA]
-    )(
-      f: Prod[A] => Z,
-      g: Z => Prod[A]
-    )(
-      implicit ev: A PairedWith FA
-    ): Semigroup[Z] = new Semigroup[Z] {
-      def append(z1: Z, z2: =>Z): Z = f(tcs.ziptraverse2(g(z1), g(z2), appender))
-    }
+    def xproductz[Z, A <: TList, FA <: TList](tcs: Prod[FA])
+                                             (f: Prod[A] => Z, g: Z => Prod[A])
+                                             (implicit ev: A PairedWith FA) =
+      new Semigroup[Z] {
+        def append(z1: Z, z2: =>Z): Z = f(tcs.ziptraverse2(g(z1), g(z2), appender))
+      }
   }
 ~~~~~~~~
 
 
 #### `JsEncoder` and `JsDecoder`
 
-`scalaz-deriving` does not provide access to field names so it is not possible,
-which is why we will study Magnolia in the next section.
+`scalaz-deriving` does not provide access to field names so it is not possible
+to write a JSON encoder or decoder.
 
 A> An earlier version of `scalaz-deriving` supported field names but it was clear
 A> that there was no advantage over using Magnolia, so the support was dropped to
-A> remain focused on `Alt` and `Decidable`.
+A> remain focused on typeclasses with lawful `Alt` and `Decidable`.
 
 
 ## Magnolia
@@ -12397,7 +12032,7 @@ derivations. It is installed with the following `build.sbt` entry
 
 {lang="text"}
 ~~~~~~~~
-  libraryDependencies += "com.propensive" %% "magnolia" % "0.10.0"
+  libraryDependencies += "com.propensive" %% "magnolia" % "0.10.1"
 ~~~~~~~~
 
 A typeclass author implements the following members:
@@ -12416,7 +12051,7 @@ A typeclass author implements the following members:
   }
 ~~~~~~~~
 
-The Magnolia objects are:
+The Magnolia API is:
 
 {lang="text"}
 ~~~~~~~~
@@ -12514,33 +12149,7 @@ For example
   final case class Money(@json.field("integer") i: Int) extends Cost
 ~~~~~~~~
 
-These user preferences also allow us to distinguish between `null`, missing and
-valid values without any further modifications to `JsValue`, `JsEncoder` or
-`JsDecoder`. For example, through this ADT
-
-{lang="text"}
-~~~~~~~~
-  sealed abstract class Possibly[A]
-  object Possibly {
-    final case class Missing[A]()   extends Possibly[A]
-    final case class Found[A](a: A) extends Possibly[A]
-  
-    implicit def encoder[A: JsEncoder]: JsEncoder[Possibly] = JsEncoder[A].contramap(_.a)
-    implicit def decoder[A: JsDecoder]: JsDecoder[Possibly] = JsDecoder[A].map(Found(_))
-  }
-~~~~~~~~
-
-we can say that we require `null` values, otherwise using a default, then check
-for `null` with `Option`:
-
-{lang="text"}
-~~~~~~~~
-  final case class(
-    @json.nulls() s: Possibly[Option[String]] = Missing()
-  )
-~~~~~~~~
-
-Let's start with a `JsDecoder` that handles only our "sensible defaults":
+Start with a `JsDecoder` that handles only our sensible defaults:
 
 {lang="text"}
 ~~~~~~~~
@@ -12575,7 +12184,7 @@ We can see how the Magnolia API makes it easy to access field names and
 typeclasses for each parameter.
 
 Now add support for annotations to handle user preferences. To avoid looking up
-the annotations on every encoding, we'll cache them in an array. Although field
+the annotations on every encoding, we will cache them in an array. Although field
 access to an array is non-total, we are guaranteed that the indices will always
 align. Performance is usually the victim in the trade-off between specialisation
 and generalisation.
@@ -12931,7 +12540,7 @@ At the core of Shapeless are the `HList` and `Coproduct` data types
   sealed trait :+:[+H, +T <: Coproduct] extends Coproduct
   final case class Inl[+H, +T <: Coproduct](head: H) extends :+:[H, T]
   final case class Inr[+H, +T <: Coproduct](tail: T) extends :+:[H, T]
-  sealed trait CNil extends Coproduct // no instances
+  sealed trait CNil extends Coproduct // no implementations
 ~~~~~~~~
 
 which are *generic* representations of products and coproducts, respectively.
@@ -12954,10 +12563,10 @@ us to move between an ADT and its generic representation:
   }
 ~~~~~~~~
 
-Many of the data types have a type member (`Repr`) and an `.Aux` type alias on
-their companion that makes the second type visible. This allows us to request
-the `Generic[Foo]` for a type `Foo` without having to provide the verbose type
-of the generic representation, instead generated by a `.materialize` macro:
+Many of the types in Shapeless have a type member (`Repr`) and an `.Aux` type
+alias on their companion that makes the second type visible. This allows us to
+request the `Generic[Foo]` for a type `Foo` without having to provide the
+generic representation, which is generated by a macro.
 
 {lang="text"}
 ~~~~~~~~
@@ -13028,7 +12637,7 @@ increasingly complex examples.
 
 A typical pattern to follow is to extend the typeclass that we wish to derive,
 and put the Shapeless code on its companion. This gives us an implicit scope
-that the compiler can search with without requiring the user to provide complex imports
+that the compiler can search without requiring complex imports
 
 {lang="text"}
 ~~~~~~~~
@@ -13054,9 +12663,9 @@ signature and simple implementation:
   }
 ~~~~~~~~
 
-We've reduced the problem to providing an implicit `Equal[R]` for an arbitrary
-`R` that has an instance of a `Generic`. Let's first consider products, where `R
-<: HList`. This is the signature we want to implement:
+We've reduced the problem to providing an implicit `Equal[R]` for an `R` that is
+the `Generic` representation of `A`. First consider products, where `R <:
+HList`. This is the signature we want to implement:
 
 {lang="text"}
 ~~~~~~~~
@@ -13072,7 +12681,7 @@ need to provide an instance for the empty `HNil`
   implicit def hnil: DerivedEqual[HNil]
 ~~~~~~~~
 
-Let's look to implement these methods
+We implement these methods
 
 {lang="text"}
 ~~~~~~~~
@@ -13099,8 +12708,9 @@ A>   import scalaz.{ Coproduct => _, :+: => _, _ }, Scalaz._
 A>   import shapeless._
 A> ~~~~~~~~
 
-There is no instance for `cnil` so it can just throw an exception as it will
-never be called: it's a leak in the type system
+`.cnil` will never be called for a typeclass like `Equal` with type parameters
+only in contravariant position, but the compiler doesn't know that so we have to
+provide a stub:
 
 {lang="text"}
 ~~~~~~~~
@@ -13166,7 +12776,9 @@ But it doesn't compile
 
 Welcome to Shapeless compilation errors!
 
-The problem, which is not at all evident in the error, is that the compiler is unable to work out what `R` is, and gets caught thinking it is something else. We need to provide the explicit type parameters when calling `gen`, e.g.
+The problem, which is not at all evident from the error, is that the compiler is
+unable to work out what `R` is, and gets caught thinking it is something else.
+We need to provide the explicit type parameters when calling `gen`, e.g.
 
 {lang="text"}
 ~~~~~~~~
@@ -13177,22 +12789,11 @@ or we can use the `Generic` macro to help us and let the compiler infer the gene
 
 {lang="text"}
 ~~~~~~~~
-  object Foo {
-    implicit val generic           = Generic[Foo]
-    implicit val equal: Equal[Foo] = DerivedEqual.gen[Foo, generic.Repr]
-  }
-  object Bar {
-    implicit val generic           = Generic[Bar]
-    implicit val equal: Equal[Bar] = DerivedEqual.gen[Bar, generic.Repr]
-  }
-  object Faz {
-    implicit val generic           = Generic[Faz]
-    implicit val equal: Equal[Faz] = DerivedEqual.gen[Faz, generic.Repr]
-  }
   final case object Baz extends Foo {
     implicit val generic                = Generic[Baz.type]
     implicit val equal: Equal[Baz.type] = DerivedEqual.gen[Baz.type, generic.Repr]
   }
+  ...
 ~~~~~~~~
 
 A> At this point, ignore any red squigglies and only trust the compiler. This is
@@ -13407,12 +13008,15 @@ To be able to reproduce our Magnolia JSON encoder, we must be able to access:
 2.  annotations for user preferences
 3.  default values on a `case class`
 
-We'll begin by creating an encoder that handles only the sensible defaults.
+We will begin by creating an encoder that handles only the sensible defaults.
 
 To get field names, we use `LabelledGeneric` instead of `Generic`, and when
 defining the type of the head element, use `FieldType[K, H]` instead of just
-`H`. Request a `Witness.Aux[K]` to be able to access the value of the
-field name `K` at runtime.
+`H`. A `Witness.Aux[K]` provides the value of the field name at runtime.
+
+All of our methods are going to return `JsObject`, so rather than returning a
+`JsValue` we can specialise and create `DerivedJsEncoder` that has a different
+type signature to `JsEncoder`.
 
 {lang="text"}
 ~~~~~~~~
@@ -13498,17 +13102,16 @@ A>   }
 A> ~~~~~~~~
 A> 
 A> Users are supposed to provide a custom instance of `ProductHint` on their
-A> companions or package objects.
-A> 
-A> This mechanism relies on fragile implicit ordering and is a source of typeclass
-A> decoherence: if we derive a `JsEncoder[Foo]`, we will get a different result
-A> depending on which `ProductHint[Foo]` is in scope. It is best avoided.
+A> companions or package objects. This is a **terrible idea** that relies on fragile
+A> implicit ordering and is a source of typeclass decoherence: if we derive a
+A> `JsEncoder[Foo]`, we will get a different result depending on which
+A> `ProductHint[Foo]` is in scope. It is best avoided.
 
 Shapeless selects codepaths at compiletime based on the presence of annotations,
 which can lead to more optimised code, at the expense of code repetition. This
 means that the number of annotations we are dealing with, and their subtypes,
-must minimised or we can find ourselves writing 10x the amount of code. Let's
-refactor our three annotations into one containing all the customisation
+must be manageable or we can find ourselves writing 10x the amount of code. We
+change our three annotations into one containing all the customisation
 parameters:
 
 {lang="text"}
@@ -13798,11 +13401,13 @@ and decoder
 ~~~~~~~~
   object JsEncoder {
     ...
-    implicit def tagged[A: JsEncoder, Z]: JsEncoder[A @@ Z] = JsEncoder[A].contramap(Tag.unwrap)
+    implicit def tagged[A: JsEncoder, Z]: JsEncoder[A @@ Z] =
+      JsEncoder[A].contramap(Tag.unwrap)
   }
   object JsDecoder {
     ...
-    implicit def tagged[A: JsDecoder, Z]: JsDecoder[A @@ Z] = JsDecoder[A].map(Tag(_))
+    implicit def tagged[A: JsDecoder, Z]: JsDecoder[A @@ Z] =
+      JsDecoder[A].map(Tag(_))
   }
 ~~~~~~~~
 
@@ -14017,11 +13622,8 @@ sealed typeclass, which can handle default values
   }
 ~~~~~~~~
 
-We can't use `@deriving` any more for products and coproducts. One possible hack
-is to make `DerivedCoproductJsDecoder` extend from `JsDecoder`, adding an entry
-in the `deriving.conf` for `DerivedCoproductJsDecoder` as well as one for
-`JsDecoder` (which points to `DerivedProductJsDecoder`), but this adds to the
-mental burden at the point of use, which is not ideal.
+We can no longer use `@deriving` for products and coproducts: there can only be
+one entry in the `deriving.conf` file.
 
 Oh, and don't forget to add `@@` support
 
@@ -14067,8 +13669,8 @@ Oh, and don't forget to add `@@` support
 ### Complicated Derivations
 
 Shapeless allows for a lot more kinds of derivations than are possible with
-`scalaz-deriving` or Magnolia. As an example of an encoder / decoder than are
-not possible with Magnolia, consider this simple XML model from [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat)
+`scalaz-deriving` or Magnolia. As an example of an encoder / decoder that are
+not possible with Magnolia, consider this XML model from [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat)
 
 {lang="text"}
 ~~~~~~~~
@@ -14148,8 +13750,9 @@ support coproducts:
   }
 ~~~~~~~~
 
-It is reasonable to ask if these 30 lines are an improvement over the 8 lines
-for the 2 manual instances our application needs.
+It is reasonable to ask if these 30 lines are actually an improvement over the 8
+lines for the 2 manual instances our application needs: a decision to be taken
+on a case by case basis.
 
 For completeness, the `UrlEncodedWriter` derivation can be written with Magnolia
 
@@ -14256,9 +13859,7 @@ For a typical Shapeless derivation, we get a lively chart
 
 almost the entire compile time is spent in implicit resolution. Note that this
 also includes compiling the `scalaz-deriving`, Magnolia and manual instances,
-but the Shapeless computations dominate. Implicit resolution for
-`scalaz-deriving`, Magnolia and manual instances are simple: everything is on
-the data type companions.
+but the Shapeless computations dominate.
 
 And this is when it works. If there is a problem with a shapeless derivation,
 the compiler can get stuck in an infinite loop and must be killed.
@@ -14329,10 +13930,9 @@ decoding
   TwitterAPIBenchmarks.decodeManualSuccess        thrpt    5   71962.394 ±  465.752  ops/s
 ~~~~~~~~
 
-This is a tighter race, with Shapeless keeping pace with Magnolia, by and large,
-and manual instances performing the best on the GeoJSON data. Finally, decoding
-from a `JsValue` that contains invalid data (in an intentionally awkward
-position)
+This is a tighter race for second place, with Shapeless and Magnolia keeping
+pace. Finally, decoding from a `JsValue` that contains invalid data (in an
+intentionally awkward position)
 
 {lang="text"}
 ~~~~~~~~
@@ -14409,9 +14009,9 @@ for GeoJSON but falls far behind in both the Google Maps and Twitter tests. The
 ~~~~~~~~
 
 The runtime performance of `scalaz-deriving`, Magnolia and Shapeless is usually
-good enough. Let's be honest: we are not writing applications that need to be
-able to encode more than 130,000 values to JSON, per second, on a single core,
-on the JVM. If that's a problem, look into C++.
+good enough. We should be realistic: we are not writing applications that need to
+be able to encode more than 130,000 values to JSON, per second, on a single
+core, on the JVM. If that is a problem, look into C++.
 
 It is unlikely that derived instances will be an application's bottleneck. Even
 if it is, there is the manually written escape hatch, which is more powerful and
@@ -14425,7 +14025,7 @@ A> We could spend a lifetime with the [`async-profiler`](https://github.com/jvm-
 A> allocation flame graphs to make any of these implementations faster. For
 A> example, there are some optimisations in the actual `jsonformat` codebase not
 A> reproduced here, such as a more optimised `JsObject` field lookup, and inclusion
-A> of `.xmap`, `.map` and `.contramap` on the relevant typeclasses, but it's fair
+A> of `.xmap`, `.map` and `.contramap` on the relevant typeclasses, but it is fair
 A> to say that the codebase primarily focuses on readability over optimisation and
 A> still achieves incredible performance.
 
@@ -14623,7 +14223,7 @@ We derive useful typeclasses using `scalaz-deriving` and Magnolia. The
 runtime configuration from HOCON property files.
 
 And without going into the detail of how to implement the algebras, we need to
-know the dependency graph of our `DynAgentsModule`. Let's unravel the thread...
+know the dependency graph of our `DynAgentsModule`.
 
 {lang="text"}
 ~~~~~~~~
@@ -14789,10 +14389,9 @@ put this into a method called `.step` and repeat it forever by calling
 We begin the journey to get to this code. There are two approaches we can take,
 and we will explore both. The first, and simplest, is to construct one monad
 stack that all algebras are compatible with. Everything gets a `.liftM` added to
-it to lift it into the larger stack. Let's explore this approach for the
-`--machines` mode of operation.
+it to lift it into the larger stack.
 
-The code we want to write is
+The code we want to write for the one-shot authentication mode is
 
 {lang="text"}
 ~~~~~~~~
@@ -15003,7 +14602,7 @@ We need the following dependencies
 
 ### `BlazeJsonClient`
 
-We'll need some imports
+We will need some imports
 
 {lang="text"}
 ~~~~~~~~
@@ -15317,7 +14916,7 @@ server, which we do with `BlazeBuilder`
 ~~~~~~~~
 
 Binding to port `0` lets the operating system assign a ephemeral port. We can
-discover which port it's actually running on by querying the `server.address`
+discover which port it is actually running on by querying the `server.address`
 field.
 
 Our implementation of the `.start` and `.stop` methods is now straightforward
@@ -15371,7 +14970,7 @@ any boilerplate that would distract us.
 
 ## Thank You
 
-And that's it! Congratulations on reaching the end. If you learnt something from
+And that is it! Congratulations on reaching the end. If you learnt something from
 this book, please tell your friends. This book does not have a marketing
 department, so word of mouth is the only way that readers find out about it.
 

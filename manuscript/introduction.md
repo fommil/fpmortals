@@ -37,7 +37,7 @@ possible, but mutable state is still a necessary evil that must be
 isolated and managed, e.g. with Akka actors or `synchronized` classes.
 This style of FP results in simpler programs that are easier to
 parallelise and distribute, an improvement over Java. But it is only
-scratching the surface of the benefits of FP, as we'll discover in
+scratching the surface of the benefits of FP, as we will discover in
 this book.
 
 Scala also brings `Future`, making it easy to write asynchronous
@@ -51,9 +51,8 @@ over execution, much as we had no way of abstracting over collections.
 
 ## Abstracting over Execution
 
-Let's say we want to interact with the user over the command line
-interface. We can `read` what the user types and we can `write` a
-message to them.
+Say we want to interact with the user over the command line interface. We can
+`read` what the user types and we can `write` a message to them.
 
 {lang="text"}
 ~~~~~~~~
@@ -77,8 +76,8 @@ work, or we could `Await.result` on the `Future` and introduce thread
 blocking. In either case, it is a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
-Let's solve the problem like Java 1.2 by introducing a common parent. To do
-this, we need to use the *higher kinded types* (HKT) Scala language feature.
+We can solve the problem, like Java 1.2, with a common parent using the *higher
+kinded types* (HKT) Scala language feature.
 
 A> **Higher Kinded Types** allow us to use a *type constructor* in our type
 A> parameters, which looks like `C[_]`. This is a way of saying that
@@ -134,9 +133,8 @@ A>     def create(i: Int): Either[String, Int] = Right(i)
 A>   }
 A> ~~~~~~~~
 A> 
-A> Finally, there is this one weird trick we can use when we want to
-A> ignore the type constructor. Let's define a type alias to be equal to
-A> its parameter:
+A> Finally, there is this one weird trick we can use when we want to ignore the
+A> type constructor. Define a type alias to be equal to its parameter:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
@@ -182,7 +180,7 @@ terminals:
 We can think of `C` as a *Context* because we say "in the context of
 executing `Now`" or "in the `Future`".
 
-But we know nothing about `C` and we can't do anything with a
+But we know nothing about `C` and we cannot do anything with a
 `C[String]`. What we need is a kind of execution environment that lets
 us call a method returning `C[T]` and then be able to do something
 with the `T`, including calling another method on `Terminal`. We also
@@ -215,10 +213,10 @@ asynchronous codepaths. We can write a mock implementation of
 Implementations of `Execution[Now]` and `Execution[Future]` are
 reusable by generic methods like `echo`.
 
-But the code for `echo` is horrible! Let's clean it up.
+But the code for `echo` is horrible!
 
 The `implicit class` Scala language feature gives `C` some methods.
-We'll call these methods `flatMap` and `map` for reasons that will
+We will call these methods `flatMap` and `map` for reasons that will
 become clearer in a moment. Each method takes an `implicit
 Execution[C]`, but this is nothing more than the `flatMap` and `map`
 that we're used to on `Seq`, `Option` and `Future`

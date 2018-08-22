@@ -191,7 +191,7 @@ possible, but mutable state is still a necessary evil that must be
 isolated and managed, e.g. with Akka actors or =synchronized= classes.
 This style of FP results in simpler programs that are easier to
 parallelise and distribute, an improvement over Java. But it is only
-scratching the surface of the benefits of FP, as we'll discover in
+scratching the surface of the benefits of FP, as we will discover in
 this book.
 
 Scala also brings =Future=, making it easy to write asynchronous
@@ -204,9 +204,8 @@ over execution, much as we had no way of abstracting over collections.
 
 *** Abstracting over Execution
 
-Let's say we want to interact with the user over the command line
-interface. We can =read= what the user types and we can =write= a
-message to them.
+Say we want to interact with the user over the command line interface. We can
+=read= what the user types and we can =write= a message to them.
 
 #+BEGIN_SRC scala
 trait TerminalSync {
@@ -229,8 +228,8 @@ work, or we could =Await.result= on the =Future= and introduce thread
 blocking. In either case, it is a lot of boilerplate and we are
 fundamentally dealing with different APIs that are not unified.
 
-Let's solve the problem like Java 1.2 by introducing a common parent. To do
-this, we need to use the /higher kinded types/ (HKT) Scala language feature.
+We can solve the problem, like Java 1.2, with a common parent using the /higher
+kinded types/ (HKT) Scala language feature.
 
 #+BEGIN_ASIDE
 
@@ -283,9 +282,8 @@ object FooEitherString extends Foo[Either[String, ?]] {
 }
 #+END_SRC
 
-Finally, there is this one weird trick we can use when we want to
-ignore the type constructor. Let's define a type alias to be equal to
-its parameter:
+Finally, there is this one weird trick we can use when we want to ignore the
+type constructor. Define a type alias to be equal to its parameter:
 
 #+BEGIN_SRC scala
 type Id[T] = T
@@ -330,7 +328,7 @@ object TerminalAsync extends Terminal[Future] {
 We can think of =C= as a /Context/ because we say "in the context of
 executing =Now=" or "in the =Future=".
 
-But we know nothing about =C= and we can't do anything with a
+But we know nothing about =C= and we cannot do anything with a
 =C[String]=. What we need is a kind of execution environment that lets
 us call a method returning =C[T]= and then be able to do something
 with the =T=, including calling another method on =Terminal=. We also
@@ -361,10 +359,10 @@ asynchronous codepaths. We can write a mock implementation of
 Implementations of =Execution[Now]= and =Execution[Future]= are
 reusable by generic methods like =echo=.
 
-But the code for =echo= is horrible! Let's clean it up.
+But the code for =echo= is horrible!
 
 The =implicit class= Scala language feature gives =C= some methods.
-We'll call these methods =flatMap= and =map= for reasons that will
+We will call these methods =flatMap= and =map= for reasons that will
 become clearer in a moment. Each method takes an =implicit
 Execution[C]=, but this is nothing more than the =flatMap= and =map=
 that we're used to on =Seq=, =Option= and =Future=
@@ -514,7 +512,7 @@ to write maintainable, pure functions, that achieve our business's objectives.
 ** For Comprehensions
 
 Scala's =for= comprehension is the ideal FP abstraction for sequential
-programs that interact with the world. Since we'll be using it a lot,
+programs that interact with the world. Since we will be using it a lot,
 we're going to relearn the principles of =for= and how Scalaz can help
 us to write cleaner code.
 
@@ -545,7 +543,7 @@ $read.a.flatMap(
 #+END_SRC
 
 There is a lot of noise due to additional sugarings (e.g. =+= is
-rewritten =$plus=, etc). We'll skip the =show= and =reify= for brevity
+rewritten =$plus=, etc). We will skip the =show= and =reify= for brevity
 when the REPL line is =reify>=, and manually clean up the generated
 code so that it doesn't become a distraction.
 
@@ -765,9 +763,9 @@ computations in a later chapter. Spoiler: don't use =Future=.
 
 *** Unhappy path
 
-So far we've only looked at the rewrite rules, not what is happening
-in =map= and =flatMap=. Let's consider what happens when the =for=
-context decides that it can't proceed any further.
+So far we've only looked at the rewrite rules, not what is happening in =map=
+and =flatMap=. Consider what happens when the =for= context decides that it
+cannot proceed any further.
 
 In the =Option= example, the =yield= is only called when =i,j,k= are
 all defined.
@@ -842,21 +840,21 @@ Short circuiting for the unhappy path is a common and important theme.
 =for= comprehensions cannot express resource cleanup: there is no way
 to =try= / =finally=. This is good, in FP it puts a clear ownership of
 responsibility for unexpected error recovery and resource cleanup onto
-the context (which is usually a =Monad= as we'll see later), not the
+the context (which is usually a =Monad= as we will see later), not the
 business logic.
 
 *** Gymnastics
 
 Although it is easy to rewrite simple sequential code as a =for=
-comprehension, sometimes we'll want to do something that appears to
+comprehension, sometimes we will want to do something that appears to
 require mental summersaults. This section collects some practical
 examples and how to deal with them.
 
 **** Fallback Logic
 
-Let's say we are calling out to a method that returns an =Option= and
-if it is not successful we want to fallback to another method (and so
-on and so on), like when we're using a cache:
+Say we are calling out to a method that returns an =Option=. If it is not
+successful we want to fallback to another method (and so on and so on), like
+when we're using a cache:
 
 #+BEGIN_SRC scala
 def getFromRedis(s: String): Option[String]
@@ -911,7 +909,7 @@ for {
 
 **** Early Exit
 
-Let's say we have some condition that should exit early with a successful value.
+Say we have some condition that should exit early with a successful value.
 
 If we want to exit early with an error, it is standard practice in OOP to throw
 an exception
@@ -982,7 +980,7 @@ works beyond =Future=, and is therefore recommended.
 
 *** Incomprehensible
 
-The context we're comprehending over must stay the same: we can't mix
+The context we're comprehending over must stay the same: we cannot mix
 contexts.
 
 #+BEGIN_SRC scala
@@ -1186,8 +1184,8 @@ authentication.
 
 *** Interfaces / Algebras
 
-Let's codify the architecture diagram from the previous section. Firstly, we
-need to define a simple data type to capture a millisecond timestamp because
+We will now codify the architecture diagram from the previous section. Firstly,
+we need to define a simple data type to capture a millisecond timestamp because
 such a simple thing does not exist in either the Java or Scala standard
 libraries:
 
@@ -1371,7 +1369,7 @@ the public methods, preferring that our business logic is easy to read.
 
 **** act
 
-The =act= method is slightly more complex, so we'll split it into two
+The =act= method is slightly more complex, so we will split it into two
 parts for clarity: detection of when an action needs to be taken,
 followed by taking action. This simplification means that we can only
 perform one action per invocation, but that is reasonable because we
@@ -1465,7 +1463,7 @@ providing an alternative implementation of dependency algebras. The algebras
 already isolate the parts of the system that need to be /mocked/, i.e.
 interpreted differently in the unit tests.
 
-We'll start with some test data
+We will start with some test data
 
 #+BEGIN_SRC scala
 object Data {
@@ -1645,7 +1643,7 @@ could stop all the nodes in parallel and then update our view of the
 world.
 
 A disadvantage of doing it this way is that any failures will cause us
-to short-circuit before updating the =pending= field. But that's a
+to short-circuit before updating the =pending= field. But that is a
 reasonable tradeoff since our =update= will gracefully handle the case
 where a =node= is shut down unexpectedly.
 
@@ -1842,7 +1840,7 @@ type |:[L,R] = Either[L, R]
 X.type |: Y.type |: Z
 #+END_SRC
 
-This is useful to create anonymous coproducts when we can't put all
+This is useful to create anonymous coproducts when we cannot put all
 the implementations into the same source file.
 
 #+BEGIN_SRC scala
@@ -2276,7 +2274,7 @@ runtime and save memory allocations, gaining performance improvements from
 reduced pressure on the garbage collector.
 #+END_ASIDE
 
-Typeclasses are used in the Scala stdlib. We'll explore a simplified
+Typeclasses are used in the Scala stdlib. We will explore a simplified
 version of =scala.math.Numeric= to demonstrate the principle:
 
 #+BEGIN_SRC scala
@@ -3044,7 +3042,7 @@ trait LocalClock[F[_]] {
 }
 #+END_SRC
 
-And introduce data types that we'll use in the refresh logic
+And introduce data types that we will use in the refresh logic
 
 #+BEGIN_SRC scala
 final case class ServerConfig(
@@ -3157,7 +3155,7 @@ they have a =Monad[F]=. Often they are data structures. By using the
 least specific abstraction, we can reuse code for =List=, =Either=,
 =Future= and more.
 
-If we only need to transform the output from an =F[_]=, that's just
+If we only need to transform the output from an =F[_]=, that is just
 =map=, introduced by =Functor=. In Chapter 3, we ran effects in
 parallel by creating a product and mapping over them. In Functional
 Programming, parallelisable computations are considered *less*
@@ -3169,7 +3167,7 @@ from a single value.
 
 =.sequence= is useful for rearranging type constructors. If we have an =F[G[_]]=
 but need a =G[F[_]]=, e.g. =List[Future[Int]]= but need a =Future[List[Int]]=,
-that's =.sequence=.
+that is =.sequence=.
 
 *** Agenda
 
@@ -3384,7 +3382,7 @@ wins" merge policy if two templates provide a value for the same field. The
 "selecting" work is already done for us by another system, it is our job to
 combine the templates in order.
 
-We'll create a simple template schema to demonstrate the principle,
+We will create a simple template schema to demonstrate the principle,
 but keep in mind that a realistic system would have a more complicated
 ADT.
 
@@ -3412,7 +3410,7 @@ and our job is done!
 
 But to get =zero= or call =|+|= we must have an instance of
 =Monoid[TradeTemplate]=. Although we will generically derive this in a
-later chapter, for now we'll create an instance on the companion:
+later chapter, for now we will create an instance on the companion:
 
 #+BEGIN_SRC scala
 object TradeTemplate {
@@ -3611,7 +3609,7 @@ Programmer. Not as clumsy or random as =fromStepToL=. An elegant
 syntax... for a more civilised age.
 #+END_ASIDE
 
-We'll discuss =EphemeralStream= in the next chapter, for now we just need to
+We will discuss =EphemeralStream= in the next chapter, for now we just need to
 know that it is a potentially infinite data structure that avoids the memory
 retention problems in the stdlib =Stream=.
 
@@ -3626,7 +3624,7 @@ trait Show[F] {
 }
 #+END_SRC
 
-We'll explore =Cord= in more detail in the chapter on data types, we need only
+We will explore =Cord= in more detail in the chapter on data types, we need only
 know that it is an efficient data structure for storing and manipulating
 =String=.
 
@@ -3892,9 +3890,9 @@ override def foldRight[B](z: B)(op: (A, B) => B): B =
   reverse.foldLeft(z)((right, left) => op(left, right))
 #+END_SRC
 
-but the concept of reversing is not universal and this workaround
-cannot be used for all data structures. Let's say we want to find
-out if there is a small number in a =Stream=, with an early exit:
+but the concept of reversing is not universal and this workaround cannot be used
+for all data structures. Say we want to find a small number in a =Stream=, with
+an early exit:
 
 #+BEGIN_SRC scala
 scala> def isSmall(i: Int): Boolean = i < 10
@@ -4120,7 +4118,7 @@ This concludes the key features of =Foldable=. The takeaway is that anything
 we'd expect to find in a collection library is probably on =Foldable= and if it
 isn't already, it probably should be.
 
-We'll conclude with some variations of the methods we've already seen.
+We will conclude with some variations of the methods we've already seen.
 First there are methods that take a =Semigroup= instead of a =Monoid=:
 
 #+BEGIN_SRC scala
@@ -4455,19 +4453,20 @@ to turn an =A= into a =B=, then I can give you an =F= of =B=".
 Likewise, =.contramap= reads as "if you give me an =F= of =A= and a way to turn
 a =B= into a =A=, then I can give you an =F= of =B=".
 
-Let's look at an example. Say we introduce a domain specific type to ensure that
-we don't mix up numbers in a calculation:
+We will consider an example: in our application we introduce domain specific
+types =Alpha=, =Beta=, =Gamma=, etc, to ensure that we don't mix up numbers in a
+financial calculation:
 
 #+BEGIN_SRC scala
 final case class Alpha(value: Double)
 #+END_SRC
 
-but now we're faced with the problem that we don't have any typeclasses for this
-new type. If we were using the value in JSON documents, we now have to provide a
-manual instance of =JsEncoder= and =JsDecoder=.
+but now we're faced with the problem that we don't have any typeclasses for
+these new types. If we use the values in JSON documents, we have to write
+instances of =JsEncoder= and =JsDecoder=.
 
 However, =JsEncoder= has a =Contravariant= and =JsDecoder= has a =Functor=, so
-we can derive instances. Let's fill in the contract:
+we can derive instances. Filling in the contract:
 
 - "if you give me a =JsDecoder= for a =Double=, and a way to go from a =Double=
   to an =Alpha=, then I can give you a =JsDecoder= for an =Alpha=".
@@ -4747,7 +4746,7 @@ Finally =.forever=
 #+END_SRC
 
 repeating an effect without stopping. The instance of =Apply= must be
-stack safe or we'll get =StackOverflowError=.
+stack safe or we will get =StackOverflowError=.
 
 **** Bind
 
@@ -5916,7 +5915,7 @@ digraph G {
 Who doesn't love a good data structure? The answer is /nobody/, because data
 structures are awesome.
 
-In this chapter we'll explore the /collection-like/ data types in Scalaz, as
+In this chapter we will explore the /collection-like/ data types in Scalaz, as
 well as data types that augment the Scala language with useful semantics and
 additional type safety.
 
@@ -6428,7 +6427,7 @@ object TradeTemplate {
 To create a raw value of type =LastOption=, we apply =Tag= to an =Option=. Here
 we are calling =Tag(None)=.
 
-In the chapter on typeclass derivation, we'll go one step further and
+In the chapter on typeclass derivation, we will go one step further and
 automatically derive the =monoid=.
 
 It is tempting to use =Tag= to markup data types for some form of validation
@@ -6980,7 +6979,7 @@ not /Total/.
 **** These
 
 We encountered =These=, a data encoding of inclusive logical =OR=,
-when we learnt about =Align=. Let's take a closer look:
+when we learnt about =Align=.
 
 #+BEGIN_SRC scala
 sealed abstract class \&/[+A, +B] { ... }
@@ -7224,7 +7223,7 @@ is useful if our specification demands that we make certain calls for certain
 input, e.g. for accounting purposes. Furthermore, we've achieved this with
 compiletime safety.
 
-Let's take this line of thinking a little further and say we want to monitor (in
+Taking this line of thinking a little further, say we want to monitor (in
 production) the nodes that we are stopping in =act=. We can create
 implementations of =Drone= and =Machines= with =Const=, calling it from our
 wrapped version of =act=
@@ -8773,7 +8772,7 @@ we optimistically put the minimum to the front:
 Avoiding a full ordering of the tree makes =insert= very fast, =O(1)=, such that
 producers adding to the queue are not penalised. However, the consumer pays the
 cost when calling =uncons=, with =deleteMin= costing =O(log n)= because it must
-search for the minimum value, and remove it from the tree by rebuilding. That's
+search for the minimum value, and remove it from the tree by rebuilding. That Is
 fast when compared to the naive implementation.
 
 The =union= operation also delays ordering allowing it to be =O(1)=.
@@ -8924,7 +8923,7 @@ chosen one, rushing in and breaking things without thinking.
 
 *** Effects and Side Effects
 
-If we can't call side-effecting methods in our business logic, or in =Future=
+If we cannot call side-effecting methods in our business logic, or in =Future=
 (or =Id=, or =Either=, or =Const=, etc), *when can* we write them? The answer
 is: in a =Monad= that delays execution until it is interpreted at the
 application's entrypoint. We can now refer to I/O and mutation as an /effect/ on
@@ -9049,7 +9048,7 @@ encoding/.
 
 =Free= is named because it can be /generated for free/ for any =S[_]=. For
 example, we could set =S= to be the =Drone= or =Machines= algebras from Chapter
-3 and generate a data structure representation of our program. We'll return to
+3 and generate a data structure representation of our program. We will return to
 why this is useful at the end of this chapter.
 
 **** =Trampoline=
@@ -10018,7 +10017,7 @@ class Mutable(state: WorldView) {
 }
 #+END_SRC
 
-We now know that we can write a much better test simulator with =State=. We'll
+We now know that we can write a much better test simulator with =State=. We will
 take the opportunity to upgrade the accuracy of the simulation at the same time.
 Recall that a core domain object is our application's view of the world:
 
@@ -10409,7 +10408,7 @@ implicit class ContTOps[F[_]: Monad, A](self: F[A]) {
 
 However, the simple callback use of continuations brings nothing to pure
 functional programming because we already know how to sequence non-blocking,
-potentially distributed, computations: that's what =Monad= is for and we can do
+potentially distributed, computations: that is what =Monad= is for and we can do
 this with =.bind= or a =Kleisli= arrow. To see why continuations are useful we
 need to consider a more complex example under a rigid design constraint.
 
@@ -10450,7 +10449,7 @@ syntax and a little bit of extra boilerplate for each step:
   def flow(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
 #+END_SRC
 
-So what does this buy us? Firstly, it's worth noting that the control flow of
+So what does this buy us? Firstly, it is worth noting that the control flow of
 this application is left to right
 
 #+BEGIN_SRC dot :cmd dot :file images/contt-simple.png :exports results
@@ -10536,9 +10535,8 @@ digraph G {
 #+RESULTS:
 [[file:images/contt-process1.png]]
 
-Let's *add the constraint that we cannot change the definition of =flow= or
-=bar0=*, perhaps it is not our code and is defined by the framework we are
-using.
+Add the constraint that we cannot change the definition of =flow= or =bar0=.
+Perhaps it is not our code and is defined by the framework we are using.
 
 It is not possible to process the output of =a0= by modifying any of the
 remaining =barX= methods. However, with =ContT= we can modify =foo2= to process
@@ -10642,7 +10640,7 @@ digraph G {
     bar3 -> bar4 [label="a3"];
     bar4 -> bar0 [label="a4"];
 
-    # don't show the label, it's noisy
+    # don't show the label, it is noisy
     bar0 -> check; #[label="a0"];
     check -> end [label="a0"];
     check -> elsewhere;
@@ -10746,7 +10744,7 @@ in this case =IO= which lets us do error handling and resource cleanup:
 
 ***** When to Order Spaghetti
 
-It is not an accident that these diagrams look like spaghetti, that's just what
+It is not an accident that these diagrams look like spaghetti, that is just what
 happens when we start messing with control flow. All the mechanisms we've
 discussed in this section are simple to implement directly if we can edit the
 definition of =flow=, therefore we do not typically need to use =ContT=.
@@ -10833,11 +10831,11 @@ their companion =Monad= typeclasses:
    =EitherT= can cause memory allocation problems for high throughput
    applications.
 
-Let's talk about workarounds.
+We need to talk about workarounds.
 
 ***** No Syntax
 
-Let's say we have an algebra
+Say we have an algebra
 
 #+BEGIN_SRC scala
 trait Lookup[F[_]] {
@@ -11364,7 +11362,7 @@ val app: IO[Unit] = program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
 
 But we've gone in circles! We could have used =IO= as the context for our
 program in the first place and avoided =Free=. So why did we put ourselves
-through all this pain? Let's see some reasons why =Free= might be useful.
+through all this pain? Here are some examples of where =Free= might be useful.
 
 ***** Testing: Mocks and Stubs
 
@@ -11637,7 +11635,7 @@ object Batch {
 }
 #+END_SRC
 
-and then we'll create an instance of =DynAgentsModule= with =FreeAp= as the context
+and then we will create an instance of =DynAgentsModule= with =FreeAp= as the context
 
 #+BEGIN_SRC scala
   type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
@@ -11706,7 +11704,7 @@ Putting it all together under a single method:
       (batch(orig.analyze(gather)) *> orig.foldMap(nostart))
 #+END_SRC
 
-That's it! We =.optimise= every time we call =act= in our main loop, which is
+That Is it! We =.optimise= every time we call =act= in our main loop, which is
 just a matter of plumbing.
 
 **** =Coyoneda= (=Functor=)
@@ -11865,7 +11863,7 @@ object MonadError {
 #+END_SRC
 
 When we come to interpret a program that uses =MonadError.Ast= we must construct
-the coproduct of instructions. Let's say we extend a =Drone= program:
+the coproduct of instructions. Say we extend a =Drone= program:
 
 #+BEGIN_SRC scala
 type Ast[a] = Coproduct[MonadError.Ast[Ast, String, ?], Drone.Ast, a]
@@ -12208,7 +12206,7 @@ val fa: Task[Future[String]] = Task { ... impure code here ... }
 Task.fromFuture(fa)(ExecutionContext.global): Task[String]
 #+END_SRC
 
-We can't pass around raw =Future=, because it eagerly evaluates, so must always
+We cannot pass around raw =Future=, because it eagerly evaluates, so must always
 be constructed inside a safe block.
 
 Note that the =ExecutionContext= is *not* =implicit=, contrary to the
@@ -12564,7 +12562,7 @@ same type). The alternative is to use algebras and avoid using the =implicit=
 language feature entirely.
 
 Although it is possible to apply the techniques in this chapter to either
-typeclass or algebra derivation, the latter involves a **lot** more boilerplate.
+typeclass or algebra derivation, the latter involves a *lot* more boilerplate.
 We therefore consciously choose to restrict our study to encoders and decoders
 that are coherent. As we will see later in this chapter, use-site automatic
 derivation with Magnolia and Shapeless, combined with limitations of the Scala
@@ -12577,7 +12575,7 @@ The =scalaz-deriving= library is an extension to Scalaz and can be added to a
 project's =build.sbt= with
 
 #+BEGIN_SRC scala
-val derivingVersion = "1.0.0-RC8"
+val derivingVersion = "1.0.0-RC9"
 libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
 #+END_SRC
 
@@ -12663,7 +12661,6 @@ Before we proceed, here is a quick recap of the core Scalaz typeclasses:
 @typeclass trait Applicative[F[_]] extends Functor[F] {
   def point[A](a: =>A): F[A]
   def apply2[A,B,C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
-  def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
   ...
   def apply12[...]
 }
@@ -12673,8 +12670,8 @@ Before we proceed, here is a quick recap of the core Scalaz typeclasses:
 }
 @typeclass trait MonadError[F[_], E] extends Monad[F] {
   def raiseError[A](e: E): F[A]
-  def handleError[A](fa: F[A])(f: E => F[A]): F[A]
   def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] = ...
+  ...
 }
 #+END_SRC
 
@@ -12883,9 +12880,9 @@ design so that it can never fail, e.g. with the following type signature
 #+END_SRC
 
 We would not be able to define a =MonadError=, forcing us to provide instances
-that always succeed. This will result in more boilerplate but trades runtime
-failure detection for compiletime safety. However, we will continue with =String
-\/ A= as the return type as it is by far the more common use case.
+that always succeed. This will result in more boilerplate but gains compiletime
+safety. However, we will continue with =String \/ A= as the return type as it is
+a more general example.
 
 **** =.fromIso=
 
@@ -12955,8 +12952,8 @@ To derive the =Equal= for our case class with two parameters, we reused the
 instance that Scalaz provides for tuples. But where did the tuple instance come
 from?
 
-A more specific typeclass than =Contravariant= is =Divisible=, and =Equal=
-provides an instance:
+A more specific typeclass than =Contravariant= is =Divisible=. =Equal= has an
+instance:
 
 #+BEGIN_SRC scala
   implicit val divisible = new Divisible[Equal] {
@@ -12973,8 +12970,9 @@ provides an instance:
 #+END_SRC
 
 #+BEGIN_ASIDE
-When implementing =Divisible= the compiler will require us to implement
-=contramap=, which we can do with the following derived combinator:
+When implementing =Divisible= the compiler will require us to provide
+=.contramap=, which we can do directly with an optimised implementation or with
+this derived combinator:
 
 #+BEGIN_SRC scala
   override def contramap[A, B](fa: F[A])(f: B => A): F[B] =
@@ -13047,9 +13045,9 @@ JsArray([JsString(hello),JsArray([JsString(hello),JsString(hello)])])
 which are different. We could experiment with variations of the =divide=
 implementation, but it will never satisfy the laws for all inputs.
 
-We therefore cannot provide a =Divisible[JsEncoder]=, even though we can write
-one down, because it breaks the mathematical laws and invalidates all the
-assumptions that users of =Divisible= rely upon.
+We therefore cannot provide a =Divisible[JsEncoder]= because it would break the
+mathematical laws and invalidates all the assumptions that users of =Divisible=
+rely upon.
 
 To aid in testing laws, Scalaz typeclasses contain the codified versions of
 their laws on the typeclass itself. We can write an automated test, asserting
@@ -13136,7 +13134,7 @@ nested disjunctions):
   ...
 }
 
-trait Decidable[F[_]] extends Divisible[F] with InvariantAlt[F] {
+@typeclass trait Decidable[F[_]] extends Divisible[F] with InvariantAlt[F] {
   def choose1[Z, A1](a1: =>F[A1])(f: Z => A1): F[Z] = ...
   def choose2[Z, A1, A2](a1: =>F[A1], a2: =>F[A2])(f: Z => A1 \/ A2): F[Z] = ...
   def choose3 ...
@@ -13212,13 +13210,12 @@ false
 
 #+BEGIN_ASIDE
 Scalaz 7.2 does not provide a =Decidable[Equal]= out of the box, because it was
-a late addition. We must provide one. Coming up is a way that means we don't
-need to do this in practice.
+a late addition.
 #+END_ASIDE
 
 Typeclasses that have an =Applicative= can be eligible for an =Alt=. If we want
 to use our =Kleisli.iso= trick, we have to extend =IsomorphismMonadError= and
-mix in =Alt=. Let's upgrade our =MonadError[Default, String]= to have an
+mix in =Alt=. Upgrade our =MonadError[Default, String]= to have an
 =Alt[Default]=:
 
 #+BEGIN_SRC scala
@@ -13296,34 +13293,7 @@ and =Decidable= are:
 }
 #+END_SRC
 
-Letting us write consistent boilerplate for all derivations:
-
-#+BEGIN_SRC scala
-object Darth {
-  ...
-  implicit val equal: Equal[Darth] =
-    InvariantAlt[Equal].xcoproduct2(Equal[Vader], Equal[JarJar])(f, g)
-  implicit val default: Default[Darth] =
-    InvariantAlt[Default].xcoproduct2(Default[Vader], Default[JarJar])(f, g)
-}
-object Vader {
-  ...
-  implicit val equal: Equal[Vader] =
-    InvariantApplicative[Equal].xproduct2(Equal[String], Equal[Int])(f, g)
-  implicit val default: Default[Vader] =
-    InvariantApplicative[Default].xproduct2(Default[String], Default[Int])(f, g)
-}
-object JarJar {
-  ...
-  implicit val equal: Equal[JarJar] =
-    InvariantApplicative[Equal].xproduct2(Equal[Int], Equal[String])(f, g)
-  implicit val default: Default[JarJar] =
-    InvariantApplicative[Default].xproduct2(Default[Int], Default[String])(f, g)
-}
-#+END_SRC
-
-This boilerplate also works when we have a typeclass like =Semigroup= that can
-only provide an =InvariantApplicative=, not an =Applicative=.
+supporting typeclasses with an =InvariantFunctor= like =Monoid= and =Semigroup=.
 
 **** Arbitrary Arity and =@deriving=
 
@@ -13413,8 +13383,8 @@ which can be instantiated:
 #+END_SRC
 
 To be able to use the =scalaz-deriving= API, we need an =Isomorphism= between
-our ADTs and the =iotaz= generic representation. It's a lot of boilerplate, but
-it pays off:
+our ADTs and the =iotaz= generic representation. It is a lot of boilerplate,
+we will get to that in a moment:
 
 #+BEGIN_SRC scala
 object Darth {
@@ -13476,7 +13446,7 @@ object JarJar {
 #+BEGIN_ASIDE
 Typeclasses in the =Deriving= API are wrapped in =Need= (recall =Name= from
 Chapter 6), which allows lazy construction, avoiding unnecessary work if the
-typeclass is not needed, and avoiding stack overflows for recursive ADTs.
+typeclass is not needed, and avoiding stack overflows for recursive GADTs.
 #+END_ASIDE
 
 To be able to do the same for our =Default= typeclass, we need to provide an
@@ -13545,8 +13515,8 @@ sealed abstract class /~\[A[_], B[_]] {
 }
 object /~\ {
   type APair[A[_], B[_]]  = A /~\ B
-  @inline final def unapply[A[_], B[_]](p: A /~\ B): Some[(A[p.T], B[p.T])] = ...
-  @inline final def apply[A[_], B[_], Z](az: =>A[Z], bz: =>B[Z]): A /~\ B = ...
+  def unapply[A[_], B[_]](p: A /~\ B): Some[(A[p.T], B[p.T])] = ...
+  def apply[A[_], B[_], Z](az: =>A[Z], bz: =>B[Z]): A /~\ B = ...
 }
 #+END_SRC
 
@@ -13579,26 +13549,20 @@ optimisations:
 
     def dividez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Prod[A])(
       implicit ev: A PairedWith FA
-    ): Equal[Z] = (z1, z2) =>
-      (g(z1), g(z2)).zip(tcs).all {
-        case (a1, a2) /~\ fa => (quick(a1, a2) || fa.value.equal(a1, a2))
-      }
+    ): Equal[Z] = (z1, z2) => (g(z1), g(z2)).zip(tcs).all {
+      case (a1, a2) /~\ fa => quick(a1, a2) || fa.value.equal(a1, a2)
+    }
 
     def choosez[Z, A <: TList, FA <: TList](tcs: Prod[FA])(g: Z => Cop[A])(
       implicit ev: A PairedWith FA
-    ): Equal[Z] = (z1, z2) =>
-      (g(z1), g(z2)).zip(tcs) match {
-        case -\/(_)               => false
-        case \/-((a1, a2) /~\ fa) => quick(a1, a2) || fa.value.equal(a1, a2)
-      }
+    ): Equal[Z] = (z1, z2) => (g(z1), g(z2)).zip(tcs) match {
+      case -\/(_)               => false
+      case \/-((a1, a2) /~\ fa) => quick(a1, a2) || fa.value.equal(a1, a2)
+    }
   }
 #+END_SRC
 
 ***** =Default=
-
-We've already seen how to define an =Alt= and lift it to a =Deriving= with the
-=ExtendedInvariantAlt= helper. However, for completeness, say we wish to define
-an =Altz= directly.
 
 Unfortunately, the =iotaz= API for =.traverse= (and its analogy, =.coptraverse=)
 requires us to define natural transformations, which have a clunky syntax, even
@@ -13639,28 +13603,24 @@ possible to define one for general products. We can use the arbitrary arity
     type L[a] = ((a, a), NameF[a])
     val appender = λ[L ~> Id] { case ((a1, a2), fa) => fa.value.append(a1, a2) }
 
-    override def xproductz[Z, A <: TList, FA <: TList](
-      tcs: Prod[FA]
-    )(
-      f: Prod[A] => Z,
-      g: Z => Prod[A]
-    )(
-      implicit ev: A PairedWith FA
-    ): Semigroup[Z] = new Semigroup[Z] {
-      def append(z1: Z, z2: =>Z): Z = f(tcs.ziptraverse2(g(z1), g(z2), appender))
-    }
+    def xproductz[Z, A <: TList, FA <: TList](tcs: Prod[FA])
+                                             (f: Prod[A] => Z, g: Z => Prod[A])
+                                             (implicit ev: A PairedWith FA) =
+      new Semigroup[Z] {
+        def append(z1: Z, z2: =>Z): Z = f(tcs.ziptraverse2(g(z1), g(z2), appender))
+      }
   }
 #+END_SRC
 
 ***** =JsEncoder= and =JsDecoder=
 
-=scalaz-deriving= does not provide access to field names so it is not possible,
-which is why we will study Magnolia in the next section.
+=scalaz-deriving= does not provide access to field names so it is not possible
+to write a JSON encoder or decoder.
 
 #+BEGIN_ASIDE
 An earlier version of =scalaz-deriving= supported field names but it was clear
 that there was no advantage over using Magnolia, so the support was dropped to
-remain focused on =Alt= and =Decidable=.
+remain focused on typeclasses with lawful =Alt= and =Decidable=.
 #+END_ASIDE
 
 *** Magnolia
@@ -13669,7 +13629,7 @@ The Magnolia macro library provides a clean API for writing typeclass
 derivations. It is installed with the following =build.sbt= entry
 
 #+BEGIN_SRC scala
-libraryDependencies += "com.propensive" %% "magnolia" % "0.10.0"
+libraryDependencies += "com.propensive" %% "magnolia" % "0.10.1"
 #+END_SRC
 
 A typeclass author implements the following members:
@@ -13687,7 +13647,7 @@ object MyDerivation {
 }
 #+END_SRC
 
-The Magnolia objects are:
+The Magnolia API is:
 
 #+BEGIN_SRC scala
 class CaseClass[TC[_], A] {
@@ -13782,31 +13742,7 @@ final case class Time(s: String) extends Cost
 final case class Money(@json.field("integer") i: Int) extends Cost
 #+END_SRC
 
-These user preferences also allow us to distinguish between =null=, missing and
-valid values without any further modifications to =JsValue=, =JsEncoder= or
-=JsDecoder=. For example, through this ADT
-
-#+BEGIN_SRC scala
-sealed abstract class Possibly[A]
-object Possibly {
-  final case class Missing[A]()   extends Possibly[A]
-  final case class Found[A](a: A) extends Possibly[A]
-
-  implicit def encoder[A: JsEncoder]: JsEncoder[Possibly] = JsEncoder[A].contramap(_.a)
-  implicit def decoder[A: JsDecoder]: JsDecoder[Possibly] = JsDecoder[A].map(Found(_))
-}
-#+END_SRC
-
-we can say that we require =null= values, otherwise using a default, then check
-for =null= with =Option=:
-
-#+BEGIN_SRC scala
-final case class(
-  @json.nulls() s: Possibly[Option[String]] = Missing()
-)
-#+END_SRC
-
-Let's start with a =JsDecoder= that handles only our "sensible defaults":
+Start with a =JsDecoder= that handles only our sensible defaults:
 
 #+BEGIN_SRC scala
 object JsMagnoliaEncoder {
@@ -13840,7 +13776,7 @@ We can see how the Magnolia API makes it easy to access field names and
 typeclasses for each parameter.
 
 Now add support for annotations to handle user preferences. To avoid looking up
-the annotations on every encoding, we'll cache them in an array. Although field
+the annotations on every encoding, we will cache them in an array. Although field
 access to an array is non-total, we are guaranteed that the indices will always
 align. Performance is usually the victim in the trade-off between specialisation
 and generalisation.
@@ -14183,7 +14119,7 @@ sealed trait Coproduct
 sealed trait :+:[+H, +T <: Coproduct] extends Coproduct
 final case class Inl[+H, +T <: Coproduct](head: H) extends :+:[H, T]
 final case class Inr[+H, +T <: Coproduct](tail: T) extends :+:[H, T]
-sealed trait CNil extends Coproduct // no instances
+sealed trait CNil extends Coproduct // no implementations
 #+END_SRC
 
 which are /generic/ representations of products and coproducts, respectively.
@@ -14205,10 +14141,10 @@ object Generic {
 }
 #+END_SRC
 
-Many of the data types have a type member (=Repr=) and an =.Aux= type alias on
-their companion that makes the second type visible. This allows us to request
-the =Generic[Foo]= for a type =Foo= without having to provide the verbose type
-of the generic representation, instead generated by a =.materialize= macro:
+Many of the types in Shapeless have a type member (=Repr=) and an =.Aux= type
+alias on their companion that makes the second type visible. This allows us to
+request the =Generic[Foo]= for a type =Foo= without having to provide the
+generic representation, which is generated by a macro.
 
 #+BEGIN_SRC
 scala> import shapeless._
@@ -14275,7 +14211,7 @@ increasingly complex examples.
 
 A typical pattern to follow is to extend the typeclass that we wish to derive,
 and put the Shapeless code on its companion. This gives us an implicit scope
-that the compiler can search with without requiring the user to provide complex imports
+that the compiler can search without requiring complex imports
 
 #+BEGIN_SRC scala
 trait DerivedEqual[A] extends Equal[A]
@@ -14299,9 +14235,9 @@ object DerivedEqual {
 }
 #+END_SRC
 
-We've reduced the problem to providing an implicit =Equal[R]= for an arbitrary
-=R= that has an instance of a =Generic=. Let's first consider products, where =R
-<: HList=. This is the signature we want to implement:
+We've reduced the problem to providing an implicit =Equal[R]= for an =R= that is
+the =Generic= representation of =A=. First consider products, where =R <:
+HList=. This is the signature we want to implement:
 
 #+BEGIN_SRC scala
   implicit def hcons[H: Equal, T <: HList: DerivedEqual]: DerivedEqual[H :: T]
@@ -14315,7 +14251,7 @@ need to provide an instance for the empty =HNil=
   implicit def hnil: DerivedEqual[HNil]
 #+END_SRC
 
-Let's look to implement these methods
+We implement these methods
 
 #+BEGIN_SRC scala
   implicit def hcons[H: Equal, T <: HList: DerivedEqual]: DerivedEqual[H :: T] =
@@ -14341,8 +14277,9 @@ import shapeless._
 #+END_SRC
 #+END_ASIDE
 
-There is no instance for =cnil= so it can just throw an exception as it will
-never be called: it's a leak in the type system
+=.cnil= will never be called for a typeclass like =Equal= with type parameters
+only in contravariant position, but the compiler doesn't know that so we have to
+provide a stub:
 
 #+BEGIN_SRC scala
   implicit val cnil: DerivedEqual[CNil] = (_, _) => sys.error("impossible")
@@ -14403,7 +14340,9 @@ But it doesn't compile
 
 Welcome to Shapeless compilation errors!
 
-The problem, which is not at all evident in the error, is that the compiler is unable to work out what =R= is, and gets caught thinking it is something else. We need to provide the explicit type parameters when calling =gen=, e.g.
+The problem, which is not at all evident from the error, is that the compiler is
+unable to work out what =R= is, and gets caught thinking it is something else.
+We need to provide the explicit type parameters when calling =gen=, e.g.
 
 #+BEGIN_SRC scala
 implicit val equal: Equal[Baz.type] = DerivedEqual.gen[Baz.type, HNil]
@@ -14412,22 +14351,11 @@ implicit val equal: Equal[Baz.type] = DerivedEqual.gen[Baz.type, HNil]
 or we can use the =Generic= macro to help us and let the compiler infer the generic representation
 
 #+BEGIN_SRC scala
-object Foo {
-  implicit val generic           = Generic[Foo]
-  implicit val equal: Equal[Foo] = DerivedEqual.gen[Foo, generic.Repr]
-}
-object Bar {
-  implicit val generic           = Generic[Bar]
-  implicit val equal: Equal[Bar] = DerivedEqual.gen[Bar, generic.Repr]
-}
-object Faz {
-  implicit val generic           = Generic[Faz]
-  implicit val equal: Equal[Faz] = DerivedEqual.gen[Faz, generic.Repr]
-}
 final case object Baz extends Foo {
   implicit val generic                = Generic[Baz.type]
   implicit val equal: Equal[Baz.type] = DerivedEqual.gen[Baz.type, generic.Repr]
 }
+...
 #+END_SRC
 
 #+BEGIN_ASIDE
@@ -14635,12 +14563,15 @@ To be able to reproduce our Magnolia JSON encoder, we must be able to access:
 2. annotations for user preferences
 3. default values on a =case class=
 
-We'll begin by creating an encoder that handles only the sensible defaults.
+We will begin by creating an encoder that handles only the sensible defaults.
 
 To get field names, we use =LabelledGeneric= instead of =Generic=, and when
 defining the type of the head element, use =FieldType[K, H]= instead of just
-=H=. Request a =Witness.Aux[K]= to be able to access the value of the
-field name =K= at runtime.
+=H=. A =Witness.Aux[K]= provides the value of the field name at runtime.
+
+All of our methods are going to return =JsObject=, so rather than returning a
+=JsValue= we can specialise and create =DerivedJsEncoder= that has a different
+type signature to =JsEncoder=.
 
 #+BEGIN_SRC scala
 import shapeless._, labelled._
@@ -14725,18 +14656,17 @@ A pattern has emerged in many Shapeless derivation libraries that introduce
 #+END_SRC
 
 Users are supposed to provide a custom instance of =ProductHint= on their
-companions or package objects.
-
-This mechanism relies on fragile implicit ordering and is a source of typeclass
-decoherence: if we derive a =JsEncoder[Foo]=, we will get a different result
-depending on which =ProductHint[Foo]= is in scope. It is best avoided.
+companions or package objects. This is a *terrible idea* that relies on fragile
+implicit ordering and is a source of typeclass decoherence: if we derive a
+=JsEncoder[Foo]=, we will get a different result depending on which
+=ProductHint[Foo]= is in scope. It is best avoided.
 #+END_ASIDE
 
 Shapeless selects codepaths at compiletime based on the presence of annotations,
 which can lead to more optimised code, at the expense of code repetition. This
 means that the number of annotations we are dealing with, and their subtypes,
-must minimised or we can find ourselves writing 10x the amount of code. Let's
-refactor our three annotations into one containing all the customisation
+must be manageable or we can find ourselves writing 10x the amount of code. We
+change our three annotations into one containing all the customisation
 parameters:
 
 #+BEGIN_SRC scala
@@ -15017,11 +14947,13 @@ and decoder
 #+BEGIN_SRC scala
 object JsEncoder {
   ...
-  implicit def tagged[A: JsEncoder, Z]: JsEncoder[A @@ Z] = JsEncoder[A].contramap(Tag.unwrap)
+  implicit def tagged[A: JsEncoder, Z]: JsEncoder[A @@ Z] =
+    JsEncoder[A].contramap(Tag.unwrap)
 }
 object JsDecoder {
   ...
-  implicit def tagged[A: JsDecoder, Z]: JsDecoder[A @@ Z] = JsDecoder[A].map(Tag(_))
+  implicit def tagged[A: JsDecoder, Z]: JsDecoder[A @@ Z] =
+    JsDecoder[A].map(Tag(_))
 }
 #+END_SRC
 
@@ -15230,11 +15162,8 @@ object DerivedProductJsDecoder {
 
 #+END_SRC
 
-We can't use =@deriving= any more for products and coproducts. One possible hack
-is to make =DerivedCoproductJsDecoder= extend from =JsDecoder=, adding an entry
-in the =deriving.conf= for =DerivedCoproductJsDecoder= as well as one for
-=JsDecoder= (which points to =DerivedProductJsDecoder=), but this adds to the
-mental burden at the point of use, which is not ideal.
+We can no longer use =@deriving= for products and coproducts: there can only be
+one entry in the =deriving.conf= file.
 
 Oh, and don't forget to add =@@= support
 
@@ -15278,8 +15207,8 @@ private[jsonformat] trait DerivedProductJsDecoder2 {
 **** Complicated Derivations
 
 Shapeless allows for a lot more kinds of derivations than are possible with
-=scalaz-deriving= or Magnolia. As an example of an encoder / decoder than are
-not possible with Magnolia, consider this simple XML model from [[https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat][=xmlformat=]]
+=scalaz-deriving= or Magnolia. As an example of an encoder / decoder that are
+not possible with Magnolia, consider this XML model from [[https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat][=xmlformat=]]
 
 #+BEGIN_SRC scala
 @deriving(Equal, Show, Arbitrary)
@@ -15358,8 +15287,9 @@ object DerivedUrlQueryWriter {
 }
 #+END_SRC
 
-It is reasonable to ask if these 30 lines are an improvement over the 8 lines
-for the 2 manual instances our application needs.
+It is reasonable to ask if these 30 lines are actually an improvement over the 8
+lines for the 2 manual instances our application needs: a decision to be taken
+on a case by case basis.
 
 For completeness, the =UrlEncodedWriter= derivation can be written with Magnolia
 
@@ -15460,9 +15390,7 @@ For a typical Shapeless derivation, we get a lively chart
 
 almost the entire compile time is spent in implicit resolution. Note that this
 also includes compiling the =scalaz-deriving=, Magnolia and manual instances,
-but the Shapeless computations dominate. Implicit resolution for
-=scalaz-deriving=, Magnolia and manual instances are simple: everything is on
-the data type companions.
+but the Shapeless computations dominate.
 
 And this is when it works. If there is a problem with a shapeless derivation,
 the compiler can get stuck in an infinite loop and must be killed.
@@ -15530,10 +15458,9 @@ TwitterAPIBenchmarks.decodeShapelessSuccess     thrpt    5   47711.161 ±  356.9
 TwitterAPIBenchmarks.decodeManualSuccess        thrpt    5   71962.394 ±  465.752  ops/s
 #+END_SRC
 
-This is a tighter race, with Shapeless keeping pace with Magnolia, by and large,
-and manual instances performing the best on the GeoJSON data. Finally, decoding
-from a =JsValue= that contains invalid data (in an intentionally awkward
-position)
+This is a tighter race for second place, with Shapeless and Magnolia keeping
+pace. Finally, decoding from a =JsValue= that contains invalid data (in an
+intentionally awkward position)
 
 #+BEGIN_SRC
 > jsonformat/jmh:run -i 5 -wi 5 -f1 -t1 -w1 -r1 .*decode.*Error
@@ -15607,9 +15534,9 @@ TwitterAPIBenchmarks.equalManualFalse        thrpt    5  1631964.531 ± 13110.29
 #+END_SRC
 
 The runtime performance of =scalaz-deriving=, Magnolia and Shapeless is usually
-good enough. Let's be honest: we are not writing applications that need to be
-able to encode more than 130,000 values to JSON, per second, on a single core,
-on the JVM. If that's a problem, look into C++.
+good enough. We should be realistic: we are not writing applications that need to
+be able to encode more than 130,000 values to JSON, per second, on a single
+core, on the JVM. If that is a problem, look into C++.
 
 It is unlikely that derived instances will be an application's bottleneck. Even
 if it is, there is the manually written escape hatch, which is more powerful and
@@ -15624,7 +15551,7 @@ We could spend a lifetime with the [[https://github.com/jvm-profiling-tools/asyn
 allocation flame graphs to make any of these implementations faster. For
 example, there are some optimisations in the actual =jsonformat= codebase not
 reproduced here, such as a more optimised =JsObject= field lookup, and inclusion
-of =.xmap=, =.map= and =.contramap= on the relevant typeclasses, but it's fair
+of =.xmap=, =.map= and =.contramap= on the relevant typeclasses, but it is fair
 to say that the codebase primarily focuses on readability over optimisation and
 still achieves incredible performance.
 #+END_ASIDE
@@ -15815,7 +15742,7 @@ We derive useful typeclasses using =scalaz-deriving= and Magnolia. The
 runtime configuration from HOCON property files.
 
 And without going into the detail of how to implement the algebras, we need to
-know the dependency graph of our =DynAgentsModule=. Let's unravel the thread...
+know the dependency graph of our =DynAgentsModule=.
 
 #+BEGIN_SRC scala
 final class DynAgentsModule[F[_]: Applicative](
@@ -15975,10 +15902,9 @@ put this into a method called =.step= and repeat it forever by calling
 We begin the journey to get to this code. There are two approaches we can take,
 and we will explore both. The first, and simplest, is to construct one monad
 stack that all algebras are compatible with. Everything gets a =.liftM= added to
-it to lift it into the larger stack. Let's explore this approach for the
-=--machines= mode of operation.
+it to lift it into the larger stack.
 
-The code we want to write is
+The code we want to write for the one-shot authentication mode is
 
 #+BEGIN_SRC scala
   def auth(name: String): Task[Unit] = {
@@ -16175,7 +16101,7 @@ libraryDependencies ++= Seq(
 
 **** =BlazeJsonClient=
 
-We'll need some imports
+We will need some imports
 
 #+BEGIN_SRC scala
 import org.http4s
@@ -16471,7 +16397,7 @@ server, which we do with =BlazeBuilder=
 #+END_SRC
 
 Binding to port =0= lets the operating system assign a ephemeral port. We can
-discover which port it's actually running on by querying the =server.address=
+discover which port it is actually running on by querying the =server.address=
 field.
 
 Our implementation of the =.start= and =.stop= methods is now straightforward
@@ -16522,7 +16448,7 @@ any boilerplate that would distract us.
 
 *** Thank You
 
-And that's it! Congratulations on reaching the end. If you learnt something from
+And that is it! Congratulations on reaching the end. If you learnt something from
 this book, please tell your friends. This book does not have a marketing
 department, so word of mouth is the only way that readers find out about it.
 
