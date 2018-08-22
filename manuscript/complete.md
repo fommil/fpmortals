@@ -2766,8 +2766,8 @@ that lets us lift a value into an effect, or create a data structure
 from a single value.
 
 `.sequence` is useful for rearranging type constructors. If we have an `F[G[_]]`
-but need a `G[F[_]]`, e.g. `List[IO[Int]]` but need a `IO[List[Int]]`, that's
-`.sequence`.
+but need a `G[F[_]]`, e.g. `List[Future[Int]]` but need a `Future[List[Int]]`,
+that's `.sequence`.
 
 
 ## Agenda
@@ -2788,10 +2788,10 @@ scalaz source code.
 {width=100%}
 ![](images/scalaz-core-tree.png)
 
-{width=100%}
+{width=60%}
 ![](images/scalaz-core-cliques.png)
 
-{width=80%}
+{width=60%}
 ![](images/scalaz-core-loners.png)
 
 
@@ -2997,8 +2997,8 @@ defined on `java.lang.Object` whether it makes sense or not. There is
 no way to remove `equals` and no way to guarantee that it is
 implemented.
 
-However, in FP we prefer typeclasses for polymorphic functionality and
-even concepts as simple equality are captured at compiletime.
+However, in FP we prefer typeclasses for polymorphic functionality and even the
+concept of equality is captured at compiletime.
 
 {width=20%}
 ![](images/scalaz-comparable.png)
@@ -3075,8 +3075,8 @@ successors and predecessors:
   
     @op("|->" ) def fromToL(from: F, to: F): List[F] = ...
     @op("|-->") def fromStepToL(from: F, step: Int, to: F): List[F] = ...
-    @op("|=>" ) def fromToL(from: F, to: F): EphemeralStream[F] = ...
-    @op("|==>") def fromStepToL(from: F, step: Int, to: F): EphemeralStream[F] = ...
+    @op("|=>" ) def fromTo(from: F, to: F): EphemeralStream[F] = ...
+    @op("|==>") def fromStepTo(from: F, step: Int, to: F): EphemeralStream[F] = ...
   }
 ~~~~~~~~
 
@@ -3089,17 +3089,17 @@ successors and predecessors:
   res: List[Char] = List(m, n, o, p, q, r, s, t, u)
 ~~~~~~~~
 
-A> `|==>` is Scalaz's Lightsaber. This is the syntax of a Functional
+A> `|-->` is Scalaz's Lightsaber. This is the syntax of a Functional
 A> Programmer. Not as clumsy or random as `fromStepToL`. An elegant
 A> syntax... for a more civilised age.
 
 We'll discuss `EphemeralStream` in the next chapter, for now we just need to
-know that it is a potentially infinite data structure that avoids memory
+know that it is a potentially infinite data structure that avoids the memory
 retention problems in the stdlib `Stream`.
 
-Similarly to `Object.equals`, the concept of a `.toString` on every
-`class` does not make sense in Java. We would like to enforce
-stringyness at compiletime and this is exactly what `Show` achieves:
+Similarly to `Object.equals`, the concept of `.toString` on every `class` does
+not make sense in Java. We would like to enforce stringyness at compiletime and
+this is exactly what `Show` achieves:
 
 {lang="text"}
 ~~~~~~~~
@@ -3112,11 +3112,6 @@ stringyness at compiletime and this is exactly what `Show` achieves:
 We'll explore `Cord` in more detail in the chapter on data types, we need only
 know that it is an efficient data structure for storing and manipulating
 `String`.
-
-Unfortunately, due to Scala's default implicit conversions in
-`Predef`, and language level support for `toString` in interpolated
-strings, it can be incredibly hard to remember to use `shows` instead
-of `toString`.
 
 
 ## Mappable Things
@@ -3270,9 +3265,6 @@ and
     update  = world.copy(pending = world.pending ++ updates)
   } yield update
 ~~~~~~~~
-
-As a bonus, we are now using the less powerful `Functor` instead of
-`Monad` when starting a node.
 
 
 ### Foldable
@@ -3431,11 +3423,11 @@ index, including a bunch of other related methods:
   def element[A: Equal](fa: F[A], a: A): Boolean = ...
 ~~~~~~~~
 
-Scalaz is a pure library of only *total functions*, whereas the stdlib `.apply`
-returns `A` and can throw an exception, `Foldable.index` returns an `Option[A]`
-with the convenient `.indexOr` returning an `A` when a default value is
-provided. `.element` is similar to the stdlib `.contains` but uses `Equal`
-rather than ill-defined JVM equality.
+Scalaz is a pure library of only *total functions*. Whereas `List(0)` can throw
+an exception, `Foldable.index` returns an `Option[A]` with the convenient
+`.indexOr` returning an `A` when a default value is provided. `.element` is
+similar to the stdlib `.contains` but uses `Equal` rather than ill-defined JVM
+equality.
 
 These methods *really* sound like a collections API. And, of course,
 anything with a `Foldable` can be converted into a `List`
@@ -3491,7 +3483,7 @@ for example
   res = [(f, [foo]), (b, [bar, bar]), (f, [faz]), (g, [gaz]), (b, [baz])]
 ~~~~~~~~
 
-noting that there are two parts indexed by `f`.
+noting that there are two values indexed by `'b'`.
 
 `splitByRelation` avoids the need for an `Equal` but we must provide
 the comparison operator.
@@ -3582,9 +3574,9 @@ the `Monoid` methods shown here (all suffixed `1`) and makes sense for
 data structures which are never empty, without requiring a `Monoid` on
 the elements.
 
-Very importantly, there are variants that take monadic return values.
-We already used `foldLeftM` when we first wrote the business logic of
-our application, now we know that it is from `Foldable`:
+Importantly, there are variants that take monadic return values. We already used
+`foldLeftM` when we first wrote the business logic of our application, now we
+know that it is from `Foldable`:
 
 {lang="text"}
 ~~~~~~~~
@@ -3671,10 +3663,11 @@ infinite stream:
      control _ program _ what it does _ _"""
 ~~~~~~~~
 
-Finally `Traverse1`, like `Foldable1`, provides variants of these
-methods for data structures that cannot be empty, accepting the weaker
-`Semigroup` instead of a `Monoid`, and an `Apply` instead of an
-`Applicative`.
+Finally `Traverse1`, like `Foldable1`, provides variants of these methods for
+data structures that cannot be empty, accepting the weaker `Semigroup` instead
+of a `Monoid`, and an `Apply` instead of an `Applicative`. Recall that
+`Semigroup` does not have to provide an `.empty`, and `Apply` does not have to
+provide a `.point`.
 
 
 ### Align
@@ -3691,7 +3684,8 @@ looking at `Align`, meet the `\&/` data type (spoken as *These*, or
   final case class Both[A, B](aa: A, bb: B) extends (A \&/ B)
 ~~~~~~~~
 
-i.e. it is a data encoding of inclusive logical `OR`.
+i.e. it is a data encoding of inclusive logical `OR`. `A` or `B` or both `A` and
+`B`.
 
 {lang="text"}
 ~~~~~~~~
@@ -3832,98 +3826,45 @@ possible to map the contents of a structure `F[A]` into `F[B]`. Using
 `identity` we can see that `A` can be safely downcast (or upcast) into
 `B` depending on the variance of the functor.
 
-This sounds so hopelessly abstract that it needs a practical example
-immediately, before we can take it seriously. In Chapter 4 we used `jsonformat`
-to derive a JSON encoder for our data types and we gave a brief description of
-the `JsEncoder` typeclass. This is an expanded version:
+`.map` may be understand by its contract "if you give me an `F` of `A` and a way
+to turn an `A` into a `B`, then I can give you an `F` of `B`".
 
-{lang="text"}
-~~~~~~~~
-  @typeclass trait JsEncoder[A] {
-    def toJson(obj: A): JsValue
-  }
-  object JsEncoder {
-    implicit val contravariant: Contravariant[JsEncoder] =
-      new Contravariant[JsEncoder] {
-        def contramap[A, B](fa: JsEncoder[A])(f: B => A): JsEncoder[B] =
-          b => fa.toJson(f(b))
-      }
-    ...
-  }
-~~~~~~~~
+Likewise, `.contramap` reads as "if you give me an `F` of `A` and a way to turn
+a `B` into a `A`, then I can give you an `F` of `B`".
 
-Now consider the case where we want to write an instance of an `JsEncoder[B]` in
-terms of another `JsEncoder[A]`: we have a data type `Alpha` that simply wraps a
-`Double`. This is exactly what `contramap` is for:
+Let's look at an example. Say we introduce a domain specific type to ensure that
+we don't mix up numbers in a calculation:
 
 {lang="text"}
 ~~~~~~~~
   final case class Alpha(value: Double)
-  
-  object Alpha {
-    implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
-  }
 ~~~~~~~~
 
-On the other hand, a `JsDecoder` has a `Functor`:
+but now we're faced with the problem that we don't have any typeclasses for this
+new type. If we were using the value in JSON documents, we now have to provide a
+manual instance of `JsEncoder` and `JsDecoder`.
+
+However, `JsEncoder` has a `Contravariant` and `JsDecoder` has a `Functor`, so
+we can derive instances. Let's fill in the contract:
+
+-   "if you give me a `JsDecoder` for a `Double`, and a way to go from a `Double`
+    to an `Alpha`, then I can give you a `JsDecoder` for an `Alpha`".
+-   "if you give me a `JsEncoder` for a `Double`, and a way to go from an `Alpha`
+    to a `Double`, then I can give you a `JsEncoder` for an `Alpha`".
 
 {lang="text"}
 ~~~~~~~~
-  @typeclass trait JsDecoder[A] { self =>
-    def fromJson(json: JsValue): String \/ A
-  }
-  object JsDecoder {
-    implicit val functor: Functor[JsDecoder] = new Functor[JsDecoder] {
-      def map[A, B](fa: JsDecoder[A])(f: A => B): JsDecoder[B] =
-        j => fa.fromJson(j).map(f)
-    }
-    ...
+  object Alpha {
+    implicit val decoder: JsDecoder[Alpha] = JsEncoder[Double].map(_.value)
+    implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
   }
 ~~~~~~~~
 
 Methods on a typeclass can have their type parameters in *contravariant
 position* (method parameters) or in *covariant position* (return type). If a
 typeclass has a combination of covariant and contravariant positions, it might
-have an *invariant functor*.
-
-
-### Composition
-
-Invariants can be composed via methods with intimidating type
-signatures. There are many permutations of `compose` on most
-typeclasses, we will not list them all.
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
-    def compose[G[_]: Functor]: Functor[λ[α => F[G[α]]]] = ...
-    def icompose[G[_]: Contravariant]: Contravariant[λ[α => F[G[α]]]] = ...
-    ...
-  }
-  @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
-    def compose[G[_]: Contravariant]: Functor[λ[α => F[G[α]]]] = ...
-    def icompose[G[_]: Functor]: Contravariant[λ[α => F[G[α]]]] = ...
-    ...
-  }
-~~~~~~~~
-
-The `α =>` type syntax is a `kind-projector` *type lambda* that says if
-`Functor[F]` is composed with a type `G[_]` (that has a `Functor[G]`), we get a
-`Functor[F[G[_]]]` that operates on the `A` in `F[G[A]]`.
-
-An example of `Functor.compose` is where `F[_]` is `List`, `G[_]` is
-`Option`, and we want to be able to map over the `Int` inside a
-`List[Option[Int]]` without changing the two structures:
-
-{lang="text"}
-~~~~~~~~
-  scala> val lo = List(Some(1), None, Some(2))
-  scala> Functor[List].compose[Option].map(lo)(_ + 1)
-  res: List[Option[Int]] = List(Some(2), None, Some(3))
-~~~~~~~~
-
-This lets us jump into nested effects and structures and apply a
-function at the layer we want.
+have an *invariant functor*. For example, `Semigroup` and `Monoid` have an
+`InvariantFunctor`, but not a `Functor` or a `Contravariant`.
 
 
 ## Apply and Bind
@@ -3938,7 +3879,7 @@ Consider this the warm-up act to `Applicative` and `Monad`
 
 `Apply` extends `Functor` by adding a method named `ap` which is
 similar to `map` in that it applies a function to values. However,
-with `ap`, the function is in a similar context to the values.
+with `ap`, the function is in the same context as the values.
 
 {lang="text"}
 ~~~~~~~~
@@ -4057,8 +3998,8 @@ or directly call `applyX`
   Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
 ~~~~~~~~
 
-Despite being of most value for dealing with effects, `Apply` provides
-convenient syntax for dealing with data structures. Consider rewriting
+Despite being more commonly used with effects, `Apply` works just as well with
+data structures. Consider rewriting
 
 {lang="text"}
 ~~~~~~~~
@@ -4072,7 +4013,7 @@ as
 
 {lang="text"}
 ~~~~~~~~
-  (data.foo |@| data.bar)(_ + _.shows) : Option[String]
+  (data.foo |@| data.bar)(_ + _.shows)
 ~~~~~~~~
 
 If we only want the combined output as a tuple, methods exist to do
@@ -4102,7 +4043,7 @@ parameters:
   def ap12[...]
 ~~~~~~~~
 
-along with `lift` methods that take normal functions and lift them into the
+along with `.lift` methods that take normal functions and lift them into the
 `F[_]` context, the generalisation of `Functor.lift`
 
 {lang="text"}
@@ -4113,14 +4054,14 @@ along with `lift` methods that take normal functions and lift them into the
   def lift12[...]
 ~~~~~~~~
 
-and `apF`, a partially applied syntax for `ap`
+and `.apF`, a partially applied syntax for `ap`
 
 {lang="text"}
 ~~~~~~~~
   def apF[A,B](f: =>F[A => B]): F[A] => F[B] = ...
 ~~~~~~~~
 
-Finally `forever`
+Finally `.forever`
 
 {lang="text"}
 ~~~~~~~~
@@ -4133,10 +4074,9 @@ stack safe or we'll get `StackOverflowError`.
 
 ### Bind
 
-`Bind` introduces `bind`, synonymous with `flatMap`, which allows
-functions over the result of an effect to return a new effect, or for
-functions over the values of a data structure to return new data
-structures that are then joined.
+`Bind` introduces `.bind`, synonymous with `.flatMap`, which allows functions
+over the result of an effect to return a new effect, or for functions over the
+values of a data structure to return new data structures that are then joined.
 
 {lang="text"}
 ~~~~~~~~
@@ -4306,8 +4246,9 @@ as
   } yield true
 ~~~~~~~~
 
-which are equivalent. We're making a lot of assumptions about the
-Google Container API here, but this is a reasonable choice to make.
+which are equivalent for our algebra, but not in general. We're making a lot of
+assumptions about the Google Container API here, but this is a reasonable choice
+to make.
 
 A practical consequence is that a `Monad` must be *commutative* if its
 `applyX` methods can be allowed to run in parallel. We cheated in
@@ -4365,23 +4306,6 @@ product type `Foo`
   res: Boolean = false
 ~~~~~~~~
 
-It is a good moment to look again at `Apply`
-
-{lang="text"}
-~~~~~~~~
-  @typeclass trait Apply[F[_]] extends Functor[F] {
-    ...
-    def apply2[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
-    def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
-    ...
-    def apply12[...]
-    ...
-  }
-~~~~~~~~
-
-It is now easier to spot that `applyX` is how we can derive typeclasses
-for covariant typeclasses.
-
 Mirroring `Apply`, `Divide` also has terse syntax for tuples. A softer
 *divide so that we may reign* approach to world domination:
 
@@ -4391,19 +4315,7 @@ Mirroring `Apply`, `Divide` also has terse syntax for tuples. A softer
     def tuple2[A1, A2](a1: F[A1], a2: F[A2]): F[(A1, A2)] = ...
     ...
     def tuple22[...] = ...
-  
-    def deriving2[A1: F, A2: F, Z](f: Z => (A1, A2)): F[Z] = ...
-    ...
-    def deriving22[...] = ...
   }
-~~~~~~~~
-
-and `deriving`, which is even more convenient to use for typeclass
-derivation:
-
-{lang="text"}
-~~~~~~~~
-  implicit val fooEqual: Equal[Foo] = Divide[Equal].deriving2(f => (f.s, f.i))
 ~~~~~~~~
 
 Generally, if encoder typeclasses can provide an instance of `Divide`,
@@ -4412,8 +4324,8 @@ derive instances for any `case class`. Similarly, decoder typeclasses
 can provide an `Apply` instance. We will explore this in a dedicated
 chapter on Typeclass Derivation.
 
-`Divisible` is the `Contravariant` analogue of `Applicative` and
-introduces `conquer`, the equivalent of `pure`
+`Divisible` is the `Contravariant` analogue of `Applicative` and introduces
+`.conquer`, the equivalent of `.pure`
 
 {lang="text"}
 ~~~~~~~~
@@ -4422,17 +4334,10 @@ introduces `conquer`, the equivalent of `pure`
   }
 ~~~~~~~~
 
-`conquer` allows creating fallback implementations that effectively ignore the
-type parameter. Such values are called *universally quantified*. For example,
-the `Divisible[Equal].conquer[String]` returns a trivial implementation of
-`Equal` that always returns `true`, which allows us to implement `contramap` in
-terms of `divide`
-
-{lang="text"}
-~~~~~~~~
-  override def contramap[A, B](fa: F[A])(f: B => A): F[B] =
-    divide(conquer[Unit], fa)(c => ((), f(c)))
-~~~~~~~~
+`.conquer` allows creating trivial implementations where the type parameter is
+ignored. Such values are called *universally quantified*. For example, the
+`Divisible[Equal].conquer[INil[String]]` returns an implementation of `Equal`
+for an empty list of `String` which is always `true`.
 
 
 ## Plus
@@ -4499,19 +4404,18 @@ from `Foldable1.foldRight1`:
   res: Option[Int] = Some(1)
 ~~~~~~~~
 
-In fact, now that we know about `Plus`, we release that we didn't need to break
+In fact, now that we know about `Plus`, we realise that we didn't need to break
 typeclass coherence (when we defined a locally scoped `Monoid[Option[A]]`) in
 the section on Appendable Things. Our objective was to "pick the last winner",
 which is the same as "pick the winner" if the arguments are swapped. Note the
-use of the TIE Interceptor for `ccy` and `otc` and that `b` comes before `a` in
+use of the TIE Interceptor for `ccy` and `otc` with arguments swapped.
 
 {lang="text"}
 ~~~~~~~~
   implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
-    (a, b) =>
-      TradeTemplate(a.payments |+| b.payments,
-                    b.ccy <+> a.ccy,
-                    b.otc <+> a.otc),
+    (a, b) => TradeTemplate(a.payments |+| b.payments,
+                            b.ccy <+> a.ccy,
+                            b.otc <+> a.otc),
     TradeTemplate(Nil, None, None)
   )
 ~~~~~~~~
@@ -4529,13 +4433,10 @@ use of the TIE Interceptor for `ccy` and `otc` and that `b` comes before `a` in
   }
 ~~~~~~~~
 
-`ApplicativePlus` is also known as `Alternative`.
-
-`unite` looks a `Foldable.fold` on the contents of `F[_]` but is
-folding with the `PlusEmpty[F].monoid` (not the `Monoid[A]`). For
-example, uniting `List[Either[_, _]]` means `Left` becomes `empty`
-(`Nil`) and the contents of `Right` become single element `List`,
-which are then concatenated:
+`.unite` lets us fold a data structure using the outer container's
+`PlusEmpty[F].monoid` rather than the inner content's `Monoid`. For
+`List[Either[String, Int]]` this means `Left[String]` values are converted into
+`.empty`, then everything is concatenated. A convenient way to discard errors:
 
 {lang="text"}
 ~~~~~~~~
@@ -4770,36 +4671,30 @@ to argue why any method should be less important than the others:
   }
 ~~~~~~~~
 
-`copoint` (also `copure`) unwraps an element from a context. When
-interpreting a pure program, we typically require a `Comonad` to run
-the interpreter inside the application's `def main` entry point. For
-example, `Comonad[Future].copoint` will `await` the execution of a
-`Future[Unit]`.
+`.copoint` (also `.copure`) unwraps an element from its context. Effects do not
+typically have an instance of `Comonad` since would break referential
+transparency to interpret an `IO[A]` into an `A`. But for collection-like *data
+structures*, it is a way to construct a view of all elements alongside their
+neighbours.
 
-Far more interesting is the `Comonad` of a *data structure*. This is a
-way to construct a view of all elements alongside their neighbours.
-Consider a *neighbourhood* (`Hood` for short) for a list containing
-all the elements to the left of an element (`lefts`), the element
-itself (the `focus`), and all the elements to its right (`rights`).
+Consider a *neighbourhood* (`Hood` for short) for a list containing all the
+elements to the left of an element (`lefts`), the element itself (the `focus`),
+and all the elements to its right (`rights`).
 
 {lang="text"}
 ~~~~~~~~
   final case class Hood[A](lefts: IList[A], focus: A, rights: IList[A])
 ~~~~~~~~
 
-A> We use Scalaz data structures `IList` and `Maybe`, instead of stdlib
-A> `List` and `Option`, to protect us from accidentally calling impure
-A> methods.
-
 The `lefts` and `rights` should each be ordered with the nearest to
 the `focus` at the head, such that we can recover the original `IList`
-via `.toList`
+via `.toIList`
 
 {lang="text"}
 ~~~~~~~~
   object Hood {
     implicit class Ops[A](hood: Hood[A]) {
-      def toList: IList[A] = hood.lefts.reverse ::: hood.focus :: hood.rights
+      def toIList: IList[A] = hood.lefts.reverse ::: hood.focus :: hood.rights
 ~~~~~~~~
 
 We can write methods that let us move the focus one to the left
@@ -4861,8 +4756,7 @@ neighbourhoods in our initial `IList`
 {lang="text"}
 ~~~~~~~~
   scala> val middle = Hood(IList(4, 3, 2, 1), 5, IList(6, 7, 8, 9))
-         println(middle.cojoin)
-  
+  scala> middle.cojoin
   res = Hood(
           [Hood([3,2,1],4,[5,6,7,8,9]),
            Hood([2,1],3,[4,5,6,7,8,9]),
@@ -5016,17 +4910,6 @@ to reorganise them into a collection of `A` and a collection of `B`
 ~~~~~~~~
 
 
-## Very Abstract Things
-
-What remains of the typeclass hierarchy are things that allow us to
-meta-reason about functional programming and Scalaz. We are not going
-to discuss these yet as they deserve a full chapter on Category Theory
-and are not needed in typical FP applications.
-
-{width=60%}
-![](images/scalaz-abstract.png)
-
-
 ## Summary
 
 That was a lot of material! We have just explored a standard library
@@ -5034,11 +4917,10 @@ of polymorphic functionality. But to put it into perspective: there
 are more traits in the Scala stdlib Collections API than typeclasses
 in Scalaz.
 
-It is normal for an FP application to only touch a small percentage of
-the typeclass hierarchy, with most functionality coming from
-domain-specific typeclasses. Even if the domain-specific typeclasses
-are just specialised clones of something in Scalaz, it is better to
-write the code and later refactor it, than to over-abstract too early.
+It is normal for an FP application to only touch a small percentage of the
+typeclass hierarchy, with most functionality coming from domain-specific
+algebras and typeclasses. Even if the domain-specific typeclasses are just
+specialised clones of something in Scalaz, it is OK to refactor it later.
 
 To help, we have included a cheat-sheet of the typeclasses and their
 primary methods in the Appendix, inspired by Adam Rosien's [Scalaz
@@ -5379,7 +5261,6 @@ A> don't. Because, lazy.
 
 -   `Monad`
 -   `Comonad`
--   `Distributive`
 -   `Traverse1`
 -   `Align`
 -   `Zip` / `Unzip` / `Cozip`
