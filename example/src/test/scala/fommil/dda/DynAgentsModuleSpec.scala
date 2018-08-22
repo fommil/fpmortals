@@ -86,7 +86,7 @@ object ConstImpl {
 
 }
 
-final class LogicSpec extends Test {
+final class DynAgentsModuleSpec extends Test {
   import StateImpl.program.{ act, initial, update }
 
   "Business Logic".should("generate an initial world view").in {

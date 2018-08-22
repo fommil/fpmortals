@@ -3792,7 +3792,16 @@ implicit class FunctorOps[F[_]: Functor, A](self: F[A]) {
 }
 #+END_SRC
 
-=as= and =>|= are a way of replacing the output with a constant.
+=.as= and =>|= are a way of replacing the output with a constant.
+
+#+BEGIN_ASIDE
+When Scalaz provides additional functionality as syntax, rather than on the
+typeclass itself, it is because of binary compatibility.
+
+When a =X.Y.0= version of Scalaz is released, it is not possible to add methods
+to typeclasses in that release series for Scala 2.10 and 2.11. It is therefore
+worth reading both the typeclass source and its syntax.
+#+END_ASIDE
 
 In our example application, as a nasty hack (which we didn't even
 admit to until now), we defined =start= and =stop= to return their
@@ -8637,8 +8646,8 @@ res: Cord = "foo"
 #+END_SRC
 
 #+BEGIN_ASIDE
-The =Cord= in Scalaz 7.2 is unfortunately *very* inefficient. This has been
-fixed in Scalaz 7.3 by a [[https://github.com/scalaz/scalaz/pull/1793][custom data structure optimised for =String=
+The =Cord= in Scalaz 7.2 is unfortunately not as efficient as it could be. This
+has been fixed in Scalaz 7.3 by a [[https://github.com/scalaz/scalaz/pull/1793][custom data structure optimised for =String=
 concatenation]].
 #+END_ASIDE
 
@@ -8868,10 +8877,11 @@ Scalaz ecosystem.
 ** Advanced Monads
 
 You have to know things like Advanced Monads in order to be an advanced
-functional programmer. However, we are developers yearning for a simple life,
-and our idea of "advanced" is modest. To put it into context:
-=scala.concurrent.Future= is more complicated and nuanced than any =Monad= in
-this chapter.
+functional programmer.
+
+However, we are developers yearning for a simple life, and our idea of
+"advanced" is modest. To put it into context: =scala.concurrent.Future= is more
+complicated and nuanced than any =Monad= in this chapter.
 
 In this chapter we will study some of the most important implementations of
 =Monad=.
@@ -8897,7 +8907,8 @@ parallelising work with =Future= can often make it /slower/.
 Combined, eager evaluation and executor submission means that it is impossible
 to know when a job started, when it finished, or the sub-tasks that were spawned
 to calculate the final result. It should not surprise us that performance
-monitoring "solutions" are a solid earner for the modern day snake oil merchant.
+monitoring "solutions" for =Future= based frameworks are a solid earner for the
+modern day snake oil merchant.
 
 Furthermore, =Future.flatMap= requires an =ExecutionContext= to be in implicit
 scope: users are forced to think about business logic and execution semantics at
@@ -9028,10 +9039,18 @@ object Free {
 the same name: pausing, completing, and continuing a subroutine, respectively.
 #+END_ASIDE
 
-The =Free= monad is named because it can be /generated for free/ for any =S[_]=.
-For example, we could set =S= to be the =Drone= or =Machines= algebras from
-Chapter 3 and generate a data structure representation of our program. We'll
-return to why this is useful at the end of this chapter.
+The =Free= ADT is a natural data type representation of the =Monad= interface:
+
+1. =Return= represents =.point=
+2. =Gosub= represents =.bind= / =.flatMap=
+
+When an ADT mirrors the arguments of related functions, it is called a /Church
+encoding/.
+
+=Free= is named because it can be /generated for free/ for any =S[_]=. For
+example, we could set =S= to be the =Drone= or =Machines= algebras from Chapter
+3 and generate a data structure representation of our program. We'll return to
+why this is useful at the end of this chapter.
 
 **** =Trampoline=
 
@@ -9057,14 +9076,6 @@ object Free {
   ...
 }
 #+END_SRC
-
-The =Free= ADT is a natural data type representation of the =Monad= interface:
-
-1. =Return= represents =.point=
-2. =Gosub= represents =.bind= / =.flatMap=
-
-When an ADT mirrors the arguments of related functions, it is called a /Church
-encoding/.
 
 The =BindRec= implementation, =.tailrecM=, runs =.bind= until we get a =B=.
 Although this is not technically a =@tailrec= implementation, it uses constant
@@ -9303,8 +9314,7 @@ implicit def monad[F[_]: Monad] = new MonadPlus[MaybeT[F, ?]] {
     MaybeT(fa.run >>= (_.cata(f(_).run, Maybe.empty.pure[F])))
 
   def empty[A]: MaybeT[F, A] = MaybeT.empty
-
-  def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = ...
+  def plus[A](a: MaybeT[F, A], b: =>MaybeT[F, A]): MaybeT[F, A] = a orElse b
 }
 #+END_SRC
 
@@ -9369,10 +9379,6 @@ don't know anything about the error. =EitherT= (and the lazy variant
 =LazyEitherT=) allows us to use any type we want as the error value, providing
 contextual information about what went wrong.
 
-Where =\/= and =Validation= is the FP equivalent of a checked exception,
-=EitherT= makes it convenient to both create and ignore errors until something
-can be done about it.
-
 =EitherT= is a wrapper around an =F[A \/ B]=
 
 #+BEGIN_SRC scala
@@ -9393,38 +9399,29 @@ The =Monad= is a =MonadError=
 @typeclass trait MonadError[F[_], E] extends Monad[F] {
   def raiseError[A](e: E): F[A]
   def handleError[A](fa: F[A])(f: E => F[A]): F[A]
-
-  def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] =
-    bind(fa)(a => f(a).fold(raiseError(_), pure(_)))
 }
 #+END_SRC
 
 =.raiseError= and =.handleError= are self-descriptive: the equivalent of =throw=
 and =catch= an exception, respectively.
 
-=.emap=, /either/ map, is for functions that could fail and is very useful for
-writing decoders in terms of existing ones, much as we used =.contramap= to
-define new encoders in terms of existing ones. For example, say we have an XML
-decoder like
+=MonadError= has some addition syntax for dealing with common problems:
 
 #+BEGIN_SRC scala
-@typeclass trait XDecoder[A] {
-  def fromXml(x: Xml): String \/ A
-}
-object XDecoder {
-  implicit val monad: MonadError[String \/ ?, String] = ...
-  implicit val string: XDecoder[String] = ...
+implicit final class MonadErrorOps[F[_], E, A](self: F[A])(implicit val F: MonadError[F, E]) {
+  def attempt: F[E \/ A] = ...
+  def recover(f: E => A): F[A] = ...
+  def emap[B](f: A => E \/ B): F[B] = ...
 }
 #+END_SRC
 
-we can define a decoder for =Char= in terms of a =String= decoder
+=.attempt= brings errors into the value, which is useful for exposing errors in
+subsystems as first class values.
 
-#+BEGIN_SRC scala
-implicit val char: XDecoder[Char] = XDecoder[String].emap { s =>
-  if (s.length == 1) s(0).right
-  else s"not a char: $s".left
-}
-#+END_SRC
+=.recover= is for turning an error into a value for all cases, as opposed to
+=.handleError= which takes an =F[A]= and therefore allows partial recovery.
+
+=.emap=, /either/ map, is to apply transformations that can fail.
 
 The =MonadError= for =EitherT= is:
 
@@ -9533,7 +9530,7 @@ trait JsonClient[F[_]] {
 
 recall that we only coded the happy path into the API. If our interpreter for
 this algebra only works for an =F= having a =MonadError= we get to define the
-kinds of errors as a tangential concern. Indeed, we can have **two** layers of
+kinds of errors as a tangential concern. Indeed, we can have *two* layers of
 error if we define the interpreter for a =EitherT[IO, JsonClient.Error, ?]=
 
 #+BEGIN_SRC scala
@@ -9616,33 +9613,6 @@ Meta(com.acme,<console>,11)
 Yes, we've made a deal with the macro devil, but we could also write the =Meta=
 manually and have it go out of date quicker than our documentation.
 
-***** =IO= and =Throwable=
-
-=IO= does not have a =MonadError= but instead implements something similar to
-=throw=, =catch= and =finally= for =Throwable= errors:
-
-#+BEGIN_SRC scala
-final class IO[A](val tramp: Trampoline[A]) {
-  ...
-  // catch
-  def except(f: Throwable => IO[A]): IO[A] = ...
-  // finally
-  def ensuring[B](f: IO[B]): IO[A] = ...
-  def onException[B](f: IO[B]): IO[A] = ...
-}
-object IO {
-  // throw
-  def throwIO[A](e: Throwable): IO[A] = IO(throw e)
-  ...
-}
-#+END_SRC
-
-It is good to avoid using keywords where possible, as it means we have to
-remember less caveats of the language. If we need to interact with a legacy API
-with a *predictable* exception, like a string parser, we can use =Maybe.attempt=
-or =\/.attempt= and convert the non referentially transparent =Throwable= into a
-descriptive =String=.
-
 **** =ReaderT=
 
 The reader monad wraps ~A => F[B]~ allowing a program ~F[B]~ to depend on a
@@ -9682,8 +9652,8 @@ of a function, so we can provide it as the parameter to a monad's =.bind=, or
 The most common use for =ReaderT= is to provide environment information to a
 program. In =drone-dynamic-agents= we need access to the user's Oauth 2.0
 Refresh Token to be able to contact Google. The obvious thing is to load the
-=RefreshTokens= from disk on startup, and make every method take an =implicit
-tokens: RefreshToken=. In fact, this is such a common requirement that Martin
+=RefreshTokens= from disk on startup, and make every method take a
+=RefreshToken= parameter. In fact, this is such a common requirement that Martin
 Odersky has proposed [[https://www.scala-lang.org/blog/2016/12/07/implicit-function-types.html][implicit functions]].
 
 A better solution is for our program to have an algebra that provides the
@@ -9742,11 +9712,10 @@ and then refactor the =refresh= parameter to be part of the =Monad=
       refresh <- F.ask
 #+END_SRC
 
-Fundamentally, any parameter can be moved into the =MonadReader=. This is of
-most value to immediate callers when they simply want to thread through this
-information from above. With =ReaderT=, we can reserve =implicit= parameter
-blocks entirely for the use of typeclasses, reducing the mental burden of using
-Scala.
+Any parameter can be moved into the =MonadReader=. This is of most value to
+immediate callers when they simply want to thread through this information from
+above. With =ReaderT=, we can reserve =implicit= parameter blocks entirely for
+the use of typeclasses, reducing the mental burden of using Scala.
 
 The other method in =MonadReader= is =.local=
 
@@ -9812,42 +9781,8 @@ function parameter. =MonadReader= is of most use when:
 2. the value is not needed by intermediate callers
 3. or, we want to locally scope some variable
 
-In a nutshell, dotty can keep its implicit functions... we already have
-=ReaderT= and =MonadReader=.
-
-One last example. Monad transformers typically provide specialised =Monad=
-instances if their underlying type has one. So, for example, =ReaderT= has a
-=MonadError=, =MonadPlus=, etc if the underlying has one. Decoder typeclasses
-tend to have a signature that looks like ~A => F[B]~, recall
-
-#+BEGIN_SRC scala
-@typeclass trait XDecoder[A] {
-  def fromXml(x: Xml): String \/ A
-}
-#+END_SRC
-
-which has a single method of signature ~XNode => String \/ A~, isomorphic to
-=ReaderT[String \/ ?, Xml, A]=. We can formalise this relationship with an
-=Isomorphism=. It's easier to read by introducing type aliases
-
-#+BEGIN_SRC scala
-type Out[a] = String \/ a
-type RT[a] = ReaderT[Out, Xml, a]
-val isoReaderT: XDecoder <~> RT =
-  new IsoFunctorTemplate[XDecoder, RT] {
-    def from[A](fa: RT[A]): XDecoder[A] = fa.run(_)
-    def to[A](fa: XDecoder[A]): RT[A] = ReaderT[Out, Xml, A](fa.fromXml)
-  }
-#+END_SRC
-
-Now our =XDecoder= has access to all the typeclasses that =ReaderT= has. The
-typeclass we need is =MonadError[Decoder, String]=
-
-#+BEGIN_SRC scala
-implicit val monad: MonadError[XDecoder, String] = MonadError.fromIso(isoReaderT)
-#+END_SRC
-
-which we know to be useful for defining new decoders in terms of existing ones.
+Dotty can keep its implicit functions... we already have =ReaderT= and
+=MonadReader=.
 
 **** =WriterT=
 
@@ -10223,14 +10158,13 @@ object IndexedStateT {
 }
 #+END_SRC
 
-=IndexedStateT= does not have a =MonadState= when =S1 != S2=, although it has a
-=Monad=.
+~IndexedStateT~ does not have a ~MonadState~ when ~S1 != S2~, although it has a
+~Monad~.
 
 The following example is adapted from [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your State]] by Vincent Marquez.
-Consider the scenario where we must design an algebraic interface to access a
-=key: Int= to =value: String= lookup. This may have a networked implementation
-and the order of calls is essential. Our first attempt at the API may look
-something like:
+Consider the scenario where we must design an algebraic interface for an =Int=
+to =String= lookup. This may have a networked implementation and the order of
+calls is essential. Our first attempt at the API may look something like:
 
 #+BEGIN_SRC scala
   trait Cache[F[_]] {
@@ -11210,8 +11144,7 @@ much an exercise in how to understand =Free= code as it is to be able to write
 or use it.
 
 There is a lot of boilerplate to create a free structure. We shall use this
-study of =Free= to learn how to generate the boilerplate, which we will reuse
-for the other free structures.
+study of =Free= to learn how to generate the boilerplate.
 #+END_ASIDE
 
 As a refresher, =Free= is the data structure representation of a =Monad= and is
@@ -11347,7 +11280,7 @@ ASTs. We studied =Coproduct= in Chapter 6, a higher kinded disjunction:
 final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A])
 #+END_SRC
 
-Now we can use the context =Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]=.
+We can use the context =Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]=.
 
 We could manually create the coproduct but we would be swimming in boilerplate,
 and we'd have to do it all again if we wanted to add a third algebra.
@@ -11535,12 +11468,11 @@ or combine the natural transformations and run with a single
 .foldMap(Monitor.andThen(interpreter))
 #+END_SRC
 
-***** Monkey Patching: Part 1
+***** Monkey Patching
 
-As engineers, we know that our business users often ask for bizarre workarounds
-to be added to the core logic of the application. We might want to codify such
-corner cases as /exceptions to the rule/ and handle them tangentially to our
-core logic.
+As engineers, we are used to requests for bizarre workarounds to be added to the
+core logic of the application. We might want to codify such corner cases as
+/exceptions to the rule/ and handle them tangentially to our core logic.
 
 For example, suppose we get a memo from accounting telling us
 
@@ -11595,195 +11527,6 @@ logic and look for all usages of =.stop=. If our application context is just an
 implementation but an advantage of using =Free= is that we don't need to touch
 the existing code and can instead isolate and test this (temporary) behaviour,
 without being tied to the =IO= implementations.
-
-***** Monkey Patching: Part 2
-
-Infrastructure sends a memo:
-
-#+BEGIN_QUOTE
-/To meet the CEO's vision for this quarter, we are on a cost rationalisation and
-reorientation initiative./
-
-/Therefore, we paid Google a million dollars to develop a Batch API so we can
-start nodes more cost effectively./
-
-/PS: Your bonus depends on using the new API./
-#+END_QUOTE
-
-When we monkey patch, we are not limited to the original instruction set: we can
-introduce new ASTs. Rather than change our core business logic, we might decide
-to /translate/ existing instructions into an extended set, introducing =Batch=:
-
-#+BEGIN_SRC scala
-trait Batch[F[_]] {
-  def start(nodes: NonEmptyList[MachineNode]): F[Unit]
-}
-object Batch {
-  sealed abstract class Ast[A]
-  ...
-  def liftF = ...
-}
-#+END_SRC
-
-Let's first set up a test for a simple program by defining the AST and target
-type:
-
-#+BEGIN_SRC scala
-    type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
-    type T[a]    = State[S, a]
-#+END_SRC
-
-We track the started nodes in a data container so we can assert on them later
-
-#+BEGIN_SRC scala
-    final case class S(
-      singles: IList[MachineNode],
-      batches: IList[NonEmptyList[MachineNode]]
-    ) {
-      def addSingle(node: MachineNode) = S(node :: singles, batches)
-      def addBatch(nodes: NonEmptyList[MachineNode]) = S(singles, nodes :: batches)
-    }
-#+END_SRC
-
-and introduce some stub implementations
-
-#+BEGIN_SRC scala
-    val M: Machines.Ast ~> T = Mocker.stub[Unit] {
-      case Machines.Start(node) => State.modify[S](_.addSingle(node))
-    }
-    val D: Drone.Ast ~> T = Mocker.stub[Int] {
-      case Drone.GetBacklog() => 2.pure[T]
-    }
-#+END_SRC
-
-We can expect that the following simple program will behave as expected and call
-=Machines.Start= twice:
-
-#+BEGIN_SRC scala
-    def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Unit] =
-      for {
-        todo <- D.getBacklog
-        _    <- (1 |-> todo).traverse(id => M.start(MachineNode(id.shows)))
-      } yield ()
-
-    program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .foldMap(or(M, D))
-      .run(S(IList.empty, IList.empty))
-      ._1
-      .shouldBe(S(IList(MachineNode("2"), MachineNode("1")), IList.empty))
-#+END_SRC
-
-But we don't want to use =Machines.Start=, we need =Batch.Start= to get
-our bonus. Expand the AST to keep track of the =Waiting= nodes that we are
-delaying, and add the =Batch= instructions:
-
-#+BEGIN_SRC scala
-    type Waiting      = IList[MachineNode]
-    type Extension[a] = Coproduct[Batch.Ast, Orig, a]
-    type Patched[a]   = StateT[Free[Extension, ?], Waiting, a]
-#+END_SRC
-
-along with a stub for the =Batch= algebra
-
-#+BEGIN_SRC scala
-    val B: Batch.Ast ~> T = Mocker.stub[Unit] {
-      case Batch.Start(nodes) => State.modify[S](_.addBatch(nodes))
-    }
-#+END_SRC
-
-#+BEGIN_ASIDE
-This example is advanced. It is possible to read the remainder of the book
-without understanding how this example works.
-#+END_ASIDE
-
-We can convert from the =Orig= AST into =Patched= by providing a natural
-transformation that batches node starts:
-
-#+BEGIN_SRC scala
-    def monkey(max: Int) = new (Orig ~> Patched) {
-      def apply[α](fa: Orig[α]): Patched[α] = fa.run match {
-        case -\/(Machines.Start(node)) =>
-          StateT { waiting =>
-            if (waiting.length >= max) {
-              val start = Batch.Start(NonEmptyList.nel(node, waiting))
-              Free
-                .liftF[Extension, Unit](leftc(start))
-                .strengthL(IList.empty)
-            } else
-              Free
-                .pure[Extension, Unit](())
-                .strengthL(node :: waiting)
-          }
-
-        case _ =>
-          Free
-            .liftF[Extension, α](rightc(fa))
-            .liftM[StateT[?[_], Waiting, ?]]
-      }
-    }
-#+END_SRC
-
-#+BEGIN_ASIDE
-The Scala compiler struggles a bit to infer all the types in this code, so we
-provide a lot of type annotations to help it along.
-#+END_ASIDE
-
-We're using =.strengthL= to set the value of the =Waiting= state, with =.pure=
-again letting us avoid sending an instruction in this code branch.
-
-We =.foldMap= *twice* because of the state, and combine the stubs again with
-=.or=:
-
-#+BEGIN_SRC scala
-    program(Machines.liftF[Orig], Drone.liftF[Orig])
-      .foldMap(monkey(1))
-      .run(IList.empty) // starting Waiting list
-      .foldMap(or(B, or(M, D)))
-#+END_SRC
-
-Then we run the program and assert: that there are no nodes in the =Waiting=
-list, no node has been launched using the old API, and all nodes have been
-launched in one call to the batch API.
-
-#+BEGIN_SRC scala
-      .run(S(IList.empty, IList.empty))
-      .shouldBe(
-        (
-          S(
-            IList.empty, // no singles
-            IList(NonEmptyList(MachineNode("2"), MachineNode("1"))) // bonus time!
-          ),
-          (
-            IList.empty, // no Waiting
-            () // the program output
-          )
-        )
-      )
-#+END_SRC
-
-Congratulations, we've saved the company $50 every month, and it only cost a
-million dollars. But that was some other team's budget, so it is OK.
-
-We could have done the same monkey patch by hard coding the batching logic into
-our algebra implementations. In the defence of =Free=, we have decoupled the
-patch from the implementation, which means we can test it more thoroughly.
-
-#+BEGIN_WARNING
-With great power comes great responsibility: we are transforming the meaning of
-the program, almost certainly with unintended consequences.
-
-Consider an algebra for writing debug messages to the network: we trade a
-network performance gain for the risk of dropping some messages. However if we
-are relying on the Monad laws in our business logic, and we mess with that, we
-may as well be flipping bits in RAM.
-#+END_WARNING
-
-# http://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
-# http://frees.io/docs/core/algebras/
-# https://underscore.io/blog/posts/2015/04/14/free-monads-are-simple.html
-# http://perevillega.com/understanding-free-monads
-# https://www.chrisstucchio.com/blog/2015/free_monads_in_scalaz.html
-# https://underscore.io/blog/posts/2017/03/29/free-inject.html
 
 **** =FreeAp= (=Applicative=)
 
@@ -11878,7 +11621,7 @@ final class DynAgentsModule[F[_]: Applicative](D: Drone[F], M: Machines[F])
 }
 #+END_SRC
 
-To begin, we create the =lift= boilerplate for the =Batch= algebra
+To begin, we create the =lift= boilerplate for a new =Batch= algebra
 
 #+BEGIN_SRC scala
 trait Batch[F[_]] {
@@ -11949,7 +11692,8 @@ We also need to remove all the calls to =Machines.Start=, which we can do with a
     }
 #+END_SRC
 
-Now we have two programs, and need to combine them. Recall the =*>= syntax for =Functor=
+Now we have two programs, and need to combine them. Recall the =*>= syntax from
+=Apply=
 
 #+BEGIN_SRC scala
     val patched = batch(gathered) *> freeap.foldMap(nostart)
@@ -12052,8 +11796,8 @@ thousand elements, we save two thousand object allocations because we only map
 over the data structure once.
 
 However it is arguably a lot easier to just make this kind of change in the
-original function by hand, or to wait for the [[https://github.com/oleg-py/better-monadic-for/issues/6][=better-monadic-for=]] project to
-automatically perform these optimisations across our codebase.
+original function by hand, or to wait for the [[https://github.com/scalaz/scalaz-plugin][=scalaz-plugin=]] project to be
+released and automatically perform these sorts of optimisations.
 
 # https://www.youtube.com/watch?v=H28QqxO7Ihc
 # https://www.youtube.com/watch?v=A-lmrvsUi2Y
@@ -12339,31 +12083,18 @@ implemented.
 *** =IO=
 
 Scalaz's =IO= is the fastest asynchronous programming construct in the Scala
-ecosystem: up to 50 times faster than =Future= and 20% faster than Monix.
-
-=IO= is a free data structure specialised for use as a general effect monad.
+ecosystem: up to 50 times faster than =Future=. =IO= is a free data structure
+specialised for use as a general effect monad.
 
 #+BEGIN_SRC scala
 sealed abstract class IO[E, A] { ... }
 object IO {
-  final class FlatMap         ... extends IO[E, A]
-  final class Point           ... extends IO[E, A]
-  final class Strict          ... extends IO[E, A]
-  final class SyncEffect      ... extends IO[E, A]
-  final class Fail            ... extends IO[E, A]
-  final class AsyncEffect     ... extends IO[E, A]
-  final class AsyncIOEffect   ... extends IO[E, A]
-  final class Attempt         ... extends IO[E2, E1 \/ A]
-  final class Fork            ... extends IO[E2, Fiber[E1, A]]
-  final class Race            ... extends IO[E, A]
-  final class Suspend         ... extends IO[E, A]
-  final class Bracket         ... extends IO[E, B]
-  final class Uninterruptible ... extends IO[E, A]
-  final class Sleep           ... extends IO[E, Unit]
-  final class Supervise       ... extends IO[E, A]
-  final class Terminate       ... extends IO[E, A]
-  final class Supervisor      ... extends IO[E, Throwable => IO[Void, Unit]]
-  final class Run             ... extends IO[E2, ExitResult[E1, A]]
+  private final class FlatMap         ... extends IO[E, A]
+  private final class Point           ... extends IO[E, A]
+  private final class Strict          ... extends IO[E, A]
+  private final class SyncEffect      ... extends IO[E, A]
+  private final class Fail            ... extends IO[E, A]
+  private final class AsyncEffect     ... extends IO[E, A]
   ...
 }
 #+END_SRC
@@ -12387,6 +12118,7 @@ libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.10.1"
 #+END_SRC
 
 Do not use the deprecated =scalaz-effect= and =scalaz-concurrency= packages.
+
 Prefer the =scalaz.ioeffect= variants of all typeclasses and data types.
 #+END_ASIDE
 
@@ -12522,29 +12254,6 @@ have handled all errors by this point.
 If we are integrating with a legacy system and are not in control of the entry
 point of our application, we can extend the =RTS= and gain access to unsafe
 methods to evaluate the =IO= at the entry point to our principled FP code.
-
-For example, if we have an algebra that canonicalises values, and may hit disk
-or network to resolve filenames and URLs:
-
-#+BEGIN_SRC scala
-trait Canon[F[_], A] {
-  def canon(a: A): F[A]
-}
-#+END_SRC
-
-we can write a Scalatest that extends =RTS= and call =unsafePerformIO= to
-interpret the =IO=
-
-#+BEGIN_SRC scala
-import org.scalatest._
-import scalaz.ioeffect.{ RTS, Task }
-
-class CanonSpec extends FlatSpec with RTS {
-  "Canon" should "canon File" in {
-    unsafePerformIO((new File(".")).canon) shouldBe ...
-  }
-}
-#+END_SRC
 
 **** Features
 
@@ -12774,11 +12483,11 @@ object Lookup {
 
 1. The =Future= is broke, don't go there.
 2. Manage stack safety with a =Trampoline=.
-3. The Monad Transformer Library (MTL) abstracts over common effects.
+3. The Monad Transformer Library (MTL) abstracts over common effects with typeclasses.
 4. Monad Transformers provide default implementations of the MTL.
 5. =Free= data structures let us analyse, optimise and easily test our programs.
-6. =IO= gives us the ability to implement algebras as effects on the outside world and interact with legacy systems.
-7. =IO= can perform effects in parallel and provides a high performance implementation of the MTL.
+6. =IO= gives us the ability to implement algebras as effects on the world.
+7. =IO= can perform effects in parallel and is a high performance backbone for any application.
 
 ** Typeclass Derivation
 

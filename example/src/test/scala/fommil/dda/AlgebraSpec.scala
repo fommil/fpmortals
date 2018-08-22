@@ -145,6 +145,8 @@ final class AlgebraSpec extends Test with RTS {
       .shouldBe(ISet.empty)
   }
 
+  // this is a pretty advanced, crazy, idea that was cut from the book. because
+  // it is so crazy.
   it.should("support monkey patching part 2").in {
     import Monkeys.S
     type T[a] = State[S, a]
