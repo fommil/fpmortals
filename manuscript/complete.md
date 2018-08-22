@@ -14082,21 +14082,12 @@ Our main application only requires an implementation of the `DynAgents` algebra.
   }
 ~~~~~~~~
 
-Everything else is implementation detail. Recall that our main loop should look
-something like
+We have an implementation already, `DynAgentsModule`, which requires
+implementations of the `Drone` and `Machines` algebras, which require a
+`JsonClient`, `LocalClock` and OAuth2 algebras, etc, etc, etc.
 
-{lang="text"}
-~~~~~~~~
-  state = initial()
-  while True:
-    state = update(state)
-    state = act(state)
-~~~~~~~~
-
-To implement `DynAgents` we require `Drone` and `Machines` algebras, which
-require a `JsonClient`, `LocalClock` and OAuth2 algebras, etc etc. It is helpful
-to get a complete picture of all the algebras, modules and interpreters of the
-application. This is the layout of the files in our application:
+It is helpful to get a complete picture of all the algebras, modules and
+interpreters of the application. This is the layout of the source code:
 
 {lang="text"}
 ~~~~~~~~
@@ -14108,21 +14099,21 @@ application. This is the layout of the files in our application:
   │       ├── DroneModule.scala
   │       └── GoogleMachinesModule.scala
   ├── http
+  │   ├── JsonClient.scala
+  │   ├── OAuth2JsonClient.scala
   │   ├── encoding
   │   │   ├── UrlEncoded.scala
   │   │   ├── UrlEncodedWriter.scala
   │   │   ├── UrlQuery.scala
   │   │   └── UrlQueryWriter.scala
-  │   ├── interpreters
-  │   │   └── BlazeJsonClient.scala
-  │   ├── JsonClient.scala
   │   ├── oauth2
   │   │   ├── Access.scala
   │   │   ├── Auth.scala
-  │   │   └── Refresh.scala
+  │   │   ├── Refresh.scala
   │   │   └── interpreters
   │   │       └── BlazeUserInteraction.scala
-  │   └── OAuth2JsonClient.scala
+  │   └── interpreters
+  │       └── BlazeJsonClient.scala
   ├── os
   │   └── Browser.scala
   └── time
@@ -14216,6 +14207,21 @@ The data types are:
   
   @deriving(ConfigReader)
   final case class AppConfig(drone: BearerToken, machines: OAuth2Config)
+  
+  @xderiving(UrlEncodedWriter)
+  final case class UrlQuery(params: IList[(String, String)]) extends AnyVal
+~~~~~~~~
+
+and the typeclasses are
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait UrlEncodedWriter[A] {
+    def toUrlEncoded(a: A): String Refined UrlEncoded
+  }
+  @typeclass trait UrlQueryWriter[A] {
+    def toUrlQuery(a: A): UrlQuery
+  }
 ~~~~~~~~
 
 We derive useful typeclasses using `scalaz-deriving` and Magnolia. The
@@ -14274,10 +14280,14 @@ However, some of our algebras only have one interpreter, using `Task`
   final class SleepTask extends Sleep[Task] { ... }
 ~~~~~~~~
 
-But recall that our algebras can provide a `liftM` on their companion, see Chapter 7.4 on the Monad Transformer Library, allowing us to lift a `LocalClock[Task]` into our desired `StateT[Task, BearerToken, ?]` context, and everything is consistent.
+But recall that our algebras can provide a `liftM` on their companion, see
+Chapter 7.4 on the Monad Transformer Library, allowing us to lift a
+`LocalClock[Task]` into our desired `StateT[Task, BearerToken, ?]` context, and
+everything is consistent.
 
 Unfortunately, that is not the end of the story. Things get more complicated
-when we go to the next layer. Our `JsonClient` has an interpreter using a different context, an `EitherT[Task, JsonClient.Error, ?]`
+when we go to the next layer. Our `JsonClient` has an interpreter using a
+different context
 
 {lang="text"}
 ~~~~~~~~
@@ -14301,11 +14311,18 @@ mutable connection pools are created and managed internally by http4s.
 
 A> `OAuth2JsonClientModule` requires a `MonadState` and `BlazeJsonClient` requires
 A> `MonadError` and `MonadIO`. Our application's context will now likely be the
-A> combination of both: a `EitherT[StateT[Task, ...], ...]` monad stack. Monad
-A> stacks automatically provide appropriate instances of `MonadState` and
-A> `MonadError` when nested, so we don't need to think about it. If we had
-A> hard-coded the implementation in the interpreter, and returned an `EitherT[Task,
-A> Error, ?]` from `BlazeJsonClient`, it would make it a lot harder to instantiate.
+A> combination of both:
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   StateT[EitherT[Task, JsonClient.Error, ?], BearerToken, ?]
+A> ~~~~~~~~
+A> 
+A> A monad stack. Monad stacks automatically provide appropriate instances of
+A> `MonadState` and `MonadError` when nested, so we don't need to think about it.
+A> If we had hard-coded the implementation in the interpreter, and returned an
+A> `EitherT[Task, Error, ?]` from `BlazeJsonClient`, it would make it a lot harder
+A> to instantiate.
 
 We must not forget that we need to provide a `RefreshToken` for
 `GoogleMachinesModule`. We could ask the user to do all the legwork, but we are
@@ -14356,8 +14373,7 @@ because we need "wait for" semantics that are only provided by `Promise`.
 ## `Main`
 
 The ugliest part of FP is making sure that monads are all aligned and this tends
-to happen in the `Main` entrypoint. The problem boils down to making sure that
-all the monad contexts are aligned.
+to happen in the `Main` entrypoint.
 
 Our main loop is
 
@@ -14386,10 +14402,9 @@ where `F` holds the state of the world in a `MonadState[F, WorldView]`. We can
 put this into a method called `.step` and repeat it forever by calling
 `.step[F].forever[Unit]`.
 
-We begin the journey to get to this code. There are two approaches we can take,
-and we will explore both. The first, and simplest, is to construct one monad
-stack that all algebras are compatible with. Everything gets a `.liftM` added to
-it to lift it into the larger stack.
+There are two approaches we can take, and we will explore both. The first, and
+simplest, is to construct one monad stack that all algebras are compatible with.
+Everything gets a `.liftM` added to it to lift it into the larger stack.
 
 The code we want to write for the one-shot authentication mode is
 
@@ -14458,7 +14473,6 @@ But this still doesn't compile, because `clock` is a `LocalClock[Task]` and `Acc
 {lang="text"}
 ~~~~~~~~
   clock     = LocalClock.liftM[Task, HT](new LocalClockTask)
-  access    = new AccessModule[H](config)(client, clock)
 ~~~~~~~~
 
 and now everything compiles!
@@ -14516,26 +14530,29 @@ The main application then becomes
 
 {lang="text"}
 ~~~~~~~~
-  for {
-    config <- readConfig[AppConfig]
-    blaze  <- BlazeJsonClient[G]
-    _ <- {
-      val bearerClient = new BearerJsonClientModule(bearer)(blaze)
-      val drone        = new DroneModule(bearerClient)
-      val refresh      = new RefreshModule(config.machines.server)(blaze, T)
-      val oauthClient =
-        new OAuth2JsonClientModule(config.machines.token)(blaze, T, refresh)
-      val machines = new GoogleMachinesModule(oauthClient)
-      val agents   = new DynAgentsModule(drone, machines)
-      for {
-        start <- agents.initial
-        _ <- {
-          val fagents = DynAgents.liftM[G, FT](agents)
-          step(fagents, S).forever[Unit]
-        }.run(start)
-      } yield ()
-    }.eval(bearer).run
-  } yield ()
+  def agents(bearer: BearerToken): Task[Unit] = {
+    ...
+    for {
+      config <- readConfig[AppConfig]
+      blaze  <- BlazeJsonClient[G]
+      _ <- {
+        val bearerClient = new BearerJsonClientModule(bearer)(blaze)
+        val drone        = new DroneModule(bearerClient)
+        val refresh      = new RefreshModule(config.machines.server)(blaze, T)
+        val oauthClient =
+          new OAuth2JsonClientModule(config.machines.token)(blaze, T, refresh)
+        val machines = new GoogleMachinesModule(oauthClient)
+        val agents   = new DynAgentsModule(drone, machines)
+        for {
+          start <- agents.initial
+          _ <- {
+            val fagents = DynAgents.liftM[G, FT](agents)
+            step(fagents, S).forever[Unit]
+          }.run(start)
+        } yield ()
+      }.eval(bearer).run
+    } yield ()
+  }
 ~~~~~~~~
 
 where the outer loop is using `Task`, the middle loop is using `G`, and the
@@ -14552,7 +14569,6 @@ We can call these two application entry points from our `SafeApp`
   object Main extends SafeApp {
     def run(args: List[String]): IO[Void, ExitStatus] = {
       if (args.contains("--machines")) auth("machines")
-      else if (args.contains("--drone")) auth("drone")
       else agents(BearerToken("<invalid>", Epoch(0)))
     }.attempt[Void].map {
       case \/-(_)   => ExitStatus.ExitNow(0)
@@ -14618,7 +14634,7 @@ The `Client` module can be summarised as
 {lang="text"}
 ~~~~~~~~
   final class Client[F[_]](
-    shutdown: F[Unit]
+    val shutdown: F[Unit]
   )(implicit F: MonadError[F, Throwable]) {
     def fetch[A](req: Request[F])(f: Response[F] => F[A]): F[A] = ...
     ...
@@ -14669,13 +14685,13 @@ made of
   type EntityBody[F[_]] = fs2.Stream[F, Byte]
 ~~~~~~~~
 
-The `EntityBody` type is just an alias to `Stream` from the [`fs2`](https://github.com/functional-streams-for-scala/fs2) library. The
-`Stream` data type is very powerful and can be thought of as an effectful, lazy,
-pull-based stream of data. It is implemented as a `Free` monad with exception
-catching and interruption. `Stream` takes two type parameters: an effect type
-and a content type, and has an efficient internal representation for batching
-the data. For example, although we are using `Stream[F, Byte]`, it is actually
-wrapping the raw `Array[Byte]` that arrives over the network.
+The `EntityBody` type is an alias to `Stream` from the [`fs2`](https://github.com/functional-streams-for-scala/fs2) library. The
+`Stream` data type can be thought of as an effectful, lazy, pull-based stream of
+data. It is implemented as a `Free` monad with exception catching and
+interruption. `Stream` takes two type parameters: an effect type and a content
+type, and has an efficient internal representation for batching the data. For
+example, although we are using `Stream[F, Byte]`, it is actually wrapping the
+raw `Array[Byte]` that arrives over the network.
 
 We need to convert our header and URL representations into the versions required
 by http4s:
@@ -14745,17 +14761,14 @@ This is our implementation of `.get`
           )
         )(handler[A])
       )
-      .flatMap {
-        case -\/(err)     => F.raiseError(err)
-        case \/-(success) => F.point(success)
-      }
+      .emap(identity)
 ~~~~~~~~
 
 `.get` is all plumbing: we convert our input types into the `http4s.Request`,
 then call `.fetch` on the `Client` with our `handler`. This gives us back a
 `Task[Error \/ A]`, but we need to return a `F[A]`. Therefore we use the
-`MonadIO.liftIO` to create a `F[Error \/ A]` and then `.flatMap` over the
-disjunction to push the error into the `F`, using `MonadError.raiseError`.
+`MonadIO.liftIO` to create a `F[Error \/ A]` and then `.emap` to push the error
+into the `F`.
 
 Unfortunately, if we try to compile this code it will fail. The error will look
 something like
@@ -14764,17 +14777,14 @@ something like
 ~~~~~~~~
   [error] BlazeJsonClient.scala:95:64: could not find implicit value for parameter
   [error]  F: cats.effect.Sync[scalaz.ioeffect.Task]
-  [error]         text <- resp.body.through(fs2.text.utf8Decode).compile.foldMonoid
-  [error]                                                                ^
 ~~~~~~~~
 
-Basically something about a missing `cats` instance. The reason for this failure
-is that http4s is using the Cats library, instead of Scalaz. Cats is a much
-smaller library than Scalaz and amounts to a renaming of a subset of typeclasses
-and datatypes. Thankfully, `scalaz-ioeffect` provides a compatibility layer and
-the [shims](https://github.com/djspiewak/shims) project provides seamless (until it isn't) implicit conversions
-between Scalaz and cats types. We can get our code to compile with these
-dependencies:
+Basically, something about a missing cat.
+
+The reason for this failure is that http4s is using the Cats library, instead of
+Scalaz. Thankfully, `scalaz-ioeffect` provides a compatibility layer and the
+[shims](https://github.com/djspiewak/shims) project provides seamless (until it isn't) implicit conversions. We can
+get our code to compile with these dependencies:
 
 {lang="text"}
 ~~~~~~~~
@@ -14792,18 +14802,11 @@ and these imports
   import scalaz.ioeffect.catz._
 ~~~~~~~~
 
-A> Cats was created in 2015 when [a Scalaz administrator fell out with its creator](https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J),
-A> shortly after he revoked the creator's access to the project.
+A> Cats forked from Scalaz when [somebody had a disagreement with Tony Morris, the
+A> creator of Scalaz](https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J).
 A> 
-A> When Cats was formed, everybody was forced to pick a side between friends. It is
-A> therefore an emotional topic for those involved. The fundamental disagreement is
-A> whether online technical communities should be subjected to a Code of Conduct.
-A> 
-A> Cats is a member of the typeLevel organisation, which has a leadership panel who
-A> moderate their chat rooms, and may escalate what they perceive as "abuse" to the
-A> HR department of a participant's employer.
-A> 
-A> Scalaz, on the other hand, does not moderate its chat rooms.
+A> Cats is a much smaller library than Scalaz, with different names for the same
+A> concepts: <https://xkcd.com/927>
 
 The implementation of `.post` is similar but we must also provide an instance of
 
@@ -14812,8 +14815,8 @@ The implementation of `.post` is similar but we must also provide an instance of
   EntityEncoder[Task, String Refined UrlEncoded]
 ~~~~~~~~
 
-Thankfully, the `EntityEncoder` typeclass provides convenience methods to let us
-simply derive one from the existing `String` encoder
+Thankfully, the `EntityEncoder` typeclass provides conveniences to let us derive
+one from the existing `String` encoder
 
 {lang="text"}
 ~~~~~~~~
@@ -14875,8 +14878,8 @@ We need to create a `dsl` for our effect type, which we then import
 ~~~~~~~~
 
 Now we can use the [http4s dsl](https://http4s.org/v0.18/dsl/) to create HTTP endpoints. Rather than describe
-everything that can be done, we will simply implement the endpoint which should
-look familiar to any other HTTP DSL in Scala
+everything that can be done, we will simply implement the endpoint which is
+similar to any of other HTTP DSLs
 
 {lang="text"}
 ~~~~~~~~
@@ -14886,8 +14889,8 @@ look familiar to any other HTTP DSL in Scala
   }
 ~~~~~~~~
 
-The difference, of course, is that this is entirely pure. The return type of each pattern match should be a `Task[Response[Task]]`. In our implementation we want
-to take the `code` and put it into the `ptoken` promise:
+The return type of each pattern match is a `Task[Response[Task]]`. In our
+implementation we want to take the `code` and put it into the `ptoken` promise:
 
 {lang="text"}
 ~~~~~~~~
@@ -14915,7 +14918,7 @@ server, which we do with `BlazeBuilder`
     BlazeBuilder[Task].bindHttp(0, "localhost").mountService(service, "/").start
 ~~~~~~~~
 
-Binding to port `0` lets the operating system assign a ephemeral port. We can
+Binding to port `0` makes the operating system assign an ephemeral port. We can
 discover which port it is actually running on by querying the `server.address`
 field.
 
@@ -14928,7 +14931,7 @@ Our implementation of the `.start` and `.stop` methods is now straightforward
       server  <- launch
       updated <- pserver.complete(server)
       _ <- if (updated) Task.unit
-           else server.shutdown *> Task.failMessage("a server was already up")
+           else server.shutdown *> fail("server was already running")
     } yield mkUrl(server)
   
   def stop: Task[CodeToken] =
@@ -14942,6 +14945,8 @@ Our implementation of the `.start` and `.stop` methods is now straightforward
     val port = s.address.getPort
     Refined.unsafeApply(s"http://localhost:${port}/")
   }
+  private def fail[A](s: String): String =
+    Task.fail(new IOException(s) with NoStackTrace)
 ~~~~~~~~
 
 The `1.second` sleep is necessary to avoid shutting down the server before the
@@ -14970,12 +14975,14 @@ any boilerplate that would distract us.
 
 ## Thank You
 
-And that is it! Congratulations on reaching the end. If you learnt something from
-this book, please tell your friends. This book does not have a marketing
-department, so word of mouth is the only way that readers find out about it.
+And that is it! Congratulations on reaching the end.
 
-Please consider getting involved in Scalaz by joining the [gitter chat room](https://gitter.im/scalaz/scalaz). From
-there you can ask for advice, help newcomers (you're basically an expert now),
-and contribute to the next release.
+If you learnt something from this book, then please tell your friends. This book
+does not have a marketing department, so word of mouth is the only way that
+readers find out about it.
+
+Get involved with Scalaz by joining the [gitter chat room](https://gitter.im/scalaz/scalaz). From there you can ask
+for advice, help newcomers (you're an expert now), and contribute to the next
+release.
 
 

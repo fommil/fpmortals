@@ -40,11 +40,7 @@ final class BlazeJsonClient[F[_]] private (H: Client[Task])(
             headers = convert(headers)
           )
         )(handler[A])
-      )
-      .flatMap {
-        case -\/(err)     => F.raiseError(err)
-        case \/-(success) => F.point(success)
-      }
+      ).emap(identity)
 
   private implicit val encoder: EntityEncoder[Task, String Refined UrlEncoded] =
     EntityEncoder[Task, String]
@@ -71,10 +67,7 @@ final class BlazeJsonClient[F[_]] private (H: Client[Task])(
             )
         )(handler[A])
       )
-      .flatMap {
-        case -\/(err)     => F.raiseError(err)
-        case \/-(success) => F.point(success)
-      }
+      .emap(identity)
 
   private[this] def convert(headers: IList[(String, String)]): http4s.Headers =
     http4s.Headers(

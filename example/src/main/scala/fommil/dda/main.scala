@@ -23,7 +23,6 @@ object Main extends SafeApp {
 
   def run(args: List[String]): IO[Void, ExitStatus] = {
     if (args.contains("--machines")) auth("machines")
-    else if (args.contains("--drone")) auth("drone")
     else agents(BearerToken("<invalid>", Epoch(0)))
   }.attempt[Void].map {
     case \/-(_) => ExitStatus.ExitNow(0)
