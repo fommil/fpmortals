@@ -6035,9 +6035,9 @@ res = 1
 res = 1
 #+END_SRC
 
-Implicit resolution flips its definition of "most specific" for
-contravariant types, rendering them useless for typeclasses or
-anything that requires polymorphic functionality.
+Implicit resolution flips its definition of "most specific" for contravariant
+types, rendering them useless for typeclasses or anything that requires
+polymorphic functionality. The behaviour is fixed in Dotty.
 
 **** Limitations of subtyping
 
@@ -6425,9 +6425,8 @@ automatically derive the =monoid=.
 It is tempting to use =Tag= to markup data types for some form of validation
 (e.g. =String @@ PersonName=), but this should be avoided because there are no
 checks on the content of the runtime value. =Tag= should only be used for
-typeclass selection purposes, and we will dedicate a chapter on /type
-refinement/ which is how we can mark up types with arbitrary value-level
-constraints.
+typeclass selection purposes. Prefer the =Refined= library, introduced in
+Chapter 4, to constrain values.
 
 *** Natural Transformations
 
@@ -6475,17 +6474,6 @@ natural transformation to map between algebras. For example, in
 changing all our business logic and tests to use this new =BigMachines=
 interface, we may be able to write a transformation from =Machines ~>
 BigMachines=. We will return to this idea in the chapter on Advanced Monads.
-
-There is also a natural transformation for type constructors with two type
-holes:
-
-#+BEGIN_SRC scala
-type ~~>[-F[_,_], +G[_,_]] = BiNaturalTransformation[F, G]
-trait BiNaturalTransformation[-F[_, _], +G[_, _]] {
-  def apply[A, B](f: F[A, B]): G[A, B]
-  def compose[E[_, _]](f: E ~~> F) = ...
-}
-#+END_SRC
 
 *** =Isomorphism=
 
@@ -6568,10 +6556,9 @@ implementation, it is worth considering if =Isomorphism= is the better solution.
 
 **** Maybe
 
-We have already encountered Scalaz's improvement over =scala.Option=,
-called =Maybe=. It is an improvement because it does not have any
-unsafe methods like =Option.get=, which can throw an exception, and is
-invariant.
+We have already encountered Scalaz's improvement over =scala.Option=, called
+=Maybe=. It is an improvement because it is invariant and does not have any
+unsafe methods like =Option.get=, which can throw an exception.
 
 It is typically used to represent when a thing may be
 present or not without giving any extra context as to why it may be
@@ -6618,11 +6605,11 @@ implicit class MaybeOps[A](self: A) {
 
 and delegate instances depending on =A=
 
-- =Monoid= / =Band= / =SemiLattice=
+- =Monoid= / =Band=
 - =Equal= / =Order= / =Show=
 
-In addition to the above, =Maybe= has some niche functionality that is
-not supported by a polymorphic typeclass.
+In addition to the above, =Maybe= has functionality that is not supported by a
+polymorphic typeclass.
 
 #+BEGIN_SRC scala
 sealed abstract class Maybe[A] {
@@ -6712,8 +6699,6 @@ final case class -\/[+A](a: A) extends (A \/ Nothing)
 final case class \/-[+B](b: B) extends (Nothing \/ B)
 
 type Disjunction[+A, +B] = \/[A, B]
-type DLeft[+A] = -\/[A]
-type DRight[+B] = \/-[B]
 
 object \/ {
   def left [A, B]: A => A \/ B = -\/(_)
@@ -6777,7 +6762,6 @@ sealed abstract class \/[+A, +B] { self =>
     case -\/(a) => \/-(a)
     case \/-(b) => -\/(b)
   }
-  def unary_~ : (B \/ A) = swap
 
   def |[BB >: B](x: =>BB): BB = getOrElse(x) // Optional[_]
   def |||[C, BB >: B](x: =>C \/ BB): C \/ BB = orElse(x) // Optional[_]
@@ -6797,8 +6781,7 @@ sealed abstract class \/[+A, +B] { self =>
 =.fold= is similar to =Maybe.cata= and requires that both the left and
 right sides are mapped to the same type.
 
-=.swap= (and the =~foo= syntax) swaps a left into a right and a right
-into a left.
+=.swap= swaps a left into a right and a right into a left.
 
 The =|= alias to =getOrElse= appears similarly to =Maybe=. We also get
 =|||= as an alias to =orElse=.
@@ -6821,21 +6804,9 @@ ignore the contents of an =\/=, but pick a default based on its type
 scala> 1 <<?: foo :?>> 2
 res: Int = 2 // foo is a \/-
 
-scala> 1 <<?: ~foo :?>> 2
+scala> 1 <<?: foo.swap :?>> 2
 res: Int = 1
 #+END_SRC
-
-Scalaz also comes with =Either3=, for storing one of three values
-
-#+BEGIN_SRC scala
-sealed abstract class Either3[+A, +B, +C]
-final case class Left3[+A, +B, +C](a: A)   extends Either3[A, B, C]
-final case class Middle3[+A, +B, +C](b: B) extends Either3[A, B, C]
-final case class Right3[+A, +B, +C](c: C)  extends Either3[A, B, C]
-#+END_SRC
-
-However, it is common to use nested disjunctions =A \/ (B \/ C)=, making
-=Either3= redundant.
 
 **** Validation
 
@@ -7020,17 +6991,12 @@ with convenient construction syntax
 #+BEGIN_SRC scala
 implicit class TheseOps[A](self: A) {
   final def wrapThis[B]: A \&/ B = \&/.This(self)
-  final def `this`[B]: A \&/ B = wrapThis
   final def wrapThat[B]: B \&/ A = \&/.That(self)
-  final def that[B]: B \&/ A = wrapThat
 }
 implicit class ThesePairOps[A, B](self: (A, B)) {
   final def both: A \&/ B = \&/.Both(self._1, self._2)
 }
 #+END_SRC
-
-Annoyingly, =this= is a keyword in Scala and must be called with
-back-ticks, or as =.wrapThis=.
 
 =These= has typeclass instances for
 
@@ -7052,7 +7018,6 @@ and depending on contents
 sealed abstract class \&/[+A, +B] {
   def fold[X](s: A => X, t: B => X, q: (A, B) => X): X = ...
   def swap: (B \&/ A) = ...
-  def unary_~ : (B \&/ A) = swap
 
   def append[X >: A: Semigroup, Y >: B: Semigroup](o: =>(X \&/ Y)): X \&/ Y = ...
 
@@ -7319,8 +7284,13 @@ behaviours in the typeclass hierarchy, e.g. =Foldable=, =Traverse=, =Monoid=.
 What remains to be studied are the implementations in terms of data structures,
 which have different performance characteristics and niche methods.
 
+This section goes into the implementation details for each data type. It is not
+essential to remember everything presented here: the goal is to gain a high
+level understanding of how each data structure works.
+
 Because all the collection data types provide more or less the same list of
-typeclass instances, we shall avoid repeating the list, which is often some variation of:
+typeclass instances, we shall avoid repeating the list, which is often some
+variation of:
 
 - =Monoid=
 - =Traverse= / =Foldable=
@@ -7452,9 +7422,8 @@ object EphemeralStream extends EphemeralStreamInstances {
 
 #+BEGIN_ASIDE
 The use of the word /stream/ for a data structure of this nature comes down to
-legacy. /Stream/ is now more commonly used to refer to the /Reactive Manifesto/
-and its compatible frameworks such as Akka Streams and /Functional Streams for
-Scala/ (fs2). We will tour fs2 / =scalaz-stream= in a later chapter.
+legacy. /Stream/ is now used by marketing departments alongside the ✨ /Reactive
+Manifesto/ ✨ and implementing frameworks like Akka Streams.
 #+END_ASIDE
 
 =.cons=, =.unfold= and =.iterate= are mechanisms for creating streams, and the
@@ -7518,8 +7487,8 @@ object CorecursiveList {
 
 Corecursion is useful when implementing =Comonad.cojoin=, like our =Hood=
 example. =CorecursiveList= is a good way to codify non-linear recurrence
-equations like those used in biology population models, drone control systems,
-macro economics, and investment banking models.
+equations like those used in biology population models, control systems, macro
+economics, and investment banking models.
 
 **** =ImmutableArray=
 
@@ -8454,8 +8423,7 @@ rolling a custom data structure.
 # https://github.com/scalaz/scalaz/issues/1609
 
 Finger trees are generalised sequences with amortised constant cost lookup and
-logarithmic concatenation. =A= is the type of data and it may help to ignore
-=V=:
+logarithmic concatenation. =A= is the type of data, ignore =V= for now:
 
 #+BEGIN_SRC scala
 sealed abstract class FingerTree[V, A] {
@@ -8592,6 +8560,11 @@ implicit def reducer[A]: Reducer[A, IList[A]] = new Reducer[A, IList[A]] {
 }
 #+END_SRC
 
+#+BEGIN_ASIDE
+=Reducer= should have been called =CanActuallyBuildFrom=, in honour of the
+similarly named stdlib =class=, since it is effectively a collection builder.
+#+END_ASIDE
+
 ***** =IndSeq=
 
 If we use =Int= as =V=, we can get an indexed sequence, where the measure is
@@ -8629,10 +8602,10 @@ building up an ordered sequence, with duplicates. We can access the underlying
 
 ***** =Cord=
 
-The most common use of =FingerTree= is as an efficient intermediate holder for
-=String= representations in =Show=. Building a single =String= can be thousands
-of times faster than the default =case class= implementation of nested
-=.toString=, which builds a =String= for every layer in the ADT.
+The most common use of =FingerTree= is as an intermediate holder for =String=
+representations in =Show=. Building a single =String= can be thousands of times
+faster than the default =case class= implementation of nested =.toString=, which
+builds a =String= for every layer in the ADT.
 
 #+BEGIN_SRC scala
 final case class Cord(self: FingerTree[Int, String]) {
@@ -8662,6 +8635,12 @@ res: String = foo
 scala> s.show
 res: Cord = "foo"
 #+END_SRC
+
+#+BEGIN_ASIDE
+The =Cord= in Scalaz 7.2 is unfortunately *very* inefficient. This has been
+fixed in Scalaz 7.3 by a [[https://github.com/scalaz/scalaz/pull/1793][custom data structure optimised for =String=
+concatenation]].
+#+END_ASIDE
 
 **** =Heap= Priority Queue
 
@@ -8693,10 +8672,9 @@ This =push= is a very fast =O(1)=, but =reorder= (and therefore =pop=) relies on
 
 # http://www.brics.dk/RS/96/37/BRICS-RS-96-37.pdf
 
-Scalaz encodes a priority queue, with a tree structure where every node has a
-value less than its children, called a /Heap Priority Queue/. =Heap= has fast
-push (=insert=), =union=, =size=, pop (=uncons=) and peek (=minimumO=)
-operations:
+Scalaz encodes a priority queue with a tree structure where every node has a
+value less than its children. =Heap= has fast push (=insert=), =union=, =size=,
+pop (=uncons=) and peek (=minimumO=) operations:
 
 #+BEGIN_SRC scala
 sealed abstract class Heap[A] {
@@ -8896,8 +8874,7 @@ and our idea of "advanced" is modest. To put it into context:
 this chapter.
 
 In this chapter we will study some of the most important implementations of
-=Monad= and explain why =Future= needlessly complicates an application: we will
-offer simpler and faster alternatives.
+=Monad=.
 
 *** Always in motion is the =Future=
 
