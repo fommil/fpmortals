@@ -52,7 +52,7 @@ This book uses the [Creative Commons Attribution ShareAlike 4.0 International](h
 BY-SA 4.0) license.
 
 All original code snippets in this book are separately [CC0](https://wiki.creativecommons.org/wiki/CC0) licensed, you may use
-them without restriction. Excerpts from `Scalaz` and related libraries maintain
+them without restriction. Excerpts from Scalaz and related libraries maintain
 their license, reproduced in full in the appendix.
 
 The example application `drone-dynamic-agents` is distributed under the terms of

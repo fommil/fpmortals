@@ -81,7 +81,7 @@ This book uses the [[https://creativecommons.org/licenses/by-sa/4.0/legalcode][C
 BY-SA 4.0) license.
 
 All original code snippets in this book are separately [[https://wiki.creativecommons.org/wiki/CC0][CC0]] licensed, you may use
-them without restriction. Excerpts from =Scalaz= and related libraries maintain
+them without restriction. Excerpts from Scalaz and related libraries maintain
 their license, reproduced in full in the appendix.
 
 The example application =drone-dynamic-agents= is distributed under the terms of
@@ -1206,10 +1206,6 @@ There is tight iteration between writing the business logic and the
 algebra: it is a good level of abstraction to design a system.
 
 #+BEGIN_SRC scala
-package algebra
-
-import scalaz.NonEmptyList
-
 trait Drone[F[_]] {
   def getBacklog: F[Int]
   def getAgents: F[Int]
@@ -1249,15 +1245,6 @@ see a better way to request non-emptyness.
 
 Now we write the business logic that defines the application's
 behaviour, considering only the happy path.
-
-First, the imports
-
-#+BEGIN_SRC scala
-package logic
-
-import scalaz._, Scalaz._
-import algebra._
-#+END_SRC
 
 We need a =WorldView= class to hold a snapshot of our knowledge of the
 world. If we were designing this application in Akka, =WorldView=
@@ -2701,8 +2688,6 @@ use =String= and =Long= for brevity, but we could use refined types if they leak
 into our business models.
 
 #+BEGIN_SRC scala
-package http.oauth2.client.api
-
 import refined.api.Refined
 import refined.string.Url
 

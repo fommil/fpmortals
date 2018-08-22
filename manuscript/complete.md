@@ -712,10 +712,6 @@ algebra: it is a good level of abstraction to design a system.
 
 {lang="text"}
 ~~~~~~~~
-  package algebra
-  
-  import scalaz.NonEmptyList
-  
   trait Drone[F[_]] {
     def getBacklog: F[Int]
     def getAgents: F[Int]
@@ -754,16 +750,6 @@ A> see a better way to request non-emptyness.
 
 Now we write the business logic that defines the application's
 behaviour, considering only the happy path.
-
-First, the imports
-
-{lang="text"}
-~~~~~~~~
-  package logic
-  
-  import scalaz._, Scalaz._
-  import algebra._
-~~~~~~~~
 
 We need a `WorldView` class to hold a snapshot of our knowledge of the
 world. If we were designing this application in Akka, `WorldView`
@@ -2288,8 +2274,6 @@ into our business models.
 
 {lang="text"}
 ~~~~~~~~
-  package http.oauth2.client.api
-  
   import refined.api.Refined
   import refined.string.Url
   
