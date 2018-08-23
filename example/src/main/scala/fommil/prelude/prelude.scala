@@ -436,7 +436,7 @@ package object prelude {
     @inline final val OptionT: scalaz.OptionT.type = scalaz.OptionT
   }
 
-  // typelevel interop
+  // cats interop
   object T extends shims.ShimsCore {
     implicit val catsEffectInstance: cats.effect.Effect[Task] =
       scalaz.ioeffect.catz.catsEffectInstance

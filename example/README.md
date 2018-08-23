@@ -46,7 +46,7 @@ If scala stdlib data types, compatibility or typeclass instances are required, u
 import fommil.prelude.S._
 ```
 
-If compatibility with Typelevel libraries is required, use
+If compatibility with cats is required, use
 
 ```scala
 import fommil.prelude.T._

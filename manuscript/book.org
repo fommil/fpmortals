@@ -102,7 +102,7 @@ that are in this book. Thanks to Juan Manuel Serrano for [[https://skillsmatter.
 Lambda]], Pere Villega for [[http://perevillega.com/understanding-free-monads][On Free Monads]], Dick Wall and Josh Suereth for [[https://www.youtube.com/watch?v=WDaw2yXAa50][For:
 What is it Good For?]], Erik Bakker for [[https://www.youtube.com/watch?v=hGMndafDcc8][Options in Futures, how to unsuck them]],
 Noel Markham for [[https://www.47deg.com/presentations/2017/06/01/ADT-for-the-win/][ADTs for the Win!]], Sukant Hajra for [[https://www.youtube.com/watch?v=QtZJATIPB0k][Classy Monad Transformers]],
-Luka Jacobowitz for [[https://typelevel.org/blog/2017/12/27/optimizing-final-tagless.html][Optimizing Tagless Final]], Vincent Marquez for [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your
+Luka Jacobowitz for [[https://lukajcb.github.io/blog/functional/2018/01/03/optimizing-tagless-final.html][Optimizing Tagless Final]], Vincent Marquez for [[https://www.youtube.com/watch?v=JPVagd9W4Lo][Index your
 State]], Gabriel Gonzalez for [[http://www.haskellforall.com/2012/12/the-continuation-monad.html][The Continuation Monad]], and Yi Lin Wei / Zainab Ali
 for their tutorials at Hack The Tower meetups.
 
@@ -5932,8 +5932,7 @@ performance reasons, and to provide our own.
 
 *** Type Variance
 
-# https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html?spref=tw
-# https://typelevel.org/blog/2016/09/19/variance-phantom.html
+# https://failex.blogspot.co.uk/2016/09/the-missing-diamond-of-scala-variance.html
 
 Many of Scalaz's data types are /invariant/ in their type parameters.
 For example, =IList[A]= is *not* a subtype of =IList[B]= when =A <:
