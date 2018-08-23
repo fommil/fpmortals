@@ -11003,8 +11003,8 @@ project's `build.sbt` with
 
 {lang="text"}
 ~~~~~~~~
-  val derivingVersion = "1.0.0-RC9"
-  libraryDependencies += "com.fommil" %% "scalaz-deriving" % derivingVersion
+  val derivingVersion = "1.0.0"
+  libraryDependencies += "org.scalaz" %% "scalaz-deriving" % derivingVersion
 ~~~~~~~~
 
 providing new typeclasses, shown below in relation to core Scalaz typeclasses:
@@ -11159,8 +11159,8 @@ A> following to `build.sbt`
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
-A>   addCompilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion)
-A>   libraryDependencies += "com.fommil" %% "deriving-macro" % derivingVersion % "provided"
+A>   addCompilerPlugin("org.scalaz" %% "deriving-plugin" % derivingVersion)
+A>   libraryDependencies += "org.scalaz" %% "deriving-macro" % derivingVersion % "provided"
 A> ~~~~~~~~
 A> 
 A> and use it as

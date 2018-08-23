@@ -22,13 +22,13 @@ libraryDependencies ++= Seq(
   "io.estatico"          %% "newtype"         % "0.4.2"
 )
 
-val derivingVersion = "1.0.0-RC8"
+val derivingVersion = "1.0.0"
 libraryDependencies ++= Seq(
-  "com.fommil" %% "deriving-macro" % derivingVersion,
-  compilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion),
-  "com.fommil" %% "scalaz-deriving"            % derivingVersion,
-  "com.fommil" %% "scalaz-deriving-magnolia"   % derivingVersion,
-  "com.fommil" %% "scalaz-deriving-scalacheck" % derivingVersion
+  "org.scalaz" %% "deriving-macro" % derivingVersion,
+  compilerPlugin("org.scalaz" %% "deriving-plugin" % derivingVersion),
+  "org.scalaz" %% "scalaz-deriving"            % derivingVersion,
+  "org.scalaz" %% "scalaz-deriving-magnolia"   % derivingVersion,
+  "org.scalaz" %% "scalaz-deriving-scalacheck" % derivingVersion
 )
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")

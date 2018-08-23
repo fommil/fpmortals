@@ -37,15 +37,14 @@ libraryDependencies ++= Seq(
   "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"
 )
 
-val derivingVersion = "1.0.0-RC9"
-//val derivingVersion = "SNAPSHOT"
+val derivingVersion = "1.0.0"
 libraryDependencies ++= Seq(
-  "com.fommil" %% "deriving-macro" % derivingVersion % "provided",
-  compilerPlugin("com.fommil" %% "deriving-plugin" % derivingVersion),
-  "com.fommil" %% "scalaz-deriving"            % derivingVersion,
-  "com.fommil" %% "scalaz-deriving-magnolia"   % derivingVersion,
-  "com.fommil" %% "scalaz-deriving-scalacheck" % derivingVersion,
-  "com.fommil" %% "jsonformat"                 % derivingVersion
+  "org.scalaz" %% "deriving-macro" % derivingVersion % "provided",
+  compilerPlugin("org.scalaz" %% "deriving-plugin" % derivingVersion),
+  "org.scalaz" %% "scalaz-deriving"            % derivingVersion,
+  "org.scalaz" %% "scalaz-deriving-magnolia"   % derivingVersion,
+  "org.scalaz" %% "scalaz-deriving-scalacheck" % derivingVersion,
+  "org.scalaz" %% "scalaz-deriving-jsonformat" % derivingVersion
 ) ++ logback
 
 scalacOptions ++= Seq(
