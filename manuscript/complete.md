@@ -2334,7 +2334,7 @@ We need to marshal the data classes we defined in the previous section into
 JSON, URLs and POST-encoded forms. Since this requires polymorphism, we will
 need typeclasses.
 
-[`jsonformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/jsonformat/src) is a simple JSON library that we will study in more detail in a
+[`jsonformat`](https://github.com/scalaz/scalaz-deriving/tree/master/examples/jsonformat/src) is a simple JSON library that we will study in more detail in a
 later chapter, as it has been written with principled FP and ease of readability
 as its primary design objectives. It consists of a JSON AST and encoder /
 decoder typeclasses:
@@ -13654,7 +13654,7 @@ Oh, and don't forget to add `@@` support
 
 Shapeless allows for a lot more kinds of derivations than are possible with
 `scalaz-deriving` or Magnolia. As an example of an encoder / decoder that are
-not possible with Magnolia, consider this XML model from [`xmlformat`](https://gitlab.com/fommil/scalaz-deriving/tree/master/examples/xmlformat)
+not possible with Magnolia, consider this XML model from [`xmlformat`](https://github.com/scalaz/scalaz-deriving/tree/master/examples/xmlformat)
 
 {lang="text"}
 ~~~~~~~~
