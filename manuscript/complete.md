@@ -14765,8 +14765,8 @@ something like
 
 Basically, something about a missing cat.
 
-The reason for this failure is that http4s is using the Cats library, instead of
-Scalaz. Thankfully, `scalaz-ioeffect` provides a compatibility layer and the
+The reason for this failure is that http4s is using a different core FP library,
+not Scalaz. Thankfully, `scalaz-ioeffect` provides a compatibility layer and the
 [shims](https://github.com/djspiewak/shims) project provides seamless (until it isn't) implicit conversions. We can
 get our code to compile with these dependencies:
 
@@ -14785,12 +14785,6 @@ and these imports
   import shims._
   import scalaz.ioeffect.catz._
 ~~~~~~~~
-
-A> Cats forked from Scalaz when [somebody had a disagreement with Tony Morris, the
-A> creator of Scalaz](https://groups.google.com/forum/#!msg/scalaz/9X_putSGoCY/FIyeN0KVun0J).
-A> 
-A> Cats is a much smaller library than Scalaz, with different names for the same
-A> concepts: <https://xkcd.com/927>
 
 The implementation of `.post` is similar but we must also provide an instance of
 
