@@ -13188,7 +13188,7 @@ object Darth {
   implicit val equal: Equal[Darth] = Decidable[Equal].choose2(Equal[Vader], Equal[JarJar])(g)
 }
 
-scala> Vader("hello").widen === JarJar(1).widen
+scala> Vader("hello", 1).widen === JarJar(1, "hello).widen
 false
 #+END_SRC
 
