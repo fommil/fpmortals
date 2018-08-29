@@ -2363,7 +2363,7 @@ decoder typeclasses:
 
 A> `\/` is Scalaz's `Either` and has a `.flatMap`. We can use it in `for`
 A> comprehensions, whereas stdlib `Either` does not support `.flatMap` prior to
-A> Scala 2.12.
+A> Scala 2.12. It is spoken as *disjunction*, or *angry rabbit*.
 A> 
 A> `scala.Either` was [contributed to
 A> the Scala standard library](https://issues.scala-lang.org/browse/SI-250) by the creator of Scalaz, Tony Morris, in 2007.

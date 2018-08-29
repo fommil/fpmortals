@@ -2778,7 +2778,7 @@ final case class JsInteger(value: Long)                     extends JsValue
 #+BEGIN_ASIDE
 =\/= is Scalaz's =Either= and has a =.flatMap=. We can use it in =for=
 comprehensions, whereas stdlib =Either= does not support =.flatMap= prior to
-Scala 2.12.
+Scala 2.12. It is spoken as /disjunction/, or /angry rabbit/.
 
 =scala.Either= was [[https://issues.scala-lang.org/browse/SI-250][contributed to
 the Scala standard library]] by the creator of Scalaz, Tony Morris, in 2007.
