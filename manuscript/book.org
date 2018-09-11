@@ -16487,6 +16487,339 @@ release.
 
 # https://emacs.stackexchange.com/questions/36029
 
+** Haskell
+
+Scalaz documentation often cites libraries or papers written in the Haskell
+programming language. In this short chapter, we will learn enough Haskell to be
+able to understand the source material, and to attend Haskell talks at
+functional programming conferences.
+
+*** Data
+
+Haskell has a very clean syntax for ADTs. This is a linked list structure:
+
+#+BEGIN_SRC haskell
+data List a = Nil | Cons a (List a)
+#+END_SRC
+
+The =List= is the ADT, =a= is the type parameter, =|= separates the /type
+constructors/, which are: =Nil= the empty list and a =Cons= cell. =Cons= takes
+two parameters, which are separated by whitespace: no commas and no parameter
+brackets.
+
+Roughly translated to Scala:
+
+#+BEGIN_SRC scala
+sealed abstract class List[A]
+object Nil {
+  def apply[A]: List[A] = ...
+  def unapply[A](as: List[A]): Option[Unit] = ...
+}
+object Cons {
+  def apply[A](head: A, tail: List[A]): List[A] = ...
+  def unapply[A](as: List[A]): Option[(A, List[A])] = ...
+}
+#+END_SRC
+
+i.e. =data= is like a =sealed abstract class=, and a type constructor is like an
+=.apply= and =.unapply= but no type (such as would be created with a =case
+class=): there is no subtyping in Haskell. Note that we refer to =List= as an
+ADT but in Scala we would call it a GADT, this is because the type parameter is
+shared between all type constructors. There are Haskell language extensions
+(called =GADTs= and =DataKinds=) that produce something closer to the typical
+Scala GADT encoding, but they are an advanced topic.
+
+We can also use infix types in Haskell, a nicer definition might be
+
+#+BEGIN_SRC haskell
+data List t = Nil | t :. List t
+
+infixr 5 :.
+#+END_SRC
+
+where we specify a /fixity/, which can be =infix=, =infixl= or =infixr= for non,
+left and right associativity, with a number from 0 (loose) to 9 (tight)
+precedence. We can now create a list of integers by typing
+
+#+BEGIN_SRC haskell
+1 :. 2 :. Nil
+#+END_SRC
+
+However, a linked list is built into the language using square bracket notation
+
+#+BEGIN_SRC haskell
+data [] a = [] | a : [a]
+infixr 5 :
+#+END_SRC
+
+and a terse constructor syntax where the following are equivalent:
+
+#+BEGIN_SRC haskell
+1 : 2 : 3 : []
+
+[1, 2, 3]
+#+END_SRC
+
+The primitive data types are
+
+- =Char= a unicode character
+- =Text= for blocks of unicode text
+- =Int= machine dependent, fixed precision signed integer
+- =Word= an unsigned =Int=, and specific =Word8= / =Word16= / =Word32= / =Word64=
+- =Float= / =Double= IEEE single and double precision numbers
+- =Integer= / =Natural= arbitrary precision signed / non-negative integer
+- =(,)= the tuple type
+- along with niche primitives such as arrays
+
+with honorary mentions for
+
+#+BEGIN_SRC haskell
+data Bool       = True | False
+data Maybe a    = Nothing | Just a
+data Either a b = Left a | Right b
+data Ordering   = LT | EQ | GT
+#+END_SRC
+
+Haskell also has type aliases, which are entirely for convenience and do not
+signal new type definitions, so an alias or the expanded form can be used
+interchangeably. For legacy reasons, =String= is defined as a linked list of
+=Char=
+
+#+BEGIN_SRC haskell
+type String = [Char]
+#+END_SRC
+
+which is very inefficient and we always want to use =Text= instead.
+
+Finally we can define field names on ADTs using /record syntax/, which means we
+contain the type parameters in curly brackets and use double colon /type
+annotations/ to indicate the types
+
+#+BEGIN_SRC haskell
+-- raw ADT
+data Resource = Human Int String | Robot Int
+data Company  = Company String [Resource]
+
+-- with record syntax
+data Resource = Human { humanId :: Int, name :: String } |
+                Robot { robotId :: Int }
+data Company  = Company { name :: String, employees :: [Resource] }
+#+END_SRC
+
+which generates the equivalent of a field accessor and a copy method.
+
+#+BEGIN_SRC haskell
+-- construct
+bender = Robot 0
+-- field access
+robotId bender -- returns 0
+
+adam = Human 0 "Adam"
+-- copy syntax
+eve = adam { name = "Eve" }
+#+END_SRC
+
+A more efficient alternative to single field =data= definitions is to use a
+=newtype=, which has no runtime overhead:
+
+#+BEGIN_SRC haskell
+newtype Alpha = Alpha { underlying :: Double }
+#+END_SRC
+
+equivalent to =extends AnyVal= but without the caveats.
+
+#+BEGIN_ASIDE
+A limitation of Haskell's record syntax is that a field name cannot be used more
+than once in the same type. However, we can workaround this by enabling a
+=LANGUAGE= extension:
+
+#+BEGIN_SRC haskell
+{-# LANGUAGE DuplicateRecordFields #-}
+
+data Resource = Human { id :: Int, name :: String } |
+                Robot { id :: Int }
+#+END_SRC
+
+There are a lot of language extensions and it is not uncommon to have 20 or more
+in a small project. Haskell is extremely conservative and new language features
+are opt in for a long period of time before they can be accepted into the
+vanilla language.
+#+END_ASIDE
+
+*** Functions
+
+Although not necessary, it is good practice to explicitly write the type
+signature of a function, which is the name of the function followed by its type.
+For example if we wanted to define =foldLeft= specifically for a linked list
+
+#+BEGIN_SRC haskell
+foldLeft :: (b -> a -> b) -> b -> [a] -> b
+#+END_SRC
+
+All functions are /curried/ in Haskell, each parameter is separated by a =->=
+and the final type is the return type. This is equivalent to the following Scala
+signature:
+
+#+BEGIN_SRC scala
+def foldLeft[A, B](f: (B, A) => B)(b: B)(as: List[A]): B
+#+END_SRC
+
+- there is no keyword to denote that what follows is a function
+- there is no need to declare the types that are introduced
+- there is no need to name the parameters
+
+which makes for terse code.
+
+Infix functions are defined in parenthesis and need a fixity definition much
+like infix type constructors
+
+#+BEGIN_SRC haskell
+(++) :: [a] -> [a] -> [a]
+infixr 5 ++
+#+END_SRC
+
+Regular functions can be called in infix position by surrounding their name with
+backticks, and an infix function can be called like a regular function if we
+keep it surrounded by brackets.
+
+#+BEGIN_SRC haskell
+product :: [Int] -> Int
+
+-- the thing (only one can be defined)
+product = (*) `foldLeft` 1
+product = foldLeft (*) 1
+#+END_SRC
+
+Functions are typically written with the most general parameter first, to enable
+maximum reuse of the curried forms.
+
+The definition of a function may use pattern matching, with one line per case.
+This is where we may name the parameters, using the type constructors to extract
+parameters much like a Scala =case= clause:
+
+#+BEGIN_SRC haskell
+mapMaybe :: (a -> b) -> Maybe a -> Maybe b
+mapMaybe f (Just a) = Just (f a)
+mapMaybe _ Empty    = Empty
+#+END_SRC
+
+Underscores are a placeholder for parameters that are ignored.
+
+We can also define anonymous lambda functions using backslashes, which are
+supposed to look like a Greek lambda. The following are equivalent:
+
+#+BEGIN_SRC haskell
+foldLeft (*)
+foldLeft (\a1 -> \a2 -> a1 * a2)
+foldLeft (\a1 a2     -> a1 * a2)
+#+END_SRC
+
+Pattern matched Haskell functions are just syntax sugar for nested lambda
+functions. Consider a simple function that creates a tuple when given three
+inputs:
+
+#+BEGIN_SRC haskell
+tuple a -> b -> c -> (a, b, c)
+#+END_SRC
+
+The implementation
+
+#+BEGIN_SRC haskell
+tuple a b c = (a, b, c)
+#+END_SRC
+
+desugars into
+
+#+BEGIN_SRC haskell
+tuple = \a ->
+          \b ->
+            \c -> (a, b, c)
+#+END_SRC
+
+In the body of a function we can create local value bindings with the =let= or
+=where= clauses. The following are equivalent definitions of =map= for a linked
+list
+
+#+BEGIN_SRC haskell
+map :: (a -> b) -> [a] -> [b]
+
+-- very explicit
+map f as = foldRight map' [] as
+           where map' a bs = f a : bs
+
+-- terser, making use of currying
+map f    = foldRight map' []
+           where map' a = (f a :)
+
+-- using let / in
+map f    = let map' a = (f a :)
+           in foldRight map' []
+#+END_SRC
+
+The choice of which to use is often stylistic, although =where= allows for
+multiple definitions and type annotations. Note that an apostrophe is a valid
+identifier name in a function.
+
+Typical =if= / =else= / =then= logic is keyword based:
+
+#+BEGIN_SRC haskell
+filter :: (a -> Bool) -> [a] -> [a]
+filter _ [] = []
+filter f (head : tail) = if f head
+                         then head : filter f tail
+                         else filter f tail
+#+END_SRC
+
+but it is more common to use /case guards/ with the pipe symbol
+
+#+BEGIN_SRC haskell
+filter f (head : tail) | f head    = head : filter f tail
+                       | otherwise = filter f tail
+#+END_SRC
+
+Pattern matching is with =case ... of=
+
+#+BEGIN_SRC haskell
+unfoldr :: (a -> Maybe (b, a)) -> a -> [b]
+unfoldr f b = case f b of
+                Just (b', a') -> b' : unfoldr f a'
+                Empty         -> []
+#+END_SRC
+
+Guards can be used within matches. For example, say we want to special case
+zeros:
+
+#+BEGIN_SRC haskell
+unfoldrInt :: (a -> Maybe (Int, a)) -> a -> [Int]
+unfoldrInt f b = case f b of
+                   Just (i, a') | i == 0    -> unfoldr f a'
+                                | otherwise -> i : unfoldr f a'
+                   Empty                    -> []
+#+END_SRC
+
+A function that is worth noting is =($)=
+
+#+BEGIN_SRC haskell
+($) :: (a -> b) -> a -> b
+infixr 0
+#+END_SRC
+
+This is given the weakest fixity of all infix functions and therefore serves as
+an alternative to parenthesis. We could be forgiven for thinking that =$= is
+part of the Haskell language, but it is just a stylistic alternative:
+
+#+BEGIN_SRC haskell
+-- equivalent
+Just (f a)
+Just $ f a
+#+END_SRC
+
+# - classes and deriving, maybe do the core parts of the typeclass hierarchy including
+# - Applicative <*> / <$> notation and do notation
+# - modules, imports, qualified, exporting, hiding, etc
+# - lazy evaluation vs strict, no stack overflows (Text as an example), the pain of lazy IO
+# - hoogle, cabal and stack (maybe)
+
 ** Third Party Licenses
 
 Some of the source code in this book has been copied from free / libre
