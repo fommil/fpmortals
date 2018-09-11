@@ -81,32 +81,34 @@ Roughly translated to Scala:
 ~~~~~~~~
 
 i.e. `data` is like a `sealed abstract class`, and a type constructor is like an
-`.apply` and `.unapply` but no type (such as would be created with a `case
-class`): there is no subtyping in Haskell. Note that we refer to `List` as an
-ADT but in Scala we would call it a GADT, this is because the type parameter is
-shared between all type constructors. There are Haskell language extensions
-(called `GADTs` and `DataKinds`) that produce something closer to the typical
-Scala GADT encoding, but they are an advanced topic.
+`.apply` and `.unapply` but no type, which would have been created by a `case
+class`. There is no subtyping in Haskell.
 
-We can also use infix types in Haskell, a nicer definition might be
+A> We refer to `List` as an ADT but in Scala we would call it a GADT, this is
+A> because the type parameter is shared between all type constructors. There are
+A> Haskell language extensions called `GADTs` and `DataKinds` that produce
+A> something closer to the typical Scala GADT encoding, but they are an advanced
+A> topic.
+
+We can also use infix types in Haskell, a nicer definition might use the symbol
+`:.` instead of `Cons`
 
 {lang="text"}
 ~~~~~~~~
   data List t = Nil | t :. List t
-  
   infixr 5 :.
 ~~~~~~~~
 
-where we specify a *fixity*, which can be `infix`, `infixl` or `infixr` for non,
-left and right associativity, with a number from 0 (loose) to 9 (tight)
-precedence. We can now create a list of integers by typing
+where we specify a *fixity*, which can be `infix`, `infixl` or `infixr` for no,
+left and right associativity, respectively. A number from 0 (loose) to 9 (tight)
+specifies precedence. We can now create a list of integers by typing
 
 {lang="text"}
 ~~~~~~~~
   1 :. 2 :. Nil
 ~~~~~~~~
 
-However, a linked list is built into the language using square bracket notation
+Haskell already comes with a linked list, using square bracket notation
 
 {lang="text"}
 ~~~~~~~~
@@ -114,25 +116,17 @@ However, a linked list is built into the language using square bracket notation
   infixr 5 :
 ~~~~~~~~
 
-and a terse constructor syntax where the following are equivalent:
+and has language level support for convenient construction: `[1, 2, 3]`.
 
-{lang="text"}
-~~~~~~~~
-  1 : 2 : 3 : []
-  
-  [1, 2, 3]
-~~~~~~~~
-
-The primitive data types are
+The most common primitive data types are
 
 -   `Char` a unicode character
 -   `Text` for blocks of unicode text
 -   `Int` machine dependent, fixed precision signed integer
--   `Word` an unsigned `Int`, and specific `Word8` / `Word16` / `Word32` / `Word64`
+-   `Word` an unsigned `Int`, and fixed size `Word8` / `Word16` / `Word32` / `Word64`
 -   `Float` / `Double` IEEE single and double precision numbers
--   `Integer` / `Natural` arbitrary precision signed / non-negative integer
--   `(,)` the tuple type
--   along with niche primitives such as arrays
+-   `Integer` / `Natural` arbitrary precision signed / non-negative integers
+-   `(,)` tuples, up to 62 fields
 
 with honorary mentions for
 
@@ -144,8 +138,7 @@ with honorary mentions for
   data Ordering   = LT | EQ | GT
 ~~~~~~~~
 
-Haskell also has type aliases, which are entirely for convenience and do not
-signal new type definitions, so an alias or the expanded form can be used
+Like Scala, Haskell has type aliases: an alias or its expanded form can be used
 interchangeably. For legacy reasons, `String` is defined as a linked list of
 `Char`
 
@@ -217,8 +210,8 @@ A> vanilla language.
 ## Functions
 
 Although not necessary, it is good practice to explicitly write the type
-signature of a function, which is the name of the function followed by its type.
-For example if we wanted to define `foldLeft` specifically for a linked list
+signature of a function: its name followed by its type. For example `foldLeft`
+specialised for a linked list
 
 {lang="text"}
 ~~~~~~~~
@@ -233,6 +226,8 @@ signature:
 ~~~~~~~~
   def foldLeft[A, B](f: (B, A) => B)(b: B)(as: List[A]): B
 ~~~~~~~~
+
+Some observations:
 
 -   there is no keyword to denote that what follows is a function
 -   there is no need to declare the types that are introduced
@@ -251,13 +246,10 @@ like infix type constructors
 
 Regular functions can be called in infix position by surrounding their name with
 backticks, and an infix function can be called like a regular function if we
-keep it surrounded by brackets.
+keep it surrounded by brackets. The following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
-  product :: [Int] -> Int
-  
-  -- the thing (only one can be defined)
   product = (*) `foldLeft` 1
   product = foldLeft (*) 1
 ~~~~~~~~
@@ -313,7 +305,7 @@ desugars into
               \c -> (a, b, c)
 ~~~~~~~~
 
-In the body of a function we can create local value bindings with the `let` or
+In the body of a function we can create local value bindings with `let` or
 `where` clauses. The following are equivalent definitions of `map` for a linked
 list
 
@@ -334,11 +326,9 @@ list
              in foldRight map' []
 ~~~~~~~~
 
-The choice of which to use is often stylistic, although `where` allows for
-multiple definitions and type annotations. Note that an apostrophe is a valid
-identifier name in a function.
+Note that an apostrophe is a valid identifier name in a function.
 
-Typical `if` / `else` / `then` logic is keyword based:
+`if` / `then` / `else` are keywords for conditional statements:
 
 {lang="text"}
 ~~~~~~~~
@@ -349,7 +339,7 @@ Typical `if` / `else` / `then` logic is keyword based:
                            else filter f tail
 ~~~~~~~~
 
-but it is more common to use *case guards* with the pipe symbol
+but it is considered better style to use *case guards*
 
 {lang="text"}
 ~~~~~~~~
@@ -389,11 +379,11 @@ A function that is worth noting is `($)`
 
 This is given the weakest fixity of all infix functions and therefore serves as
 an alternative to parenthesis. We could be forgiven for thinking that `$` is
-part of the Haskell language, but it is just a stylistic alternative:
+part of the Haskell language, but it is just a stylistic alternative to lots of
+brackets, the following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
-  -- equivalent
   Just (f a)
   Just $ f a
 ~~~~~~~~
