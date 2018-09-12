@@ -108,7 +108,8 @@ specifies precedence. We can now create a list of integers by typing
   1 :. 2 :. Nil
 ~~~~~~~~
 
-Haskell already comes with a linked list, using square bracket notation
+Haskell already comes with a linked list, which is so fundamental to functional
+programming that it gets language-level square bracket syntax `[a]`
 
 {lang="text"}
 ~~~~~~~~
@@ -116,9 +117,11 @@ Haskell already comes with a linked list, using square bracket notation
   infixr 5 :
 ~~~~~~~~
 
-and has language level support for convenient construction: `[1, 2, 3]`.
+and a convenient multi-argument value constructor: `[1, 2, 3]` instead of
+requiring `1 : 2 : 3 : []`.
 
-The most common primitive data types are
+Ultimately our ADTs need to hold primitive values. The most common primitive
+data types are:
 
 -   `Char` a unicode character
 -   `Text` for blocks of unicode text
@@ -126,7 +129,8 @@ The most common primitive data types are
 -   `Word` an unsigned `Int`, and fixed size `Word8` / `Word16` / `Word32` / `Word64`
 -   `Float` / `Double` IEEE single and double precision numbers
 -   `Integer` / `Natural` arbitrary precision signed / non-negative integers
--   `(,)` tuples, up to 62 fields
+-   `(,)` tuples, from 0 (also known as *unit*) to 62 fields
+-   `IO` the inspiration for Scalaz's `IO`, implemented in the runtime.
 
 with honorary mentions for
 
@@ -134,7 +138,7 @@ with honorary mentions for
 ~~~~~~~~
   data Bool       = True | False
   data Maybe a    = Nothing | Just a
-  data Either a b = Left a | Right b
+  data Either a b = Left a  | Right b
   data Ordering   = LT | EQ | GT
 ~~~~~~~~
 
@@ -254,6 +258,15 @@ keep it surrounded by brackets. The following are equivalent:
   product = foldLeft (*) 1
 ~~~~~~~~
 
+An infix function can be curried on either the left or the right, often giving
+different semantics:
+
+{lang="text"}
+~~~~~~~~
+  invert = (1.0 /)
+  half   = (/ 2.0)
+~~~~~~~~
+
 Functions are typically written with the most general parameter first, to enable
 maximum reuse of the curried forms.
 
@@ -265,13 +278,22 @@ parameters much like a Scala `case` clause:
 ~~~~~~~~
   mapMaybe :: (a -> b) -> Maybe a -> Maybe b
   mapMaybe f (Just a) = Just (f a)
-  mapMaybe _ Empty    = Empty
+  mapMaybe _ Nothing  = Nothing
 ~~~~~~~~
 
-Underscores are a placeholder for parameters that are ignored.
+Underscores are a placeholder for ignored parameters and extractors can be in
+infix position:
 
-We can also define anonymous lambda functions using backslashes, which are
-supposed to look like a Greek lambda. The following are equivalent:
+{lang="text"}
+~~~~~~~~
+  (<+>) :: Maybe a -> Maybe a -> Maybe a
+  Just a <+> _      = Just a
+  Empty  <+> Just a = Just a
+  Empty  <+> Empty  = Empty
+~~~~~~~~
+
+We can define anonymous lambda functions with a backslash, which looks like the
+Greek letter λ. The following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
@@ -339,7 +361,7 @@ Note that an apostrophe is a valid identifier name in a function.
                            else filter f tail
 ~~~~~~~~
 
-but it is considered better style to use *case guards*
+It is considered better style to use *case guards*
 
 {lang="text"}
 ~~~~~~~~
@@ -354,7 +376,7 @@ Pattern matching is with `case ... of`
   unfoldr :: (a -> Maybe (b, a)) -> a -> [b]
   unfoldr f b = case f b of
                   Just (b', a') -> b' : unfoldr f a'
-                  Empty         -> []
+                  Nothing       -> []
 ~~~~~~~~
 
 Guards can be used within matches. For example, say we want to special case
@@ -366,27 +388,411 @@ zeros:
   unfoldrInt f b = case f b of
                      Just (i, a') | i == 0    -> unfoldr f a'
                                   | otherwise -> i : unfoldr f a'
-                     Empty                    -> []
+                     Nothing                  -> []
 ~~~~~~~~
 
-A function that is worth noting is `($)`
+Two functions that are worth noting are `($)` and `(.)`
 
 {lang="text"}
 ~~~~~~~~
+  -- application operator
   ($) :: (a -> b) -> a -> b
   infixr 0
+  
+  -- function composition
+  (.) :: (b -> c) -> (a -> b) -> a -> c
+  infixr 9
 ~~~~~~~~
 
-This is given the weakest fixity of all infix functions and therefore serves as
-an alternative to parenthesis. We could be forgiven for thinking that `$` is
-part of the Haskell language, but it is just a stylistic alternative to lots of
-brackets, the following are equivalent:
+Both of these functions are stylistic alternatives to nested parenthesis.
+
+The following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
   Just (f a)
   Just $ f a
 ~~~~~~~~
+
+as are
+
+{lang="text"}
+~~~~~~~~
+  putStrLn (show (1 + 1))
+  putStrLn $ show $ 1 + 1
+~~~~~~~~
+
+There is a tendency to prefer function composition with `.` instead of multiple
+`$`
+
+{lang="text"}
+~~~~~~~~
+  (putStrLn . show) $ 1 + 1
+~~~~~~~~
+
+
+## Typeclasses
+
+A `class` is conceptually identical to a Scalaz `@typeclass`, and developers
+typically say "typeclass" rather than "class".
+
+To define a typeclass we use the `class` keyword, followed by the name of the
+typeclass, its type parameter, then aAll the required members in a `where`
+clause. If there are dependencies between typeclasses, i.e. `Applicative`
+requires a `Functor`, use `=>` notation
+
+{lang="text"}
+~~~~~~~~
+  class Functor f where
+    (<$>) :: (a -> b) -> f a -> f b
+    infixl 4 <$>
+  
+  class Functor f => Applicative f where
+    pure  :: a -> f a
+    (<*>) :: f (a -> b) -> f a -> f b
+    infixl 4 <*>
+  
+  class Applicative f => Monad f where
+    (=<<) :: (a -> f b) -> f a -> f b
+    infixr 1 =<<
+~~~~~~~~
+
+We provide an implementation of a typeclass with the `instance` keyword. Like
+all functions, it is not necessary to repeat the type signature, but it can be
+helpful for clarity
+
+{lang="text"}
+~~~~~~~~
+  data List a = Nil | a :. List a
+  
+  -- defined elsewhere
+  (++) :: List a -> List a -> List a
+  map :: (a -> b) -> List a -> List b
+  flatMap :: (a -> List b) -> List a -> List b
+  foldLeft :: (b -> a -> b) -> b -> List a -> b
+  
+  instance Functor List where
+    (<$>) :: (a -> b) -> List a -> List b
+    f <$> as = map f as
+  
+  instance Applicative List where
+    pure a = a :. Nil
+  
+    Nil <*> _  = Nil
+    fs  <*> as = foldLeft (++) Nil $ (<$> as) <$> fs
+  
+  instance Monad List where
+    f =<< list = flatMap f list
+~~~~~~~~
+
+If we want to use a typeclass function we can require it with `=>`. For example
+we can define something similar to Scalaz's `Apply.apply2`
+
+{lang="text"}
+~~~~~~~~
+  apply2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
+  apply2 f fa fb = f <$> fa <*> fb
+~~~~~~~~
+
+Note that because of currying, `applyX` is much easier to implement in Haskell
+than in Scala. Alternative implementations in comments to demonstrate the
+principle:
+
+{lang="text"}
+~~~~~~~~
+  apply3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
+  apply3 f fa fb fc = f <$> fa <*> fb <*> fc
+  -- apply3 f fa fb fc = apply2 f fa fb <*> fc
+  
+  apply4 :: Applicative f => (a -> b -> c -> d -> e) -> f a -> f b -> f c -> f d -> f e
+  apply4 f fa fb fc fd = f <$> fa <*> fb <*> fc <*> fd
+  -- apply4 f fa fb fc fd = apply3 f fa fb fc <*> fd
+~~~~~~~~
+
+Haskell also has typeclass derivation, using the `deriving` keyword. Creating a
+derivation is an advanced topic, but needless to say it is easy to derive a
+typeclass and many of the Scala typeclasses have an equivalent in Haskell so
+should be familiar without further explanation:
+
+{lang="text"}
+~~~~~~~~
+  data List a = Nil | a :. List a
+                deriving (Eq, Ord)
+~~~~~~~~
+
+Since we are talking about `Monad`, it is a good time to introduce `do`
+notation, which was the inspiration for Scala's `for` comprehensions:
+
+{lang="text"}
+~~~~~~~~
+  do
+    a <- f
+    b <- g
+    c <- h
+    return (a, b, c)
+~~~~~~~~
+
+desugars to
+
+{lang="text"}
+~~~~~~~~
+  f >>= \a ->
+    g >>= \b ->
+      h >>= \c ->
+        return (a, b, c)
+~~~~~~~~
+
+where `>>=` is `=<<` with parameters flipped
+
+{lang="text"}
+~~~~~~~~
+  (>>=) :: Monad f => f a -> (a -> f b) -> f b
+  (>>=) = flip (=<<)
+  infixl 1 >>=
+  
+  -- from the stdlib
+  flip :: (a -> b -> c) -> b -> a -> c
+~~~~~~~~
+
+and `return` is a synonym for `pure`.
+
+There is no need to assign a `()` to a value, and a non-monadic value can be
+bound with the `let` keyword:
+
+{lang="text"}
+~~~~~~~~
+  nameReturn :: IO String
+  nameReturn = do putStr "What is your first name? "
+                  first <- getLine
+                  putStr "And your last name? "
+                  last <- getLine
+                  let full = first ++ " " ++ last
+                  putStrLn ("Pleased to meet you, " ++ full ++ "!")
+                  return full
+~~~~~~~~
+
+
+## Modules
+
+Haskell source code is arranged into hierarchical modules, with a `module`,
+similar to Scala's `package` but with the restriction that all contents of a
+module must live in a single file. The top of a file declares the module name
+
+{lang="text"}
+~~~~~~~~
+  module Silly.Tree where
+~~~~~~~~
+
+Directories are used on disk to organise the code, so this file would go into
+`Silly/Tree.hs`.
+
+By default all symbols in the file are exported but we can restrict this by
+explicitly listing the public entries. For example, we can export this `Tree`
+ADT, its type constructors, and a `fringe` function, but not the `sapling`
+helper function:
+
+{lang="text"}
+~~~~~~~~
+  module Silly.Tree (Tree(Leaf, Branch), fringe) where
+  
+  data Tree a = Leaf a | Branch (Tree a) (Tree a)
+  
+  fringe :: Tree a -> [a]
+  fringe (Leaf x)            = [x]
+  fringe (Branch left right) = fringe left ++ fringe right
+  
+  sapling :: Tree String
+  sapling = Leaf ""
+~~~~~~~~
+
+Interestingly, we can use explicit exports to export symbols that are not
+defined in this module. This allows library authors to package up their entire
+API into a single importable module, regardless of how it is implemented.
+
+In a different file we can import all the exported members from `Silly.Tree`
+
+{lang="text"}
+~~~~~~~~
+  import Silly.Tree
+~~~~~~~~
+
+which is roughly equivalent to Scala's `import silly.tree._` syntax. If we want
+to restrict the symbols that we import we can provide an explicit list in
+parentheses after the import
+
+{lang="text"}
+~~~~~~~~
+  import Silly.Tree (Tree, fringe)
+~~~~~~~~
+
+If we have a name collision on a symbol we can use a `qualified` import, with an
+optional list of symbols to import
+
+{lang="text"}
+~~~~~~~~
+  import qualified Silly.Tree (fringe)
+~~~~~~~~
+
+and now to call the `fringe` function we have to type `Tree.fringe` instead of
+just `fringe`. We can also change the name of the module when importing it
+
+{lang="text"}
+~~~~~~~~
+  import qualified Silly.Tree as T
+~~~~~~~~
+
+The `fringe` function is now `T.fringe`.
+
+If we must disambiguate between two different third party libraries, that use
+exactly the same module names, we can do so with the `PackageImports` language
+extension:
+
+{lang="text"}
+~~~~~~~~
+  {-# LANGUAGE PackageImports #-}
+  
+  import qualified "fommil-tree" Silly.Tree as F
+  import qualified "scalaz-tree" Silly.Tree as Z
+~~~~~~~~
+
+Alternatively, rather than select what we want to import, we can choose what to
+**not** import
+
+{lang="text"}
+~~~~~~~~
+  import Silly.Tree hiding (fringe)
+~~~~~~~~
+
+By default the `Prelude` module is implicitly imported but if we add an explicit
+import from the `Prelude` module, only our version is used. We can use this
+technique to hide unsafe legacy functions
+
+{lang="text"}
+~~~~~~~~
+  import Prelude hiding ((!!), head)
+~~~~~~~~
+
+or use a custom prelude and disable the default prelude with a language extension
+
+{lang="text"}
+~~~~~~~~
+  {-# LANGUAGE NoImplicitPrelude #-}
+~~~~~~~~
+
+
+## Evaluation
+
+Haskell compiles to native code, there is no virtual machine, but there is a
+garbage collector. A fundamental aspect of the runtime is that all parameters
+are **lazily evaluated** by default, i.e. evaluated when needed and cached, not
+strict like Scala.
+
+A huge advantage of weak evaluation is that there are no stack overflows! It is
+as if all parameters were wrapped in `scalaz.Need` and `Trampoline`, but with
+much less overhead. A disadvantage is that there is an overhead compared to
+strict evaluation, which is why Haskell allows us to opt in to strict evaluation
+on a per parameter and per-module basis.
+
+Haskell is also nuanced about what strict evaluation means: a term is said to be
+in *weak head normal-form* (WHNF) if the outermost code blocks cannot be reduced
+further, and *normal form* if the term is fully evaluated. Scala's default
+evaluation strategy roughly corresponds to normal form.
+
+For example, these terms are normal form:
+
+{lang="text"}
+~~~~~~~~
+  42
+  (2, "foo")
+  \x -> x + 1
+~~~~~~~~
+
+whereas these are not in normal form (they can be reduced further):
+
+{lang="text"}
+~~~~~~~~
+  1 + 2            -- reduces to 3
+  (\x -> x + 1) 2  -- reduces to 3
+  "foo" ++ "bar"   -- reduces to "foobar"
+  (1 + 1, "foo")   -- reduces to (2, "foo")
+~~~~~~~~
+
+The following terms are in WHNF because the outer code cannot be reduced further
+(even though the inner parts can be):
+
+{lang="text"}
+~~~~~~~~
+  (1 + 1, "foo")
+  \x -> 2 + 2
+  'f' : ("oo" ++ "bar")
+~~~~~~~~
+
+and the following are not in WHNF
+
+{lang="text"}
+~~~~~~~~
+  1 + 1              -- reduces to 2
+  (\x y -> x + y) 2  -- reduces to (\y -> 2 + y)
+  "foo" ++ "bar"     -- reduces to "foobar"
+~~~~~~~~
+
+The default evaluation strategy is to perform no reductions when passing a term
+as a parameter. Language level support allows us to request WHNF for any term
+via `seq` and `($!)`
+
+{lang="text"}
+~~~~~~~~
+  -- evaluate the first argument to WHNF
+  seq :: a -> b -> b
+  
+  -- evaluates `a` to WHNF, then calls the function with that value
+  ($!) :: (a -> b) -> a -> b
+  infixr 0
+~~~~~~~~
+
+More conveniently, we can use an exclamation mark `!` on the `data` type
+annotations
+
+{lang="text"}
+~~~~~~~~
+  data Employee = Employee { name :: !Text, age :: !Int}
+~~~~~~~~
+
+The `StrictData` language extension enables strict parameters for all data in
+the module.
+
+Another extension, `BangPatterns`, allows `!` to be used on the arguments of
+functions.
+
+The extreme `Strict` language extension makes all functions and data parameters
+in the module strict by default.
+
+However, the cost of strictness is that Haskell behaves like any other strict
+language and can stack overflow. Opting in to strictness must therefore be done
+with great care, and only for performance reasons. If in doubt, be lazy and
+stick with the defaults.
+
+A> There is one big gotcha with lazy evaluation: if an I/O action is performed that
+A> populates a lazy data structure, the action will be performed when the data is
+A> read, which can fail at an unexpected part of the code and outside of the
+A> resource handling logic. To avoid this gotcha, only read into strict data
+A> structures when performing I/O.
+A> 
+A> Thankfully this gotcha only affects developers writing low-level I/O code, with
+A> third party libraries such as `pipes-safe` and `conduits` providing safe
+A> abstractions for the typical Haskeller. Most raw byte and `Text` primitives are
+A> strict, with `Lazy` variants.
+
+
+## Next Steps
+
+Haskell is a faster, safer and simpler language than Scala and has proven itself
+in industry. Consider taking the [data61 course on functional programming](https://github.com/data61/fp-course), and
+ask questions in the `#qfpl` chat room on `irc.freenode.net`.
+
+If you enjoy using Haskell, then tell your managers! That way, the small
+percentage of managers who commission Haskell projects will be able to attract
+functional programming talent from the many teams who do not.
 
 
 # Third Party Licenses

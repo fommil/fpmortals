@@ -3881,7 +3881,7 @@ with `ap`, the function is in the same context as the values.
 ~~~~~~~~
 
 A> `<*>` is the Advanced TIE Fighter, as flown by Darth Vader. Appropriate since it
-A> looks like an angry parent.
+A> looks like an angry parent. Or a sad Pikachu.
 
 It is worth taking a moment to consider what that means for a simple data
 structure like `Option[A]`, having the following implementation of `.ap`
