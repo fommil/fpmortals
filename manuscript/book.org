@@ -1714,21 +1714,18 @@ case object Y extends XYZ
 final case class Z(b: B) extends XYZ
 #+END_SRC
 
-**** Generalised ADTs
+**** Recursive ADTs
 
-When we introduce a type parameter into an ADT, we call it a
-/Generalised Algebraic Data Type/ (GADT).
+When an ADT refers to itself, we call it a /Recursive Algebraic Data Type/.
 
-=scalaz.IList=, a safe alternative to the stdlib =List=, is a GADT:
+=scalaz.IList=, a safe alternative to the stdlib =List=, is recursive because
+=ICons= contains a reference to =IList=.:
 
 #+BEGIN_SRC scala
 sealed abstract class IList[A]
 final case class INil[A]() extends IList[A]
 final case class ICons[A](head: A, tail: IList[A]) extends IList[A]
 #+END_SRC
-
-If an ADT refers to itself, we call it a /recursive type/. =IList= is
-recursive because =ICons= contains a reference to =IList=.
 
 **** Functions on ADTs
 
@@ -2042,8 +2039,8 @@ part.
 - =(Boolean |: Boolean)= has 4 values (=2+2=)
 - =(Boolean |: Boolean |: Boolean)= has 6 values (=2+2+2=)
 
-To find the complexity of a GADT, multiply each part by the complexity
-of the type parameter:
+To find the complexity of a ADT with a type parameter, multiply each part by the
+complexity of the type parameter:
 
 - =Option[Boolean]= has 3 values, =Some[Boolean]= and =None= (=2+1=)
 
@@ -7067,7 +7064,7 @@ object Coproduct {
 Typeclass instances simply delegate to those of the =F[_]= and =G[_]=.
 
 The most popular use case for =Coproduct= is when we want to create an anonymous
-coproduct for a GADT.
+coproduct of multiple ADTs.
 
 # https://github.com/scala/scala/pull/5538
 
@@ -11168,7 +11165,7 @@ trait Machines[F[_]] {
 }
 #+END_SRC
 
-We define a freely generated =Free= for =Machines= by creating a GADT with a
+We define a freely generated =Free= for =Machines= by creating an ADT with a
 data type for each element of the algebra. Each data type has the same input
 parameters as its corresponding element, is parameterised over the return type,
 and has the same name:
@@ -11184,7 +11181,7 @@ object Machines {
   ...
 #+END_SRC
 
-The GADT defines an Abstract Syntax Tree (AST) because each member is
+The ADT defines an Abstract Syntax Tree (AST) because each member is
 representing a computation in a program.
 
 #+BEGIN_WARNING
@@ -13428,7 +13425,7 @@ object JarJar {
 #+BEGIN_ASIDE
 Typeclasses in the =Deriving= API are wrapped in =Need= (recall =Name= from
 Chapter 6), which allows lazy construction, avoiding unnecessary work if the
-typeclass is not needed, and avoiding stack overflows for recursive GADTs.
+typeclass is not needed, and avoiding stack overflows for recursive ADTs.
 #+END_ASIDE
 
 To be able to do the same for our =Default= typeclass, we need to provide an
@@ -16523,14 +16520,6 @@ i.e. =data= is like a =sealed abstract class=, and a type constructor is like an
 =.apply= and =.unapply= but no type, which would have been created by a =case
 class=. There is no subtyping in Haskell.
 
-#+BEGIN_ASIDE
-We refer to =List= as an ADT but in Scala we would call it a GADT, this is
-because the type parameter is shared between all type constructors. There are
-Haskell language extensions called =GADTs= and =DataKinds= that produce
-something closer to the typical Scala GADT encoding, but they are an advanced
-topic.
-#+END_ASIDE
-
 We can also use infix types in Haskell, a nicer definition might use the symbol
 =:.= instead of =Cons=
 
@@ -16849,9 +16838,9 @@ A =class= is conceptually identical to a Scalaz =@typeclass=, and developers
 typically say "typeclass" rather than "class".
 
 To define a typeclass we use the =class= keyword, followed by the name of the
-typeclass, its type parameter, then aAll the required members in a =where=
-clause. If there are dependencies between typeclasses, i.e. =Applicative=
-requires a =Functor=, use ~=>~ notation
+typeclass, its type parameter, then the required members in a =where= clause. If
+there are dependencies between typeclasses, i.e. =Applicative= requires a
+=Functor=, use ~=>~ notation
 
 #+BEGIN_SRC haskell
 class Functor f where
@@ -16895,8 +16884,8 @@ instance Monad List where
   f =<< list = flatMap f list
 #+END_SRC
 
-If we want to use a typeclass function we can require it with ~=>~. For example
-we can define something similar to Scalaz's =Apply.apply2=
+If we want to make use of a typeclass in a function we require it with ~=>~. For
+example we can define something similar to Scalaz's =Apply.apply2=
 
 #+BEGIN_SRC haskell
 apply2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
@@ -16917,10 +16906,9 @@ apply4 f fa fb fc fd = f <$> fa <*> fb <*> fc <*> fd
 -- apply4 f fa fb fc fd = apply3 f fa fb fc <*> fd
 #+END_SRC
 
-Haskell also has typeclass derivation, using the =deriving= keyword. Creating a
-derivation is an advanced topic, but needless to say it is easy to derive a
-typeclass and many of the Scala typeclasses have an equivalent in Haskell so
-should be familiar without further explanation:
+Haskell has typeclass derivation with the =deriving= keyword, the inspiration
+for =@scalaz.deriving=. Defining the derivation rules is an advanced topic, but
+it is easy to derive a typeclass for an ADT:
 
 #+BEGIN_SRC haskell
 data List a = Nil | a :. List a
@@ -16960,15 +16948,15 @@ flip :: (a -> b -> c) -> b -> a -> c
 
 and =return= is a synonym for =pure=.
 
-There is no need to assign a =()= to a value, and a non-monadic value can be
-bound with the =let= keyword:
+Unlike Scala, we do not need to bind unit values with =_ <-=. Non-monadic values
+can be bound with the =let= keyword:
 
 #+BEGIN_SRC haskell
 nameReturn :: IO String
 nameReturn = do putStr "What is your first name? "
                 first <- getLine
                 putStr "And your last name? "
-                last <- getLine
+                last  <- getLine
                 let full = first ++ " " ++ last
                 putStrLn ("Pleased to meet you, " ++ full ++ "!")
                 return full
@@ -17174,7 +17162,7 @@ strict, with =Lazy= variants.
 
 Haskell is a faster, safer and simpler language than Scala and has proven itself
 in industry. Consider taking the [[https://github.com/data61/fp-course][data61 course on functional programming]], and
-ask questions in the =#qfpl= chat room on =irc.freenode.net=.
+ask questions in the =#qfpl= chat room on =freenode.net=.
 
 If you enjoy using Haskell, then tell your managers! That way, the small
 percentage of managers who commission Haskell projects will be able to attract

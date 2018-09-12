@@ -1247,12 +1247,12 @@ written in Scala
 ~~~~~~~~
 
 
-### Generalised ADTs
+### Recursive ADTs
 
-When we introduce a type parameter into an ADT, we call it a
-*Generalised Algebraic Data Type* (GADT).
+When an ADT refers to itself, we call it a *Recursive Algebraic Data Type*.
 
-`scalaz.IList`, a safe alternative to the stdlib `List`, is a GADT:
+`scalaz.IList`, a safe alternative to the stdlib `List`, is recursive because
+`ICons` contains a reference to `IList`.:
 
 {lang="text"}
 ~~~~~~~~
@@ -1260,9 +1260,6 @@ When we introduce a type parameter into an ADT, we call it a
   final case class INil[A]() extends IList[A]
   final case class ICons[A](head: A, tail: IList[A]) extends IList[A]
 ~~~~~~~~
-
-If an ADT refers to itself, we call it a *recursive type*. `IList` is
-recursive because `ICons` contains a reference to `IList`.
 
 
 ### Functions on ADTs
@@ -1597,8 +1594,8 @@ part.
 -   `(Boolean |: Boolean)` has 4 values (`2+2`)
 -   `(Boolean |: Boolean |: Boolean)` has 6 values (`2+2+2`)
 
-To find the complexity of a GADT, multiply each part by the complexity
-of the type parameter:
+To find the complexity of a ADT with a type parameter, multiply each part by the
+complexity of the type parameter:
 
 -   `Option[Boolean]` has 3 values, `Some[Boolean]` and `None` (`2+1`)
 
@@ -6135,7 +6132,7 @@ The `Coproduct` data type (not to be confused with the more general concept of a
 Typeclass instances simply delegate to those of the `F[_]` and `G[_]`.
 
 The most popular use case for `Coproduct` is when we want to create an anonymous
-coproduct for a GADT.
+coproduct of multiple ADTs.
 
 
 ### Not So Eager
@@ -9612,7 +9609,7 @@ explicit, consider our application's `Machines` algebra
   }
 ~~~~~~~~
 
-We define a freely generated `Free` for `Machines` by creating a GADT with a
+We define a freely generated `Free` for `Machines` by creating an ADT with a
 data type for each element of the algebra. Each data type has the same input
 parameters as its corresponding element, is parameterised over the return type,
 and has the same name:
@@ -9629,7 +9626,7 @@ and has the same name:
     ...
 ~~~~~~~~
 
-The GADT defines an Abstract Syntax Tree (AST) because each member is
+The ADT defines an Abstract Syntax Tree (AST) because each member is
 representing a computation in a program.
 
 W> The freely generated `Free` for `Machines` is `Free[Machines.Ast, ?]`, i.e. for
@@ -11822,7 +11819,7 @@ because `scalaz-deriving` provides an optimised instance of `Deriving[Equal]`
 
 A> Typeclasses in the `Deriving` API are wrapped in `Need` (recall `Name` from
 A> Chapter 6), which allows lazy construction, avoiding unnecessary work if the
-A> typeclass is not needed, and avoiding stack overflows for recursive GADTs.
+A> typeclass is not needed, and avoiding stack overflows for recursive ADTs.
 
 To be able to do the same for our `Default` typeclass, we need to provide an
 instance of `Deriving[Default]`. This is just a case of wrapping our existing

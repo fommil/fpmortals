@@ -84,12 +84,6 @@ i.e. `data` is like a `sealed abstract class`, and a type constructor is like an
 `.apply` and `.unapply` but no type, which would have been created by a `case
 class`. There is no subtyping in Haskell.
 
-A> We refer to `List` as an ADT but in Scala we would call it a GADT, this is
-A> because the type parameter is shared between all type constructors. There are
-A> Haskell language extensions called `GADTs` and `DataKinds` that produce
-A> something closer to the typical Scala GADT encoding, but they are an advanced
-A> topic.
-
 We can also use infix types in Haskell, a nicer definition might use the symbol
 `:.` instead of `Cons`
 
@@ -437,9 +431,9 @@ A `class` is conceptually identical to a Scalaz `@typeclass`, and developers
 typically say "typeclass" rather than "class".
 
 To define a typeclass we use the `class` keyword, followed by the name of the
-typeclass, its type parameter, then aAll the required members in a `where`
-clause. If there are dependencies between typeclasses, i.e. `Applicative`
-requires a `Functor`, use `=>` notation
+typeclass, its type parameter, then the required members in a `where` clause. If
+there are dependencies between typeclasses, i.e. `Applicative` requires a
+`Functor`, use `=>` notation
 
 {lang="text"}
 ~~~~~~~~
@@ -485,8 +479,8 @@ helpful for clarity
     f =<< list = flatMap f list
 ~~~~~~~~
 
-If we want to use a typeclass function we can require it with `=>`. For example
-we can define something similar to Scalaz's `Apply.apply2`
+If we want to make use of a typeclass in a function we require it with `=>`. For
+example we can define something similar to Scalaz's `Apply.apply2`
 
 {lang="text"}
 ~~~~~~~~
@@ -509,10 +503,9 @@ principle:
   -- apply4 f fa fb fc fd = apply3 f fa fb fc <*> fd
 ~~~~~~~~
 
-Haskell also has typeclass derivation, using the `deriving` keyword. Creating a
-derivation is an advanced topic, but needless to say it is easy to derive a
-typeclass and many of the Scala typeclasses have an equivalent in Haskell so
-should be familiar without further explanation:
+Haskell has typeclass derivation with the `deriving` keyword, the inspiration
+for `@scalaz.deriving`. Defining the derivation rules is an advanced topic, but
+it is easy to derive a typeclass for an ADT:
 
 {lang="text"}
 ~~~~~~~~
@@ -556,8 +549,8 @@ where `>>=` is `=<<` with parameters flipped
 
 and `return` is a synonym for `pure`.
 
-There is no need to assign a `()` to a value, and a non-monadic value can be
-bound with the `let` keyword:
+Unlike Scala, we do not need to bind unit values with `_ <-`. Non-monadic values
+can be bound with the `let` keyword:
 
 {lang="text"}
 ~~~~~~~~
@@ -565,7 +558,7 @@ bound with the `let` keyword:
   nameReturn = do putStr "What is your first name? "
                   first <- getLine
                   putStr "And your last name? "
-                  last <- getLine
+                  last  <- getLine
                   let full = first ++ " " ++ last
                   putStrLn ("Pleased to meet you, " ++ full ++ "!")
                   return full
@@ -788,7 +781,7 @@ A> strict, with `Lazy` variants.
 
 Haskell is a faster, safer and simpler language than Scala and has proven itself
 in industry. Consider taking the [data61 course on functional programming](https://github.com/data61/fp-course), and
-ask questions in the `#qfpl` chat room on `irc.freenode.net`.
+ask questions in the `#qfpl` chat room on `freenode.net`.
 
 If you enjoy using Haskell, then tell your managers! That way, the small
 percentage of managers who commission Haskell projects will be able to attract
