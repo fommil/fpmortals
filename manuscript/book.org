@@ -17167,6 +17167,7 @@ Some additional learning materials are:
 - [[http://shop.oreilly.com/product/0636920026365.do][Parallel and Concurrent Programming in Haskell]] and [[http://dev.stephendiehl.com/hask/#data-kinds][What I Wish I Knew When
   Learning Haskell]] for intermediate wisdom.
 - [[https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/][Glasgow Haskell Compiler User Guide]] and [[https://wiki.haskell.org][HaskellWiki]] for the cold hard facts.
+- [[https://eta-lang.org/][Eta]], i.e. Haskell for the JVM.
 
 If you enjoy using Haskell and understand the value that it would bring to your
 business, then tell your managers! That way, the small percentage of managers
