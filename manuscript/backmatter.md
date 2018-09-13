@@ -384,7 +384,17 @@ zeros:
                      Nothing                  -> []
 ~~~~~~~~
 
-Two functions that are worth noting are `($)` and `(.)`
+and as the body for a function
+
+{lang="text"}
+~~~~~~~~
+  isEven :: Int -> Bool
+  isEven i
+    | i % 2 == 0 = True
+    | otherwise = False
+~~~~~~~~
+
+Finally, two functions that are worth noting are `($)` and `(.)`
 
 {lang="text"}
 ~~~~~~~~

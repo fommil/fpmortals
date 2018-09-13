@@ -16796,7 +16796,16 @@ unfoldrInt f b = case f b of
                    Nothing                  -> []
 #+END_SRC
 
-Two functions that are worth noting are =($)= and =(.)=
+and as the body for a function
+
+#+BEGIN_SRC haskell
+isEven :: Int -> Bool
+isEven i
+  | i % 2 == 0 = True
+  | otherwise = False
+#+END_SRC
+
+Finally, two functions that are worth noting are =($)= and =(.)=
 
 #+BEGIN_SRC haskell
 -- application operator
