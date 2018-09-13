@@ -60,10 +60,10 @@ Haskell has a very clean syntax for ADTs. This is a linked list structure:
   data List a = Nil | Cons a (List a)
 ~~~~~~~~
 
-The `List` is the ADT, `a` is the type parameter, `|` separates the *type
-constructors*, which are: `Nil` the empty list and a `Cons` cell. `Cons` takes
-two parameters, which are separated by whitespace: no commas and no parameter
-brackets.
+`List` is a *type constructor*, `a` is the *type parameter*, `|` separates the
+*data constructors*, which are: `Nil` the empty list and a `Cons` cell. `Cons`
+takes two parameters, which are separated by whitespace: no commas and no
+parameter brackets. There is no subtyping in Haskell.
 
 Roughly translated to Scala:
 
@@ -80,12 +80,12 @@ Roughly translated to Scala:
   }
 ~~~~~~~~
 
-i.e. `data` is like a `sealed abstract class`, and a type constructor is like an
-`.apply` and `.unapply` but no type, which would have been created by a `case
-class`. There is no subtyping in Haskell.
+i.e. the type constructor is like `sealed abstract class`, and each data
+constructor is `.apply` / `.unapply`. Note that Scala does not perform
+exhaustive pattern matches on this encoding, which is why Scalaz does not use
+it.
 
-We can also use infix types in Haskell, a nicer definition might use the symbol
-`:.` instead of `Cons`
+We can use infix, a nicer definition might use the symbol `:.` instead of `Cons`
 
 {lang="text"}
 ~~~~~~~~
@@ -148,33 +148,32 @@ interchangeably. For legacy reasons, `String` is defined as a linked list of
 which is very inefficient and we always want to use `Text` instead.
 
 Finally we can define field names on ADTs using *record syntax*, which means we
-contain the type parameters in curly brackets and use double colon *type
+contain the data constructors in curly brackets and use double colon *type
 annotations* to indicate the types
 
 {lang="text"}
 ~~~~~~~~
   -- raw ADT
-  data Resource = Human Int String | Robot Int
+  data Resource = Human Int String
   data Company  = Company String [Resource]
   
   -- with record syntax
-  data Resource = Human { humanId :: Int, name :: String } |
-                  Robot { robotId :: Int }
-  data Company  = Company { name :: String, employees :: [Resource] }
+  data Resource = Human { serial :: Int, humanName :: String }
+  data Company  = Company { companyName :: String, employees :: [Resource] }
 ~~~~~~~~
 
-which generates the equivalent of a field accessor and a copy method.
+Note that the `Human` data constructor and `Resource` type do not need to be the
+same. Record syntax generates the equivalent of a field accessor and a copy
+method.
 
 {lang="text"}
 ~~~~~~~~
   -- construct
-  bender = Robot 0
+  adam = Human 0 Adam
   -- field access
-  robotId bender -- returns 0
-  
-  adam = Human 0 "Adam"
-  -- copy syntax
-  eve = adam { name = "Eve" }
+  serial adam
+  -- copy
+  eve = adam { humanName = "Eve" }
 ~~~~~~~~
 
 A more efficient alternative to single field `data` definitions is to use a
@@ -187,16 +186,16 @@ A more efficient alternative to single field `data` definitions is to use a
 
 equivalent to `extends AnyVal` but without the caveats.
 
-A> A limitation of Haskell's record syntax is that a field name cannot be used more
-A> than once in the same type. However, we can workaround this by enabling a
-A> `LANGUAGE` extension:
+A> A limitation of Haskell's record syntax is that a field name cannot be used in
+A> different data types. However, we can workaround this by enabling a `LANGUAGE`
+A> extension, allowing us to use `name` in both `Human` and `Company`:
 A> 
 A> {lang="text"}
 A> ~~~~~~~~
 A>   {-# LANGUAGE DuplicateRecordFields #-}
 A>   
-A>   data Resource = Human { id :: Int, name :: String } |
-A>                   Robot { id :: Int }
+A>   data Resource = Human { serial :: Int, name :: String }
+A>   data Company  = Company { name :: String, employees :: [Resource] }
 A> ~~~~~~~~
 A> 
 A> There are a lot of language extensions and it is not uncommon to have 20 or more
@@ -233,8 +232,8 @@ Some observations:
 
 which makes for terse code.
 
-Infix functions are defined in parenthesis and need a fixity definition much
-like infix type constructors
+Infix functions are defined in parentheses and need a fixity definition much
+like infix data constructors
 
 {lang="text"}
 ~~~~~~~~
@@ -248,8 +247,8 @@ keep it surrounded by brackets. The following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
-  product = (*) `foldLeft` 1
-  product = foldLeft (*) 1
+  a `foldLeft` b
+  foldLeft a b
 ~~~~~~~~
 
 An infix function can be curried on either the left or the right, often giving
@@ -265,7 +264,7 @@ Functions are typically written with the most general parameter first, to enable
 maximum reuse of the curried forms.
 
 The definition of a function may use pattern matching, with one line per case.
-This is where we may name the parameters, using the type constructors to extract
+This is where we may name the parameters, using the data constructors to extract
 parameters much like a Scala `case` clause:
 
 {lang="text"}
@@ -302,7 +301,7 @@ inputs:
 
 {lang="text"}
 ~~~~~~~~
-  tuple a -> b -> c -> (a, b, c)
+  tuple :: a -> b -> c -> (a, b, c)
 ~~~~~~~~
 
 The implementation
@@ -398,7 +397,7 @@ Two functions that are worth noting are `($)` and `(.)`
   infixr 9
 ~~~~~~~~
 
-Both of these functions are stylistic alternatives to nested parenthesis.
+Both of these functions are stylistic alternatives to nested parentheses.
 
 The following are equivalent:
 
@@ -451,12 +450,14 @@ there are dependencies between typeclasses, i.e. `Applicative` requires a
     infixr 1 =<<
 ~~~~~~~~
 
-We provide an implementation of a typeclass with the `instance` keyword. Like
-all functions, it is not necessary to repeat the type signature, but it can be
-helpful for clarity
+We provide an implementation of a typeclass with the `instance` keyword. If we
+wish to repeat the type signature on instance functions, useful for clarity, we
+must enable the `InstanceSigs` language extension.
 
 {lang="text"}
 ~~~~~~~~
+  {-# LANGUAGE InstanceSigs #-}
+  
   data List a = Nil | a :. List a
   
   -- defined elsewhere
@@ -580,8 +581,8 @@ Directories are used on disk to organise the code, so this file would go into
 `Silly/Tree.hs`.
 
 By default all symbols in the file are exported but we can restrict this by
-explicitly listing the public entries. For example, we can export this `Tree`
-ADT, its type constructors, and a `fringe` function, but not the `sapling`
+explicitly listing the public entries. For example, we can export the `Tree`
+type and data constructors, and a `fringe` function, but not the `sapling`
 helper function:
 
 {lang="text"}
@@ -626,8 +627,9 @@ optional list of symbols to import
   import qualified Silly.Tree (fringe)
 ~~~~~~~~
 
-and now to call the `fringe` function we have to type `Tree.fringe` instead of
-just `fringe`. We can also change the name of the module when importing it
+and now to call the `fringe` function we have to type `Silly.Tree.fringe`
+instead of just `fringe`. We can also change the name of the module when
+importing it
 
 {lang="text"}
 ~~~~~~~~
@@ -677,14 +679,16 @@ or use a custom prelude and disable the default prelude with a language extensio
 
 Haskell compiles to native code, there is no virtual machine, but there is a
 garbage collector. A fundamental aspect of the runtime is that all parameters
-are **lazily evaluated** by default, i.e. evaluated when needed and cached, not
-strict like Scala.
+are **lazily evaluated** by default. Haskell treats all terms as a promise to
+provide a value when needed, called a *thunk*. Thunks get reduced only as much
+as necessary to proceed, no more. This resembles how we would simplify a
+mathematical expression.
 
-A huge advantage of weak evaluation is that there are no stack overflows! It is
-as if all parameters were wrapped in `scalaz.Need` and `Trampoline`, but with
-much less overhead. A disadvantage is that there is an overhead compared to
-strict evaluation, which is why Haskell allows us to opt in to strict evaluation
-on a per parameter and per-module basis.
+A huge advantage of lazy evaluation is that it is much harder to trigger a stack
+overflow! It is as if all parameters were wrapped in `scalaz.Need` and
+`Trampoline`. A disadvantage is that there is an overhead compared to strict
+evaluation, which is why Haskell allows us to opt in to strict evaluation on a
+per parameter and per-module basis.
 
 Haskell is also nuanced about what strict evaluation means: a term is said to be
 in *weak head normal-form* (WHNF) if the outermost code blocks cannot be reduced
@@ -755,17 +759,29 @@ The `StrictData` language extension enables strict parameters for all data in
 the module.
 
 Another extension, `BangPatterns`, allows `!` to be used on the arguments of
-functions.
+functions. The `Strict` language extension makes all functions and data
+parameters in the module strict by default.
 
-The extreme `Strict` language extension makes all functions and data parameters
-in the module strict by default.
+Going to the extreme we can use `deepseq`, `($!!)` and the `NFData` typeclass to
+get normal form evaluation:
 
-However, the cost of strictness is that Haskell behaves like any other strict
-language and can stack overflow. Opting in to strictness must therefore be done
+{lang="text"}
+~~~~~~~~
+  class NFData a where
+    rnf :: a -> ()
+  
+  deepseq :: NFData a => a -> b -> b
+  ($!!) :: (NFData a) => (a -> b) -> a -> b
+~~~~~~~~
+
+which is therefore subject to the availability of an `NFData` instance.
+
+The cost of strictness is that Haskell behaves like any other strict language
+and may perform unnecessary work. Opting in to strictness must therefore be done
 with great care, and only for performance reasons. If in doubt, be lazy and
 stick with the defaults.
 
-A> There is one big gotcha with lazy evaluation: if an I/O action is performed that
+A> There is a big gotcha with lazy evaluation: if an I/O action is performed that
 A> populates a lazy data structure, the action will be performed when the data is
 A> read, which can fail at an unexpected part of the code and outside of the
 A> resource handling logic. To avoid this gotcha, only read into strict data
@@ -783,9 +799,18 @@ Haskell is a faster, safer and simpler language than Scala and has proven itself
 in industry. Consider taking the [data61 course on functional programming](https://github.com/data61/fp-course), and
 ask questions in the `#qfpl` chat room on `freenode.net`.
 
-If you enjoy using Haskell, then tell your managers! That way, the small
-percentage of managers who commission Haskell projects will be able to attract
-functional programming talent from the many teams who do not.
+Some additional learning materials are
+
+-   [Haskell Book](http://haskellbook.com/) for very comprehensive introduction assuming zero programming
+    knowledge, or [Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html) for a faster ride.
+-   [Parallel and Concurrent Programming in Haskell](http://shop.oreilly.com/product/0636920026365.do) and [What I Wish I Knew When
+    Learning Haskell](http://dev.stephendiehl.com/hask/#data-kinds) for intermediate wisdom.
+-   [Glasgow Haskell Compiler User Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/) and [HaskellWiki](https://wiki.haskell.org) for the cold hard facts
+
+If you enjoy using Haskell and understand the value that it would bring to your
+business, then tell your managers! That way, the small percentage of managers
+who commission Haskell projects will be able to attract functional programming
+talent from the many teams who do not.
 
 
 # Third Party Licenses

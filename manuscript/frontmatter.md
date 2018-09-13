@@ -83,7 +83,7 @@ Noble, Fabio Labella, Adelbert Chang, Michael Pilquist, Paul Snively, Daniel
 Spiewak, Stephen Compall, Brian McKenna, Ryan Delucchi, Pedro Rodriguez, Emily
 Pillmore, Aaron Vargo, Tomas Mikula, Jean-Baptiste Giraudeau, Itamar Ravid, Ross
 A. Baker, Alexander Konovalov, Harrison Houghton, Alexandre Archambault,
-Christopher Davenport, Jose Cardona.
+Christopher Davenport, Jose Cardona, Isaac Elliott.
 
 
 # Practicalities
