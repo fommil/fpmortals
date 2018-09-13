@@ -16670,8 +16670,8 @@ backticks, and an infix function can be called like a regular function if we
 keep it surrounded by brackets. The following are equivalent:
 
 #+BEGIN_SRC haskell
-a `foldLeft` b
-foldLeft a b
+a `foo` b
+foo a b
 #+END_SRC
 
 An infix function can be curried on either the left or the right, often giving
@@ -16695,8 +16695,8 @@ fmap f (Just a) = Just (f a)
 fmap _ Nothing  = Nothing
 #+END_SRC
 
-Underscores are a placeholder for ignored parameters and extractors can be in
-infix position:
+Underscores are a placeholder for ignored parameters and function names can be
+in infix position:
 
 #+BEGIN_SRC haskell
 (<+>) :: Maybe a -> Maybe a -> Maybe a
@@ -16889,31 +16889,8 @@ apply2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
 apply2 f fa fb = f <$> fa <*> fb
 #+END_SRC
 
-Note that because of currying, =applyX= is much easier to implement in Haskell
-than in Scala. Alternative implementations in comments to demonstrate the
-principle:
-
-#+BEGIN_SRC haskell
-apply3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
-apply3 f fa fb fc = f <$> fa <*> fb <*> fc
--- apply3 f fa fb fc = apply2 f fa fb <*> fc
-
-apply4 :: Applicative f => (a -> b -> c -> d -> e) -> f a -> f b -> f c -> f d -> f e
-apply4 f fa fb fc fd = f <$> fa <*> fb <*> fc <*> fd
--- apply4 f fa fb fc fd = apply3 f fa fb fc <*> fd
-#+END_SRC
-
-Haskell has typeclass derivation with the =deriving= keyword, the inspiration
-for =@scalaz.deriving=. Defining the derivation rules is an advanced topic, but
-it is easy to derive a typeclass for an ADT:
-
-#+BEGIN_SRC haskell
-data List a = Nil | a :. List a
-              deriving (Eq, Ord)
-#+END_SRC
-
-Since we are talking about =Monad=, it is a good time to introduce =do=
-notation, which was the inspiration for Scala's =for= comprehensions:
+Since we have introduced =Monad=, it is a good time to introduce =do= notation,
+which was the inspiration for Scala's =for= comprehensions:
 
 #+BEGIN_SRC haskell
 do
@@ -16945,8 +16922,24 @@ flip :: (a -> b -> c) -> b -> a -> c
 
 and =return= is a synonym for =pure=.
 
-Unlike Scala, we do not need to bind unit values with =_ <-=. Non-monadic values
-can be bound with the =let= keyword:
+Unlike Scala, we do not need to bind unit values, or provide a =yield= if we are
+returning =()=. For example
+
+#+BEGIN_SRC scala
+for {
+  _ <- putStr("hello")
+  _ <- putStr(" world")
+} yield ()
+#+END_SRC
+
+translates to
+
+#+BEGIN_SRC haskell
+do putStr "hello"
+   putStr " world"
+#+END_SRC
+
+Non-monadic values can be bound with the =let= keyword:
 
 #+BEGIN_SRC haskell
 nameReturn :: IO String
@@ -16957,6 +16950,15 @@ nameReturn = do putStr "What is your first name? "
                 let full = first ++ " " ++ last
                 putStrLn ("Pleased to meet you, " ++ full ++ "!")
                 return full
+#+END_SRC
+
+Finally, Haskell has typeclass derivation with the =deriving= keyword, the
+inspiration for =@scalaz.deriving=. Defining the derivation rules is an advanced
+topic, but it is easy to derive a typeclass for an ADT:
+
+#+BEGIN_SRC haskell
+data List a = Nil | a :. List a
+              deriving (Eq, Ord)
 #+END_SRC
 
 *** Modules

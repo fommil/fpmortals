@@ -246,8 +246,8 @@ keep it surrounded by brackets. The following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
-  a `foldLeft` b
-  foldLeft a b
+  a `foo` b
+  foo a b
 ~~~~~~~~
 
 An infix function can be curried on either the left or the right, often giving
@@ -273,8 +273,8 @@ parameters much like a Scala `case` clause:
   fmap _ Nothing  = Nothing
 ~~~~~~~~
 
-Underscores are a placeholder for ignored parameters and extractors can be in
-infix position:
+Underscores are a placeholder for ignored parameters and function names can be
+in infix position:
 
 {lang="text"}
 ~~~~~~~~
@@ -485,33 +485,8 @@ example we can define something similar to Scalaz's `Apply.apply2`
   apply2 f fa fb = f <$> fa <*> fb
 ~~~~~~~~
 
-Note that because of currying, `applyX` is much easier to implement in Haskell
-than in Scala. Alternative implementations in comments to demonstrate the
-principle:
-
-{lang="text"}
-~~~~~~~~
-  apply3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
-  apply3 f fa fb fc = f <$> fa <*> fb <*> fc
-  -- apply3 f fa fb fc = apply2 f fa fb <*> fc
-  
-  apply4 :: Applicative f => (a -> b -> c -> d -> e) -> f a -> f b -> f c -> f d -> f e
-  apply4 f fa fb fc fd = f <$> fa <*> fb <*> fc <*> fd
-  -- apply4 f fa fb fc fd = apply3 f fa fb fc <*> fd
-~~~~~~~~
-
-Haskell has typeclass derivation with the `deriving` keyword, the inspiration
-for `@scalaz.deriving`. Defining the derivation rules is an advanced topic, but
-it is easy to derive a typeclass for an ADT:
-
-{lang="text"}
-~~~~~~~~
-  data List a = Nil | a :. List a
-                deriving (Eq, Ord)
-~~~~~~~~
-
-Since we are talking about `Monad`, it is a good time to introduce `do`
-notation, which was the inspiration for Scala's `for` comprehensions:
+Since we have introduced `Monad`, it is a good time to introduce `do` notation,
+which was the inspiration for Scala's `for` comprehensions:
 
 {lang="text"}
 ~~~~~~~~
@@ -546,8 +521,26 @@ where `>>=` is `=<<` with parameters flipped
 
 and `return` is a synonym for `pure`.
 
-Unlike Scala, we do not need to bind unit values with `_ <-`. Non-monadic values
-can be bound with the `let` keyword:
+Unlike Scala, we do not need to bind unit values, or provide a `yield` if we are
+returning `()`. For example
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- putStr("hello")
+    _ <- putStr(" world")
+  } yield ()
+~~~~~~~~
+
+translates to
+
+{lang="text"}
+~~~~~~~~
+  do putStr "hello"
+     putStr " world"
+~~~~~~~~
+
+Non-monadic values can be bound with the `let` keyword:
 
 {lang="text"}
 ~~~~~~~~
@@ -559,6 +552,16 @@ can be bound with the `let` keyword:
                   let full = first ++ " " ++ last
                   putStrLn ("Pleased to meet you, " ++ full ++ "!")
                   return full
+~~~~~~~~
+
+Finally, Haskell has typeclass derivation with the `deriving` keyword, the
+inspiration for `@scalaz.deriving`. Defining the derivation rules is an advanced
+topic, but it is easy to derive a typeclass for an ADT:
+
+{lang="text"}
+~~~~~~~~
+  data List a = Nil | a :. List a
+                deriving (Eq, Ord)
 ~~~~~~~~
 
 
