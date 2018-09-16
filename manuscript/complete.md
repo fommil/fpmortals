@@ -623,10 +623,10 @@ A> `|>` is often called the *thrush operator* because of its uncanny resemblance
 A> the cute bird. Those who do not like symbolic operators can use the alias
 A> `.into`.
 
-This approach also works for `EitherT` (and others) as the inner
-context, but their lifting methods are more complex and require
-parameters. Scalaz provides monad transformers for a lot of its own
-types, so it is worth checking if one is available.
+This approach also works for `Either` (and others) as the inner context, but
+their lifting methods are more complex and require parameters. Scalaz provides
+monad transformers for a lot of its own types, so it is worth checking if one is
+available.
 
 
 # Application Design
