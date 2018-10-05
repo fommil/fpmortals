@@ -1136,7 +1136,7 @@ which can also use infix notation:
 
 If each of the parallel operations returns a value in the same monadic
 context, we can apply a function to the results when they all return.
-Rewriting `update` to take advantage of this:
+Rewriting `initial` to take advantage of this:
 
 {lang="text"}
 ~~~~~~~~
