@@ -10298,8 +10298,8 @@ A> {lang="text"}
 A> ~~~~~~~~
 A>   object MonadError {
 A>     sealed abstract class Ast[F[_], E, A]
-A>     final case class RaiseError[E, A](e: E) extends Ast[E, A]
-A>     final case class HandleError[F[_], E, A](fa: F[A], f: E => F[A]) extends Ast[E, A]
+A>     final case class RaiseError[F[_], E, A](e: E) extends Ast[F, E, A]
+A>     final case class HandleError[F[_], E, A](fa: F[A], f: E => F[A]) extends Ast[F, E, A]
 A>   
 A>     def liftF[F[_], E](implicit I: Ast[F, E, ?] :<: F): MonadError[F, E] = ...
 A>     ...
