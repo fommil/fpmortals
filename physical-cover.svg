@@ -29,7 +29,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="898.89299"
+     inkscape:cx="643.1787"
      inkscape:cy="581.21434"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -49,7 +49,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -75,62 +75,62 @@
     <flowRoot
        xml:space="preserve"
        id="flowRoot7421"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24.0000003px;line-height:1.25;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:justify;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;"
-       transform="matrix(0.26458333,0,0,0.26458333,0,-20.499989)"><flowRegion
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24px;line-height:1.25;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:justify;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
+       transform="matrix(0.26458333,0,0,0.26458333,15.345837,-15.737486)"><flowRegion
          id="flowRegion7423"
-         style="-inkscape-font-specification:'P052, Normal';font-family:P052;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:24.0000003px;text-anchor:start;text-align:justify;writing-mode:lr;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;"><rect
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24px;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:justify;writing-mode:lr-tb;text-anchor:start"><rect
            id="rect7425"
-           width="711.42859"
-           height="415.71429"
+           width="561.42859"
+           height="424.28571"
            x="107.14286"
            y="118.57143"
-           style="-inkscape-font-specification:'P052, Normal';font-family:P052;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:24.0000003px;text-anchor:start;text-align:justify;writing-mode:lr;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;" /></flowRegion><flowPara
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:24px;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:justify;writing-mode:lr-tb;text-anchor:start" /></flowRegion><flowPara
          id="flowPara7431">This book is for the typical Scala developer, probably with a Java background, who is both sceptical and curious about the <flowSpan
    style="font-weight:bold"
    id="flowSpan7527">Functional Programming</flowSpan> (FP) paradigm.</flowPara><flowPara
-         id="flowPara7433"></flowPara><flowPara
+         id="flowPara7433" /><flowPara
          id="flowPara7435">This book justifies every concept with practical examples, including writing a web application.</flowPara></flowRoot>    <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.75555611px;line-height:1.25;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        x="279.32443"
-       y="24.857153"
+       y="29.619658"
        id="text7439"><tspan
          sodipodi:role="line"
          id="tspan7437"
          x="279.32443"
-         y="24.857153"
+         y="29.619658"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.75555611px;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458332">Functional</tspan><tspan
          sodipodi:role="line"
          x="279.32443"
-         y="49.551598"
+         y="54.314102"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.75555611px;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458332"
          id="tspan7445">Programming</tspan><tspan
          sodipodi:role="line"
          x="279.32443"
-         y="74.246048"
+         y="79.008545"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.75555611px;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458332"
          id="tspan7441">for Mortals</tspan><tspan
          sodipodi:role="line"
          x="279.32443"
-         y="98.940491"
+         y="103.703"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.75555611px;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458332"
          id="tspan7443">with Scalaz</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.93888855px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        x="364.36908"
-       y="137.11609"
+       y="153.52003"
        id="text7449"><tspan
          sodipodi:role="line"
          id="tspan7447"
          x="364.36908"
-         y="137.11609"
-         style="stroke-width:0.26458332;-inkscape-font-specification:'P052, Bold';font-family:P052;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:12.7px;text-anchor:start;text-align:start;writing-mode:lr;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal">Sam Halliday</tspan></text>
+         y="153.52003"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:12.69999981px;font-family:P052;-inkscape-font-specification:'P052, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458332">Sam Halliday</tspan></text>
     <flowRoot
        xml:space="preserve"
        id="flowRoot7451"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:18.66666603px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
-       transform="matrix(0.26458333,0,0,0.26458333,0,-20.499989)"><flowRegion
+       transform="matrix(0.26458333,0,0,0.26458333,0,-5.6833157)"><flowRegion
          id="flowRegion7453"><rect
            id="rect7455"
            width="341.42856"
@@ -138,89 +138,91 @@
            x="1377.1428"
            y="615.71429" /></flowRegion><flowPara
          id="flowPara7457"
-         style="-inkscape-font-specification:'Hack, Normal';font-family:Hack;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:42.66666721px;text-anchor:start;text-align:start;writing-mode:lr;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal">@fommil</flowPara></flowRoot>    <text
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:42.66666794px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start">@fommil</flowPara></flowRoot>    <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.93888855px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        x="262.69342"
-       y="135.60417"
+       y="149.89148"
        id="text7491"><tspan
          sodipodi:role="line"
          id="tspan7489"
          x="262.69342"
-         y="139.97394"
+         y="154.26125"
          style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332" /><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="147.39604"
+         y="161.68335"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7493">         \/&gt;</tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="155.33354"
+         y="169.62085"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7495">                .</tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="162.02254"
+         y="176.30984"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7497" /><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="169.44466"
+         y="183.73196"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7499">   &gt;=&gt;                  .                .     &lt;++&gt;       </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="177.38216"
+         y="191.66946"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7501">            ==&gt;&gt;                                          </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="185.31966"
+         y="199.60696"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7503">                                 |+|                      </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="193.25716"
+         y="207.54446"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7505">       ==&gt;&gt;     *&gt;       .               |+|             . </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="201.19466"
+         y="215.48196"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7507">                                    &lt;*&gt;                   </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="209.13216"
+         y="223.41946"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7509">     .          &gt;&gt;=                              /|       </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="217.06966"
+         y="231.35696"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7511">                                               -==+       </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="225.00716"
+         y="239.29446"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7513">                             .         &lt;+&gt;                </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="232.94466"
+         y="247.23196"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7515">   @@  +|+  |--&gt;                                      .    </tspan><tspan
          sodipodi:role="line"
          x="262.69342"
-         y="239.63365"
+         y="253.92096"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:Hack;-inkscape-font-specification:'Hack, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
          id="tspan7517" /></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46666667px;line-height:1.25;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332;"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46666622px;line-height:1.25;font-family:P052;-inkscape-font-specification:'P052, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:tb-rl;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        x="242.66069"
-       y="10.273031"
+       y="15.751689"
        id="text7521"><tspan
          sodipodi:role="line"
-         id="tspan7531">Functional Programming for Mortals with Scalaz        Sam Halliday</tspan></text>
+         id="tspan7531"
+         x="15.564693"
+         y="242.84769">Functional Programming for Mortals with Scalaz        Sam Halliday</tspan></text>
   </g>
 </svg>
