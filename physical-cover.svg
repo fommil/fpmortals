@@ -29,7 +29,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="643.1787"
+     inkscape:cx="765.82582"
      inkscape:cy="581.21434"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -223,6 +223,7 @@
          sodipodi:role="line"
          id="tspan7531"
          x="15.564693"
-         y="242.84769">Functional Programming for Mortals with Scalaz        Sam Halliday</tspan></text>
+         y="242.84769"
+         style="-inkscape-font-specification:'P052, Normal';font-family:P052;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;font-size:7.76111111px;text-anchor:start;text-align:start;writing-mode:tb;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal">Functional Programming for Mortals with Scalaz        Sam Halliday</tspan></text>
   </g>
 </svg>
