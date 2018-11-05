@@ -3844,7 +3844,7 @@ we can derive instances. Filling in the contract:
 {lang="text"}
 ~~~~~~~~
   object Alpha {
-    implicit val decoder: JsDecoder[Alpha] = JsEncoder[Double].map(_.value)
+    implicit val decoder: JsDecoder[Alpha] = JsDecoder[Double].map(Alpha(_))
     implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
   }
 ~~~~~~~~
