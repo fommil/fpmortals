@@ -599,8 +599,7 @@ separar visualmente la lógica de los transformadores
 
 A> `|>` es con frecuencia conocido como el operador *thrush* (tordo) debido a su peculiar parecido
 A> a la linda ave. Aquellos a los que no les agraden los operadores simbólicos pueden usar
-because of its uncanny resemblance to
-A> the cute bird. Those who do not like symbolic operators can use the alias `.into`.
+A> el alias `.into`.
 
 Este enfoque también funciona para `EitherT` (y otros) como el contexto interno, pero sus métodos
 para hacer *lifting* som más complejos y requieren parámetros. Scalaz proporciona transformadores
