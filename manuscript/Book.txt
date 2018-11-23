@@ -8,5 +8,7 @@ for-comprehensions-es.md
 
 application-design-es.md
 
+data-and-functionality-es.md
+
 backmatter.md
 
