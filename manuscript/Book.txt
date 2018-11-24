@@ -10,5 +10,6 @@ application-design-es.md
 
 data-and-functionality-es.md
 
-backmatter.md
+scalaz-typeclasses-es.md
 
+backmatter.md
