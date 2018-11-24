@@ -1011,4 +1011,87 @@ las cuáles deberían tener sentido a partir de las firmas/signaturas de tipo. E
 ~~~~~~~~
 
 Note que las variantes `A` y `B` usan `OR` inclusivo, mientras que las variantes `This` y `That` son
-exclusivas, devolviendo `None` si existen un valor en ambos lados, o ningún valor en algún lado.
+exclusivas, devolviendo `None` si existe un valor en ambos lados, o ningún valor en algún lado.
+
+## Variancia
+
+Debemos regresar a `Functor` por un momento y discutir un ancestro que previamente habíamos
+ignorado:
+
+{width=100%}
+![](images/scalaz-variance.png)
+
+`InvariantFunctor`, también conocido como el *functor exponencial*, tiene un método `xmap` que dice
+que dada una función de `A` a `B`, y una función de `B` a `A`, podemos entonces convertir `F[A]` a
+`F[B]`.
+
+`Functor` es una abreviación de lo que deberíamos llamar *functor covariante*. Pero dado que
+`Functor` es tan popular este conserva la abreviación. De manera similar, `Contravariant` debería
+ser llamado *functor contravariante*.
+
+`Functor` implementa `xmap` con `map` e ignora la función de `B` a `A`. `Contravariant`, por otra
+parte, implementa `xmap` con `contramap` e ignora la función de `A` a `B`:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait InvariantFunctor[F[_]] {
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B]
+    ...
+  }
+  
+  @typeclass trait Functor[F[_]] extends InvariantFunctor[F] {
+    def map[A, B](fa: F[A])(f: A => B): F[B]
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = map(fa)(f)
+    ...
+  }
+  
+  @typeclass trait Contravariant[F[_]] extends InvariantFunctor[F] {
+    def contramap[A, B](fa: F[A])(f: B => A): F[B]
+    def xmap[A, B](fa: F[A], f: A => B, g: B => A): F[B] = contramap(fa)(g)
+    ...
+  }
+~~~~~~~~
+
+Es importante notar que, aunque están relacionados a nivel teórico, las palabras *covariante*,
+*contravariante* e *invariante* no se refieren directamente a la variancia de tipos en Scala (es
+decir, con los prefijos `+` y `-` que pudieran escribirse en las firmas/signaturas de los tipos).
+*Invariancia* aquí significa que es posible mapear el contenido de la estructura `F[A]` en `F[B]`.
+Usando la función identidad (`identity`) podemos ver que `A` puede convertirse de manera segura en
+una `B` dependiendo de la variancia del functor.
+
+`.map` puede entenderse por medio del contrato "si me das una `F` de `A` y una forma de convertir
+una `B` en una `A`, entonces puedo darte una `F` de `B`".
+
+Consideraremos un ejemplo: en nuestra aplicación introducimos tipos específicos del dominio `Alpha`,
+`Beta`, `Gamma`, etc, para asegurar que no estemos mezclando números en un cálculo financiero:
+
+{lang="text"}
+~~~~~~~~
+  final case class Alpha(value: Double)
+~~~~~~~~
+
+pero ahora nos encontramos con el problema de que no tenemos ninguna typeclass para estos nuevos
+tipos. Si usamos los valores en los documentos JSON, entonces tenemos que escribir instancias de
+`JsEncoder` y `JsDecoder`.
+
+Sin embargo, `JsEncoder` tiene un `Contravariant` y `JsDecoder` tiene un `Functor`, de modo que es
+posible derivar instancias. Llenando el contrato:
+
+- "si me das un `JsDecoder` para un `Double`, y una manera de ir de un `Double` a un `Alpha`,
+  entonces yo puedo darte un `JsDecoder` para un `Alpha`".
+- "si me das un `JsEncoder` par un `Double`, y una manera de ir de un `Alpha` a un `Double`,
+  entonces yo puedo darte un `JsEncoder` para un `Alpha`".
+
+{lang="text"}
+~~~~~~~~
+  object Alpha {
+    implicit val decoder: JsDecoder[Alpha] = JsDecoder[Double].map(_.value)
+    implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
+  }
+~~~~~~~~
+
+Los métodos en una typeclass pueden tener sus parámetros de tipo en *posición contravariante*
+(parámetros de método) o en *posición covariante* (tipo de retorno). Si una typeclass tiene una
+combinación de posiciones covariantes y contravariantes, tal vez también tenga un
+*functor invariante*. Por ejemplo, `Semigroup` y `Monoid` tienen un `InvariantFunctor`, pero no un
+`Functor` o un `Contravariant`.
