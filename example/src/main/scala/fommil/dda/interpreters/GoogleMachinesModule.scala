@@ -5,14 +5,15 @@ package fommil
 package dda
 package interpreters
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import jsonformat._
 import JsDecoder.fail
-
 import algebra._
 import time._
 import http._
+
+import scala.language.higherKinds
 
 final class GoogleMachinesModule[F[_]](
   @unused H: OAuth2JsonClient[F]

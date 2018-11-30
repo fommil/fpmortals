@@ -3,7 +3,10 @@
 
 package transformers
 
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
+
+import scala.language.higherKinds
 
 final case class User(name: String) extends AnyVal
 

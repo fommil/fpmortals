@@ -3,7 +3,10 @@
 
 package const
 
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
+
+import scala.language.higherKinds
 
 trait KV[F[_]] {
   def read(key: String): F[Maybe[String]]

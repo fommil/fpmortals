@@ -5,11 +5,11 @@ package fommil
 package http
 
 import prelude._
-
 import jsonformat.JsDecoder
 import eu.timepit.refined.string.Url
-
 import http.encoding._
+
+import scala.language.higherKinds
 
 /**
  * An algebra for issuing basic GET / POST requests to a web server that returns

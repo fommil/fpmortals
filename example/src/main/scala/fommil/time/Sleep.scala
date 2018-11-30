@@ -6,6 +6,8 @@ package time
 
 import prelude._
 
+import scala.language.higherKinds
+
 trait Sleep[F[_]] {
   def sleep(time: FiniteDuration): F[Unit]
 }

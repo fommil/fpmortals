@@ -5,23 +5,24 @@ package fommil
 package http
 package interpreters
 
-import prelude._, T._, Z._
-
+import prelude._
+import T._
+import Z._
 import java.lang.Throwable
-import scala.collection.immutable.List
 
+import scala.collection.immutable.List
 import jsonformat._
 import jsonformat.JsDecoder.ops._
 import eu.timepit.refined.string.Url
-
 import http.encoding._
 import UrlEncodedWriter.ops._
-
 import org.http4s
-import org.http4s.{ EntityEncoder, MediaType }
+import org.http4s.{EntityEncoder, MediaType}
 import org.http4s.headers.`Content-Type`
 import org.http4s.client.Client
-import org.http4s.client.blaze.{ BlazeClientConfig, Http1Client }
+import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
+
+import scala.language.higherKinds
 
 final class BlazeJsonClient[F[_]] private (H: Client[Task])(
   implicit

@@ -3,11 +3,12 @@
 
 package pureconfig
 
-import scala.{ None, Right, Some }
-
-import magnolia._, mercator._
-
+import scala.{None, Right, Some}
+import magnolia._
+import mercator._
 import pureconfig.error._
+
+import scala.language.experimental.macros
 
 // WORKAROUND: https://github.com/pureconfig/pureconfig/issues/396
 object ConfigReaderMagnolia {

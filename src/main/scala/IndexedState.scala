@@ -3,7 +3,10 @@
 
 package indexed
 
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
+
+import scala.language.higherKinds
 
 // based on https://youtu.be/JPVagd9W4Lo?t=928
 import Cache._

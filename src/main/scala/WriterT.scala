@@ -7,6 +7,8 @@ import scalaz.{ Monad, MonadListen, Monoid }
 import scalaz.syntax.monad._
 import scalaz.syntax.monoid._
 
+import scala.language.higherKinds
+
 final case class WriterT[F[_], W, A](run: F[(W, A)])
 object WriterT {
   implicit def monad[F[_]: Monad, W: Monoid] =

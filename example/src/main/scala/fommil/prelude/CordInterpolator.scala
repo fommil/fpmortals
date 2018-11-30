@@ -6,6 +6,8 @@ package fommil.prelude
 import scala.StringContext.treatEscapes
 import Z._
 
+import scala.language.implicitConversions
+
 /** Cord is very inefficient in Scalaz 7.2, fixed in 7.3 */
 final class CordInterpolator(private val sc: StringContext) extends AnyVal {
   // scalafix:off

@@ -5,6 +5,7 @@ package chapter1
 import scala.io.StdIn
 import scala.concurrent._
 import scala.concurrent.duration.Duration
+import scala.language.higherKinds
 
 trait Terminal[C[_]] {
   def read: C[String]

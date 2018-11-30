@@ -6,6 +6,8 @@ package statet
 import scalaz.{ Applicative, Bind, Monad, MonadState }
 import scalaz.syntax.monad._
 
+import scala.language.higherKinds
+
 sealed abstract class StateT[F[_], S, A] {
   import StateT._
 

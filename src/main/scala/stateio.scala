@@ -3,8 +3,12 @@
 
 package stateio
 
-import scalaz._, Scalaz._, ioeffect._
+import scalaz._
+import Scalaz._
+import ioeffect._
 import Isomorphism._
+
+import scala.language.higherKinds
 
 // https://github.com/estatico/scala-newtype/issues/34
 // import io.estatico.newtype.macros.newtype

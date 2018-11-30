@@ -4,13 +4,15 @@
 package fommil
 package http
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import eu.timepit.refined.string.Url
 import jsonformat._
 import http.encoding._
 import http.oauth2._
 import time._
+
+import scala.language.higherKinds
 
 /**
  * A JSON HTTP client that transparently uses OAUTH 2.0 under the hood for

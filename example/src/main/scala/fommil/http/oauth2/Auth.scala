@@ -5,14 +5,15 @@ package fommil
 package http
 package oauth2
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import pureconfig.orphans._
 import eu.timepit.refined.string.Url
-
 import api._
 import encoding.UrlQuery.ops._
 import encoding.UrlQueryWriter.ops._
+
+import scala.language.higherKinds
 
 /** Defines fixed information about a server's OAuth 2.0 service. */
 @deriving(ConfigReader)

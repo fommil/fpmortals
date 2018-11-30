@@ -3,6 +3,8 @@
 
 package fommil
 
+import scala.language.{higherKinds, implicitConversions}
+
 // This file, prelude.scala, is available alternatively under the LGPL 3.0
 
 // in scala 2.13 this can be enabled automatically thanks to

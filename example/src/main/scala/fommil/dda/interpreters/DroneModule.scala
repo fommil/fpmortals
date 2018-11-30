@@ -9,6 +9,8 @@ import prelude._
 import algebra._
 import http._
 
+import scala.language.higherKinds
+
 final class DroneModule[F[_]](
   @unused H: OAuth2JsonClient[F]
 ) extends Drone[F] {

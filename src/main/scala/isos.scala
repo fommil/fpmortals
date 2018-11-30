@@ -3,8 +3,11 @@
 
 package isos
 
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
 import Isomorphism.{ <~>, IsoFunctorTemplate }
+
+import scala.language.higherKinds
 
 // this is just to check if the MonadErrorTest in scalaz 7.2 is cleaner with
 // partial unification turned on.

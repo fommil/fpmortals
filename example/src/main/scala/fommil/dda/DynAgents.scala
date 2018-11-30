@@ -5,10 +5,13 @@ package fommil
 package dda
 package logic
 
-import prelude._, S._, Z._
-
+import prelude._
+import S._
+import Z._
 import algebra._
 import time.Epoch
+
+import scala.language.higherKinds
 
 /**
  * @param backlog how many builds are waiting to be run on the ci

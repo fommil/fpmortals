@@ -7,6 +7,8 @@ import scalaz.{ ContT => _, IndexedContT => _, _ }
 import scalaz.Scalaz._
 import scalaz.effect.IO
 
+import scala.language.higherKinds
+
 // final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
 //   def run(f: A => F[B]): F[B] = _run(f)
 // }

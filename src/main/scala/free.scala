@@ -7,6 +7,8 @@ package free
 import scalaz.{ -\/, \/, \/-, Applicative, BindRec, Monad }
 import Free._
 
+import scala.language.higherKinds
+
 sealed abstract class Free[S[_], A]
 object Free {
   final case class Return[S[_], A](a: A)     extends Free[S, A]

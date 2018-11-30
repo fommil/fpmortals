@@ -5,8 +5,11 @@ package fommil
 package dda
 package algebra
 
-import prelude._, Z._
+import prelude._
+import Z._
 import time.Epoch
+
+import scala.language.higherKinds
 
 trait Drone[F[_]] {
   def getBacklog: F[Int]

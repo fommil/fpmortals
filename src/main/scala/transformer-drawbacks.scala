@@ -3,8 +3,11 @@
 
 package transdrawbacks
 
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
 import scalaz.effect.{ IO, LiftIO, MonadIO }
+
+import scala.language.higherKinds
 
 final case class Problem(bad: Int)
 final case class Table(last: Int)

@@ -4,13 +4,12 @@
 package fommil
 package dda
 
-import prelude._, Z._
+import prelude._
+import Z._
 
 import scala.collection.immutable.List
-
 import pureconfig.orphans._
 import scalaz.ioeffect.console._
-
 import logic._
 import interpreters._
 import http._
@@ -18,6 +17,8 @@ import http.interpreters._
 import http.oauth2._
 import http.oauth2.interpreters._
 import time._
+
+import scala.language.higherKinds
 
 object Main extends SafeApp {
 

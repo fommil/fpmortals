@@ -5,10 +5,12 @@ package fommil
 package dda
 package logic
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import algebra._
 import time.Epoch
+
+import scala.language.higherKinds
 
 final class Monitored[U[_]: Functor](program: DynAgents[U]) {
   type F[a] = Const[ISet[MachineNode], a]

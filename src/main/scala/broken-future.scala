@@ -3,11 +3,12 @@
 package brokenfuture
 
 import scala.io.StdIn
-
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
 
 import scala.concurrent._
 import scala.concurrent.duration.Duration
+import scala.language.higherKinds
 
 trait Terminal[C[_]] {
   def read: C[String]

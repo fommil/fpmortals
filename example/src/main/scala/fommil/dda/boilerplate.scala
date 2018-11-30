@@ -14,6 +14,9 @@ import time.Epoch
 
 // scalafix:off
 package algebra {
+
+  import scala.language.higherKinds
+
   private[algebra] abstract class DroneBoilerplate {
     this: Drone.type =>
 
@@ -154,6 +157,9 @@ package algebra {
 }
 
 package logic {
+
+  import scala.language.higherKinds
+
   private[logic] abstract class DynAgentsBoilerplate {
     this: DynAgents.type =>
 

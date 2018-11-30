@@ -6,6 +6,8 @@ package time
 
 import prelude._
 
+import scala.language.higherKinds
+
 trait LocalClock[F[_]] {
   def now: F[Epoch]
 }

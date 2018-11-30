@@ -5,13 +5,14 @@ package fommil
 package http
 package oauth2
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import pureconfig.orphans._
-
 import time._
 import http.JsonClient
 import api._
+
+import scala.language.higherKinds
 
 /**
  * Refresh tokens do not expire, except in response to a security

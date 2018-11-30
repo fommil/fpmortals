@@ -4,12 +4,13 @@
 package fommil
 package http.oauth2
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import time._
 import http._
-
 import api._
+
+import scala.language.higherKinds
 
 /**
  * Bearer tokens (aka access tokens) expire frequently and can also

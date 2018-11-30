@@ -4,7 +4,10 @@
 package fommil
 package time
 
-import prelude._, Z._
+import prelude._
+import Z._
+
+import scala.language.higherKinds
 
 private[time] abstract class LocalClockBoilerplate {
   this: LocalClock.type =>

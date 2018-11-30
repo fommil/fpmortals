@@ -6,6 +6,9 @@ import scalaz.Tags.Parallel
 import scalaz.Leibniz.===
 
 package parallel {
+
+  import scala.language.higherKinds
+
   class Work[F[_]] {
     def slow(in: String): F[Unit] = ???
 

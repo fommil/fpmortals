@@ -5,13 +5,15 @@ package fommil
 package dda
 package algebra
 
-import prelude._, Z._, S._
-import Coproduct.{ leftc, rightc }
-
+import prelude._
+import Z._
+import S._
+import Coproduct.{leftc, rightc}
 import scalaz.ioeffect.RTS
-
 import fommil.time.Epoch
 import Test.unimplemented
+
+import scala.language.higherKinds
 
 object Demo {
   def todo[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Int] =

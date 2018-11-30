@@ -4,11 +4,15 @@
 package fommil
 package http.encoding
 
-import prelude._, Z._, S._
+import prelude._
+import Z._
+import S._
 import java.net.URLEncoder
 
 import magnolia._
 import simulacrum._
+
+import scala.language.experimental.macros
 
 /**
  * Converts entities into `application/x-www-form-urlencoded`

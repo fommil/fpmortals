@@ -3,7 +3,10 @@
 
 package freestate
 
-import scalaz._, Scalaz._
+import scalaz._
+import Scalaz._
+
+import scala.language.higherKinds
 
 object FreeState {
   sealed abstract class Ast[S, A]

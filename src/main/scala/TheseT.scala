@@ -7,8 +7,9 @@ import scalaz.{ \&/, Functor, Monad, Semigroup }
 import scalaz.syntax.monad._
 import scalaz.syntax.semigroup._
 import scalaz.syntax.these._
-
 import \&/.{ Both, That, This }
+
+import scala.language.higherKinds
 
 final case class TheseT[F[_], A, B](run: F[A \&/ B])
 object TheseT {

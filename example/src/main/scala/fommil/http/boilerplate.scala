@@ -4,12 +4,13 @@
 package fommil
 package http
 
-import prelude._, Z._
-
+import prelude._
+import Z._
 import jsonformat.JsDecoder
 import eu.timepit.refined.string.Url
-
 import http.encoding._
+
+import scala.language.higherKinds
 
 private[http] abstract class JsonClientBoilerplate {
   this: JsonClient.type =>
