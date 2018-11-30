@@ -4,7 +4,7 @@
 addCommandAlias("cpl", "all compile")
 addCommandAlias("fmt", "all scalafmtSbt scalafmt")
 
-scalaVersion in ThisBuild := "2.12.6"
+scalaVersion in ThisBuild := "2.12.7"
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   //"-Xsource:2.13",
@@ -13,12 +13,12 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.github.mpilquist" %% "simulacrum"      % "0.13.0",
+  "com.github.mpilquist" %% "simulacrum"      % "0.14.0",
   "com.chuusai"          %% "shapeless"       % "2.3.3",
-  "org.scalaz"           %% "scalaz-effect"   % "7.2.25",
+  "org.scalaz"           %% "scalaz-effect"   % "7.2.27",
   "org.scalaz"           %% "scalaz-ioeffect" % "2.10.1",
-  "eu.timepit"           %% "refined-scalaz"  % "0.9.2",
-  "com.lihaoyi"          %% "sourcecode"      % "0.1.4",
+  "eu.timepit"           %% "refined-scalaz"  % "0.9.3",
+  "com.lihaoyi"          %% "sourcecode"      % "0.1.5",
   "io.estatico"          %% "newtype"         % "0.4.2"
 )
 
@@ -31,7 +31,7 @@ libraryDependencies ++= Seq(
   "org.scalaz" %% "scalaz-deriving-scalacheck" % derivingVersion
 )
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
 )

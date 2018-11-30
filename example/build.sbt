@@ -1,7 +1,7 @@
 inThisBuild(
   Seq(
     startYear := Some(2017),
-    scalaVersion := "2.12.6",
+    scalaVersion := "2.12.7",
     sonatypeGithost := (Gitlab, "fommil", "drone-dynamic-agents"),
     sonatypeDevelopers := List("Sam Halliday"),
     licenses := Seq(GPL3),
@@ -21,19 +21,19 @@ addCommandAlias(
 addCommandAlias("lint", "all compile:scalafixTest test:scalafixTest")
 addCommandAlias("fix", "all compile:scalafixCli test:scalafixCli")
 
-val http4sVersion = "0.18.16"
+val http4sVersion = "0.18.21"
 libraryDependencies ++= Seq(
-  "com.github.mpilquist"  %% "simulacrum"          % "0.13.0",
+  "com.github.mpilquist"  %% "simulacrum"          % "0.14.0",
   "com.chuusai"           %% "shapeless"           % "2.3.3",
-  "eu.timepit"            %% "refined-scalaz"      % "0.9.2",
+  "eu.timepit"            %% "refined-scalaz"      % "0.9.3",
   "com.propensive"        %% "contextual"          % "1.1.0",
   "org.scalatest"         %% "scalatest"           % "3.0.5" % "test,it",
-  "com.github.pureconfig" %% "pureconfig"          % "0.9.1",
+  "com.github.pureconfig" %% "pureconfig"          % "0.9.2",
   "org.http4s"            %% "http4s-dsl"          % http4sVersion,
   "org.http4s"            %% "http4s-blaze-server" % http4sVersion,
   "org.http4s"            %% "http4s-blaze-client" % http4sVersion,
   // and because we're using http4s, all the compat stuff too...
-  "com.codecommit" %% "shims"                % "1.4.0",
+  "com.codecommit" %% "shims"                % "1.6.1",
   "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"
 )
 
@@ -72,7 +72,7 @@ testOptions += Tests.Argument(
 )
 
 addCompilerPlugin(scalafixSemanticdb)
-addCompilerPlugin("org.spire-math" %% "kind-projector"     % "0.9.7")
+addCompilerPlugin("org.spire-math" %% "kind-projector"     % "0.9.9")
 addCompilerPlugin("com.olegpy"     %% "better-monadic-for" % "0.2.4")
 addCompilerPlugin(
   ("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)
