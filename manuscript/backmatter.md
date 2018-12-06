@@ -634,6 +634,14 @@ explicitly, which is more boilerplate but makes the code easier to read:
                                      println line
 ~~~~~~~~
 
+Whereas in Scala this encoding may be called *Finally Tagless*, in Haskell it is
+known as MTL style. Without going into details, some Scala developers didn't
+understand a research paper about the performance benefits of [Generalised ADTs
+in Haskell](http://okmij.org/ftp/tagless-final/index.html#tagless-final).
+
+An alternative to MTL style are *Extensible Effects*, also known as [Free Monad
+style](http://okmij.org/ftp/Haskell/extensible/more.pdf).
+
 
 ## Modules
 
