@@ -63,7 +63,10 @@ Haskell has a very clean syntax for ADTs. This is a linked list structure:
 `List` is a *type constructor*, `a` is the *type parameter*, `|` separates the
 *data constructors*, which are: `Nil` the empty list and a `Cons` cell. `Cons`
 takes two parameters, which are separated by whitespace: no commas and no
-parameter brackets. There is no subtyping in Haskell.
+parameter brackets.
+
+There is no subtyping in Haskell, so there is no such thing as the `Nil` type or
+the `Cons` type: both construct a `List`.
 
 Roughly translated to Scala:
 
@@ -94,8 +97,8 @@ We can use infix, a nicer definition might use the symbol `:.` instead of `Cons`
 ~~~~~~~~
 
 where we specify a *fixity*, which can be `infix`, `infixl` or `infixr` for no,
-left and right associativity, respectively. A number from 0 (loose) to 9 (tight)
-specifies precedence. We can now create a list of integers by typing
+left, and right associativity, respectively. A number from 0 (loose) to 9
+(tight) specifies precedence. We can now create a list of integers by typing
 
 {lang="text"}
 ~~~~~~~~
@@ -158,12 +161,18 @@ annotations* to indicate the types
   data Company  = Company String [Resource]
   
   -- with record syntax
-  data Resource = Human { serial :: Int, humanName :: String }
-  data Company  = Company { companyName :: String, employees :: [Resource] }
+  data Resource = Human
+                  { serial    :: Int
+                  , humanName :: String
+                  }
+  data Company  = Company
+                  { companyName :: String
+                  , employees   :: [Resource]
+                  }
 ~~~~~~~~
 
-Note that the `Human` data constructor and `Resource` type do not need to be the
-same name. Record syntax generates the equivalent of a field accessor and a copy
+Note that the `Human` data constructor and `Resource` type do not have the same
+name. Record syntax generates the equivalent of a field accessor and a copy
 method.
 
 {lang="text"}
@@ -194,14 +203,19 @@ A> {lang="text"}
 A> ~~~~~~~~
 A>   {-# LANGUAGE DuplicateRecordFields #-}
 A>   
-A>   data Resource = Human { serial :: Int, name :: String }
-A>   data Company  = Company { name :: String, employees :: [Resource] }
+A>   data Resource = Human
+A>                   { serial :: Int
+A>                   , name   :: String
+A>                   }
+A>   data Company  = Company
+A>                   { name      :: String
+A>                   , employees :: [Resource]
 A> ~~~~~~~~
 A> 
 A> There are a lot of language extensions and it is not uncommon to have 20 or more
 A> in a small project. Haskell is extremely conservative and new language features
-A> are opt in for a long period of time before they can be accepted into the
-A> vanilla language.
+A> are opt-in for a long period of time before they can be accepted into the
+A> language standard.
 
 
 ## Functions
@@ -241,8 +255,7 @@ Infix functions are defined in parentheses and need a fixity definition:
 ~~~~~~~~
 
 Regular functions can be called in infix position by surrounding their name with
-backticks, and an infix function can be called like a regular function if we
-keep it surrounded by brackets. The following are equivalent:
+backticks. The following are equivalent:
 
 {lang="text"}
 ~~~~~~~~
@@ -250,7 +263,8 @@ keep it surrounded by brackets. The following are equivalent:
   foo a b
 ~~~~~~~~
 
-An infix function can be curried on either the left or the right, often giving
+An infix function can be called like a regular function if we keep it surrounded
+by brackets, and can be curried on either the left or the right, often giving
 different semantics:
 
 {lang="text"}
@@ -353,7 +367,7 @@ list (an apostrophe is a valid identifier name):
                            else filter f tail
 ~~~~~~~~
 
-But it is considered better style to use *case guards*
+An alternative style is to use *case guards*
 
 {lang="text"}
 ~~~~~~~~
@@ -426,9 +440,10 @@ There is a tendency to prefer function composition with `.` instead of multiple
 ## Typeclasses
 
 To define a typeclass we use the `class` keyword, followed by the name of the
-typeclass, its type parameter, then the required members in a `where` clause. If
-there are dependencies between typeclasses, i.e. `Applicative` requires a
-`Functor`, use `=>` notation
+typeclass, its type parameter, then the required members in a `where` clause.
+
+If there are dependencies between typeclasses, i.e. `Applicative` requires a
+`Functor` to exist, we call this a *constraint* and use `=>` notation:
 
 {lang="text"}
 ~~~~~~~~
@@ -476,8 +491,8 @@ must enable the `InstanceSigs` language extension.
     f =<< list = flatMap f list
 ~~~~~~~~
 
-If we want to make use of a typeclass in a function we require it with `=>`. For
-example we can define something similar to Scalaz's `Apply.apply2`
+If we have a typeclass constraint in a function, we use the same `=>` notation.
+For example we can define something similar to Scalaz's `Apply.apply2`
 
 {lang="text"}
 ~~~~~~~~
@@ -494,7 +509,7 @@ which was the inspiration for Scala's `for` comprehensions:
     a <- f
     b <- g
     c <- h
-    return (a, b, c)
+    pure (a, b, c)
 ~~~~~~~~
 
 desugars to
@@ -504,7 +519,7 @@ desugars to
   f >>= \a ->
     g >>= \b ->
       h >>= \c ->
-        return (a, b, c)
+        pure (a, b, c)
 ~~~~~~~~
 
 where `>>=` is `=<<` with parameters flipped
@@ -518,8 +533,6 @@ where `>>=` is `=<<` with parameters flipped
   -- from the stdlib
   flip :: (a -> b -> c) -> b -> a -> c
 ~~~~~~~~
-
-and `return` is a synonym for `pure`.
 
 Unlike Scala, we do not need to bind unit values, or provide a `yield` if we are
 returning `()`. For example
@@ -551,7 +564,7 @@ Non-monadic values can be bound with the `let` keyword:
                   last  <- getLine
                   let full = first ++ " " ++ last
                   putStrLn ("Pleased to meet you, " ++ full ++ "!")
-                  return full
+                  pure full
 ~~~~~~~~
 
 Finally, Haskell has typeclass derivation with the `deriving` keyword, the
@@ -562,6 +575,63 @@ topic, but it is easy to derive a typeclass for an ADT:
 ~~~~~~~~
   data List a = Nil | a :. List a
                 deriving (Eq, Ord)
+~~~~~~~~
+
+
+## Algebras
+
+In Scala, typeclasses and algebras are both defined as a `trait` interface.
+Typeclasses are injected by the `implicit` feature and algebras are passed as
+explicit parameters. There is no language-level support in Haskell for algebras:
+they are just data!
+
+Consider the simple `Console` algebra from the introduction. We can rewrite it
+into Haskell as a *record of functions*:
+
+{lang="text"}
+~~~~~~~~
+  data Console m = Console
+                    { println :: Text -> m ()
+                    , readln  :: m Text
+                    }
+~~~~~~~~
+
+with business logic using a `Monad` constraint
+
+{lang="text"}
+~~~~~~~~
+  echo :: (Monad m) => Console m -> m ()
+  echo c = do line <- readln c
+              println c line
+~~~~~~~~
+
+A production implementation of `Console` would likely have type `Console IO`.
+The Scalaz `liftIO` function is inspired by a Haskell function of the same name
+and can lift `Console IO` into any Advanced Monad stack.
+
+In Haskell we can enable the `DeriveFunctor` language extension and add
+`deriving (Functor)` to our algebras, giving us `liftM` for free, again the
+inspiration for the Scalaz function of the same name.
+
+Two additional language extensions make the business logic even cleaner. For
+example, `RecordWildCards` allows us to import all the fields of a data type by
+using `{..}`:
+
+{lang="text"}
+~~~~~~~~
+  echo :: (Monad m) => Console m -> m ()
+  echo Console{..} = do line <- readln
+                        println line
+~~~~~~~~
+
+The more explicit `NamedFieldPuns` requires each imported field to be listed
+explicitly, which is more boilerplate but makes the code easier to read:
+
+{lang="text"}
+~~~~~~~~
+  echo :: (Monad m) => Console m -> m ()
+  echo Console{readln, println} = do line <- readln
+                                     println line
 ~~~~~~~~
 
 
@@ -576,8 +646,8 @@ declares the `module` name
   module Silly.Tree where
 ~~~~~~~~
 
-Directories are used on disk to organise the code, so this file would go into
-`Silly/Tree.hs`.
+A convention is to use directories on disk to organise the code, so this file
+would go into `Silly/Tree.hs`.
 
 By default all symbols in the file are exported but we can choose to export
 specific members, for example the `Tree` type and data constructors, and a
@@ -585,7 +655,7 @@ specific members, for example the `Tree` type and data constructors, and a
 
 {lang="text"}
 ~~~~~~~~
-  module Silly.Tree (Tree(Leaf, Branch), fringe) where
+  module Silly.Tree (Tree(..), fringe) where
   
   data Tree a = Leaf a | Branch (Tree a) (Tree a)
   
@@ -617,6 +687,16 @@ parentheses after the import
   import Silly.Tree (Tree, fringe)
 ~~~~~~~~
 
+Here we only import the `Tree` type constructor (not the data constructors) and
+the `fringe` function. If we want to import all the data constructors (and
+pattern matchers) we can use `Tree(..)`. If we only want to import the `Branch`
+constructor we can list it explicitly:
+
+{lang="text"}
+~~~~~~~~
+  import Silly.Tree (Tree(Branch), fringe)
+~~~~~~~~
+
 If we have a name collision on a symbol we can use a `qualified` import, with an
 optional list of symbols to import
 
@@ -626,18 +706,17 @@ optional list of symbols to import
 ~~~~~~~~
 
 and now to call the `fringe` function we have to type `Silly.Tree.fringe`
-instead of just `fringe`. We can also change the name of the module when
-importing it
+instead of just `fringe`. We can change the name of the module when importing it
 
 {lang="text"}
 ~~~~~~~~
   import qualified Silly.Tree as T
 ~~~~~~~~
 
-The `fringe` function is now `T.fringe`.
+The `fringe` function is now accessed by `T.fringe`.
 
-Alternatively, rather than select what we want to import, we can choose what to
-**not** import
+Alternatively, rather than select what we want to import, we can choose what
+**not** to import
 
 {lang="text"}
 ~~~~~~~~
@@ -653,12 +732,8 @@ technique to hide unsafe legacy functions
   import Prelude hiding ((!!), head)
 ~~~~~~~~
 
-or use a custom prelude and disable the default prelude with a language extension
-
-{lang="text"}
-~~~~~~~~
-  {-# LANGUAGE NoImplicitPrelude #-}
-~~~~~~~~
+or use a custom prelude and disable the default prelude with the
+`NoImplicitPrelude` language extension.
 
 
 ## Evaluation
@@ -734,7 +809,10 @@ We can use an exclamation mark `!` on `data` parameters
 ~~~~~~~~
   data StrictList t = StrictNil | !t :. !(StrictList t)
   
-  data Employee = Employee { name :: !Text, age :: !Int}
+  data Employee = Employee
+                    { name :: !Text
+                    , age :: !Int
+                    }
 ~~~~~~~~
 
 The `StrictData` language extension enables strict parameters for all data in
@@ -782,8 +860,7 @@ ask questions in the `#qfpl` chat room on `freenode.net`.
 
 Some additional learning materials are:
 
--   [Haskell Book](http://haskellbook.com/) a very comprehensive introduction, or [Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html) for
-    a faster ride.
+-   [Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html) to learn Haskell from first principles.
 -   [Parallel and Concurrent Programming in Haskell](http://shop.oreilly.com/product/0636920026365.do) and [What I Wish I Knew When
     Learning Haskell](http://dev.stephendiehl.com/hask/#data-kinds) for intermediate wisdom.
 -   [Glasgow Haskell Compiler User Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/) and [HaskellWiki](https://wiki.haskell.org) for the cold hard facts.
