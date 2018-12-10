@@ -1742,4 +1742,374 @@ elemento de una tupla en la `F`. De manera importante, `unzip` es lo opuesto de 
 
 Los métodos `unzip3` a `unzip7` son aplicaciones repetidas de `unzip` para evitar escribir código
 repetitivo. Por ejemplo, si se le proporcionara un conjunto de tuplas anidadas, el `Unzip[Id]` es
-una manera sencilla de deshacer 
+una manera sencilla de deshacer la anidación:
+
+{lang="text"}
+~~~~~~~~
+  scala> Unzip[Id].unzip7((1, (2, (3, (4, (5, (6, 7)))))))
+  res = (1,2,3,4,5,6,7)
+~~~~~~~~
+
+En resumen, `Zip` y `Unzip` son versiones menos poderosas de `Divide` y `Apply`, y proporcionan
+características poderosas sin requerir que `F` haga demasiadas promesas.
+
+### Optional
+
+`Optional` es una generalización de estructuras de datos que opcionalmente pueden contener un valor,
+como `Option` y `Either`.
+
+Recuerde que una `\/` (*disjunción*) es la versión mejorada de Scalaz de `Scalaz.Either`. También
+veremos `Maybe` de Scalaz, que es la versión mejorada de `scala.Option`.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Maybe[A]
+  final case class Empty[A]()    extends Maybe[A]
+  final case class Just[A](a: A) extends Maybe[A]
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Optional[F[_]] {
+    def pextract[B, A](fa: F[A]): F[B] \/ A
+  
+    def getOrElse[A](fa: F[A])(default: =>A): A = ...
+    def orElse[A](fa: F[A])(alt: =>F[A]): F[A] = ...
+  
+    def isDefined[A](fa: F[A]): Boolean = ...
+    def nonEmpty[A](fa: F[A]): Boolean = ...
+    def isEmpty[A](fa: F[A]): Boolean = ...
+  
+    def toOption[A](fa: F[A]): Option[A] = ...
+    def toMaybe[A](fa: F[A]): Maybe[A] = ...
+  }
+~~~~~~~~
+
+Estos métodos le deberían ser familiares, con la excepción, quizá, de `pextract`, que es una forma
+de dejar que `F[_]` regrese una implementación específica `F[B]` o el valor. Por ejemplo,
+`Optional[Option].pextract` devuelve `Option[Nothing] \/ A`, es decir, `None \/ A`.
+
+Scalaz proporciona un operador ternario para las cosas que tienen un `Optional`
+
+{lang="text"}
+~~~~~~~~
+  implicit class OptionalOps[F[_]: Optional, A](fa: F[A]) {
+    def ?[X](some: =>X): Conditional[X] = new Conditional[X](some)
+    final class Conditional[X](some: =>X) {
+      def |(none: =>X): X = if (Optional[F].isDefined(fa)) some else none
+    }
+  }
+~~~~~~~~
+
+por ejemplo
+
+{lang="text"}
+~~~~~~~~
+  scala> val knock_knock: Option[String] = ...
+         knock_knock ? "who's there?" | "<tumbleweed>"
+~~~~~~~~
+
+## Co-things
+
+Una *co-cosa* típicamente tiene la firma/signatura de tipo opuesta a lo que sea que una *cosa* hace,
+pero no necesariamente a la inversa. Para enfatizar la relación entre una *cosa* y una *co-cosa*,
+incluiremos la firma/signatura de la *cosa* siempre que sea posible.
+
+{width=100%}
+![](images/scalaz-cothings.png)
+
+{width=80%}
+![](images/scalaz-coloners.png)
+
+### Cobind
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Cobind[F[_]] extends Functor[F] {
+    def cobind[A, B](fa: F[A])(f: F[A] => B): F[B]
+  //def   bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+  
+    def cojoin[A](fa: F[A]): F[F[A]] = ...
+  //def   join[A](ffa: F[F[A]]): F[A] = ...
+  }
+~~~~~~~~
+
+`cobind` (también conocido como `coflatmap`) toma una `F[A] => B` que actúa en una `F[A]` más bien
+que sobre sus elementos. Pero no se trata necesariamente de una `fa` completa, es con frecuencia
+alguna subestructura como la define un `cojoin` (también conocida como `coflatten`) que expande una
+estructura de datos.
+
+Los casos de uso interesantes para `Cobind` son raros, aunque cuando son mostrados en la tabla de
+permutación de la tabla `Functor` (para `F[_]`, `A`, y `B`) es difícil discutir porqué cualquier
+método debería ser menos importante que los otros:
+
+| método      | parámetro          |
+|-------------|--------------------|
+| `map`       | `A => B`           |
+| `contramap` | `B => A`           |
+| `xmap`      | `(A => B, B => A)` |
+| `ap`        | `F[A => B]`        |
+| `bind`      | `A => F[B]`        |
+| `cobind`    | `F[A] => B`        |
+
+### Comonad
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Comonad[F[_]] extends Cobind[F] {
+    def copoint[A](p: F[A]): A
+  //def   point[A](a: =>A): F[A]
+  }
+~~~~~~~~
+
+`.copoint` (también coonocido como `.copure`) desenvuelve un elemento de su contexto. Los efectos no
+tienen típicamente una instancia de `Comonad` dado que se violaría la transparencia referencial al
+interpretar una `IO[A]` en una `A`. Pero para *estructuras de datos* similares a colecciones, es una
+forma de construir una vista de todos los elementos al mismo tiempo que de su vecindad.
+
+Considere la *vecindad* de una lista que contiene todos los elementos a la izquierda de un elemento
+(`lefts`), el elemento en sí mismo (el `focus`), y todos los elementos a su derecha (`rights`).
+
+{lang="text"}
+~~~~~~~~
+  final case class Hood[A](lefts: IList[A], focus: A, rights: IList[A])
+~~~~~~~~
+
+Los `lefts` y los `rights` deberían ordenarse con el elemento más cercano al `focus` en la cabeza,
+de modo que sea posible recuperar la lista original `IList` por medio de `.toList`.
+
+{lang="text"}
+~~~~~~~~
+  object Hood {
+    implicit class Ops[A](hood: Hood[A]) {
+      def toIList: IList[A] = hood.lefts.reverse ::: hood.focus :: hood.rights
+~~~~~~~~
+
+Podemos escribir métodos que nos dejen mover el foco una posición a la izquierda (`previous`), y una
+posición a la derecha (`next`)
+
+{lang="text"}
+~~~~~~~~
+  ...
+      def previous: Maybe[Hood[A]] = hood.lefts match {
+        case INil() => Empty()
+        case ICons(head, tail) =>
+          Just(Hood(tail, head, hood.focus :: hood.rights))
+      }
+      def next: Maybe[Hood[A]] = hood.rights match {
+        case INil() => Empty()
+        case ICons(head, tail) =>
+          Just(Hood(hood.focus :: hood.lefts, head, tail))
+      }
+~~~~~~~~
+
+Mediante la introducción de `more` para aplicar repetidamente una función opcional a `Hood` podemos
+calcular *todas* las `positions` (posiciones) que `Hood` puede tomar en la lista
+
+{lang="text"}
+~~~~~~~~
+  ...
+      def more(f: Hood[A] => Maybe[Hood[A]]): IList[Hood[A]] =
+        f(hood) match {
+          case Empty() => INil()
+          case Just(r) => ICons(r, r.more(f))
+        }
+      def positions: Hood[Hood[A]] = {
+        val left  = hood.more(_.previous)
+        val right = hood.more(_.next)
+        Hood(left, hood, right)
+      }
+    }
+~~~~~~~~
+
+Ahora podemos implementar una `Comonad[Hood]`
+
+{lang="text"}
+~~~~~~~~
+  ...
+    implicit val comonad: Comonad[Hood] = new Comonad[Hood] {
+      def map[A, B](fa: Hood[A])(f: A => B): Hood[B] =
+        Hood(fa.lefts.map(f), f(fa.focus), fa.rights.map(f))
+      def cobind[A, B](fa: Hood[A])(f: Hood[A] => B): Hood[B] =
+        fa.positions.map(f)
+      def copoint[A](fa: Hood[A]): A = fa.focus
+    }
+  }
+~~~~~~~~
+
+`cojoin` nos da proporciona una `Hood[Hood[IList]]` que contiene todas las posibles vecindades en
+nuestra `IList`.
+
+{lang="text"}
+~~~~~~~~
+  scala> val middle = Hood(IList(4, 3, 2, 1), 5, IList(6, 7, 8, 9))
+  scala> middle.cojoin
+  res = Hood(
+          [Hood([3,2,1],4,[5,6,7,8,9]),
+           Hood([2,1],3,[4,5,6,7,8,9]),
+           Hood([1],2,[3,4,5,6,7,8,9]),
+           Hood([],1,[2,3,4,5,6,7,8,9])],
+          Hood([4,3,2,1],5,[6,7,8,9]),
+          [Hood([5,4,3,2,1],6,[7,8,9]),
+           Hood([6,5,4,3,2,1],7,[8,9]),
+           Hood([7,6,5,4,3,2,1],8,[9]),
+           Hood([8,7,6,5,4,3,2,1],9,[])])
+~~~~~~~~
+
+En verdad, ¡`cojoin` es simplemente `positions`! Podríamos hacer un `override` con una
+implementación más directa y eficiente
+
+{lang="text"}
+~~~~~~~~
+  override def cojoin[A](fa: Hood[A]): Hood[Hood[A]] = fa.positions
+~~~~~~~~
+
+`Comonad` generaliza el concepto de `Hood` a estructuras de datos arbitrarias. `Hood` es un ejemplo
+de un `zipper` (que no está relacionado a `Zip`). Scalaz viene con un tipo de datos `Zipper` para
+los streams (es decir , estructuras de datos infinitas unidimensionales), que discutiremos en el
+siguiente capítulo.
+
+Una aplicación de zipper es para *automatas celulares*, que calculan el valor de cada celda en la
+siguiente generación mediante realizar un cómputo basándose en la vecindad de dicha celda.
+
+
+### Cozip
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Cozip[F[_]] {
+    def cozip[A, B](x: F[A \/ B]): F[A] \/ F[B]
+  //def   zip[A, B](a: =>F[A], b: =>F[B]): F[(A, B)]
+  //def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+  
+    def cozip3[A, B, C](x: F[A \/ (B \/ C)]): F[A] \/ (F[B] \/ F[C]) = ...
+    ...
+    def cozip7[A ... H](x: F[(A \/ (... H))]): F[A] \/ (... F[H]) = ...
+  }
+~~~~~~~~
+
+Aunque se llame `cozip`, quizá es más apropiado enfocar nuestra atención en su simetría con `unzip`.
+Mientras que `unzip` divide `F[_]` de tuplas (productos) en tuplas de `F[_]`, `cozip` divide `F[_]`
+de disjunciones (coproductos) en disjunciones de `F[_]`.
+
+## Bi-cosas
+
+Algunas veces podríamos encontrar una cosa que tiene dos hoyos de tipo y deseemos realizar un `map`
+en ambos lados. Por ejemplo, podríamos estar rastreando las fallas a la izquierda de un `Either` y
+tal vez querríamos hacer algo con los mensajes de error.
+
+La typeclass `Functor`/`Foldable`/`Traverse` tienen parientes extraños que nos permiten hacer un
+mapeo de ambas maneras.
+
+relatives that allow us to map both ways.
+
+{width=30%}
+![](images/scalaz-bithings.png)
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bifunctor[F[_, _]] {
+    def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D]
+  
+    @op("<-:") def leftMap[A, B, C](fab: F[A, B])(f: A => C): F[C, B] = ...
+    @op(":->") def rightMap[A, B, D](fab: F[A, B])(g: B => D): F[A, D] = ...
+    @op("<:>") def umap[A, B](faa: F[A, A])(f: A => B): F[B, B] = ...
+  }
+  
+  @typeclass trait Bifoldable[F[_, _]] {
+    def bifoldMap[A, B, M: Monoid](fa: F[A, B])(f: A => M)(g: B => M): M
+  
+    def bifoldRight[A,B,C](fa: F[A, B], z: =>C)(f: (A, =>C) => C)(g: (B, =>C) => C): C
+    def bifoldLeft[A,B,C](fa: F[A, B], z: C)(f: (C, A) => C)(g: (C, B) => C): C = ...
+  
+    def bifoldMap1[A, B, M: Semigroup](fa: F[A,B])(f: A => M)(g: B => M): Option[M] = ...
+  }
+  
+  @typeclass trait Bitraverse[F[_, _]] extends Bifunctor[F] with Bifoldable[F] {
+    def bitraverse[G[_]: Applicative, A, B, C, D](fab: F[A, B])
+                                                 (f: A => G[C])
+                                                 (g: B => G[D]): G[F[C, D]]
+  
+    def bisequence[G[_]: Applicative, A, B](x: F[G[A], G[B]]): G[F[A, B]] = ...
+  }
+~~~~~~~~
+
+A> !`<-:` y `:->` son los operadores felices!
+
+Aunque las signaturas de tipo son verbosas, no son más que los métodos esenciales de `Functor`,
+`Foldable`, y `Bitraverse` que toman dos funciones en vez de una sola, con frecuencia requiriendo
+que ambas funciones devuelvan el mismo tipo de modo que sus resultados puedan ser combinados con un
+`Monoid` o un `Semigroup`.
+
+{lang="text"}
+~~~~~~~~
+  scala> val a: Either[String, Int] = Left("fail")
+         val b: Either[String, Int] = Right(13)
+  
+  scala> b.bimap(_.toUpperCase, _ * 2)
+  res: Either[String, Int] = Right(26)
+  
+  scala> a.bimap(_.toUpperCase, _ * 2)
+  res: Either[String, Int] = Left(FAIL)
+  
+  scala> b :-> (_ * 2)
+  res: Either[String,Int] = Right(26)
+  
+  scala> a :-> (_ * 2)
+  res: Either[String, Int] = Left(fail)
+  
+  scala> { s: String => s.length } <-: a
+  res: Either[Int, Int] = Left(4)
+  
+  scala> a.bifoldMap(_.length)(identity)
+  res: Int = 4
+  
+  scala> b.bitraverse(s => Future(s.length), i => Future(i))
+  res: Future[Either[Int, Int]] = Future(<not completed>)
+~~~~~~~~
+
+Adicionalmente, podemos revisitar `MonadPlus` (recuerde que se trata de un `Monad` con la habilidad
+extra de realizar un `filterWith` y `unite`) y ver que puede `separar` el contenido `Bifoldable` de
+un `Monad`.
+
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadPlus[F[_]] {
+    ...
+    def separate[G[_, _]: Bifoldable, A, B](value: F[G[A, B]]): (F[A], F[B]) = ...
+    ...
+  }
+~~~~~~~~
+
+Esto es muy útil se tenemos una colección de bi-cosas y desamos reorganizarlas en una colección de\
+`A` y una colección de `B`.
+
+{lang="text"}
+~~~~~~~~
+  scala> val list: List[Either[Int, String]] =
+           List(Right("hello"), Left(1), Left(2), Right("world"))
+  
+  scala> list.separate
+  res: (List[Int], List[String]) = (List(1, 2), List(hello, world))
+~~~~~~~~
+
+## Resumen
+
+!Esto fue bastante material! Hemos apenas explorado la librería estándar de funcionalidad
+polimórfica. Pero para poner el asunto en perspectiva: hay más traits en la API de collecciones de
+la librería estándar de Scala que typeclasses en Scalaz.
+
+Es normal que una aplicación de PF usar un porcentaje pequeño de la jerarquía de tipos, con la
+mayoría de su funcionalidad viniendo de álgebras particulares del dominio y de typeclasses.
+Inclusive si las typeclasses del dominio específico son simples clones especializados de algo que
+ya existe en Scalaz, está bien refactorizarlo después.
+
+Para ayudar al lector, hemos incluído un sumario de las typeclasses y sus métodos primarios en el
+apéndice, tomando inspiración del sumario cuyo autor es Adam Rosien's: [Scalaz
+Cheatsheet](http://arosien.github.io/scalaz-cheatsheets/typeclasses.pdf).
+
+Para ayudarle, Valentin Kasas explica cómo [combinar `N`cosas](https://twitter.com/ValentinKasas/status/879414703340081156):
+
+{width=70%}
+![](images/shortest-fp-book.png)
