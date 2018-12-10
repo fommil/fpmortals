@@ -1095,3 +1095,651 @@ Los métodos en una typeclass pueden tener sus parámetros de tipo en *posición
 combinación de posiciones covariantes y contravariantes, tal vez también tenga un
 *functor invariante*. Por ejemplo, `Semigroup` y `Monoid` tienen un `InvariantFunctor`, pero no un
 `Functor` o un `Contravariant`.
+
+## Apply y Bind
+
+Considere ésto un calentamiento para `Applicative` y `Monad`
+
+{width=100%}
+![](images/scalaz-apply.png)
+
+### Apply
+
+`Apply` extiende `Functor` al agregar un método llamado `ap` que es similar a `map` en el sentido de
+que aplica una función a valores. Sin embargo, con `ap`, la función está en el mismo contexto que
+los valores.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Apply[F[_]] extends Functor[F] {
+    @op("<*>") def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B]
+    ...
+~~~~~~~~
+
+A> `<*>` es el operador Avanzado TIE Fighter, como lo usaría Darth Vader. Es apropiado dado que
+A> parece como un padre enojado.
+
+Vale la pena tomarse un momento y considerar lo que significa para una estructura de datos simple
+como `Option[A]`, el que tenga la siguiente implementación de `.ap`
+
+{lang="text"}
+~~~~~~~~
+  implicit def option[A]: Apply[Option[A]] = new Apply[Option[A]] {
+    override def ap[A, B](fa: =>Option[A])(f: =>Option[A => B]) = f match {
+      case Some(ff) => fa.map(ff)
+      case None    => None
+    }
+    ...
+  }
+~~~~~~~~
+
+Para implementar `.ap` primero debemos extraer la función `ff: A => B` de `f: Option[A => B]`, y
+entonces podemos mapear sobre `fa`. La extracción de la función a partir del contexto es el poder
+importante que `Apply` tiene, permitiendo que múltiples funciones se combinen dentro del contexto.
+
+Regresanto a `Apply`, encontramos la función auxiliar `.applyX` que nos permite combinar funciones
+paralelas y entonces mapear sobre la salida combinada:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Apply[F[_]] extends Functor[F] {
+    ...
+    def apply2[A,B,C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] = ...
+    def apply3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+    ...
+    def apply12[...]
+~~~~~~~~
+
+Lea `.apply2` como un contrato con la promesa siguiente: "si usted me da una `F` de `A` y una `F` de
+`B`, con una forma de combinar `A` y `B` en una `C`, entonces puedo devolverle una `F` de `C`".
+Existen muchos casos de uso para este contrato y los dos más importantes son:
+
+- construir algunas typeclasses para el tipo producto `C` a partir de sus constituyentes `A` y `B`
+- ejecutar *efectos* en paralelo, como en las álgebras del drone y de google que creamos en el
+  Capítulo 3, y entonces combinando sus resultados.
+
+En verdad, `Apply` es tan útil que tiene una sintáxis especial:
+
+{lang="text"}
+~~~~~~~~
+  implicit class ApplyOps[F[_]: Apply, A](self: F[A]) {
+    def *>[B](fb: F[B]): F[B] = Apply[F].apply2(self,fb)((_,b) => b)
+    def <*[B](fb: F[B]): F[A] = Apply[F].apply2(self,fb)((a,_) => a)
+    def |@|[B](fb: F[B]): ApplicativeBuilder[F, A, B] = ...
+  }
+  
+  class ApplicativeBuilder[F[_]: Apply, A, B](a: F[A], b: F[B]) {
+    def tupled: F[(A, B)] = Apply[F].apply2(a, b)(Tuple2(_))
+    def |@|[C](cc: F[C]): ApplicativeBuilder3[C] = ...
+  
+    sealed abstract class ApplicativeBuilder3[C](c: F[C]) {
+      ..ApplicativeBuilder4
+        ...
+          ..ApplicativeBuilder12
+  }
+~~~~~~~~
+
+que es exactamente lo que se usó en el Capítulo 3:
+
+{lang="text"}
+~~~~~~~~
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+~~~~~~~~
+
+A> El operador `|@|` tiene muchos nombres. Algunos lo llaman la *sintaxis de producto cartesiano*,
+A> otros lo llaman el *panecillo de canela*, el *Almirante Ackbar* o el *Macaulay Culkin*.
+A> preferimos llamarlo operador *El grito*, en honor a la pintura de Munch, debido a que también
+A> es el sonido que nuestro CPU hace cuando está paralelizando Todas las Cosas.
+
+La sintaxis `<*`y `*>` (el ave hacia la izquierda y hacia la derecha) ofrece una manera conveniente
+de ignorar la salida de uno de dos efectos paralelos.
+
+Desgraciadamente, aunque la syntaxis con `|@|` es clara, hay un problema pues se crea un nuevo
+objeto de tipo `ApplicativeBuilder` por cada efecto adicional. Si el trabajo es principalmente de
+naturaleza I/O, el costo de la asignación de memoria es insignificante. Sin embargo, cuando el
+trabajo es mayormente de naturaleza computacional, es preferible usar la sintaxis alternativa
+de *alzamiento con aridad*, que no produce ningún objeto intermedio:
+
+{lang="text"}
+~~~~~~~~
+  def ^[F[_]: Apply,A,B,C](fa: =>F[A],fb: =>F[B])(f: (A,B) =>C): F[C] = ...
+  def ^^[F[_]: Apply,A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: (A,B,C) =>D): F[D] = ...
+  ...
+  def ^^^^^^[F[_]: Apply, ...]
+~~~~~~~~
+
+y se usa así:
+
+{lang="text"}
+~~~~~~~~
+  ^^^^(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+~~~~~~~~
+
+o haga una invocación directa de `applyX
+
+{lang="text"}
+~~~~~~~~
+  Apply[F].apply5(d.getBacklog, d.getAgents, m.getManaged, m.getAlive, m.getTime)
+~~~~~~~~
+
+A pesar de ser más común su uso con efectos, `Apply`funciona también con estructuras de datos.
+Considere reescribir
+
+{lang="text"}
+~~~~~~~~
+  for {
+    foo <- data.foo: Option[String]
+    bar <- data.bar: Option[Int]
+  } yield foo + bar.shows
+~~~~~~~~
+
+como
+
+{lang="text"}
+~~~~~~~~
+  (data.foo |@| data.bar)(_ + _.shows)
+~~~~~~~~
+
+Si nosotros deseamos únicamente la salida combinada como una tupla, existen métodos para hacer
+sólo eso:
+
+{lang="text"}
+~~~~~~~~
+  @op("tuple") def tuple2[A,B](fa: =>F[A],fb: =>F[B]): F[(A,B)] = ...
+  def tuple3[A,B,C](fa: =>F[A],fb: =>F[B],fc: =>F[C]): F[(A,B,C)] = ...
+  ...
+  def tuple12[...]
+~~~~~~~~
+
+{lang="text"}
+~~~~~~~~
+  (data.foo tuple data.bar) : Option[(String, Int)]
+~~~~~~~~
+
+Existen también versiones generalizadas de `ap` para más de dos parámetros:
+
+{lang="text"}
+~~~~~~~~
+  def ap2[A,B,C](fa: =>F[A],fb: =>F[B])(f: F[(A,B) => C]): F[C] = ...
+  def ap3[A,B,C,D](fa: =>F[A],fb: =>F[B],fc: =>F[C])(f: F[(A,B,C) => D]): F[D] = ...
+  ...
+  def ap12[...]
+~~~~~~~~
+
+junto con métodos `.lift` que toman funciones normales y las alzan al contexto `F[_]`, la
+generalización de `Functor.lift`
+
+{lang="text"}
+~~~~~~~~
+  def lift2[A,B,C](f: (A,B) => C): (F[A],F[B]) => F[C] = ...
+  def lift3[A,B,C,D](f: (A,B,C) => D): (F[A],F[B],F[C]) => F[D] = ...
+  ...
+  def lift12[...]
+~~~~~~~~
+
+y `.apF`, una sintáxis parcialmente aplicada para `ap`
+
+{lang="text"}
+~~~~~~~~
+  def apF[A,B](f: =>F[A => B]): F[A] => F[B] = ...
+~~~~~~~~
+
+Finalmente `.forever`
+
+{lang="text"}
+~~~~~~~~
+  def forever[A, B](fa: F[A]): F[B] = ...
+~~~~~~~~
+
+que repite el efecto sin detenerse. La instancia de `Apply` debe tener un uso seguro del stack o
+tendremos `StackOverflowError`.
+
+### Bind
+
+`Bind` introduces `.bind`, que es un sinónimo de `.flatMap`, que permite funciones sobre el
+resultado de un efecto regresar un nuevo efecto, o para funciones sobre los valores de una
+estructura de datos devolver nuevas estructuras de datos que entonces son unidas.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bind[F[_]] extends Apply[F] {
+  
+    @op(">>=") def bind[A, B](fa: F[A])(f: A => F[B]): F[B]
+    def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = bind(fa)(f)
+  
+    override def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B] =
+      bind(f)(x => map(fa)(x))
+    override def apply2[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] =
+      bind(fa)(a => map(fb)(b => f(a, b)))
+  
+    def join[A](ffa: F[F[A]]): F[A] = bind(ffa)(identity)
+  
+    def mproduct[A, B](fa: F[A])(f: A => F[B]): F[(A, B)] = ...
+    def ifM[B](value: F[Boolean], t: =>F[B], f: =>F[B]): F[B] = ...
+  
+  }
+~~~~~~~~
+
+El método `.join` debe ser familiar a los usuarios de `.flatten` en la librería estándar, y toma un
+contexto anidado y lo convierte en uno sólo.
+
+Combinadores derivados se introducen para `.ap` y `.apply2` que requieren consistencia con `.bind`.
+Veremos más adelante que esta ley tiene consecuencias para las estrategias de paralelización.
+
+`mproduct` es como `Functor.fproduct` y empareja la entrada de una función con su salida, dentro de
+`F`.
+
+`ifM` es una forma de construir una estructura de datos o efecto condicional:
+
+{lang="text"}
+~~~~~~~~
+  scala> List(true, false, true).ifM(List(0), List(1, 1))
+  res: List[Int] = List(0, 1, 1, 0)
+~~~~~~~~
+
+`ifM` y `ap` están optimizados para crear un cache y reusar las ramas de código, compare a la forma
+más larga
+
+{lang="text"}
+~~~~~~~~
+  scala> List(true, false, true).flatMap { b => if (b) List(0) else List(1, 1) }
+~~~~~~~~
+
+que produce una nueva `List(0)` o `List(1, 1)` cada vez que se invoca una alternativa.
+
+A> Todas estas clases de optimizaciones son posibles en PF, porque todos los métodos son
+A> deterministas, lo que se conoce como *referencialmente transparentes*.
+A>
+A> Si un método devuelve un valor distinto cada vez que se invoca, es *impuro* y arruina el
+A> razonamiento y las optimizaciones que de otra manera podríamos hacer.
+A>
+A> Si la `F` es un efecto, tal vez una de nuestras álgebras (drone o Google), no significa que el
+A> resultado de llamar al álgebra se almacene en caché. Más bien una referencia a la operación es
+A> la que se guarda en caché. La optimización de rendimiento con `ifM` es notable únicamente para
+A> estructuras de datos, y es más pronunciada con la dificultad del trabajo en cada alternativa.
+A>
+A> Exploraremos el concepto de determinismo y de almacenamiento en caché en más detalle en el
+A> próximo capítulo.
+
+`Bind` también tiene sintaxis especial
+
+{lang="text"}
+~~~~~~~~
+  implicit class BindOps[F[_]: Bind, A] (self: F[A]) {
+    def >>[B](b: =>F[B]): F[B] = Bind[F].bind(self)(_ => b)
+    def >>![B](f: A => F[B]): F[A] = Bind[F].bind(self)(a => f(a).map(_ => a))
+  }
+~~~~~~~~
+
+`>>` se usa cuando deseamos descartar la entrada a `bind` y `>>!` cuando deseamos ejecutar un efecto
+pero descartar su salida.
+
+## Applicative y Monad
+
+Desde un punto de vista de funcionalidad, `Applicative` es `Apply` con un método `pure`, y `Monad`
+extiende `Applicative` con `Bind`.
+
+{width=100%}
+![](images/scalaz-applicative.png)
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Applicative[F[_]] extends Apply[F] {
+    def point[A](a: =>A): F[A]
+    def pure[A](a: =>A): F[A] = point(a)
+  }
+  
+  @typeclass trait Monad[F[_]] extends Applicative[F] with Bind[F]
+~~~~~~~~
+
+En muchos sentidos, `Applicative` y `Monad` son la culminación de todo lo que hemos visto en este
+capítulo. `.pure` (o `.point` como se conoce más comúnmente para las estructuras de datos) nos
+permite crear efectos o estructuras de datos a partir de valores.
+
+Las instancias de `Applicative` deben satisfacer algunas leyes, asegurándose así de que todos los
+métodos sean consistentes:
+
+- **Identidad**: `fa <*> pure(identity) === fa`, (donde `fa` está en `F[A]`) es decir, aplicar
+  `pure(identity)` no realiza ninguna operación.
+- **Homomorfismo**: `pure(a) <*> pure(ab) === pure(ab(a))` (donde `ab` es una `A => B`), es decir
+  aplicar una función `pure` a un valor `pure` es lo mismo que aplicar la función al valor y
+  entonces usar `pure` sobre el resultado.
+- **Intercambio**: `pure(a) <*> fab === fab <*> pure (f => f(a))`, (donde `fab` es una `F[A => B]`),
+  es decir `pure` es la identidad por la izquierda y por la derecha.
+- **Mapeo**: `map(fa)(f) === fa <*> pure(f)`
+
+`Monad` agrega leyes adicionales:
+
+- **Identidad por la izquierda**: `pure(a).bind(f) === f(a)`
+- **Identidad por la derecha**: `a.bind(pure(_)) === a`
+- **Asociatividad**: `fa.bind(f).bind(g) === fa.bind(a => f(a).bind(g))` donde `fa` es una `F[A]`,
+  `f` es una `A => F[B]` y `g` es una `B => F[C]`.
+
+La asociatividad dice que invocaciones repetidas de `bind` deben resultar en lo mismo que
+invocaciones anidadas de `bind`. Sin embargo, esto no significa que podamos reordenar, lo que sería
+*conmutatividad*. Por ejemplo, recordando que `flatMap` es un alias de `bind`, no podemos reordenar
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.start(node1)
+    _ <- machine.stop(node1)
+  } yield true
+~~~~~~~~
+
+como
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.stop(node1)
+    _ <- machine.start(node1)
+  } yield true
+~~~~~~~~
+
+`start` y `stop` **no** son **conmutativas**, porque ¡el efecto deseado de iniciar y luego detener un
+nodo es diferente a detenerlo y luego iniciarlo!
+
+Pero `start` es conmutativo consigo mismo, y `stop` es conmutativo consigo mismo, de modo que
+podemos reescribir
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.start(node1)
+    _ <- machine.start(node2)
+  } yield true
+~~~~~~~~
+
+como
+
+{lang="text"}
+~~~~~~~~
+  for {
+    _ <- machine.start(node2)
+    _ <- machine.start(node1)
+  } yield true
+~~~~~~~~
+
+que son equivalentes para nuestra álgebra, pero no en general. Aquí se están haciendo muchas
+suposiciones sobre la API de Google Container, pero es una elección razonable que podemos hacer.
+
+Una consecuencia práctica es que una `Monad` debe ser *conmutativa* si sus métodos `applyX` pueden
+ser ejecutados en paralelo. En el capítulo 3 hicimos trampa cuando ejecutamos estos efectos en
+paralelo
+
+{lang="text"}
+~~~~~~~~
+  (d.getBacklog |@| d.getAgents |@| m.getManaged |@| m.getAlive |@| m.getTime)
+~~~~~~~~
+
+porque sabemos que son conmutativos entre sí. Cuando tengamos que interpretar nuestra aplicación,
+más adelante en el libro, tendremos que proporcionar evidencia de que estos efectos son de hecho
+conmutativos, o una implementación asíncrona podría escoger efectuar las operaciones de manera
+secuencial por seguridad.
+
+Las sutilezas de cómo lidiar con el reordenamiento de efectos, y cuáles son estos efectos, merece un
+capítulo dedicado sobre mónadas avanzadas.
+
+## Divide y conquistarás
+
+{width=100%}
+![](images/scalaz-divide.png)
+
+`Divide` es el análogo `Contravariant` de `Apply`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Divide[F[_]] extends Contravariant[F] {
+    def divide[A, B, C](fa: F[A], fb: F[B])(f: C => (A, B)): F[C] = divide2(fa, fb)(f)
+  
+    def divide1[A1, Z](a1: F[A1])(f: Z => A1): F[Z] = ...
+    def divide2[A, B, C](fa: F[A], fb: F[B])(f: C => (A, B)): F[C] = ...
+    ...
+    def divide22[...] = ...
+~~~~~~~~
+
+`divide` dice que si podemos partir una `C` en una `A` y una `B`, y se nos da una `F[A]` y una
+`F[B]`, entonces podemos tener una `F[C]`. De ahí la frase *divide y conquistarás*.
+
+Esta es una gran manera de generar instancias contravariantes de una typeclass para tipos producto
+mediante la separación de los productos en sus partes constituyentes. Scalaz tiene una instancia de
+`Divide[Equal]`, así que vamos a construir un `Equal` para un nuevo tipo producto `Foo`
+
+{lang="text"}
+~~~~~~~~
+  scala> case class Foo(s: String, i: Int)
+  scala> implicit val fooEqual: Equal[Foo] =
+           Divide[Equal].divide2(Equal[String], Equal[Int]) {
+             (foo: Foo) => (foo.s, foo.i)
+           }
+  scala> Foo("foo", 1) === Foo("bar", 1)
+  res: Boolean = false
+~~~~~~~~
+
+Siguiendo los patrones en `Apply`, `Divide` también tiene una sintaxis clara para las tuplas. Es un
+enfoque más suave que *divide de modo que podamos reinar* con el objetivo de dominar el mundo:
+
+{lang="text"}
+~~~~~~~~
+  ...
+    def tuple2[A1, A2](a1: F[A1], a2: F[A2]): F[(A1, A2)] = ...
+    ...
+    def tuple22[...] = ...
+  }
+~~~~~~~~
+
+Generalmente, si las typeclasses de un codificador pueden proporcionar una instancia de `Divide`,
+más bien que detenerse en `Contravariant`, entonces se hace posible la derivación de instancias para
+cualquier `case class`. De manera similar, las typeclasses de decodificadores pueden proporcionar
+una instancia de `Apply`. Exploraremos esto en un capítulo dedicado a la derivación de typeclasses.
+
+`Divisible` es el análogo contravariante (`Contravariant`) de `Applicative` e introduce `.conquer`,
+el equivalente a `.pure`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Divisible[F[_]] extends Divide[F] {
+    def conquer[A]: F[A]
+  }
+~~~~~~~~
+
+`.conquer` también permite la creación trivial de implementaciones donde el parámetro de tipo es
+ignorado. Tales valores se llaman *universalmente cuantificados*. Por ejemplo,
+`Divisible[Equal].conquer[INil[String]]` devuelve una implementación de `Equal` para una lista vacía
+de `String` que siempre es `true`.
+
+## Plus
+
+{width=100%}
+![](images/scalaz-plus.png)
+
+`Plus` es un `Semigroup` pero para constructores de tipo, y `PlusEmpty` es el equivalente de
+`Monoid` (incluso tienen las mismas leyes) mientras que `IsEmpty` es novedoso y nos permite
+consultar si un `F[A]` está vacío:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Plus[F[_]] {
+    @op("<+>") def plus[A](a: F[A], b: =>F[A]): F[A]
+  }
+  @typeclass trait PlusEmpty[F[_]] extends Plus[F] {
+    def empty[A]: F[A]
+  }
+  @typeclass trait IsEmpty[F[_]] extends PlusEmpty[F] {
+    def isEmpty[A](fa: F[A]): Boolean
+  }
+~~~~~~~~
+
+A> `<+>` es el interceptor TIE, y a estas alturas ya casi nos quedamos sin naves caza TIE...
+
+Aunque superficialmente pueda parecer como si `<+>` se comportara como `|+|`
+
+{lang="text"}
+~~~~~~~~
+  scala> List(2,3) |+| List(7)
+  res = List(2, 3, 7)
+  
+  scala> List(2,3) <+> List(7)
+  res = List(2, 3, 7)
+~~~~~~~~
+
+es mejor pensar que este operador funciona únicamente al nivel de `F[_]`, nunca viendo al contenido.
+`Plus` tiene la convención de que debería ignorar las fallas y "escoger al primer ganador". `<+>`
+puede por lo tanto ser usado como un mecanismo de salida temprana (con pérdida de información) y de
+manejo de fallas mediante alternativas:
+
+{lang="text"}
+~~~~~~~~
+  scala> Option(1) |+| Option(2)
+  res = Some(3)
+  
+  scala> Option(1) <+> Option(2)
+  res = Some(1)
+  
+  scala> Option.empty[Int] <+> Option(1)
+  res = Some(1)
+~~~~~~~~
+
+Por ejemplo, si tenemos una `NonEmptyList[Option[Int]]` y deseamos ignorar los valores `None`
+(fallas) y escoger el primer ganador (`Some`), podemos invocar `<+>` de `Foldable1.foldRight1`:
+
+{lang="text"}
+~~~~~~~~
+  scala> NonEmptyList(None, None, Some(1), Some(2), None)
+         .foldRight1(_ <+> _)
+  res: Option[Int] = Some(1)
+~~~~~~~~
+
+De hecho, ahora que sabemos de `Plus`, nos damos cuenta de que no era necesaria violar la coherencia
+de typeclases (cuando definimos un `Monoid[Option[A]]` con alcance local) en la sección sobre
+Cosas que se pueden agregar. Nuestro objectivo era "escoger el último ganador", que es lo mismo que
+"escoge al ganador" si los argumentos se intercambian. Note el uso del interceptor TIE para `ccy` y
+`otc` con los argumentos intercambiados.
+
+{lang="text"}
+~~~~~~~~
+  implicit val monoid: Monoid[TradeTemplate] = Monoid.instance(
+    (a, b) => TradeTemplate(a.payments |+| b.payments,
+                            b.ccy <+> a.ccy,
+                            b.otc <+> a.otc),
+    TradeTemplate(Nil, None, None)
+  )
+~~~~~~~~
+
+`Applicative` y `Monad` tienen versiones especializadas de `PlusEmpty`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait ApplicativePlus[F[_]] extends Applicative[F] with PlusEmpty[F]
+  
+  @typeclass trait MonadPlus[F[_]] extends Monad[F] with ApplicativePlus[F] {
+    def unite[T[_]: Foldable, A](ts: F[T[A]]): F[A] = ...
+  
+    def withFilter[A](fa: F[A])(f: A => Boolean): F[A] = ...
+  }
+~~~~~~~~
+
+`.unite` nos permite hacer un fold de una estructura de datos usando el contenedor externo
+`PlusEmpy[F].monoid` más bien que el contenido interno `Monoid`. Para `List[Either[String, Int]]`
+esto significa que los valores se convierten en `.empty`, cuando todo se concatena. Una forma
+conveniente de descartar los errores:
+
+{lang="text"}
+~~~~~~~~
+  scala> List(Right(1), Left("boo"), Right(2)).unite
+  res: List[Int] = List(1, 2)
+  
+  scala> val boo: Either[String, Int] = Left("boo")
+         boo.foldMap(a => a.pure[List])
+  res: List[String] = List()
+  
+  scala> val n: Either[String, Int] = Right(1)
+         n.foldMap(a => a.pure[List])
+  res: List[Int] = List(1)
+~~~~~~~~
+
+`withFilter`nos permite hacer uso del soporte para `for` comprehension de Scala, como se discutió en
+el capítulo 2. Es justo decir que el lenguaje Scala tiene soporte incluído para `MonadPlus`, no sólo
+`Monad`!
+
+Regreseando a `Foldable` por un momento, podemos revelar algunos métodos que no discutimos antes:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Foldable[F[_]] {
+    ...
+    def msuml[G[_]: PlusEmpty, A](fa: F[G[A]]): G[A] = ...
+    def collapse[X[_]: ApplicativePlus, A](x: F[A]): X[A] = ...
+    ...
+  }
+~~~~~~~~
+
+`msuml` realiza un `fold` utilizando el `Monoid`de `PlusEmpty[G]` y `collapse` realiza un
+`foldRight` usando `PlusEmpty` del tipo target:
+
+{lang="text"}
+~~~~~~~~
+  scala> IList(Option(1), Option.empty[Int], Option(2)).fold
+  res: Option[Int] = Some(3) // uses Monoid[Option[Int]]
+  
+  scala> IList(Option(1), Option.empty[Int], Option(2)).msuml
+  res: Option[Int] = Some(1) // uses PlusEmpty[Option].monoid
+  
+  scala> IList(1, 2).collapse[Option]
+  res: Option[Int] = Some(1)
+~~~~~~~~
+
+## Lobos solitarios
+
+Algunas typeclasses en Scalaz existen por sí mismas y no son parte de una jerarquía más grande.
+
+{width=80%}
+![](images/scalaz-loners.png)
+
+### Zippy
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Zip[F[_]]  {
+    def zip[A, B](a: =>F[A], b: =>F[B]): F[(A, B)]
+  
+    def zipWith[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C)
+                        (implicit F: Functor[F]): F[C] = ...
+  
+    def ap(implicit F: Functor[F]): Apply[F] = ...
+  
+    @op("<*|*>") def apzip[A, B](f: =>F[A] => F[B], a: =>F[A]): F[(A, B)] = ...
+  
+  }
+~~~~~~~~
+
+El método esencial `zip` que es una versión menos poderosa que `Divide.tuple2`, y si un `Functor[F]`
+se proporciona entonces `zipWith`puede comportarse como `Apply.apply2`. En verdad, un `Apply[F]`
+puede crearse a partir de `Zip[F]` y un `Functor[F]` mediante invocar `ap`.
+
+`apzip` toma un `F[A]` y una función elevada de `F[A] => F[B]`, produciendo un `F[(A, B)]` similar
+a `Functor.fproduct`.
+
+A> `<*|*>` es el operador del aterrador Jawa.
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Unzip[F[_]]  {
+    @op("unfzip") def unzip[A, B](a: F[(A, B)]): (F[A], F[B])
+  
+    def firsts[A, B](a: F[(A, B)]): F[A] = ...
+    def seconds[A, B](a: F[(A, B)]): F[B] = ...
+  
+    def unzip3[A, B, C](x: F[(A, (B, C))]): (F[A], F[B], F[C]) = ...
+    ...
+    def unzip7[A ... H](x: F[(A, (B, ... H))]): ...
+  }
+~~~~~~~~
+
+El método central es `unzip` con `firsts` y `seconds` que permite elegir ya sea el primer o segundo
+elemento de una tupla en la `F`. De manera importante, `unzip` es lo opuesto de `zip`.
+
+Los métodos `unzip3` a `unzip7` son aplicaciones repetidas de `unzip` para evitar escribir código
+repetitivo. Por ejemplo, si se le proporcionara un conjunto de tuplas anidadas, el `Unzip[Id]` es
+una manera sencilla de deshacer 
