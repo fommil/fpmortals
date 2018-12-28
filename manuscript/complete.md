@@ -1594,10 +1594,10 @@ part.
 -   `(Boolean |: Boolean)` has 4 values (`2+2`)
 -   `(Boolean |: Boolean |: Boolean)` has 6 values (`2+2+2`)
 
-To find the complexity of a ADT with a type parameter, multiply each part by the
-complexity of the type parameter:
+To find the complexity of an ADT with type parameters, find the complexity of each concrete type and add them together:
 
--   `Option[Boolean]` has 3 values, `Some[Boolean]` and `None` (`2+1`)
+-   `Option[(Boolean, Boolean)]` has 5 values, `Some[(Boolean, Boolean)]` and `None` (`2*2+1`)
+-   `Option[Boolean |: Unit]` has 4 values, `Some[Boolean |: Unit]` and `None` (`(2+1)+1`)
 
 In FP, functions are *total* and must return an value for every
 input, no `Exception`. Minimising the complexity of inputs and outputs
