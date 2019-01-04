@@ -2522,7 +2522,7 @@ we wish to convert:
   import UrlEncodedWriter.ops._
   object AuthRequest {
     implicit val query: UrlQueryWriter[AuthRequest] = { a =>
-      UriQuery(List(
+      UrlQuery(List(
         ("redirect_uri"  -> a.redirect_uri.value),
         ("scope"         -> a.scope),
         ("client_id"     -> a.client_id),

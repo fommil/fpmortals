@@ -210,6 +210,7 @@ A>                   }
 A>   data Company  = Company
 A>                   { name      :: String
 A>                   , employees :: [Resource]
+A>                   }
 A> ~~~~~~~~
 A> 
 A> There are a lot of language extensions and it is not uncommon to have 20 or more
@@ -609,10 +610,6 @@ A production implementation of `Console` would likely have type `Console IO`.
 The Scalaz `liftIO` function is inspired by a Haskell function of the same name
 and can lift `Console IO` into any Advanced Monad stack.
 
-In Haskell we can enable the `DeriveFunctor` language extension and add
-`deriving (Functor)` to our algebras, giving us `liftM` for free, again the
-inspiration for the Scalaz function of the same name.
-
 Two additional language extensions make the business logic even cleaner. For
 example, `RecordWildCards` allows us to import all the fields of a data type by
 using `{..}`:
@@ -624,8 +621,8 @@ using `{..}`:
                         println line
 ~~~~~~~~
 
-The more explicit `NamedFieldPuns` requires each imported field to be listed
-explicitly, which is more boilerplate but makes the code easier to read:
+`NamedFieldPuns` requires each imported field to be listed explicitly, which is
+more boilerplate but makes the code easier to read:
 
 {lang="text"}
 ~~~~~~~~
