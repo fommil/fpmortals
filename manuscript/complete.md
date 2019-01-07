@@ -2450,6 +2450,9 @@ We need to provide typeclass instances for basic types:
     implicit val string: UrlEncodedWriter[String] =
       (s => Refined.unsafeApply(URLEncoder.encode(s, "UTF-8")))
   
+    implicit val url: UrlEncodedWriter[String Refined Url] =
+      (s => s.value.toUrlEncoded)
+  
     implicit val long: UrlEncodedWriter[Long] =
       (s => Refined.unsafeApply(s.toString))
   
@@ -2533,7 +2536,7 @@ we wish to convert:
   }
   object AccessRequest {
     implicit val encoded: UrlEncodedWriter[AccessRequest] = { a =>
-      List(
+      IList(
         "code"          -> a.code.toUrlEncoded,
         "redirect_uri"  -> a.redirect_uri.toUrlEncoded,
         "client_id"     -> a.client_id.toUrlEncoded,
@@ -2545,7 +2548,7 @@ we wish to convert:
   }
   object RefreshRequest {
     implicit val encoded: UrlEncodedWriter[RefreshRequest] = { r =>
-      List(
+      IList(
         "client_secret" -> r.client_secret.toUrlEncoded,
         "refresh_token" -> r.refresh_token.toUrlEncoded,
         "client_id"     -> r.client_id.toUrlEncoded,
@@ -2578,7 +2581,7 @@ responses must have a `JsDecoder` and our `POST` payload must have a
     def post[P: UrlEncodedWriter, A: JsDecoder](
       uri: String Refined Url,
       payload: P,
-      headers: IList[(String, String]
+      headers: IList[(String, String] = IList.empty
     ): F[A]
   }
 ~~~~~~~~
