@@ -10425,7 +10425,7 @@ Similarly, we can call `.parApply` or `.parTupled` after using scream operators
   (fa |@| fb |@| fc).parApply { case (a, b, c) => a + b + c }: IO[String]
 ~~~~~~~~
 
-It is worth nothing that when we have `Applicative` programs, such as
+It is worth noting that when we have `Applicative` programs, such as
 
 {lang="text"}
 ~~~~~~~~
