@@ -10163,17 +10163,17 @@ structure for any algebra `S[_]`
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class Coyoneda[S[_], A] {
-    def run(implicit S: Functor[S]): S[A] = ...
+  sealed abstract class Coyoneda[F[_], A] {
+    def run(implicit F: Functor[F]): F[A] = ...
     def trans[G[_]](f: F ~> G): Coyoneda[G, A] = ...
     ...
   }
   object Coyoneda {
-    implicit def functor[S[_], A]: Functor[Coyoneda[S, A]] = ...
+    implicit def functor[F[_], A]: Functor[Coyoneda[F, A]] = ...
   
     private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
-    def apply[S[_], A, B](sa: S[A])(f: A => B) = Map[S, A, B](sa, f)
-    def lift[S[_], A](sa: S[A]) = Map[S, A, A](sa, identity)
+    def apply[F[_], A, B](sa: F[A])(f: A => B) = Map[F, A, B](sa, f)
+    def lift[F[_], A](sa: F[A]) = Map[F, A, A](sa, identity)
     ...
   }
 ~~~~~~~~
@@ -10182,18 +10182,18 @@ and there is also a contravariant version
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class ContravariantCoyoneda[S[_], A] {
-    def run(implicit S: Contravariant[S]): S[A] = ...
+  sealed abstract class ContravariantCoyoneda[F[_], A] {
+    def run(implicit F: Contravariant[F]): F[A] = ...
     def trans[G[_]](f: F ~> G): ContravariantCoyoneda[G, A] = ...
     ...
   }
   object ContravariantCoyoneda {
-    implicit def contravariant[S[_], A]: Contravariant[ContravariantCoyoneda[S, A]] = ...
+    implicit def contravariant[F[_], A]: Contravariant[ContravariantCoyoneda[F, A]] = ...
   
     private final case class Contramap[F[_], A, B](fa: F[A], f: B => A)
       extends ContravariantCoyoneda[F, A]
-    def apply[S[_], A, B](sa: S[A])(f: B => A) = Contramap[S, A, B](sa, f)
-    def lift[S[_], A](sa: S[A]) = Contramap[S, A, A](sa, identity)
+    def apply[F[_], A, B](sa: F[A])(f: B => A) = Contramap[F, A, B](sa, f)
+    def lift[F[_], A](sa: F[A]) = Contramap[F, A, A](sa, identity)
     ...
   }
 ~~~~~~~~
@@ -10425,7 +10425,7 @@ Similarly, we can call `.parApply` or `.parTupled` after using scream operators
   (fa |@| fb |@| fc).parApply { case (a, b, c) => a + b + c }: IO[String]
 ~~~~~~~~
 
-It is worth nothing that when we have `Applicative` programs, such as
+It is worth noting that when we have `Applicative` programs, such as
 
 {lang="text"}
 ~~~~~~~~
