@@ -8232,7 +8232,7 @@ of a function, so we can provide it as the parameter to a monad's `.bind`, or
 `>>=`.
 
 The most common use for `ReaderT` is to provide environment information to a
-program. In `drone-dynamic-agents` we need access to the user's Oauth 2.0
+program. In `drone-dynamic-agents` we need access to the user's OAuth 2.0
 Refresh Token to be able to contact Google. The obvious thing is to load the
 `RefreshTokens` from disk on startup, and make every method take a
 `RefreshToken` parameter. In fact, this is such a common requirement that Martin
@@ -10448,7 +10448,7 @@ can be painful. Therefore it is often easier to simply request both forms of
 
 We can take a more daring approach to parallelism: opt-out of the law that
 `.apply2` must be sequential for `Monad`. This is highly controversial, but
-works well for the majority of real world applications. we must first audit our
+works well for the majority of real world applications. We must first audit our
 codebase (including third party dependencies) to ensure that nothing is making
 use of the `.apply2` implied law.
 

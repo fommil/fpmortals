@@ -9631,7 +9631,7 @@ of a function, so we can provide it as the parameter to a monad's =.bind=, or
 ~>>=~.
 
 The most common use for =ReaderT= is to provide environment information to a
-program. In =drone-dynamic-agents= we need access to the user's Oauth 2.0
+program. In =drone-dynamic-agents= we need access to the user's OAuth 2.0
 Refresh Token to be able to contact Google. The obvious thing is to load the
 =RefreshTokens= from disk on startup, and make every method take a
 =RefreshToken= parameter. In fact, this is such a common requirement that Martin
