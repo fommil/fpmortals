@@ -4,7 +4,8 @@
 package fommil
 package time
 
-import prelude._, Z._
+import prelude._
+import Z._
 
 private[time] abstract class LocalClockBoilerplate {
   this: LocalClock.type =>
@@ -14,6 +15,11 @@ private[time] abstract class LocalClockBoilerplate {
   ): LocalClock[G[F, ?]] =
     new LocalClock[G[F, ?]] {
       def now: G[F, Epoch] = f.now.liftM[G]
+    }
+
+  def liftErr[E <: Cpr: Injt] (f: LocalClock[Task]) =
+    new LocalClock[IO[E, ?]] {
+      def now: IO[E, Epoch] = f.now.liftErr[E]
     }
 
 }
@@ -28,4 +34,8 @@ private[time] abstract class SleepBoilerplate {
       def sleep(time: FiniteDuration): G[F, Unit] = f.sleep(time).liftM[G]
     }
 
+  def liftErr[E <: Cpr: Injt](f: Sleep[Task]): Sleep[IO[E, ?]] =
+    new Sleep[IO[E, ?]] {
+      def sleep(time: FiniteDuration): IO[E, Unit] = f.sleep(time).liftErr[E]
+    }
 }

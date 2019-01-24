@@ -28,6 +28,7 @@ package object prelude {
   type Nothing  = scala.Nothing
   type Array[A] = scala.Array[A]
   type String   = java.lang.String
+  type Throwable = java.lang.Throwable
 
   type Duration       = scala.concurrent.duration.Duration
   type FiniteDuration = scala.concurrent.duration.FiniteDuration
@@ -354,7 +355,7 @@ package object prelude {
 
     // scalafix:off
     implicit final class IOExtras[E, A](io: IO[E, A]) {
-      def toTask(implicit ev: E <~< java.lang.Throwable): Task[A] =
+      def toTask(implicit ev: E <~< Throwable): Task[A] =
         io.widenError
     }
     implicit final class TaskExtras[A](io: Task[A]) {
@@ -362,6 +363,12 @@ package object prelude {
         io.map(ev).flatMap {
           case \/-(a)   => Task.now(a)
           case -\/(err) => Task.fail(new UnhandledError(err))
+        }
+    }
+    implicit final class BIOExtras[E <: Cpr: Sel[?, Throwable], A](io: IO[E, A]) {
+      def swallowErr: Task[A] =
+        io.catchAll[Throwable] {
+          c => c.select[Throwable].fold(Task.fail[A](new UnhandledError(c)))(Task.fail[A])
         }
     }
     implicit final class TaskCompanionExtras(io: Task.type) {
@@ -440,6 +447,16 @@ package object prelude {
   object T extends shims.ShimsCore {
     implicit val catsEffectInstance: cats.effect.Effect[Task] =
       scalaz.ioeffect.catz.catsEffectInstance
+  }
+
+  type Cpr = shapeless.Coproduct
+  val Cpr: shapeless.Coproduct.type = shapeless.Coproduct
+  type Inj[C <: Cpr, A] = shapeless.ops.coproduct.Inject[C, A]
+  type Injt[C <: Cpr] = Inj[C, Throwable]
+  type Sel[C <: Cpr, A] = shapeless.ops.coproduct.Selector[C, A]
+
+  implicit class LiftErr[E1, A](t: IO[E1, A]) {
+    def liftErr[E <: Cpr: Inj[?, E1]]: IO[E, A] = t.leftMap(Cpr[E].apply(_))
   }
 
 }

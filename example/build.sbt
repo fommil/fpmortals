@@ -34,7 +34,9 @@ libraryDependencies ++= Seq(
   "org.http4s"            %% "http4s-blaze-client" % http4sVersion,
   // and because we're using http4s, all the compat stuff too...
   "com.codecommit" %% "shims"                % "1.4.0",
-  "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1"
+  "org.scalaz"     %% "scalaz-ioeffect-cats" % "2.10.1",
+  "com.github.pshirshov.izumi.r2" %% "distage-core" % "0.6.25",
+  "com.github.pshirshov.izumi.r2" %% "distage-static" % "0.6.25"
 )
 
 val derivingVersion = "1.0.0"
