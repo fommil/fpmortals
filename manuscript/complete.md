@@ -10847,7 +10847,7 @@ We can read the variable and we have a variety of ways to write or update it.
   }
 ~~~~~~~~
 
-We can make use of this optimised `StateMonad` implementation in a `SafeApp`,
+We can make use of this optimised `MonadState` implementation in a `SafeApp`,
 where our `.program` depends on optimised MTL typeclasses:
 
 {lang="text"}
