@@ -12407,7 +12407,7 @@ object StateTask {
 }
 #+END_SRC
 
-We can make use of this optimised =StateMonad= implementation in a =SafeApp=,
+We can make use of this optimised =MonadState= implementation in a =SafeApp=,
 where our =.program= depends on optimised MTL typeclasses:
 
 #+BEGIN_SRC scala
