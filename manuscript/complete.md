@@ -5778,7 +5778,7 @@ The symbolic nature of `\/` makes it read well in type signatures when
 shown infix. Note that symbolic types in Scala associate from the left
 and nested `\/` must have parentheses, e.g. `(A \/ (B \/ (C \/ D))`.
 
-`\/` has right-biased (i.e. `flatMap` applies to `\/-`) typeclass
+>`\/` has right-biased (i.e. `flatMap` applies to `\/-`) typeclass
 instances for:
 
 -   `Monad` / `MonadError`
