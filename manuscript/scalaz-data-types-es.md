@@ -1703,3 +1703,437 @@ que puede visualizarse como
 
 Note que la lista que mantiene `back` está en orden inverso.
 
+Leer el elemento final, `snoc`, es una simple lectura en `back.head`. Añadir un
+elemento al final del `Dequeue` significa añadir un nuevo elemento al frente de
+la lista `back`, y recrear el envoltorio `FullDequeue` (que incrementará el
+tamaño de `backSize` en uno). Casi toda la estructura original es compartida.
+Compare a agregar un nuevo elemento al final de una `IList`, que envolvería
+recrear la estructura completa.
+
+El `frontSize` y el `backSize` se usan para rebalancear el `front` y el `back` de
+modo que casi siempre son del mismo tamaño. Rebalancear significa que algunas
+operaciones sean más lentas que otras (por ejemplo, cuando la estructura de datos
+debe ser reconstruida) pero debido a que únicamente ocurre ocasionalmente, podríamos
+tomar el promedio del costo y decir que es constante.
+
+### `DList`
+
+Las listas ligadas tienen características de rendimiento muy pobres cuando se añaden
+grandes listas. Considere el trabajo que está envuelto en evaluar lo siguiente:
+
+{lang="text"}
+~~~~~~~~
+  ((as ::: bs) ::: (cs ::: ds)) ::: (es ::: (fs ::: gs))
+~~~~~~~~
+
+{width=50%}
+![](images/dlist-list-append.png)
+
+Esto crea seis listas intermedias, recorriendo y reconstruyendo cada lista tres veces
+(con la excepción de `gs` que se comparte durante todas las etapas).
+
+La `DList` (de *lista por diferencias*) es la solución más eficiente para este
+escenario. En lugar de realizar cálculos en cada etapa, es representada como la
+función `IList[A] => IList[A]`
+
+{lang="text"}
+~~~~~~~~
+  final case class DList[A](f: IList[A] => IList[A]) {
+    def toIList: IList[A] = f(IList.empty)
+    def ++(as: DList[A]): DList[A] = DList(xs => f(as.f(xs)))
+    ...
+  }
+  object DList {
+    def fromIList[A](as: IList[A]): DList[A] = DList(xs => as ::: xs)
+  }
+~~~~~~~~
+
+A> Esta es una implementación simplificada: presenta un desbordamiento (*overflow*)
+A> de pila que arreglaremos en el capítulo sobre Mónadas Avanzadas.
+
+El cálculo equivalente es (los símbolos son creados a partir de `DList.fromIList`)
+
+{lang="text"}
+~~~~~~~~
+  (((a ++ b) ++ (c ++ d)) ++ (e ++ (f ++ g))).toIList
+~~~~~~~~
+
+que reparte el trabajo en *appends* asociativos a la derecha (es decir, rápidos)
+
+{lang="text"}
+~~~~~~~~
+  (as ::: (bs ::: (cs ::: (ds ::: (es ::: (fs ::: gs))))))
+~~~~~~~~
+
+utilizando el constructor rápido sobre `IList`.
+
+Como siempre, no hay nada gratis. Existe un costo extra de asignación (alocación)
+dinámica de memoria que puede reducir la velocidad del código que resulta
+naturalmente en *appends* asociativos a la derecha. El incremento de velocidad más
+grande ocurre cuando operaciones `IList` son *asociativas hacia la izquierda*,
+por ejemplo
+
+{lang="text"}
+~~~~~~~~
+  ((((((as ::: bs) ::: cs) ::: ds) ::: es) ::: fs) ::: gs)
+~~~~~~~~
+
+Las listas de diferencia sufren de un marketing malo. Tal vez si su nombre fuera
+`ListBuilderFactory` estarían en la librería estándar.
+
+### `ISet`
+
+Las estructuras de árboles son excelentes para almacenar datos ordenados, con cada
+*nodo binario* manteniendo elementos que son *menores* en una rama, y *mayores* en
+la otra. Sin embargo, implementaciones ingenuas de la estructura de datos árbol
+pueden *desbalancearse* dependiendo del orden de inserción. Es posible mantener un
+árbol perfectamente balanceado, pero es increíblemente ineficiente dado que cada
+inserción efectivamente reconstruye el árbol completo.
+
+`ISet` es una implementación de un árbol con *balanceo acotado*, significando que
+está aproximadamente balanceado, usando el tamaño (`size`) de cada rama para
+balancear el nodo.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ISet[A] {
+    val size: Int = this match {
+      case Tip()        => 0
+      case Bin(_, l, r) => 1 + l.size + r.size
+    }
+    ...
+  }
+  object ISet {
+    private final case class Tip[A]() extends ISet[A]
+    private final case class Bin[A](a: A, l: ISet[A], r: ISet[A]) extends ISet[A]
+  
+    def empty[A]: ISet[A] = Tip()
+    def singleton[A](x: A): ISet[A] = Bin(x, Tip(), Tip())
+    def fromFoldable[F[_]: Foldable, A: Order](xs: F[A]): ISet[A] =
+      xs.foldLeft(empty[A])((a, b) => a insert b)
+    ...
+  }
+~~~~~~~~
+
+`ISet` requiere que `A` tenga un `Order`. La instancia `Order[A]` debe permanecer
+igual entre llamadas o las invariantes internas serán inválidas, llevándonos a tener
+datos corrompidos: es decir, estamos asumiendo la coherencia de typeclases tales que
+`Order[A]` es única para cualquier `A`.
+
+La ADT `ISet` desgraciadamente permite árboles inválidos. Nos esforzamos por escribir
+ADTs que describan completamente lo que es y no es válido usando restricciones de
+tipo, pero algunas veces tenemos situaciones donde únicamente es posible lograrlo
+con el toque inspirado de un inmortal. En lugar de esto, `Tip` / `Bin` son `private`,
+para evitar que los usuarios construyan, accidentalmente, árboles inválidos.
+`.insert` es la única manera de construir un `ISet`, y por lo tanto definir lo que
+es un árbol válido.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ISet[A] {
+    ...
+    def contains(x: A)(implicit o: Order[A]): Boolean = ...
+    def union(other: ISet[A])(implicit o: Order[A]): ISet[A] = ...
+    def delete(x: A)(implicit o: Order[A]): ISet[A] = ...
+  
+    def insert(x: A)(implicit o: Order[A]): ISet[A] = this match {
+      case Tip() => ISet.singleton(x)
+      case self @ Bin(y, l, r) => o.order(x, y) match {
+        case LT => balanceL(y, l.insert(x), r)
+        case GT => balanceR(y, l, r.insert(x))
+        case EQ => self
+      }
+    }
+    ...
+  }
+~~~~~~~~
+
+Los métodos internos `.balanceL` y `.balanceR` son espejos uno del otro, de modo que
+únicamente estudiamos `.balanceL`, que también se llama cuando el valor que estamos
+insertando es *menor* que el nodo actual. También se invoca por el método `.delete`.
+
+{lang="text"}
+~~~~~~~~
+  def balanceL[A](y: A, left: ISet[A], right: ISet[A]): ISet[A] = (left, right) match {
+  ...
+~~~~~~~~
+
+El balanceo requiere que clasifiquemos los escenarios que pueden ocurrir.
+Estudiaremos cada posible escenario, visualizando `(y, left, right)` al lado
+izquierdo de la página, con la estructura balanceada a la derecha, también conocido
+como el *árbol rotado*.
+
+-   círculos llenos visualizan un `Tip`
+-   tres columbas visualizan los campos `left | value | right` de `Bin`
+-   los diamantes visualizan cualquier `ISet`
+
+El primer escenario es el caso trivial, que es cuando, tanto el lado `left` y
+el `right` son `Tip`. De hecho, nunca encontraremos este escenario a partir de
+`.insert`, pero lo encontramos en `.delete`.
+
+{lang="text"}
+~~~~~~~~
+  case (Tip(), Tip()) => singleton(y)
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-1.png)
+
+El segundo caso es cuando `left` es un `Bin` que contiene únicamente a `Tip`, y no
+necesitamos balancear nada, simplemente creamos la conexión obvia:
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, Tip(), Tip()), Tip()) => Bin(y, left, Tip())
+~~~~~~~~
+
+{width=60%}
+![](images/balanceL-2.png)
+
+El tercer caso es cuando esto empieza a ponerse interesante:  `left` es un `Bin`
+conteniendo únicamente un `Bin` a su `right`.
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, Tip(), Bin(lrx, _, _)), Tip()) =>
+    Bin(lrx, singleton(lx), singleton(y))
+~~~~~~~~
+
+{width=70%}
+![](images/balanceL-3.png)
+
+Pero qué ocurrió a los dos diamantes que están debajo de `lrx`? No acabamos de perder
+información? No, no perdimos información, porque podemos razonar (basándonos en el
+balanceo del tamaño) que siempre son `Tip`! No hay regla en cuanto a cualquiera de
+los siguientes escenarios (o en `.balanceR`) que pueden producir un árbol donde los
+diamantes son `Bin`.
+
+El cuarto caso es el opuesto del tercer caso.
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, ll, Tip()), Tip()) => Bin(lx, ll, singleton(y))
+~~~~~~~~
+
+{width=70%}
+![](images/balanceL-4.png)
+
+El quinto caso es cuando tenemos árboles completos en ambos lados del lado `left` y
+de todos modos debemos usar sus tamañaos relativos para decidir cómo rebalancear.
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, ll, lr), Tip()) if (2*ll.size > lr.size) =>
+    Bin(lx, ll, Bin(y, lr, Tip()))
+  case (Bin(lx, ll, Bin(lrx, lrl, lrr)), Tip()) =>
+    Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, Tip()))
+~~~~~~~~
+
+Para la primera rama, `2*ll.size > lr.size`
+
+{width=50%}
+![](images/balanceL-5a.png)
+
+y para la segunda rama `2*ll.size <= lr.size`
+
+{width=75%}
+![](images/balanceL-5b.png)
+
+El sexto escenario introduce un árbol en lado (derecho) *right*. Cuando el lado 
+`left` está vacío creamos la conexión obvia. Ese escenario nunca surge a partir de
+`.insert` porque el lado `.left` siempre está no vacío:
+
+{lang="text"}
+~~~~~~~~
+  case (Tip(), r) => Bin(y, Tip(), r)
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-6.png)
+
+El escenario final ocurre cuando tenemos árboles no vacíos en ambos lados. A menos
+que el lado `left` sea tres veces o más el tamaño del lado `right`, podemos hacer
+lo más sencillo y crear un nuevo `Bin`.
+
+{lang="text"}
+~~~~~~~~
+  case _ if l.size <= 3 * r.size => Bin(y, l, r)
+~~~~~~~~
+
+{width=50%}
+![](images/balanceL-7a.png)
+
+Sin embargo, si el lado `left` debiera tener más de tres veces el tamaño del lado
+`right`, debemos balancear basándonos en los tamaños relativos de `ll` y `lr`, como
+en el escenario cinco.
+
+{lang="text"}
+~~~~~~~~
+  case (Bin(lx, ll, lr), r) if (2*ll.size > lr.size) =>
+    Bin(lx, ll, Bin(y, lr, r))
+  case (Bin(lx, ll, Bin(lrx, lrl, lrr)), r) =>
+    Bin(lrx, Bin(lx, ll, lrl), Bin(y, lrr, r))
+~~~~~~~~
+
+{width=60%}
+![](images/balanceL-7b.png)
+
+{width=75%}
+![](images/balanceL-7c.png)
+
+Esto concluye nuestro estudio del método `.insert` y cómo se construye un `ISet`.
+No debería ser sorpresivo que `Foldable` esté implementado en términos de una
+búsqueda en lo profundo, junto con `left` y `right`, como es apropiado. Métodos
+tales como `.minimum` y `.maximum` son óptimos porque la estructura de datos
+ya codifica el orden.
+
+Es valioso hacer ntar quealgunos métodos de typeclass *no pueden* ser implementados
+de manera tan eficiente como quisieramos. Considere la signatura de
+`Foldable.element`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Foldable[F[_]] {
+    ...
+    def element[A: Equal](fa: F[A], a: A): Boolean
+    ...
+  }
+~~~~~~~~
+
+Una implememntación obiva para `.element` es (de manera práctica) delegar a la
+búsqueda binaria `ISet.contains`. Sin embargo, no es posible debido a que
+`.element` proporciona `Equal` mientras que `.contains` requiere de `Order`.
+
+`ISet` es incapaz de proporcionar un `Functor` por la misma razón. En la práctica
+esto es una restricción sensible: realizar un `.map` significaría reconstruir toda
+la estructura de datos completa. Tiene sentido convertir a un tipo de datos distinto,
+tales como `IList`, realizando el `.map`, y convirtiendo de vuelta. Una consecuencia
+es que ya no es posible tener un `Traverse[ISet]` o `Applicative[Set]`.
+
+### `IMap`
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ==>>[A, B] {
+    val size: Int = this match {
+      case Tip()           => 0
+      case Bin(_, _, l, r) => 1 + l.size + r.size
+    }
+  }
+  object ==>> {
+    type IMap[A, B] = A ==>> B
+  
+    private final case class Tip[A, B]() extends (A ==>> B)
+    private final case class Bin[A, B](
+      key: A,
+      value: B,
+      left: A ==>> B,
+      right: A ==>> B
+    ) extends ==>>[A, B]
+  
+    def apply[A: Order, B](x: (A, B)*): A ==>> B = ...
+  
+    def empty[A, B]: A ==>> B = Tip[A, B]()
+    def singleton[A, B](k: A, x: B): A ==>> B = Bin(k, x, Tip(), Tip())
+    def fromFoldable[F[_]: Foldable, A: Order, B](fa: F[(A, B)]): A ==>> B = ...
+    ...
+  }
+~~~~~~~~
+
+¡Esto es muy familiar! En realidad, `IMap` (un alias para el operador de la
+velocidad de la luz) es otro árbol balanceado en tamaño, pero con un campo extra
+`value: B` en cada rama del árbol binario, permitiendo almacenar pares de
+llave/valor. Únicamente el tipo clave `A` necesita un `Order` y una clase
+conveniente de métodos son proporcionados para permitir una actualización fácil de
+entradas.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ==>>[A, B] {
+    ...
+    def adjust(k: A, f: B => B)(implicit o: Order[A]): A ==>> B = ...
+    def adjustWithKey(k: A, f: (A, B) => B)(implicit o: Order[A]): A ==>> B = ...
+    ...
+  }
+~~~~~~~~
+
+`Tree` es una versión *by need* (por necesidad) de `StrictTree` con constructores
+convenientes
+
+{lang="text"}
+~~~~~~~~
+  class Tree[A](
+    rootc: Need[A],
+    forestc: Need[Stream[Tree[A]]]
+  ) {
+    def rootLabel = rootc.value
+    def subForest = forestc.value
+  }
+  object Tree {
+    object Node {
+      def apply[A](root: =>A, forest: =>Stream[Tree[A]]): Tree[A] = ...
+    }
+    object Leaf {
+      def apply[A](root: =>A): Tree[A] = ...
+    }
+  }
+~~~~~~~~
+
+Se espera que el usuario de un Rose Tree lo balancee manualmente, lo que lo hace
+adecuado para casos donde es útil codificar conocimiento especializado de cierta
+jerarquía del dominio en la estructura de datos. Por ejemplo, en el campo de la
+inteligencia artificial, un árbol de Rose puede ser usado en
+[algoritmos de agrupamiento](https://arxiv.org/abs/1203.3468) para organizar
+datos en una jerarquía de cosas cada vez más similares. Es posible representar
+documentos XML con un árbol Rose.
+
+Cuando trabajamos con datos jerárquicos, considere usar un árbol Rose en lugar de
+hacer una estructura de datos a la medida.
+
+### `FingerTree`
+
+Los árboles de dedo son secuencias generalizadas con un costo de búsqueda amortizado
+y concatenación logarítmica. `A` es el tipo de datos, ignore `V` por ahora:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class FingerTree[V, A] {
+    def +:(a: A): FingerTree[V, A] = ...
+    def :+(a: =>A): FingerTree[V, A] = ...
+    def <++>(right: =>FingerTree[V, A]): FingerTree[V, A] = ...
+    ...
+  }
+  object FingerTree {
+    private class Empty[V, A]() extends FingerTree[V, A]
+    private class Single[V, A](v: V, a: =>A) extends FingerTree[V, A]
+    private class Deep[V, A](
+      v: V,
+      left: Finger[V, A],
+      spine: =>FingerTree[V, Node[V, A]],
+      right: Finger[V, A]
+    ) extends FingerTree[V, A]
+  
+    sealed abstract class Finger[V, A]
+    final case class One[V, A](v: V, a1: A) extends Finger[V, A]
+    final case class Two[V, A](v: V, a1: A, a2: A) extends Finger[V, A]
+    final case class Three[V, A](v: V, a1: A, a2: A, a3: A) extends Finger[V, A]
+    final case class Four[V, A](v: V, a1: A, a2: A, a3: A, a4: A) extends Finger[V, A]
+  
+    sealed abstract class Node[V, A]
+    private class Node2[V, A](v: V, a1: =>A, a2: =>A) extends Node[V, A]
+    private class Node3[V, A](v: V, a1: =>A, a2: =>A, a3: =>A) extends Node[V, A]
+    ...
+  }
+~~~~~~~~
+
+A> `<++>` es el bombardero TIE. Ciertamente, enviar torpedos de protones es un poco
+A> exagerado: es la misma cosa que un bombardero TIE `Monoid` `|+|`
+
+Visualizando `FingerTree` como puntos, `Finger` como cajas y `Node` como cajas dentro
+de cajas:
+
+{width=35%}
+![](images/fingertree.png)
+
+Agregar elementos al frente de un `FingerTree` con `+:` es eficiente porque `Deep`
+simplemente añade un nuevo elemento al dedo del lado `left`.
