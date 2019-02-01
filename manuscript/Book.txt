@@ -12,4 +12,6 @@ data-and-functionality-es.md
 
 scalaz-typeclasses-es.md
 
+scalaz-data-types-es.md
+
 backmatter.md
