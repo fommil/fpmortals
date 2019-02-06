@@ -12133,7 +12133,7 @@ For example
   final case class Money(@json.field("integer") i: Int) extends Cost
 ~~~~~~~~
 
-Start with a `JsDecoder` that handles only our sensible defaults:
+Start with a `JsEncoder` that handles only our sensible defaults:
 
 {lang="text"}
 ~~~~~~~~
