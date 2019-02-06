@@ -2136,4 +2136,358 @@ de cajas:
 ![](images/fingertree.png)
 
 Agregar elementos al frente de un `FingerTree` con `+:` es eficiente porque `Deep`
-simplemente añade un nuevo elemento al dedo del lado `left`.
+simplemente añade un nuevo elemento al dedo del lado `left`. Si el dedo es un `Four`,
+reconstruimos la espina (`spine`) para tomar 3 de los elementos como un `Node3`.
+Agregando al final, `:+`, es lo mismo pero en reversa.
+
+Agregar cosas `|+|` (también `<++>`) es más eficiente que agregar un elemento a la vez
+debido a que el caso de dos árboles `Deep` pueden retener las ramas externas,
+reconstruyendo la espina basándose en las 16 posibles combinaciones de los dos valores
+`Finger` en la mitad.
+
+En la discusión anterior nos saltamos `V`. En la descripción de la ADT no se muestra una
+`implicit measurer: Reducer[A, V]` en cada elemento de la ADT.
+
+A> Almacenar instancias de la typeclass en la ADT es considerado como mal estilo y también
+A> incrementa el requerimiento de memoria en 64 bits por cada entrada. La implementación
+A> de `FingerTree` tiene casi una década de edad y ya es necesario que se reescriba.
+
+`Reducer` es una extensión de `Monoid` que permite que un solo elemento se agregue a una
+`M`.
+
+{lang="text"}
+~~~~~~~~
+  class Reducer[C, M: Monoid] {
+    def unit(c: C): M
+  
+    def snoc(m: M, c: C): M = append(m, unit(c))
+    def cons(c: C, m: M): M = append(unit(c), m)
+  }
+~~~~~~~~
+
+Por ejemplo, `Reducer[A, IList[A]]` puede proporcionar un `.cons` eficiente
+
+{lang="text"}
+~~~~~~~~
+  implicit def reducer[A]: Reducer[A, IList[A]] = new Reducer[A, IList[A]] {
+    override def unit(a: A): IList[A] = IList.single(a)
+    override def cons(a: A, as: IList[A]): IList[A] = a :: as
+  }
+~~~~~~~~
+
+A> `Reducer` debió llamarse `CanActuallyBuildFrom`, en honor a la clase de la
+A> librería estándar de nombre similar, dado que se trata, efectivamente, de
+A> un constructor de colecciones.
+
+#### `IndSeq`
+
+Si usamos `Int` como `V`, podemos obtener una secuencia indexada, donde la medida
+es el tamaño, permitiéndonos realizar una búsqueda basada en el índice al comparar
+el índice deseado con el tamaño de cada rama en la estructura:
+
+{lang="text"}
+~~~~~~~~
+  final class IndSeq[A](val self: FingerTree[Int, A])
+  object IndSeq {
+    private implicit def sizer[A]: Reducer[A, Int] = _ => 1
+    def apply[A](as: A*): IndSeq[A] = ...
+  }
+~~~~~~~~
+
+Otro uso de `FingerTree` es una secuencia ordenada, donde la medida almacena el valor
+más largo contenido en cada rama:
+
+#### `OrdSeq`
+
+{lang="text"}
+~~~~~~~~
+  final class OrdSeq[A: Order](val self: FingerTree[LastOption[A], A]) {
+    def partition(a: A): (OrdSeq[A], OrdSeq[A]) = ...
+    def insert(a: A): OrdSeq[A] = ...
+    def ++(xs: OrdSeq[A]): OrdSeq[A] = ...
+  }
+  object OrdSeq {
+    private implicit def keyer[A]: Reducer[A, LastOption[A]] = a => Tag(Some(a))
+    def apply[A: Order](as: A*): OrdSeq[A] = ...
+  }
+~~~~~~~~
+
+`OrdSeq` no tiene instancias de typeclases de modo que únicamente es útil para construir
+incrementalmente una secuencia ordenada, con duplicados. Podemos acceder al `FingerTree`
+subyacente cuando sea necesario.
+
+#### `Cord`
+
+El caso más común de `FingerTree` es un almacén intermedio para representaciones de `String`
+en `Show`. Construir una sola `String` puede ser miles de veces más rápido que la
+implementación default de `case class` de `.toString` anidadas, que construye una `String`
+para cada capa en la ADT.
+
+{lang="text"}
+~~~~~~~~
+  final case class Cord(self: FingerTree[Int, String]) {
+    override def toString: String = {
+      val sb = new java.lang.StringBuilder(self.measure)
+      self.foreach(sb.append) // locally scoped side effect
+      sb.toString
+    }
+    ...
+  }
+~~~~~~~~
+
+Por ejemplo, la instancia `Cord[String]` devuelve una `Three` con la cadena a
+la mitad y comillas en ambos lados
+
+{lang="text"}
+~~~~~~~~
+  implicit val show: Show[String] = s => Cord(FingerTree.Three("\"", s, "\""))
+~~~~~~~~
+
+Por lo tanto una `String` se muestra tal y como se escribe en el código fuente
+
+{lang="text"}
+~~~~~~~~
+  scala> val s = "foo"
+         s.toString
+  res: String = foo
+  
+  scala> s.show
+  res: Cord = "foo"
+~~~~~~~~
+
+A> `Cord` en Scalaz 7.2 no es, desgraciadamente, tan eficiente como debería serlo. Esto
+A> se arregla en Scalaz 7.3 mediante una [estructura de datos ad hoc optimizada para
+A> concatenación de `String`](https://github.com/scalaz/scalaz/pull/1793).
+
+### Cola de prioridad `Heap`
+
+Una *cola de prioridad* es una estructura de datos que permite una rápida inserción de
+elementos ordenados, permitiendo duplicados, con un rápido acceso al valor *mínimo*
+(la prioridad más alta). La estructura no es necesaria para almacenar los elementos
+no mínimos en orden. Una implementación ingenua de una cola de prioridad podría ser
+
+{lang="text"}
+~~~~~~~~
+  final case class Vip[A] private (val peek: Maybe[A], xs: IList[A]) {
+    def push(a: A)(implicit O: Order[A]): Vip[A] = peek match {
+      case Maybe.Just(min) if a < min => Vip(a.just, min :: xs)
+      case _                          => Vip(peek, a :: xs)
+    }
+  
+    def pop(implicit O: Order[A]): Maybe[(A, Vip[A])] = peek strengthR reorder
+    private def reorder(implicit O: Order[A]): Vip[A] = xs.sorted match {
+      case INil()           => Vip(Maybe.empty, IList.empty)
+      case ICons(min, rest) => Vip(min.just, rest)
+    }
+  }
+  object Vip {
+    def fromList[A: Order](xs: IList[A]): Vip[A] = Vip(Maybe.empty, xs).reorder
+  }
+~~~~~~~~
+
+Este `push` es muy rápido `O(1)`, pero el `reorder` (y por lo tanto `pop`) depende de
+`IList.sorted` con un costo de `O(n log n)`.
+
+Scalaz codifica una cola de prioridad con una estructura de árbol donde cada nodo
+tiene un valor menor que sus hijos. `Heap` tiene un operaciones rápidas push (`insert`),
+`union`, `size`, pop (`uncons`) y peek (`minimumO`):
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Heap[A] {
+    def insert(a: A)(implicit O: Order[A]): Heap[A] = ...
+    def +(a: A)(implicit O: Order[A]): Heap[A] = insert(a)
+  
+    def union(as: Heap[A])(implicit O: Order[A]): Heap[A] = ...
+  
+    def uncons(implicit O: Order[A]): Option[(A, Heap[A])] = minimumO strengthR deleteMin
+    def minimumO: Option[A] = ...
+    def deleteMin(implicit O: Order[A]): Heap[A] = ...
+  
+    ...
+  }
+  object Heap {
+    def fromData[F[_]: Foldable, A: Order](as: F[A]): Heap[A] = ...
+  
+    private final case class Ranked[A](rank: Int, value: A)
+  
+    private final case class Empty[A]() extends Heap[A]
+    private final case class NonEmpty[A](
+      size: Int,
+      tree: Tree[Ranked[A]]
+    ) extends Heap[A]
+  
+    ...
+  }
+~~~~~~~~
+
+A> `size` es memoizada en la ADT para permitir el cálculo instantaneo de
+A> `Foldable.length`, a un costo de 64 bits por entrada. Una variante de
+A> `Heap` podría crearse con una huella (tamaño) más pequeño, pero un
+A> `Foldable.length` más lento.
+
+`Heap` está implementado con un Rose `Tree` de valores `Ranked`, donde `rank`
+es la profundidad del sub-árbol, permitiéndonos balancear la profundidad del árbol.
+Manualmente mantenemos el árbol de modo que el valor `mínimo` está en la raíz.
+Una ventaja de que se codifique el valor mínimo en la estructura de datos es que
+`minimum0` (conocido también como *peek*) es una búsqueda inmediata y sin costo
+alguno:
+
+{lang="text"}
+~~~~~~~~
+  def minimumO: Option[A] = this match {
+    case Empty()                        => None
+    case NonEmpty(_, Tree.Node(min, _)) => Some(min.value)
+  }
+~~~~~~~~
+
+Cuando insertamos una nueva entrada, comparamos el valor mínimo actual y lo
+reemplazamos si la nueva entrada es más pequeña:
+
+{lang="text"}
+~~~~~~~~
+  def insert(a: A)(implicit O: Order[A]): Heap[A] = this match {
+    case Empty() =>
+      NonEmpty(1, Tree.Leaf(Ranked(0, a)))
+    case NonEmpty(size, tree @ Tree.Node(min, _)) if a <= min.value =>
+      NonEmpty(size + 1, Tree.Node(Ranked(0, a), Stream(tree)))
+  ...
+~~~~~~~~
+
+Las inserciones de valores que no son mínimos resulta en una estructura de datos
+*desordenada* en las ramas del nodo mínimo. Cuando encontramos dos o más
+subárboles de rango idéntico, colocamos el valor mínimo de manera optimista al
+frente:
+
+{lang="text"}
+~~~~~~~~
+  ...
+    case NonEmpty(size, Tree.Node(min,
+           (t1 @ Tree.Node(Ranked(r1, x1), xs1)) #::
+           (t2 @ Tree.Node(Ranked(r2, x2), xs2)) #:: ts)) if r1 == r2 =>
+      lazy val t0 = Tree.Leaf(Ranked(0, a))
+      val sub =
+        if (x1 <= a && x1 <= x2)
+          Tree.Node(Ranked(r1 + 1, x1), t0 #:: t2 #:: xs1)
+        else if (x2 <= a && x2 <= x1)
+          Tree.Node(Ranked(r2 + 1, x2), t0 #:: t1 #:: xs2)
+        else
+          Tree.Node(Ranked(r1 + 1, a), t1 #:: t2 #:: Stream())
+  
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min.value), sub #:: ts))
+  
+    case NonEmpty(size,  Tree.Node(min, rest)) =>
+      val t0 = Tree.Leaf(Ranked(0, a))
+      NonEmpty(size + 1, Tree.Node(Ranked(0, min.value), t0 #:: rest))
+  }
+~~~~~~~~
+
+Al evitar un ordenamiento completo del árbol hacemos que `insert` sea muy
+rápido, `O(1)`, de modo que los productores que agregan elementos a la cola
+no son penalizados. Sin embargo, el consumidor paga el costo cuando invoca
+`uncons`, con `deleteMin` teniendo un costo `O(log n)` debido a que debe
+buscar el valor mínimo, y removerlo del árbol al reconstruirlo. Esto es
+rápido cuando se compara con una implementación ingenua.
+
+La operación `union` también retrasa el ordenamiento permitiéndo que se
+realice en `O(1)`.
+
+Si `Order[Foo]` no captura correctamente la prioridad que deseamos para el
+`Heap[Foo]`, podemos usar `Tag` y proporcionar un `Order[Foo @@ Custom]`
+ad-hoc para un `Heap[Foo @@ Custom]`.
+
+### `Diev` (Discrete Intervals)
+
+Podemos codificar eficientemente los valores enteros (desordenados)
+6, 9, 2, 13, 8, 14, 10, 7, 5 como intervalos inclusivos
+`[2, 2], [5, 10], [13, 14]`. `Diev` tiene una codificación eficiente
+de *intervalos* para elementos `A` que tienen un `Enum[A]`, haciéndose
+más eficientes a medida que el contenido se hace más denso.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Diev[A] {
+    def +(interval: (A, A)): Diev[A]
+    def +(value: A): Diev[A]
+    def ++(other: Diev[A]): Diev[A]
+  
+    def -(interval: (A, A)): Diev[A]
+    def -(value: A): Diev[A]
+    def --(other: Diev[A]): Diev[A]
+  
+    def intervals: Vector[(A, A)]
+    def contains(value: A): Boolean
+    def contains(interval: (A, A)): Boolean
+    ...
+  }
+  object Diev {
+    private final case class DieVector[A: Enum](
+      intervals: Vector[(A, A)]
+    ) extends Diev[A]
+  
+    def empty[A: Enum]: Diev[A] = ...
+    def fromValuesSeq[A: Enum](values: Seq[A]): Diev[A] = ...
+    def fromIntervalsSeq[A: Enum](intervals: Seq[(A, A)]): Diev[A] = ...
+  }
+~~~~~~~~
+
+Cuando actualizamos el `Diev`, los intervalos adyacentes se fusionan
+(y entonces ordenados) tales que hay una representación única para un conjunto
+dado de valores.
+
+{lang="text"}
+~~~~~~~~
+  scala> Diev.fromValuesSeq(List(6, 9, 2, 13, 8, 14, 10, 7, 5))
+  res: Diev[Int] = ((2,2)(5,10)(13,14))
+  
+  scala> Diev.fromValuesSeq(List(6, 9, 2, 13, 8, 14, 10, 7, 5).reverse)
+  res: Diev[Int] = ((2,2)(5,10)(13,14))
+~~~~~~~~
+
+Un gran caso de uso para `Diev` es para almacenar periodos de tiempo. Por
+ejemplo, en nuestro `TradeTemplate` del capítulo anterior
+
+{lang="text"}
+~~~~~~~~
+  final case class TradeTemplate(
+    payments: List[java.time.LocalDate],
+    ccy: Option[Currency],
+    otc: Option[Boolean]
+  )
+~~~~~~~~
+
+si encontramos que los `payments` son muy densos, tal vez deseemos intercambiar
+a una representación `Diev` por razones de rendimiento, sin ningún cambio en
+nuestra lógica de negocios porque usamos un `Monoid`, no ningún método específico
+de `List`. Sin embargo, tendríamos que proporcionar un `Enum[LocalDate]`, que de
+otra manera sería algo útil y bueno que tener.
+
+### `OneAnd`
+
+Recuerde que `Foldable` es el equivalente de Scalaz de una API de colecciones y que
+`Foldable1` es para colecciones no vacías. Hasta el momento hemos revisado únicamente
+`NonEmptyList` para proporcionar un `Foldable1`. La estructura de datos simple `OneAnd`
+envuelve cualquier otra colección y la convierte en un `Foldable1`.
+
+{lang="text"}
+~~~~~~~~
+  final case class OneAnd[F[_], A](head: A, tail: F[A])
+~~~~~~~~
+
+`NonEmptyList[A]` podría ser un alias a `OneAnd[IList, A]`. De manera similar, podemos
+crear `Stream` no vacío, y estructuras `DList` y `Tree`. Sin embargo, podría terminar
+con las características de ordenamiento y unicidad de la estructura de datos subyacente:
+un `OneAnd[ISet, A]` no es un `ISet` no vacío, se trata de un `ISet` con la garantía de
+que se tiene un primer elemento que también puede estar en el `ISet`.
+
+## Sumario
+
+En este capítulo hemos revisado rápidamente los tipos de datos que Scalaz tiene que ofrecer.
+
+No es necesario recordad todo lo estudiado en este capítulo: piense que cada sección es la
+semilla o corazón de una idea.
+
+El mundo de las estructuras de datos funcionales es una área activa de investigación.
+Publicaciones académicas aparecen regularmente con nuevos enfoques a viejos problemas. La
+implementación de una estructura de datos funcionales a partir de la literatura sería una
+buena contribución al ecosistema de Scalaz.
