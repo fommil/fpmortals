@@ -13724,7 +13724,7 @@ final case class Time(s: String) extends Cost
 final case class Money(@json.field("integer") i: Int) extends Cost
 #+END_SRC
 
-Start with a =JsDecoder= that handles only our sensible defaults:
+Start with a =JsEncoder= that handles only our sensible defaults:
 
 #+BEGIN_SRC scala
 object JsMagnoliaEncoder {
