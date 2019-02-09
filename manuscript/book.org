@@ -14212,7 +14212,7 @@ signature and simple implementation:
 import shapeless._
 
 object DerivedEqual {
-  def gen[A, R: DerivedEqual](implicit G: Generic.Aux[A, R]): Equal[A] =
+  def gen[A, R: DerivedEqual](implicit G: Generic.Aux[A, R]): DerivedEqual[A] =
     (a1, a2) => Equal[R].equal(G.to(a1), G.to(a2))
 }
 #+END_SRC
