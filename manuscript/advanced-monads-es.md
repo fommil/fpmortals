@@ -2100,3 +2100,283 @@ ventaja de las typeclases de `Monad` es que podemos crear una versión optimizad
 `F[_]` para nuestra aplicación que proporcione las typeclases naturalmente.
 Aprenderemos cómo crear una `F[_]` en los próximos dos capítulos, cuando estudiemos
 seriamente dos estructuras que ya hemos visto: `Free` y `IO`.
+
+## Una comida gratis
+
+Nuestra industria ruega el uso de lenguajes de alto nivel que sean seguros,
+intercambiando la eficiencia de los desarrolladores y la confiabilidad por un
+tiempo reducido durante la ejecución.
+
+El compilador JIT (por sus siglas en inglés: *Just In Time*) en la JVM tiene un
+desempeño tan alto que funciones simples tienen un desempeño comparable a sus
+equivalentes en C o C++, ignorando el costo del recolector de basura. Sin embargo,
+el JIT realiza únicamente *optimizaciones de bajo nivel*: predicción de
+bifurcaciones, el *inlining* (sustitución) de métodos, despliegue de ciclos,
+y así sucesivamente.
+
+El JIT no realiza optimizaciones de nuestra lógica de negocios, por ejemplo
+realizar un agrupamiento de las llamadas de red, o la paralelización de tareas
+independientes. El desarrollador es responsable de escribir la lógica de negocio y
+las optimizaciones a la vez, reduciendo la legibilidad y haciendo el código más
+difícil de mantener. Sería muy bueno si las optimizaciones fueran asuntos de
+importancia secundaria.
+
+Si, en vez de esto, tenemos una estructura de datos que describe nuestra lógica de
+negocios en términos de conceptos de alto nivel, no de instrucciones de máquina,
+podemos realizar optimizaciones de alto nivel. Las estructuras de datos de esta
+naturaleza se llaman, típicamente, estructuras *Free* (libres) y pueden generarse
+automáticamente para los miembros de interfaces algebraicas de nuestro programa.
+Por ejemplo, un *Free Applicative* puede ser generado para permitirnos ejecutar
+agrupamiento por lotes o la simplificación de I/O costosa a través de la red.
+
+En esta sección aprenderemos cómo crear estructuras libres, y cómo pueden ser
+usadas.
+
+### `Free` (`Monad`)
+
+Fundamentalmente, las mónadas describen un programa secuencial donde cada paso
+depende del previo. Por lo tanto estamos limitados a modificaciones que sólo
+saben sobre cosas que ya hemos ejecutado y la próxima que vamos a ejecutar.
+
+A> Estuvo muy de moda, cerca de 2105, escribir programas en términos de `Free`
+A> de modo que esto consiste tanto en un ejercicio como en la comprensión de
+A> este tipo de código, así como de la capacidad de escribirlo y usarlo.
+A>
+A> Es necesario escribir mucho código repetitivo en la creación de una estructura
+A> libre. Podemos usar este estudio de `Free` para aprender cómo generar
+A> el código repetitivo.
+
+Como un recordatorio, `Free`  es la representación de la estructura de datos de una
+`Monad` y está definido por tres miembros
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Free[S[_], A] {
+    def mapSuspension[T[_]](f: S ~> T): Free[T, A] = ...
+    def foldMap[M[_]: Monad](f: S ~> M): M[A] = ...
+    ...
+  }
+  object Free {
+    implicit def monad[S[_], A]: Monad[Free[S, A]] = ...
+  
+    private final case class Suspend[S[_], A](a: S[A]) extends Free[S, A]
+    private final case class Return[S[_], A](a: A)     extends Free[S, A]
+    private final case class Gosub[S[_], A0, B](
+      a: Free[S, A0],
+      f: A0 => Free[S, B]
+    ) extends Free[S, B] { type A = A0 }
+  
+    def liftF[S[_], A](value: S[A]): Free[S, A] = Suspend(value)
+    ...
+  }
+~~~~~~~~
+
+- `Suspend` representa un programa que todavía no ha sido interpretado
+- `Return` es `.pure`
+- `Gosub` es `.bind`
+
+Un valor `Free[S, A]` puede ser generada de manera automática para cualquier álgebra
+`S`. Para hacer esto explícito, considere nuesra aplicación del álgebra de
+`Machines`
+
+{lang="text"}
+~~~~~~~~
+  trait Machines[F[_]] {
+    def getTime: F[Epoch]
+    def getManaged: F[NonEmptyList[MachineNode]]
+    def getAlive: F[Map[MachineNode, Epoch]]
+    def start(node: MachineNode): F[Unit]
+    def stop(node: MachineNode): F[Unit]
+  }
+~~~~~~~~
+
+Podemos definir una estructura `Free` generada para `Machines` al crear una ADT con
+un tipo de datos para cada elemento en el álgebra. Cada tipo de datos tiene los
+mismos tipos de parámetros como su elemento correspondiente, está parametrizado
+sobre el tipo de retorno, y tiene el mismo nombre:
+
+{lang="text"}
+~~~~~~~~
+  object Machines {
+    sealed abstract class Ast[A]
+    final case class GetTime()                extends Ast[Epoch]
+    final case class GetManaged()             extends Ast[NonEmptyList[MachineNode]]
+    final case class GetAlive()               extends Ast[Map[MachineNode, Epoch]]
+    final case class Start(node: MachineNode) extends Ast[Unit]
+    final case class Stop(node: MachineNode)  extends Ast[Unit]
+    ...
+~~~~~~~~
+
+La ADT define un AST (por sus siglas en inglés *Abstract Syntax Tree*) debido a que
+cada miembro está representando un cómputo en un programa.
+
+W> La estructura `Free` generada libremente para `Machines` es
+W> `Free[Machines.Ast, ?]`, es decir, para la AST, not `Free[Machines, ?]`.
+W> Es fácil cometer un error, dado que el último compilará, pero no tiene
+W> significado.
+
+Entonces definimos `.liftF`, una implementación de `Machines`, con `Free[Ast, ?]`
+siendo el contexto. Todo método simplemente delega a `Free.liftT` para crear un
+`Suspend`
+
+{lang="text"}
+~~~~~~~~
+  ...
+    def liftF = new Machines[Free[Ast, ?]] {
+      def getTime = Free.liftF(GetTime())
+      def getManaged = Free.liftF(GetManaged())
+      def getAlive = Free.liftF(GetAlive())
+      def start(node: MachineNode) = Free.liftF(Start(node))
+      def stop(node: MachineNode) = Free.liftF(Stop(node))
+    }
+  }
+~~~~~~~~
+
+cuando construimos un programa, parametrizado sobre un valor `Free`, lo ejecutamos
+al proporcionar un *intérprete* (una transformación natural `Ast ~> M`) al método
+`.foldMap`. Por ejemplo, si pudieramos proporcionar un intérprete que mapee a
+`IO` podemos construir un `IO[Unit]` por medio del AST libre
+
+{lang="text"}
+~~~~~~~~
+  def program[F[_]: Monad](M: Machines[F]): F[Unit] = ...
+  
+  val interpreter: Machines.Ast ~> IO = ...
+  
+  val app: IO[Unit] = program[Free[Machines.Ast, ?]](Machines.liftF)
+                        .foldMap(interpreter)
+~~~~~~~~
+
+En aras de la exhaustividad, un intérprete que delega a una implementación directa
+es fácil de escribir. Esto puede ser útil si el resto de la aplicación está usando
+`Free` como el contexto y nosotros tenemos una implementación `IO` que deseamos
+usar:
+
+{lang="text"}
+~~~~~~~~
+  def interpreter[F[_]](f: Machines[F]): Ast ~> F = λ[Ast ~> F] {
+    case GetTime()    => f.getTime
+    case GetManaged() => f.getManaged
+    case GetAlive()   => f.getAlive
+    case Start(node)  => f.start(node)
+    case Stop(node)   => f.stop(node)
+  }
+~~~~~~~~
+
+Pero nuestra lógica de negocios requiere de más que simplemente `Machines`, también
+requerimos acceder a nuestra álgebra de `Drone`, y recuerde que está definido como
+
+{lang="text"}
+~~~~~~~~
+  trait Drone[F[_]] {
+    def getBacklog: F[Int]
+    def getAgents: F[Int]
+  }
+  object Drone {
+    sealed abstract class Ast[A]
+    ...
+    def liftF = ...
+    def interpreter = ...
+  }
+~~~~~~~~
+
+Lo que deseamos es que nuestra AST sea la combinación de ASTs para `Machines` y
+`Drone`. Estudiamos `Coproduct` en el capítulo 6, que es una disjunción de alta clase (una *higher kinded disjunction*):
+
+{lang="text"}
+~~~~~~~~
+  final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A])
+~~~~~~~~
+
+Podemos usar el contexto `Free[Coproduct[Machines.Ast, Drone.Ast, ?], ?]`.
+
+Podríamos crear manualmente el coproducto pero estaríamos nadando en código
+repetivo, y tendríamos que repetirlo todo de nuevo si desearamos agregar una
+tercer álgebra.
+
+La typeclass con el nombre `scalaz.Inject` ayuda:
+
+{lang="text"}
+~~~~~~~~
+  type :<:[F[_], G[_]] = Inject[F, G]
+  sealed abstract class Inject[F[_], G[_]] {
+    def inj[A](fa: F[A]): G[A]
+    def prj[A](ga: G[A]): Option[F[A]]
+  }
+  object Inject {
+    implicit def left[F[_], G[_]]: F :<: Coproduct[F, G, ?]] = ...
+    ...
+  }
+~~~~~~~~
+
+Las derivaciones implícitas generan instancias de `Inject` cuando las requerimos,
+permitiéndonos reescribir nuestros `liftF` para que funcionen con cualquier
+combinación de ASTs:
+
+{lang="text"}
+~~~~~~~~
+  def liftF[F[_]](implicit I: Ast :<: F) = new Machines[Free[F, ?]] {
+    def getTime                  = Free.liftF(I.inj(GetTime()))
+    def getManaged               = Free.liftF(I.inj(GetManaged()))
+    def getAlive                 = Free.liftF(I.inj(GetAlive()))
+    def start(node: MachineNode) = Free.liftF(I.inj(Start(node)))
+    def stop(node: MachineNode)  = Free.liftF(I.inj(Stop(node)))
+  }
+~~~~~~~~
+
+Sería bueno que `F :<: G` se leyera como si nuestro `Ast` fuera un miembro del
+conjunto completo de instrucciones `F`: esta sintaxis es intencional.
+
+A> Un plugin del compilador que automáticamente genera el código repetitivo de
+A> `scalaz.Free` sería una contribución fantástica al ecosistema! No solamente
+A> es doloroso escribir este código, sino que existe el potencial de que un error
+A> de dedo arruine nuestro día: si dos miembros del álgebra tiene la misma signatura
+A> de tipo, podríamos no notarlo.
+
+Poniendo todo junto, digamos que tenemos un program que escribimos abstrayendo
+sobre `Monad`
+
+{lang="text"}
+~~~~~~~~
+  def program[F[_]: Monad](M: Machines[F], D: Drone[F]): F[Unit] = ...
+~~~~~~~~
+
+y tenemos algunas implementaciones existentes de `Machines` y `Drone`, y podemos
+crear interpretes a partir de ellos:
+
+{lang="text"}
+~~~~~~~~
+  val MachinesIO: Machines[IO] = ...
+  val DroneIO: Drone[IO]       = ...
+  
+  val M: Machines.Ast ~> IO = Machines.interpreter(MachinesIO)
+  val D: Drone.Ast ~> IO    = Drone.interpreter(DroneIO)
+~~~~~~~~
+
+y combinarlos en un conjunto de instrucciones más grande usando un método conveniente
+de nuestro objeto compañero en `NaturalTransformation`
+
+{lang="text"}
+~~~~~~~~
+  object NaturalTransformation {
+    def or[F[_], G[_], H[_]](fg: F ~> G, hg: H ~> G): Coproduct[F, H, ?] ~> G = ...
+    ...
+  }
+  
+  type Ast[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+  
+  val interpreter: Ast ~> IO = NaturalTransformation.or(M, D)
+~~~~~~~~
+
+Y entonces usarolo para produir un `IO`
+
+{lang="text"}
+~~~~~~~~
+  val app: IO[Unit] = program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
+                        .foldMap(interpreter)
+~~~~~~~~
+
+¡Pero hemos viajado en círculos! Podríamos haber usado `IO` como el contexto de
+nuestro programa en primer lugar y haber evitado `Free`. De modo que por qué
+pasamos por todos estos problemas? A continuación tenemos algunos ejemplos de
+cuando `Free` podría ser de utilidad.
