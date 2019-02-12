@@ -1468,3 +1468,268 @@ A>
 A> La elección de cual de las tres alternativas de diseño de la API usar, se deja
 A> al gusto personal del diseñador de la API.
 
+### `IndexedReaderWriterStateT`
+
+Aquellos que deseen una combinación de `ReaderT`, `WriterT` e `IndexedStateT`
+no serán decepcionados. El transformador `IndexedReaderWriterStateT` envuelve
+`(R, S1) => F[(W, A, S2)]` con `R` teniendo una semántica de `Reader`, `W` es
+para escrituras monoidales, y los parámetros `S` para actualizaciones de
+estado indexadas.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class IndexedReaderWriterStateT[F[_], -R, W, -S1, S2, A] {
+    def run(r: R, s: S1)(implicit F: Monad[F]): F[(W, A, S2)] = ...
+    ...
+  }
+  object IndexedReaderWriterStateT {
+    def apply[F[_], R, W, S1, S2, A](f: (R, S1) => F[(W, A, S2)]) = ...
+  }
+  
+  type ReaderWriterStateT[F[_], -R, W, S, A] = IndexedReaderWriterStateT[F, R, W, S, S, A]
+  object ReaderWriterStateT {
+    def apply[F[_], R, W, S, A](f: (R, S) => F[(W, A, S)]) = ...
+  }
+~~~~~~~~
+
+Las abreviaturas se proporcionan porque de otra manera, con toda honestidad, estos
+tipos son tan largos que parecen que son parte de una API de J2EE:
+
+{lang="text"}
+~~~~~~~~
+  type IRWST[F[_], -R, W, -S1, S2, A] = IndexedReaderWriterStateT[F, R, W, S1, S2, A]
+  val IRWST = IndexedReaderWriterStateT
+  type RWST[F[_], -R, W, S, A] = ReaderWriterStateT[F, R, W, S, A]
+  val RWST = ReaderWriterStateT
+~~~~~~~~
+
+`IRWST` es una implementación más eficiente que una pila de transformadores creadas
+como `ReaderT[WriterT[IndexedStateT[F, ...], ...], ...]`.
+
+### `TheseT`
+
+`TheseT` permite que los errores aborten los cálculos o que se acumulen si existe
+un éxito parcial. Por esta razón recibe el nombre de *mantén la calma y continúa*.
+
+El tipo de datos subyacente es `F[A \&/ B]` con una `A` siendo el tipo del error,
+requiriendo que exista un `Semigroup` para permitir la acumulación de errores
+
+{lang="text"}
+~~~~~~~~
+  final case class TheseT[F[_], A, B](run: F[A \&/ B])
+  object TheseT {
+    def `this`[F[_]: Functor, A, B](a: F[A]): TheseT[F, A, B] = ...
+    def that[F[_]: Functor, A, B](b: F[B]): TheseT[F, A, B] = ...
+    def both[F[_]: Functor, A, B](ab: F[(A, B)]): TheseT[F, A, B] = ...
+  
+    implicit def monad[F[_]: Monad, A: Semigroup] = new Monad[TheseT[F, A, ?]] {
+      def bind[B, C](fa: TheseT[F, A, B])(f: B => TheseT[F, A, C]) =
+        TheseT(fa.run >>= {
+          case This(a) => a.wrapThis[C].point[F]
+          case That(b) => f(b).run
+          case Both(a, b) =>
+            f(b).run.map {
+              case This(a_)     => (a |+| a_).wrapThis[C]
+              case That(c_)     => Both(a, c_)
+              case Both(a_, c_) => Both(a |+| a_, c_)
+            }
+        })
+  
+      def point[B](b: =>B) = TheseT(b.wrapThat.point[F])
+    }
+  }
+~~~~~~~~
+
+No hay mónada especial asociada con `TheseT`, que simplemente es una `Monad`
+regular. Si desearamos abortar el cálculo podríamos devolver un valor `This`,
+pero estamos acumulando errores cuando devolvemos una `Both` que también
+contiene la parte exitosa del cálculo.
+
+`TheseT` también puede analizarse desde una perspectiva distinta: `A` no
+necesita ser un *error*. De manera similar a `WriterT`, la `A` puede ser un
+cálculo secundario que estamos realizando junto con un cálculo primario `B`.
+`TheseT` permite la salida temprana cuando algo especial sobre `A` lo demanda.
+
+### `ContT`
+
+El estilo de programación conocido como CPS (por sus siglas en inglés
+*Continuation Passing Style*) consiste en el uso de funciones que nunca regresan,
+y en lugar de esto, continúan al siguiente cómputo. CPS es popular en JavaScript
+y en Lisp dado que permiten el uso de *callbacks* cuando los datos están disponibles.
+Una implementación equivalente del patrón en Scala impuro se vería como
+
+{lang="text"}
+~~~~~~~~
+  def foo[I, A](input: I)(next: A => Unit): Unit = next(doSomeStuff(input))
+~~~~~~~~
+
+y podríamos hacer que el cómputo fuera puro al introducir el contexto `F[_]`
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_], I, A](input: I)(next: A => F[Unit]): F[Unit]
+~~~~~~~~
+
+y refactorizar para devolver una función para la entrada provista
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_], I, A](input: I): (A => F[Unit]) => F[Unit]
+~~~~~~~~
+
+`ContT` es simplemente un contenedor con esta signatura, con una instancia de
+`Monad`
+
+{lang="text"}
+~~~~~~~~
+  final case class ContT[F[_], B, A](_run: (A => F[B]) => F[B]) {
+    def run(f: A => F[B]): F[B] = _run(f)
+  }
+  object IndexedContT {
+    implicit def monad[F[_], B] = new Monad[ContT[F, B, ?]] {
+      def point[A](a: =>A) = ContT(_(a))
+      def bind[A, C](fa: ContT[F, B, A])(f: A => ContT[F, B, C]) =
+        ContT(c_fb => fa.run(a => f(a).run(c_fb)))
+    }
+  }
+~~~~~~~~
+
+y sintaxis conveniente para crear una `ContT` a partir de un valor monádico:
+
+{lang="text"}
+~~~~~~~~
+  implicit class ContTOps[F[_]: Monad, A](self: F[A]) {
+    def cps[B]: ContT[F, B, A] = ContT(a_fb => self >>= a_fb)
+  }
+~~~~~~~~
+
+Sin embargo, el uso simple de callbacks en las continuaciones no trae nada
+a la programación funcional pura debido a que ya conocemos cómo secuenciar
+cómputos que no bloqueen, potencialmente distribuidos: es para esto que sirve
+`Monad` y podemos hacer esto con un `.bind` o con una flecha `Kleisli`. Para
+observar por qué razón las continuaciones son útiles necesitamos considerar
+un ejemplo más complejo bajo una restricción de diseño más rígida.
+
+#### Control Flow
+
+Digamos que hemos modularizado nuestra aplicación usando componentes que pueden
+realizar I/O, y que cada componente es desarrollado por equipo distintos:
+
+{lang="text"}
+~~~~~~~~
+  final case class A0()
+  final case class A1()
+  final case class A2()
+  final case class A3()
+  final case class A4()
+  
+  def bar0(a4: A4): IO[A0] = ...
+  def bar2(a1: A1): IO[A2] = ...
+  def bar3(a2: A2): IO[A3] = ...
+  def bar4(a3: A3): IO[A4] = ...
+~~~~~~~~
+
+Nuestra meta es producir una `A0` dada una `A1`. Mientras que JavaScript y Lisp
+usarían continuaciones para resolver este problema (debido a que la I/O es
+bloqueante), podríamos simplemente encadenar las funciones
+
+{lang="text"}
+~~~~~~~~
+  def simple(a: A1): IO[A0] = bar2(a) >>= bar3 >>= bar4 >>= bar0
+~~~~~~~~
+
+Podríamos elevar `.simple` a su forma escrita con continuaciones al usar sintaxis
+conveniente `.cps` y un poco de código extra (*boilerplate*) para cada paso:
+
+{lang="text"}
+~~~~~~~~
+  def foo1(a: A1): ContT[IO, A0, A2] = bar2(a).cps
+  def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).cps
+  def foo3(a: A3): ContT[IO, A0, A4] = bar4(a).cps
+  
+  def flow(a: A1): IO[A0]  = (foo1(a) >>= foo2 >>= foo3).run(bar0)
+~~~~~~~~
+
+De modo que, ¿qué nos brinda esto? Primeramente, es digno de mención que el flujo
+de control de la aplicación es de izquierda a derecha
+
+{width=60%}
+![](images/contt-simple.png)
+
+¿Que tal si fuéramos los autores de `foo2` y desearamos post-procesar la `a0` que
+recivimos de la derecha (de más adelante en el proceso de cómputo), es decir,
+deseamos dividir nuestro `foo2` en `foo2a` y `foo2b`
+
+{width=75%}
+![](images/contt-process1.png)
+
+Agregue la restricción de que no es posible cambiar la definición de `flow` o `bar0`.
+Tal vez no es nuestro código y está definido por el framework que estemos usando.
+
+No es posible procesar la salida de `a0` al modificar cualquiera de los métodos
+restantes `barX`. Sin embargo, con `ContT` podemos modificar `foo2` para procesar el
+resultado de la continuación `next`:
+
+{width=45%}
+![](images/contt-process2.png)
+
+que puede definirse con
+
+{lang="text"}
+~~~~~~~~
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3  <- bar3(a)
+      a0  <- next(a3)
+    } yield process(a0)
+  }
+~~~~~~~~
+
+No estamos limitados a mapear sobre el valor devuelto, ¡también podemos realizar
+un `.bind` en otro control de flujo devolviendo el flujo lineal en un grafo!
+
+{width=50%}
+![](images/contt-elsewhere.png)
+
+{lang="text"}
+~~~~~~~~
+  def elsewhere: ContT[IO, A0, A4] = ???
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3  <- bar3(a)
+      a0  <- next(a3)
+      a0_ <- if (check(a0)) a0.pure[IO]
+             else elsewhere.run(bar0)
+    } yield a0_
+  }
+~~~~~~~~
+
+O podemos mantenernos dentro del flujo original y reintentar todo lo que sigue
+
+{width=45%}
+![](images/contt-retry.png)
+
+{lang="text"}
+~~~~~~~~
+  def foo2(a: A2): ContT[IO, A0, A3] = ContT { next =>
+    for {
+      a3  <- bar3(a)
+      a0  <- next(a3)
+      a0_ <- if (check(a0)) a0.pure[IO]
+             else next(a3)
+    } yield a0_
+  }
+~~~~~~~~
+
+Se trata de únicamente un reintento, no de un ciclo infinito. Por ejemplo,
+podríamos solicitar que cómputos subsiguientes reconfirmaran una acción
+potencialmente peligrosa.
+
+Finalmente, podemos realizar acciones que son específicas dentro del contexto de
+`ContT`, en este caso `IO` que nos deja hacer un manejo de errores y limpieza de
+recursos.
+
+{lang="text"}
+~~~~~~~~
+  def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).ensuring(cleanup).cps
+~~~~~~~~
