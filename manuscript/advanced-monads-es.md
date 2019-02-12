@@ -1733,3 +1733,370 @@ recursos.
 ~~~~~~~~
   def foo2(a: A2): ContT[IO, A0, A3] = bar3(a).ensuring(cleanup).cps
 ~~~~~~~~
+
+#### Cuándo ordenar spaguetti
+
+No es un accidente que estos diagramas se vean como spaguetti, y eso es exactamente
+lo que ocurre cuando empezamos a manipular el control de flujo. Todos los
+mecanismos que hemos discutido en esta sección son simples de implementar
+directamente si podemos editar la definición de `flow`, y por lo tanto no
+requerimos usar `ContT`.
+
+Sin embargo, si estamos diseñando un framework, deberíamos podemos considerar el
+sistema de plugins como callbacks de `ContT` para permitir a nuestros usuarios más
+poder sobre el control de flujo. Algunas veces el cliente simplemente quiere el
+spaguetti.
+
+Por ejemplo, si el compilador de Scala estuviera escrito usando CPS, permitiría
+un enfoque basado en principios para comunicar las fases del compilador. Un plugin
+para el compilador sería capaz de realizar algunas acciones basándose en el tipo
+inferido de una expresión, calculado en una etapa posterior del proceso de
+compilación. De manera similar, las continuaciones serían una buena API para una
+herramienta extensible para los builds, o para un editor de texto.
+
+Algo que debería considerarse con `ContT` es que no tiene un uso seguro de la pila,
+de modo que no es posible usarla para programas que se ejecutan por siempre.
+
+#### No use `ContT`
+
+Una variante más compleja de `ContT` llamada `IndexedContT` envuelve
+`(A => F[B]) => F[C]`. El nuevo parámetro de tipo `C` permite al tipo de retorno del
+cómputo completo sea diferente del tipo de retorno entre cada componente. Pero si
+`B` no es igual a `C` entonces no hay una `Monad`.
+
+Sin perder la oportunidad de generalizar tanto como sea posible, `IndexedContT` es
+realmente implementada en términos de una estructura aún más general (note la
+`s` estra antes de la `T`)
+
+{lang="text"}
+~~~~~~~~
+  final case class IndexedContsT[W[_], F[_], C, B, A](_run: W[A => F[B]] => F[C])
+  
+  type IndexedContT[f[_], c, b, a] = IndexedContsT[Id, f, c, b, a]
+  type ContT[f[_], b, a]           = IndexedContsT[Id, f, b, b, a]
+  type ContsT[w[_], f[_], b, a]    = IndexedContsT[w, f, b, b, a]
+  type Cont[b, a]                  = IndexedContsT[Id, Id, b, b, a]
+~~~~~~~~
+
+donde `W[_]` tiene una `Comonad`, y `ContT` está implementada como un alias de tipo.
+Los objetos compañeros existen para contener los aliases de tipo con constructores
+de tipo convenientes.
+
+La verdad es que, cinco parámetros de tipo es tal vez una generalización bastante
+amplia (tal vez demasiado). Pero de nuevo, la sobre-generalización es consistente
+con las sensibilidades de las continuaciones.
+
+### Las pilas de transformadores y los implícitos ambiguos
+
+Esto concluye nuestro tour de los transformadores de mónadas en Scalaz.
+
+Cuando se combinan múltiples transformadores, llamamos a esto una
+*pila de transformadores* y aunque es muy verboso, es posible leer las
+características al leer los transformadores. Por ejemplo, si construimos un
+contexto `F[_]` que sea un conjunto de transformadores compuestos, tales como
+
+{lang="text"}
+~~~~~~~~
+  type Ctx[A] = StateT[EitherT[IO, E, ?], S, A]
+~~~~~~~~
+
+sabemos que estamos agregando manejadores de errores con un tipo de error `E`
+(existe un `MonadError[Ctx, E]`) y estamos manejando el estado `A` (existe una
+`MonadState[Ctx, S]`).
+
+Lamentablemente, existen desventajas prácticas al uso de transformadores de
+mónadas y sus compañeras de typeclases `Monad`:
+
+1. Múltiples parámetros implícitos de `Monad` significan que el compilador no
+   puede encontrar la sintaxis correcta que debe usarse para el contexto.
+
+2. Las mónadas no se pueden componer en el caso general, lo que significa que
+   el orden de anidación de los transformadores es importante.
+
+3. Todos los intérpretes deben elevarse al contexto común. Por ejemplo, podríamos
+   tener una implementación de alguna álgebra que use `IO` y ahora es necesario
+   envolverla dentro de `StateT` y `EitherT` incluso cuando son usados dentro
+   del intérprete.
+
+4. Existen costos de desempeño asociados a cada capa. Y algunos transformadores
+   de mónadas son peores que otros. `StateT` es particularmente malo pero incluso
+   `EitherT` puede ocasionar problemas de asignación de memoria para aplicaciones
+   de alto desempeño.
+
+Por eso es necesario considerar soluciones.
+
+### Sin sintaxis
+
+Digamos que tenemos un álgebra
+
+{lang="text"}
+~~~~~~~~
+  trait Lookup[F[_]] {
+    def look: F[Int]
+  }
+~~~~~~~~
+
+y algunos tipos de datos
+
+{lang="text"}
+~~~~~~~~
+  final case class Problem(bad: Int)
+  final case class Table(last: Int)
+~~~~~~~~
+
+que deseemos usar en nuestra lógica de negocios
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]](L: Lookup[F])(
+    implicit
+      E: MonadError[F, Problem],
+      S: MonadState[F, Table]
+  ): F[Int] = for {
+    old <- S.get
+    i   <- L.look
+    _   <- if (i === old.last) E.raiseError(Problem(i))
+           else ().pure[F]
+  } yield i
+~~~~~~~~
+
+El primer problema que encontramos es que esto no compila
+
+{lang="text"}
+~~~~~~~~
+  [error] value flatMap is not a member of type parameter F[Table]
+  [error]     old <- S.get
+  [error]              ^
+~~~~~~~~
+
+Existen algunas soluciones tácticas a este problema. La más obvia es hacer
+que todos los parámetros sean explícitos
+
+{lang="text"}
+~~~~~~~~
+  def foo1[F[_]: Monad](
+    L: Lookup[F],
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = ...
+~~~~~~~~
+
+y requerir únicamente que `Monad` sea pasado de manera implícita por medio
+de límites de contexto. Sin embargo, esto significa que debemos alambrar
+manualmente la `MonadError` y `MonadState` cuando invocamos `foo1` y cuando
+llamamos otro método que requiere un implícito.
+
+Una segunda solución es dejar los parámetros como implícitos y usar el
+*shadowing* de nombres para hacer todos excepto uno de los parámetros explícitos.
+Esto permite que computos previos usen la resolución implícita cuando nos llaman
+pero todavía necesitamos pasar los parámetros de manera explícita si las llamamos.
+
+{lang="text"}
+~~~~~~~~
+  @inline final def shadow[A, B, C](a: A, b: B)(f: (A, B) => C): C = f(a, b)
+  
+  def foo2a[F[_]: Monad](L: Lookup[F])(
+    implicit
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = shadow(E, S) { (E, S) => ...
+~~~~~~~~
+
+o podríamos hacer *shadow* de una sola `Monad`, dejando que la otra proporcione
+nuestra sintaxis y que esté disponible para cuando llamamos a otros métodos.
+
+{lang="text"}
+~~~~~~~~
+  @inline final def shadow[A, B](a: A)(f: A => B): B = f(a)
+  ...
+  
+  def foo2b[F[_]](L: Lookup[F])(
+    implicit
+    E: MonadError[F, Problem],
+    S: MonadState[F, Table]
+  ): F[Int] = shadow(E) { E => ...
+~~~~~~~~
+
+Una tercera opción, con un costo un poco más elevado, es la creación de una
+typeclass de `Monad` a la medida, que contenga referencias implícitas a las dos
+clases de `Monad` que nos interesan
+
+{lang="text"}
+~~~~~~~~
+  trait MonadErrorState[F[_], E, S] {
+    implicit def E: MonadError[F, E]
+    implicit def S: MonadState[F, S]
+  }
+~~~~~~~~
+
+y una derivación de la typeclass dada por una `MonadError` y `MonadState`
+
+{lang="text"}
+~~~~~~~~
+  object MonadErrorState {
+    implicit def create[F[_], E, S](
+      implicit
+        E0: MonadError[F, E],
+        S0: MonadState[F, S]
+    ) = new MonadErrorState[F, E, S] {
+      def E: MonadError[F, E] = E0
+      def S: MonadState[F, S] = S0
+    }
+  }
+~~~~~~~~
+
+Ahora, si deseamos acceder a `S` o `E` podemos obtenerlas por medio de `F.S` o `F.E`
+
+{lang="text"}
+~~~~~~~~
+  def foo3a[F[_]: Monad](L: Lookup[F])(
+    implicit F: MonadErrorState[F, Problem, Table]
+  ): F[Int] =
+    for {
+      old <- F.S.get
+      i   <- L.look
+      _ <- if (i === old.last) F.E.raiseError(Problem(i))
+      else ().pure[F]
+    } yield i
+~~~~~~~~
+
+Como segunda solución, podemos escoger una de las instancias de `Monad` para que
+sea implícita dentro del bloque, y esto se puede conseguir al importarla
+
+{lang="text"}
+~~~~~~~~
+  def foo3b[F[_]](L: Lookup[F])(
+    implicit F: MonadErrorState[F, Problem, Table]
+  ): F[Int] = {
+    import F.E
+    ...
+  }
+~~~~~~~~
+
+#### Composición de transformadores
+
+Un `EitherT[StateT[...], ...]` tiene un `MonadError` pero no tiene un
+`MonadState`, mientras que `StateT[EitherT[...], ...]` puede proporcionar ambos.
+
+La solución es estudiar las derivaciones implícitas en el objeto compañero de
+los transformadores y podemos asegurarnos de que los transformadores más externos
+proporcionan todo lo que necesitamos.
+
+Una regla de oro es que hay que usar los transformadores más complejos en el
+exterior, y este capítulo presentó los transformadores en orden creciente de
+complejidad.
+
+#### Elevando transformadores
+
+Continuando con el mismo ejemplo, digamos que nuestra álgebra `Lookup` tiene un
+intérprete `IO`
+
+{lang="text"}
+~~~~~~~~
+  object LookupRandom extends Lookup[IO] {
+    def look: IO[Int] = IO { util.Random.nextInt }
+  }
+~~~~~~~~
+
+pero deseamos que nuestro contexto sea
+
+{lang="text"}
+~~~~~~~~
+  type Ctx[A] = StateT[EitherT[IO, Problem, ?], Table, A]
+~~~~~~~~
+
+para proporcionarnos un `MonadError` y un `MonadState`. Esto significa que
+necesitamos envolver `LookupRandom` para que opere sobre nuestro `Ctx`.
+
+A> Las probabilidades de tener los tipos correctos en el primer intento son
+A> de aproximadamente 3,720 a uno.
+
+Primero, deseamos usar la sintaxis `.liftM` disponible en `Monad`, que usa
+`MonadTrans` para elevar desde nuestro `F[A]` hacia `G[F, A]`
+
+{lang="text"}
+~~~~~~~~
+  final class MonadOps[F[_]: Monad, A](fa: F[A]) {
+    def liftM[G[_[_], _]: MonadTrans]: G[F, A] = ...
+    ...
+  }
+~~~~~~~~
+
+Es importante darse cuenta de que los parámetros de tipo de `.liftM` tienen dos
+hoyos, uno de la forma `_[_]` y el otro de forma `_`. Si creamos aliases de tipo
+para estas formas
+
+{lang="text"}
+~~~~~~~~
+  type Ctx0[F[_], A] = StateT[EitherT[F, Problem, ?], Table, A]
+  type Ctx1[F[_], A] = EitherT[F, Problem, A]
+  type Ctx2[F[_], A] = StateT[F, Table, A]
+~~~~~~~~
+
+podemos abstraer sobre `MonadTrans` para elevar un `Lookup[F]` a cualquier
+`Lookup[G[F, ?]]` donde `G` es un transformador de mónadas.
+
+{lang="text"}
+~~~~~~~~
+  def liftM[F[_]: Monad, G[_[_], _]: MonadTrans](f: Lookup[F]) =
+    new Lookup[G[F, ?]] {
+      def look: G[F, Int] = f.look.liftM[G]
+    }
+~~~~~~~~
+
+Permitiéndonos envolver una vez para `EitherT`, y de nuevo para `StateT`
+
+{lang="text"}
+~~~~~~~~
+  val wrap1 = Lookup.liftM[IO, Ctx1](LookupRandom)
+  val wrap2: Lookup[Ctx] = Lookup.liftM[EitherT[IO, Problem, ?], Ctx2](wrap1)
+~~~~~~~~
+
+Otra forma de lograr esto, en un único paso, es usar `MonadIO` que permite
+elevar una `IO` en una pila de transformadores:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadIO[F[_]] extends Monad[F] {
+    def liftIO[A](ioa: IO[A]): F[A]
+  }
+~~~~~~~~
+
+con instancias de `MonadIO` para todas las combinaciones comunes de transformadores.
+
+El costo extra del código repetitivo para elevar un intérprete `IO` a cualquier
+instancia de `MonadIO` es por lo tanto de dos líneas de código (para la definición
+del intérprete), más una linea por elemento del álgebra, y una línea final para
+invocarla:
+
+{lang="text"}
+~~~~~~~~
+  def liftIO[F[_]: MonadIO](io: Lookup[IO]) = new Lookup[F] {
+    def look: F[Int] = io.look.liftIO[F]
+  }
+  
+  val L: Lookup[Ctx] = Lookup.liftIO(LookupRandom)
+~~~~~~~~
+
+A> Un plugin del compilador que produce automáticamente `.liftM`, `.liftIO`, y
+A> código repetitivo adicional que surja en este capítulo, ¡sería una excelente
+A> contribución al ecosistema!
+
+#### Desempeño
+
+El problema más grande con los transformadores de mónadas es el costo adicional en
+términos de rendimiento. `EitherT` tenía un costo extra relativamente bajo, donde
+cada invocación de `.flatMap` generaba un grupo de objetos, pero esto puede afectar
+aplicaciones de alto rendimiento donde cada asignación de memoria adicional importa.
+Otros transformadores, tales como `StateT`, efectivamente agregan un trampolín, y
+`ContT` mantiene la cadena de invocaciones entera retenida en memoria.
+
+A> Para algunas aplicaciones no es importante la asignación de memoria si su límite
+A> está impuesto por redes o por I/O. Siempre mida.
+
+Si el rendimiento se vuelve un problema, la solución es no usar transformadores de
+mónadas. Al menos no las estructuras de datos de los transformadores. Una gran 
+ventaja de las typeclases de `Monad` es que podemos crear una versión optimizada
+`F[_]` para nuestra aplicación que proporcione las typeclases naturalmente.
+Aprenderemos cómo crear una `F[_]` en los próximos dos capítulos, cuando estudiemos
+seriamente dos estructuras que ya hemos visto: `Free` y `IO`.
