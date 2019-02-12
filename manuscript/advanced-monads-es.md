@@ -894,3 +894,577 @@ y la podemos usar para envolver funciones que operan en este contexto
 automáticamente pasando cualquier información que no se esté rastreando de manera
 explícita. Un plugin para el compilador o una macro podría realizar lo opuesto,
 haciendo que todo se realice por default.
+
+Si accedemos a `.ask` podemos ver el rastro completo de cómo se realizaron las
+llamadas, sin la distracci[on de los detalles en la implementación del bytecode.
+¡Un stacktrace referencialmente transparente!
+
+Un programador a la defensiva podría truncar la `IList[Meta]` a cierta longitud
+para evitar el equivalente de un sobreflujo de pila. En realidad, una estructura
+de datos más apropiada es `Dequeue`.
+
+`.local` puede también usarse para registrar la información contextual que es
+directamente relavante a la tarea que se está realizando, como el número de
+espacios que debemos indentar una línea cuando se está imprimiendo un archivo
+con formato legible por humanos, haciendo que esta indentación aumente en dos
+espacios cuando introducimos una estructura anidada.
+
+Finalmente, si no podemos pedir una `MonadReader` porque nuestra aplicación no
+proporciona una, siempre podemos devolver un `ReaderT`.
+
+{lang="text"}
+~~~~~~~~
+  def bearer(implicit F: Monad[F]): ReaderT[F, RefreshToken, BearerToken] =
+    ReaderT( token => for {
+    ...
+~~~~~~~~
+
+Si alguien que recibe un `ReaderT`, y tienen el parámetro `token` a la mano,
+entonces pueden invocar `access.run(token)` y tener de vuelta un `F[BearerToken]`.
+
+Dado que no tenemos muchos callers, deberíamos simplemente revertir a un parámetro
+de función regular. `MonadReader` es de mayor utilidad cuando:
+
+1. Deseamos refactorizar el código más tarde para recargar la configuración
+2. El valor no es necesario por usuarios  (llamadas) intermedias
+3. o, cuando deseamos restringir el ámbito/alcance para que sea local
+
+Dotty puede quedarse con sus funciones implícitas... nosotros ya tenemos `ReaderT`
+y `MonadReader`.
+
+### `WriterT`
+
+Lo opuesto a la lectura es la escritura. El transformador de mónadas `WriterT` es
+usado típicamente para escribir a un journal.
+
+{lang="text"}
+~~~~~~~~
+  final case class WriterT[F[_], W, A](run: F[(W, A)])
+  object WriterT {
+    def put[F[_]: Functor, W, A](value: F[A])(w: W): WriterT[F, W, A] = ...
+    def putWith[F[_]: Functor, W, A](value: F[A])(w: A => W): WriterT[F, W, A] = ...
+    ...
+  }
+~~~~~~~~
+
+El tipo envuelto es `F[(W, A)]` y el journal se acumula en `W`.
+
+¡No hay únicamente una mónada asociada, sino dos! `MonadTell` y `MonadListen`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadTell[F[_], W] extends Monad[F] {
+    def writer[A](w: W, v: A): F[A]
+    def tell(w: W): F[Unit] = ...
+  
+    def :++>[A](fa: F[A])(w: =>W): F[A] = ...
+    def :++>>[A](fa: F[A])(f: A => W): F[A] = ...
+  }
+  
+  @typeclass trait MonadListen[F[_], W] extends MonadTell[F, W] {
+    def listen[A](fa: F[A]): F[(A, W)]
+  
+    def written[A](fa: F[A]): F[W] = ...
+  }
+~~~~~~~~
+
+`MonadTell` es para escribir al journal y `MonadListen` es para recuperarlo.
+La implementación de `WriterT` es
+
+{lang="text"}
+~~~~~~~~
+  implicit def monad[F[_]: Monad, W: Monoid] = new MonadListen[WriterT[F, W, ?], W] {
+    def point[A](a: =>A) = WriterT((Monoid[W].zero, a).point)
+    def bind[A, B](fa: WriterT[F, W, A])(f: A => WriterT[F, W, B]) = WriterT(
+      fa.run >>= { case (wa, a) => f(a).run.map { case (wb, b) => (wa |+| wb, b) } })
+  
+    def writer[A](w: W, v: A) = WriterT((w -> v).point)
+    def listen[A](fa: WriterT[F, W, A]) = WriterT(
+      fa.run.map { case (w, a) => (w, (a, w)) })
+  }
+~~~~~~~~
+
+El ejemplo más obvio es usar `MonadTell` para loggear información, o para
+reportar la auditoría. Reusar `Meta` para reportar errores podría servir para
+crear una estructura de log como
+
+{lang="text"}
+~~~~~~~~
+  sealed trait Log
+  final case class Debug(msg: String)(implicit m: Meta)   extends Log
+  final case class Info(msg: String)(implicit m: Meta)    extends Log
+  final case class Warning(msg: String)(implicit m: Meta) extends Log
+~~~~~~~~
+
+y usar `Dequeue[Log]` como nuestro tipo de journal. Podríamos cambiar
+nuestro método OAuth2 `authenticate` a
+
+{lang="text"}
+~~~~~~~~
+  def debug(msg: String)(implicit m: Meta): Dequeue[Log] = Dequeue(Debug(msg))
+  
+  def authenticate: F[CodeToken] =
+    for {
+      callback <- user.start :++> debug("started the webserver")
+      params   = AuthRequest(callback, config.scope, config.clientId)
+      url      = config.auth.withQuery(params.toUrlQuery)
+      _        <- user.open(url) :++> debug(s"user visiting $url")
+      code     <- user.stop :++> debug("stopped the webserver")
+    } yield code
+~~~~~~~~
+
+Incluso podríamos conbinar esto con las trazas de `ReaderT` y tener logs
+estructurados.
+
+El que realiza la llamada puede recuperar los logs con `.written` y hacer algo
+con ellos.
+
+Sin embargo, existe el argumento fuerte de que el logging merece su propia álgebra.
+El nivel de log es con frecuencia necesario en el momento de creación por razones
+de rendimiento y la escritura de logs es típicamente manejado a nivel de la
+aplicación más bien que algo sobre lo que cada componente necesite estar preocupado.
+
+La `W` en `WriterT` tiene un `Monoid`, permitiéndonos escribir al journal cualquier
+clase de cálculoo monoidal como un valor secundario junto con nuestro programa
+principal. Por ejemplo, el conteo del número de veces que hacemos algo, construyendo
+una explicación del cálculo, o la construcción de una `TradeTemplate` para una nueva
+transacción mientras que asignamos un precio.
+
+Una especialización popular de `WriterT` ocurre cuando la mónada es `Id`, indicando
+que el valor subyacente `run` es simplemente la tupla simple `(W, A)`.
+
+{lang="text"}
+~~~~~~~~
+  type Writer[W, A] = WriterT[Id, W, A]
+  object WriterT {
+    def writer[W, A](v: (W, A)): Writer[W, A] = WriterT[Id, W, A](v)
+    def tell[W](w: W): Writer[W, Unit] = WriterT((w, ()))
+    ...
+  }
+  final implicit class WriterOps[A](self: A) {
+    def set[W](w: W): Writer[W, A] = WriterT(w -> self)
+    def tell: Writer[A, Unit] = WriterT.tell(self)
+  }
+~~~~~~~~
+
+que nos permite dejar que cualquier valor lleve consigo un cálculo monoidal
+secundario, sin la necesidad de un contexto `F[_]`.
+
+En resumen, `WriterT` / `MonadTell` es la manera de conseguir multi tareas en la
+programación funcional.
+
+### `StateT`
+
+`StateT` nos permite ejecutar `.put`, `.get` y `.modify` sobre un valor que es
+manejado por el contexto monádico. Es el reemplazo funcional de `var`.
+
+Si fueramos a escribir un método impuro que tiene acceso a algún estado mutable,
+y contenido en un `var`, pudiera haber tenido la firma `() => F[A]` y devolver un
+valor diferente en cada invocación, rompiendo con la transparencia referencial.
+Con la programación funcional pura, la función toma el estado como la entrada y
+devuelve el estado actualizado como la salida, que es la razón por la que el tipo
+subyacente de `StateT` es  `S => F[(S, A)]`.
+
+La mónada asociada es `MonadState`
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait MonadState[F[_], S] extends Monad[F] {
+    def put(s: S): F[Unit]
+    def get: F[S]
+  
+    def modify(f: S => S): F[Unit] = get >>= (s => put(f(s)))
+    ...
+  }
+~~~~~~~~
+
+A> `S` debe ser de un tipo inmutable: `.modify` no es un escape para tener la
+A> capacidad de actualizar una estructura de datos mutable. La mutabilidad es
+A> impura y sólo se permite dentro de un bloque `IO`.
+
+`StateT` se implementa de manera ligeramente diferente que los transformadores
+de mónada que hemos estudiado hasta el momento. En lugar de usar un `case class`
+es una ADT con dos miembros:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class StateT[F[_], S, A]
+  object StateT {
+    def apply[F[_], S, A](f: S => F[(S, A)]): StateT[F, S, A] = Point(f)
+  
+    private final case class Point[F[_], S, A](
+      run: S => F[(S, A)]
+    ) extends StateT[F, S, A]
+    private final case class FlatMap[F[_], S, A, B](
+      a: StateT[F, S, A],
+      f: (S, A) => StateT[F, S, B]
+    ) extends StateT[F, S, B]
+    ...
+  }
+~~~~~~~~
+
+que es una forma especializada de `Trampoline`, proporcionandonos seguridad en el
+uso de la pila cuando deseamos recuperar la estructura de datos subyacente, `.run`:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class StateT[F[_], S, A] {
+    def run(initial: S)(implicit F: Monad[F]): F[(S, A)] = this match {
+      case Point(f) => f(initial)
+      case FlatMap(Point(f), g) =>
+        f(initial) >>= { case (s, x) => g(s, x).run(s) }
+      case FlatMap(FlatMap(f, g), h) =>
+        FlatMap(f, (s, x) => FlatMap(g(s, x), h)).run(initial)
+    }
+    ...
+  }
+~~~~~~~~
+
+`StateT` puede implemnentar de manera directa `MonadState` con su ADT:
+
+{lang="text"}
+~~~~~~~~
+  implicit def monad[F[_]: Applicative, S] = new MonadState[StateT[F, S, ?], S] {
+    def point[A](a: =>A) = Point(s => (s, a).point[F])
+    def bind[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]) =
+      FlatMap(fa, (_, a: A) => f(a))
+  
+    def get       = Point(s => (s, s).point[F])
+    def put(s: S) = Point(_ => (s, ()).point[F])
+  }
+~~~~~~~~
+
+con `.pure` reflejado en el objeto compañero como `.stateT`:
+
+{lang="text"}
+~~~~~~~~
+  object StateT {
+    def stateT[F[_]: Applicative, S, A](a: A): StateT[F, S, A] = ...
+    ...
+  }
+~~~~~~~~
+
+y `MonadTrans.liftM` proporcionando el constructor `F[A] => StateT[F, S, A]` como
+es usual.
+
+Una variante común de `StateT` es cuando `F = Id`, proporcionando la signatura de
+tipo subyacente `S => (S, A)`. Scalaz proporciona un alias de tipo y funciones
+convenientes para interactuar con el transformador de mónadas `State` de manera
+directa, y reflejando `MonadState`:
+
+{lang="text"}
+~~~~~~~~
+  type State[a] = StateT[Id, a]
+  object State {
+    def apply[S, A](f: S => (S, A)): State[S, A] = StateT[Id, S, A](f)
+    def state[S, A](a: A): State[S, A] = State((_, a))
+  
+    def get[S]: State[S, S] = State(s => (s, s))
+    def put[S](s: S): State[S, Unit] = State(_ => (s, ()))
+    def modify[S](f: S => S): State[S, Unit] = ...
+    ...
+  }
+~~~~~~~~
+
+Para un ejemplo podemos regresar a las pruebas de lógica de negocios de
+`drone-dynamic-agents`. Recuerde del Capítulo 3 que creamos `Mutablep  como
+intérpretes de prueba para nuestra aplicación y que almacenamos el número de
+`started` y los nodos `stopped` en una `var`.
+
+{lang="text"}
+~~~~~~~~
+  class Mutable(state: WorldView) {
+    var started, stopped: Int = 0
+  
+    implicit val drone: Drone[Id] = new Drone[Id] { ... }
+    implicit val machines: Machines[Id] = new Machines[Id] { ... }
+    val program = new DynAgentsModule[Id]
+  }
+~~~~~~~~
+
+Ahora sabemos que podemos escribir un mucho mejor simulador de pruebas con `State`.
+Tomaremos la oportunidad de hacer un ajuste a la precisión de nuestra simulación
+al mismo tiempo. Recuerde que un objeto clave de nuestro dominio de aplicación es
+la visión del mundo:
+
+{lang="text"}
+~~~~~~~~
+  final case class WorldView(
+    backlog: Int,
+    agents: Int,
+    managed: NonEmptyList[MachineNode],
+    alive: Map[MachineNode, Epoch],
+    pending: Map[MachineNode, Epoch],
+    time: Epoch
+  )
+~~~~~~~~
+
+Dado que estamos escribiendo una simulación del mundo para nuestras pruebas, podemos
+crear un tipo de datos que capture la realidad de todo
+
+{lang="text"}
+~~~~~~~~
+  final case class World(
+    backlog: Int,
+    agents: Int,
+    managed: NonEmptyList[MachineNode],
+    alive: Map[MachineNode, Epoch],
+    started: Set[MachineNode],
+    stopped: Set[MachineNode],
+    time: Epoch
+  )
+~~~~~~~~
+
+A> No hemos reescrito la aplicación para que haga un uso completo de las estructuras
+A> de datos de Scalaz y de las typeclases, y todavía estamos dependiendo de las
+A> colecciones de la librería estándar. No hay urgencia en actualizar la
+A> implementación dado es sencillo y estos tipos pueden usarse de una manera
+A> funcionalmente pura.
+
+La diferencia principal es que los nodos que están en los estados `started` y
+`stopped` pueden ser separados. Nuestr intérprete puede ser implementado en
+términos de `State[World, a]` y popdemos escribir nuestras pruebas para realizar
+aserciones sobre la forma en la que se ve el `World` y `WorldView` después de
+haber ejecutado la lógica de negocios.
+
+Los intérpretes, que están simulando el contacto externo con los servicios
+Drone y Google, pueden implementarse como:
+
+{lang="text"}
+~~~~~~~~
+  import State.{ get, modify }
+  object StateImpl {
+    type F[a] = State[World, a]
+  
+    private val D = new Drone[F] {
+      def getBacklog: F[Int] = get.map(_.backlog)
+      def getAgents: F[Int]  = get.map(_.agents)
+    }
+  
+    private val M = new Machines[F] {
+      def getAlive: F[Map[MachineNode, Epoch]]   = get.map(_.alive)
+      def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
+      def getTime: F[Epoch]                      = get.map(_.time)
+  
+      def start(node: MachineNode): F[Unit] =
+        modify(w => w.copy(started = w.started + node))
+      def stop(node: MachineNode): F[Unit] =
+        modify(w => w.copy(stopped = w.stopped + node))
+    }
+  
+    val program = new DynAgentsModule[F](D, M)
+  }
+~~~~~~~~
+
+y podemos reescribir nuestras pruebas para seguir la convención donde:
+
+- `world1` es el estado del mundo antes de ejecutar el programa
+- `view1` es la creencia/visión de la aplicación sobre el mundo
+- `world2` es el estado del mundo después de ejecutar el programa
+- `view2` es la creencia/visión sobre la aplicación después de ejecutar el programa
+
+Por ejemplo,
+
+{lang="text"}
+~~~~~~~~
+  it should "request agents when needed" in {
+    val world1          = World(5, 0, managed, Map(), Set(), Set(), time1)
+    val view1           = WorldView(5, 0, managed, Map(), Map(), time1)
+  
+    val (world2, view2) = StateImpl.program.act(view1).run(world1)
+  
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(Set(node1))
+  }
+~~~~~~~~
+
+Esperemos que el lector nos perdone al mirar atrás a nuestro bucle anterior con
+implementación de lógica de negocio
+
+{lang="text"}
+~~~~~~~~
+  state = initial()
+  while True:
+    state = update(state)
+    state = act(state)
+~~~~~~~~
+
+y usar `StateT` para manejar el estado (`state`). Sin embargo, nuestra lógica de
+negocios `DynAgents` requiere únicamente de `Applicative` y estaríamos violando
+la *ley del poder mínimo* al requerir `MonadState` que es estrictamente más poderoso.
+Es, por lo tanto, enteramente razonable manejar el estado manualmente al pasarlo en
+un `update` y `act`, y dejar que quien realiza una llamada use un `StateT` si así
+lo desea.
+
+### `IndexedStateT`
+
+El código que hemos estudiado hasta el momento no es como Scalaz implementa
+`StateT`. En lugar de esto, un type alias apunta a `IndexedStateT`
+
+{lang="text"}
+~~~~~~~~
+  type StateT[F[_], S, A] = IndexedStateT[F, S, S, A]
+~~~~~~~~
+
+La implementación de `IndexedStateT` es básicamente la que ya hemos estudiado,
+con un parámetro de tipo extra que permiten que los estados de entrada `S1` y
+`S2` difieran:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class IndexedStateT[F[_], -S1, S2, A] {
+    def run(initial: S1)(implicit F: Bind[F]): F[(S2, A)] = ...
+    ...
+  }
+  object IndexedStateT {
+    def apply[F[_], S1, S2, A](
+      f: S1 => F[(S2, A)]
+    ): IndexedStateT[F, S1, S2, A] = Wrap(f)
+  
+    private final case class Wrap[F[_], S1, S2, A](
+      run: S1 => F[(S2, A)]
+    ) extends IndexedStateT[F, S1, S2, A]
+    private final case class FlatMap[F[_], S1, S2, S3, A, B](
+      a: IndexedStateT[F, S1, S2, A],
+      f: (S2, A) => IndexedStateT[F, S2, S3, B]
+    ) extends IndexedStateT[F, S1, S3, B]
+    ...
+  }
+~~~~~~~~
+
+`IndexedStateT` no tiene una `MonadState` cuando `S1 != s2`, aunque sí tiene una
+`Monad`.
+
+El siguiente ejemplo está adaptado de [Index your State](https://www.youtube.com/watch?v=JPVagd9W4Lo) de Vincent Marquez.
+
+Considere el escenario en el que deseamos diseñar una interfaz algebraica para una
+búsqueda de un mapeo de un `Int`a un `String`. Se puede tratar de una implementación
+en red y el orden de las invocaciones es esencial. Nuestro primer intento de
+realizar la API es algo como lo siguiente:
+
+{lang="text"}
+~~~~~~~~
+  trait Cache[F[_]] {
+    def read(k: Int): F[Maybe[String]]
+  
+    def lock: F[Unit]
+    def update(k: Int, v: String): F[Unit]
+    def commit: F[Unit]
+  }
+~~~~~~~~
+
+con errores en tiempo de ejecución si `.update` o `.commit` es llamada sin un
+`.lock`. Un diseño más complejo puede envolver múltiples traits y una DSL a la medida
+que nadie recuerde cómo usar.
+
+En vez de esto, podemos usar `IndexedStateT` para requerir que la invocación se
+realice en el estado correcto. Primero definimos nuestros estados posibles como una
+ADT.
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Status
+  final case class Ready()                          extends Status
+  final case class Locked(on: ISet[Int])            extends Status
+  final case class Updated(values: Int ==>> String) extends Status
+~~~~~~~~
+
+y entonces revisitar nuestra álgebra
+
+{lang="text"}
+~~~~~~~~
+  trait Cache[M[_]] {
+    type F[in, out, a] = IndexedStateT[M, in, out, a]
+  
+    def read(k: Int): F[Ready, Ready, Maybe[String]]
+    def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
+    def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
+  
+    def lock: F[Ready, Locked, Unit]
+    def update(k: Int, v: String): F[Locked, Updated, Unit]
+    def commit: F[Updated, Ready, Unit]
+  }
+~~~~~~~~
+
+
+lo que nos ocasionará un error en tiempo de compilación si intentamos realizar
+un `.update` sin un `.lock`
+
+{lang="text"}
+~~~~~~~~
+  for {
+        a1 <- C.read(13)
+        _  <- C.update(13, "wibble")
+        _  <- C.commit
+      } yield a1
+  
+  [error]  found   : IndexedStateT[M,Locked,Ready,Maybe[String]]
+  [error]  required: IndexedStateT[M,Ready,?,?]
+  [error]       _  <- C.update(13, "wibble")
+  [error]          ^
+~~~~~~~~
+
+pero nos permite construir funciones que pueden componerse al incluirlas
+explícitamente en su estado:
+
+{lang="text"}
+~~~~~~~~
+  def wibbleise[M[_]: Monad](C: Cache[M]): F[Ready, Ready, String] =
+    for {
+      _  <- C.lock
+      a1 <- C.readLocked(13)
+      a2 = a1.cata(_ + "'", "wibble")
+      _  <- C.update(13, a2)
+      _  <- C.commit
+    } yield a2
+~~~~~~~~
+
+A> Hemos introducido algo de duplicación en el código en nuestra API cuando definimos
+A> operaciones múltiples `.read`
+A>
+A>  {lang="text"}
+A> ~~~~~~~~
+A>   def read(k: Int): F[Ready, Ready, Maybe[String]]
+A>   def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
+A>   def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
+A> ~~~~~~~~
+A> 
+A> en lugar de
+A> 
+A> {lang="text"}
+A> ~~~~~~~~
+A>   def read[S <: Status](k: Int): F[S, S, Maybe[String]]
+A> ~~~~~~~~
+A>
+A> La razón por la que no hacemos esto es, *debido al subtipo*. Este código (malo)
+A> podría compilar con la signatura de tipo inferido
+A> `F[Nothing, Ready, Maybe[String]]`
+A>
+A> {lang="text"}
+A> ~~~~~~~~
+A>   for {
+A>     a1 <- C.read(13)
+A>     _  <- C.update(13, "wibble")
+A>     _  <- C.commit
+A>   } yield a1
+A> ~~~~~~~~
+A> 
+A> Scala tiene un tipo `Nothing` que es subtipo de todos los otros tipos. Es una
+A> buena noticia que este código no llegue a tiempo de ejecución, dado que sería
+A> imposible invocarlo, pero es una mala API dado que usuarios tendrían que
+A> recordar agregar adscripciones de tipo.
+A>
+A> Otro enfoque para resolver el problema sería evitar que el compilador infiera
+A> `Nothing`. Scalaz proporciona evidencia implícita para realizar aserciones de
+A> que un tipo no es inferido como `Nothing` y podemos usar este mecanismo en
+A> lugar de esto:
+A>
+A> A> {lang="text"}
+A> ~~~~~~~~
+A>   def read[S <: Status](k: Int)(implicit NN: NotNothing[S]): F[S, S, Maybe[String]]
+A> ~~~~~~~~
+A>
+A> La elección de cual de las tres alternativas de diseño de la API usar, se deja
+A> al gusto personal del diseñador de la API.
+
