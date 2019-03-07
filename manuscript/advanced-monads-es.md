@@ -2368,7 +2368,7 @@ de nuestro objeto compañero en `NaturalTransformation`
   val interpreter: Ast ~> IO = NaturalTransformation.or(M, D)
 ~~~~~~~~
 
-Y entonces usarolo para produir un `IO`
+Y entonces usarlo para produir un `IO`
 
 {lang="text"}
 ~~~~~~~~
@@ -2380,3 +2380,715 @@ Y entonces usarolo para produir un `IO`
 nuestro programa en primer lugar y haber evitado `Free`. De modo que por qué
 pasamos por todos estos problemas? A continuación tenemos algunos ejemplos de
 cuando `Free` podría ser de utilidad.
+
+#### Pruebas con Mocks y Stubs
+
+Puede parecer hipócrita proponer que `Free` pueda usarse para reducir el
+boilerplate, dada la gran cantidad de código que hemos escrito. Sin embargo,
+existe un punto de inflexión cuando el `Ast` paga por sí mismo cuando tenemos
+muchas pruebas que requieren implementaciones stub.
+
+Si los métodos `.Ast` y `.liftF` están definidos para un álgebra, podemos crear
+*intérpretes parciales*
+
+{lang="text"}
+~~~~~~~~
+  val M: Machines.Ast ~> Id = stub[Map[MachineNode, Epoch]] {
+    case Machines.GetAlive() => Map.empty
+  }
+  val D: Drone.Ast ~> Id = stub[Int] {
+    case Drone.GetBacklog() => 1
+  }
+~~~~~~~~
+
+que puede ser usado para probar nuestro `program`
+
+{lang="text"}
+~~~~~~~~
+  program[Free[Ast, ?]](Machines.liftF, Drone.liftF)
+    .foldMap(or(M, D))
+    .shouldBe(1)
+~~~~~~~~
+
+Al usar funciones parciales, y no funciones totales, estamos exponiéndonos a
+errores en tiempo de ejecución. Muchos equipos están felices de aceptar este
+costo en sus pruebas unitarias dado que el test fallaría si hay un error del
+programador.
+
+También es posible lograr lo mismo con implementaciones de nuestras álgebras
+que implementen cada método con `???`, haciendo un `override` de cada cosa
+necesaria según sea el caso.
+
+A> La librería [smock](https://github.com/djspiewak/smock) es más poderosa, pero
+A> para los propósitos de este breve ejemplo podemos definir los `stub` por
+A> nosotros mismos usando un truco de inferencia de tipos que puede encontrarse
+A> por todas partes en el código fuente de Scalaz. La razón de que `Stub` sea
+A> una clase separada es que únicamente tengamos que proporcionar el parámetro
+A> de tipo `A`, a la vez que `F` y `G` se infieren del lado izquierdo de la
+A> expresión:
+A>
+A> {lang="text"}
+A> ~~~~~~~~
+A>   object Mocker {
+A>     final class Stub[A] {
+A>       def apply[F[_], G[_]](pf: PartialFunction[F[A], G[A]]): F ~> G = new (F ~> G) {
+A>         def apply[α](fa: F[α]) = pf.asInstanceOf[PartialFunction[F[α], G[α]]](fa)
+A>       }
+A>     }
+A>     def stub[A]: Stub[A] = new Stub[A]
+A>   }
+A> ~~~~~~~~
+
+#### Monitoreo
+
+Es típico que las aplicaciones de servidor sean monitoreadas por agentes de
+ejecución que manipulan el bytecode para insertar profilers y extraer
+información de distintas clases de uso o rendimiento.
+
+Si el contexto de nuestra aplicación es `Free`, no es necesario recurrir a la
+manipulación de bytecode, y en vez de esto es posible implementar un monitor de
+efectos laterales como un intérprete sobre el que tenemos completo control.
+
+A> La introspección en tiempo de ejecución es uno de los pocos casos en los que
+A> se justifica el uso de un efecto lateral. Si el monitoreo no es visible al
+A> programa en sí mismo, todavía es válida la transparencia referencial. Este
+A> también es el argumento usado por los equipos que usan efectos laterales al
+A> hacer logging para depurar programas, y nuestro argumento para permitir
+A> mutaciones en la implementación de `Memo`.
+
+Por ejemplo, considere usar este agente `Ast ~> Ast`:
+
+{lang="text"}
+~~~~~~~~
+  val Monitor = λ[Demo.Ast ~> Demo.Ast](
+    _.run match {
+      case \/-(m @ Drone.GetBacklog()) =>
+        JmxAbstractFactoryBeanSingletonProviderUtilImpl.count("backlog")
+        Coproduct.rightc(m)
+      case other =>
+        Coproduct(other)
+    }
+  )
+~~~~~~~~
+
+que almacena invocaciones del método: podríamos usar una rutina específica del
+vendedor en código real. También podríamos monitorear mensajes de interés
+específicos y registrarlos como una ayuda de depuracíón.
+
+Podemos adjuntar `Monitor` a nuestra aplicación de producción `Free` con
+
+{lang="text"}
+~~~~~~~~
+  .mapSuspension(Monitor).foldMap(interpreter)
+~~~~~~~~
+
+o combinar las transformaciones naturales y ejecutarlas con un único
+
+{lang="text"}
+~~~~~~~~
+  .foldMap(Monitor.andThen(interpreter))
+~~~~~~~~
+
+#### Parches al código
+
+Como ingenieros, estamos acostumbrados a peticiones de soluciones bizarras que
+es necesario añadir a la lógica central de la aplicación. Tal vez deseemos
+programar tales casos especiales como *excepciones a la regla* y manejarlos de
+manera tangencial a la lógica central de nuestro programa.
+
+Por ejemplo, suponga que obtenemos un memo de contabilidad indicándonos lo
+siguiente
+
+> *URGENTE: Bob está usando el nodo `#c0fee` para ejecutar el final del año. ¡NO
+> DETENGA ESTA MÁQUINA!*
+
+No hay posibilidad de discutir porqué Bob no debería estar usando nuestras
+máquinas para sus cuentas super importantes, de modo que es necesario hackear
+nuestra lógica de negocio y poner un release a producción tan pronto como sea
+posible.
+
+Nuestro parche al código puede mapear a una estructura `Free`, permitiéndonos
+regresar un resultado predeterminado (`Free.pure`) en lugar de programar la
+ejecución de la instrucción. Creamos un caso especial para la instrucción en una
+transformación natural personalizada con su valor de retorno:
+
+{lang="text"}
+~~~~~~~~
+  val monkey = λ[Machines.Ast ~> Free[Machines.Ast, ?]] {
+    case Machines.Stop(MachineNode("#c0ffee")) => Free.pure(())
+    case other                                 => Free.liftF(other)
+  }
+~~~~~~~~
+
+después de haber revisado que funcione, subimos el cambio a producción, y
+ponemos una alarma para la próxima semana para recordarnos de removerla, y
+quitar los permisos de accesso de Bob de nuestros servidores.
+
+Nuestra prueba unitaria podría usar `State` como el contexto objetivo, de modo que podamos darle seguimiento a todos los nodos que detuvimos:
+
+{lang="text"}
+~~~~~~~~
+  type S = Set[MachineNode]
+  val M: Machines.Ast ~> State[S, ?] = Mocker.stub[Unit] {
+    case Machines.Stop(node) => State.modify[S](_ + node)
+  }
+  
+  Machines
+    .liftF[Machines.Ast]
+    .stop(MachineNode("#c0ffee"))
+    .foldMap(monkey)
+    .foldMap(M)
+    .exec(Set.empty)
+    .shouldBe(Set.empty)
+~~~~~~~~
+
+junto con una prueba de que los nodos "normales" no son afectados.
+
+Una ventaja de usar `Free` para evitar detener los nodos `#c0fee` es que podemos
+estar seguros de atrapar todos los usos en lugar de tener que revisar la lógica
+del negocio y buscar todos los usos de `.stop`. Si nuestro contexto de la
+aplicación es simplemente `IO` podríamos, por supuesto, implementar esta lógica
+en la implementación de `Machines[IO]` pero una ventaja de usar `Free` es que no
+necesitamos tocar el código existente y podemos aislar y probar este
+comportamiento (temporal) sin seguir atado a las implementaciones de `IO`.
+
+### `FreeApp` (`Applicative`)
+
+A pesar de que este capítulo se llama **Mónadas avanzadas**, el punto que
+debemos recordar es: *no deberíamos usar mónadas a menos que **realmente**
+tengamos que usarlas*. En esta sección, veremos porqué `FreeAp` (un aplicativo
+free), es preferible a las mónadas `Free`.
+
+`FreeAp` se define como la representación de la estructura de datos de los
+métodos `ap` y `pure` de la typeclass `Applicative`:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class FreeAp[S[_], A] {
+    def hoist[G[_]](f: S ~> G): FreeAp[G,A] = ...
+    def foldMap[G[_]: Applicative](f: S ~> G): G[A] = ...
+    def monadic: Free[S, A] = ...
+    def analyze[M:Monoid](f: F ~> λ[α => M]): M = ...
+    ...
+  }
+  object FreeAp {
+    implicit def applicative[S[_], A]: Applicative[FreeAp[S, A]] = ...
+  
+    private final case class Pure[S[_], A](a: A) extends FreeAp[S, A]
+    private final case class Ap[S[_], A, B](
+      value: () => S[B],
+      function: () => FreeAp[S, B => A]
+    ) extends FreeAp[S, A]
+  
+    def pure[S[_], A](a: A): FreeAp[S, A] = Pure(a)
+    def lift[S[_], A](x: =>S[A]): FreeAp[S, A] = ...
+    ...
+  }
+~~~~~~~~
+
+Los métodos `.hoist` y `.foldMap` son como los análogos de `Free`
+`.mapSuspension` y `.foldMap`.
+
+Como una conveniencia, podemos generar una `Free[S, A]` a partir de nuestro
+`FreeAp[S, A]` con `.monadic`. Esto es de especial utilidad para optimizar
+subsistemas más pequeños y sin embargo usarlos como parte de un programa `Free`
+más grande.
+
+Como `Free`, donde debemos crear una `FreeAp` para nuestras ASTs, más
+boilerplate...
+
+{lang="text"}
+~~~~~~~~
+  def liftA[F[_]](implicit I: Ast :<: F) = new Machines[FreeAp[F, ?]] {
+    def getTime = FreeAp.lift(I.inj(GetTime()))
+    ...
+  }
+~~~~~~~~
+
+#### Haciendo llamadas agrupadas a la red
+
+Iniciamos este capítulo con afirmaciones grandes sobre rendimiento. Es tiempo de
+cumplir.
+
+La versión humanizada de [Philip
+Stark](https://gist.github.com/hellerbarde/2843375#file-latency_humanized-markdown)
+de los [Números de latencia de Peter
+Norvig](http://norvig.com/21-days.html#answers) sirven de motivación para
+enfocarnos en la reducción de las llamadas a la red para optimisar una
+aplicación:
+
+| Computadora                                    | Escala de tiempo humana | Analogía humana                            |
+|------------------------------------------------|-------------------------|--------------------------------------------|
+| Referencia a cache L1                          | 0.5 segs                | Un latido del corazón                      |
+| Error en la predicción de bifurcación          | 5 segs                  | Bostezo                                    |
+| Referencia a cache L2                          | 7 segs                  | Bostezo largo                              |
+| Mutex lock/unlock                              | 25 segs                 | Preparar una taza de té                    |
+| Referencia a memoria principal                 | 100 segs                | Cepillarse los dientes                     |
+| Comprimir 1 KB con Zippy                       | 50 min                  | Pipeline de CI de scalac                   |
+| Enviar 2 KB por una red de 1 Gbps              | 5.5 hr                  | Tren de Londres a Edinburgo                |
+| Lectura aleatoria de SSD                       | 1.7 días                | Fin de semana                              |
+| Lectura sequencial de 1 MB de memoria          | 2.9 días                | Fin de semana largo                        |
+| Viaje redondo dentro del mismo centro de datos | 5.8 días                | Vacaciones largas de EE.UU.                |
+| Lectura sequencial de 1 MB de SSD              | 11.6 días               | Fiesta corta de la Union Europea           |
+| Búsqueda en disco                              | 16.5 semanas            | Periodo de la universidad                  |
+| Lectura sequencial de 1 MB de disco            | 7.8 meses               | Maternidad pagada completamente en Noruega |
+| Envío de un paquete de CA->Holanda->CA         | 4.8 años                | Periodo de gobierno                        |
+
+Aunque `Free` y ``FreeAp` incurren en un costo extra de asignación dinámica de
+memoria, el equivalente a 100 segundos en la tabla humanizada, cada vez que
+convertimos dos invocaciones de red en una invocación agrupada, ahorramos casi 5
+años.
+
+Cuando estamos en un contexto `Applicative`, podemos optimizar con seguridad
+nuestra aplicación sin incumplir ninguna de las expectativas del programa
+original, y sin llenar desordenadamente nuestra lógica de negocios.
+
+Felizmente, nuestra lógica de negocio únicamente requiere de un `Applicative`,
+recuerde
+
+{lang="text"}
+~~~~~~~~
+  final class DynAgentsModule[F[_]: Applicative](D: Drone[F], M: Machines[F])
+      extends DynAgents[F] {
+    def act(world: WorldView): F[WorldView] = ...
+    ...
+  }
+~~~~~~~~
+
+Para empezar, crearemos el código repetitivo de `lift` para una álgebra nueva
+`Batch`
+
+{lang="text"}
+~~~~~~~~
+  trait Batch[F[_]] {
+    def start(nodes: NonEmptyList[MachineNode]): F[Unit]
+  }
+  object Batch {
+    sealed abstract class Ast[A]
+    final case class Start(nodes: NonEmptyList[MachineNode]) extends Ast[Unit]
+  
+    def liftA[F[_]](implicit I: Ast :<: F) = new Batch[FreeAp[F, ?]] {
+      def start(nodes: NonEmptyList[MachineNode]) = FreeAp.lift(I.inj(Start(nodes)))
+    }
+  }
+~~~~~~~~
+
+y entonces crearemos una instancia de `DynAgentsModule` con `FreeAp` como el
+contexto
+
+{lang="text"}
+~~~~~~~~
+  type Orig[a] = Coproduct[Machines.Ast, Drone.Ast, a]
+  
+  val world: WorldView = ...
+  val program = new DynAgentsModule(Drone.liftA[Orig], Machines.liftA[Orig])
+  val freeap  = program.act(world)
+~~~~~~~~
+
+En el capítulo 6, estudiamos el tipo de datos `Const`, que nos permite analizar
+un programa. No debería sorprendernos que `FreeAp.analize` esté implementado en
+términos de `Const`:
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class FreeAp[S[_], A] {
+    ...
+    def analyze[M: Monoid](f: S ~> λ[α => M]): M =
+      foldMap(λ[S ~> Const[M, ?]](x => Const(f(x)))).getConst
+  }
+~~~~~~~~
+
+Proporcionamos una transformación natural para registrar todos los inicios de
+nodos y analizar (`.analize`) nuestro programa para obtener todos los nodos que
+necesitan iniciarse:
+
+{lang="text"}
+~~~~~~~~
+  val gather = λ[Orig ~> λ[α => IList[MachineNode]]] {
+    case Coproduct(-\/(Machines.Start(node))) => IList.single(node)
+    case _                                    => IList.empty
+  }
+  val gathered: IList[MachineNode] = freeap.analyze(gather)
+~~~~~~~~
+
+El siguiente paso es extender el conjunto de instrucciones de `Orig` a
+`Extended`, lo que incluye el `Batch.Ast` y escribir un programa `FreeApp` que
+inicie todos nuestros nodos reunidos (`gathered`) en una única invocación a la
+red.
+
+{lang="text"}
+~~~~~~~~
+  type Extended[a] = Coproduct[Batch.Ast, Orig, a]
+  def batch(nodes: IList[MachineNode]): FreeAp[Extended, Unit] =
+    nodes.toNel match {
+      case None        => FreeAp.pure(())
+      case Some(nodes) => FreeAp.lift(Coproduct.leftc(Batch.Start(nodes)))
+    }
+~~~~~~~~
+
+También necesitamos remover todas las llamadas a `Machines.Start`, lo cual
+podemos hacer con una transformación natural
+
+{lang="text"}
+~~~~~~~~
+  val nostart = λ[Orig ~> FreeAp[Extended, ?]] {
+    case Coproduct(-\/(Machines.Start(_))) => FreeAp.pure(())
+    case other                             => FreeAp.lift(Coproduct.rightc(other))
+  }
+~~~~~~~~
+
+Ahora tenemos dos programas, y necesitamos combinarlos. Recuerde la sintáxis
+`*>` de `Apply`
+
+{lang="text"}
+~~~~~~~~
+  val patched = batch(gathered) *> freeap.foldMap(nostart)
+~~~~~~~~
+
+Poniéndolo todo junto en un mismo método:
+
+{lang="text"}
+~~~~~~~~
+  def optimise[A](orig: FreeAp[Orig, A]): FreeAp[Extended, A] =
+    (batch(orig.analyze(gather)) *> orig.foldMap(nostart))
+~~~~~~~~
+
+¡Eso es todo! Llamamos `.optimise` en cada invocación de `act` en nuestro ciclo
+principal, lo cual es simplemente una cuestión mecánica.
+
+### `Coyoneda` (`Functor`)
+
+Nombrada en honor al matemático Nobuo Yoneda, podemos generar de manera gratuita
+una estructura de datos `Functor` para cualquier álgebra `S[_]`
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class Coyoneda[S[_], A] {
+    def run(implicit S: Functor[S]): S[A] = ...
+    def trans[G[_]](f: F ~> G): Coyoneda[G, A] = ...
+    ...
+  }
+  object Coyoneda {
+    implicit def functor[S[_], A]: Functor[Coyoneda[S, A]] = ...
+  
+    private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
+    def apply[S[_], A, B](sa: S[A])(f: A => B) = Map[S, A, B](sa, f)
+    def lift[S[_], A](sa: S[A]) = Map[S, A, A](sa, identity)
+    ...
+  }
+~~~~~~~~
+
+y también existe una versión contravariante
+
+{lang="text"}
+~~~~~~~~
+  sealed abstract class ContravariantCoyoneda[S[_], A] {
+    def run(implicit S: Contravariant[S]): S[A] = ...
+    def trans[G[_]](f: F ~> G): ContravariantCoyoneda[G, A] = ...
+    ...
+  }
+  object ContravariantCoyoneda {
+    implicit def contravariant[S[_], A]: Contravariant[ContravariantCoyoneda[S, A]] = ...
+  
+    private final case class Contramap[F[_], A, B](fa: F[A], f: B => A)
+      extends ContravariantCoyoneda[F, A]
+    def apply[S[_], A, B](sa: S[A])(f: B => A) = Contramap[S, A, B](sa, f)
+    def lift[S[_], A](sa: S[A]) = Contramap[S, A, A](sa, identity)
+    ...
+  }
+~~~~~~~~
+
+A> El término coloquial para `Coyoneda` es *coyo* y para `ContravariantCoyoneda`
+A> es *cocoyo*.
+
+La API es algo más simple que `Free` y `FreeAp`, permitiendo una transformación
+natural con `.trans` y un `.run` (tomando un `Functor` o `Contravariant`,
+respectivamente) para escapar de la estructura libre.
+
+Coyo y cocoyo pueden ser de utilidad si deseamos realizar un `.map` o
+`.contramap` sobre un tipo, y sabemos que podemos convertir en un tipo de datos
+que tiene un `Functor` pero no deseamos comprometernos demasiado temprano con la
+estructura de datos final. Por ejemplo, podemos crear un `Coyoneda[ISet, ?]`
+(recuerde que `ISet` no tiene un `Functor`) para usar métodos que requieren un
+`Functor`, y después convertir en una `IList`.
+
+Si deseamos optimizar un programa con coyo o cocoyo tenemos que proporcionar el
+boilerplate esperada para cada álgebra:
+
+{lang="text"}
+~~~~~~~~
+  def liftCoyo[F[_]](implicit I: Ast :<: F) = new Machines[Coyoneda[F, ?]] {
+    def getTime = Coyoneda.lift(I.inj(GetTime()))
+    ...
+  }
+  def liftCocoyo[F[_]](implicit I: Ast :<: F) = new Machines[ContravariantCoyoneda[F, ?]] {
+    def getTime = ContravariantCoyoneda.lift(I.inj(GetTime()))
+    ...
+  }
+~~~~~~~~
+
+Una optimización que obtenemos al usar `Coyoneda` es la fusión de mapeos (y
+fusión de contramapeos), lo que nos permite reescribir
+
+{lang="text"}
+~~~~~~~~
+  xs.map(a).map(b).map(c)
+~~~~~~~~
+
+en
+
+{lang="text"}
+~~~~~~~~
+  xs.map(x => c(b(a(x))))
+~~~~~~~~
+
+evitando representaciones intermedias. Por ejemplo, si `xs` es una `List` de mil
+elementos, evitamos la creación de dos mil objetos porque sólo realizamos un
+mapeo sobre la estructura de datos una sola vez.
+
+Sin embargo, es mucho más fácil realizar este cambio en la función de manera
+manual, o esperar a que el proyecto
+[`scalaz-plugin`](https://github.com/scalaz/scalaz-plugin) sea liberado y que
+realice automáticamente este tipo de optimizaciones.
+
+### Efectos extensibles
+
+Los programas son simplemente datos: las estructuras libres hacen esto explícito
+y nos dan la habilidad de reordenar y optimizar estos datos.
+
+`Free` es más especial de lo que aparente: puede secuenciar álgebras y
+typeclasses arbitrarias.
+
+Por ejemplo, está disponible una estructura libre para `MonadState`. `Ast` y
+`.liftF` son más complicadas de lo usual debido a que tenemos que tomar en
+cuenta el parámetro de tipo en `MonadState`, y la herencia a partir de `Monad`:
+
+{lang="text"}
+~~~~~~~~
+  object MonadState {
+    sealed abstract class Ast[S, A]
+    final case class Get[S]()     extends Ast[S, S]
+    final case class Put[S](s: S) extends Ast[S, Unit]
+  
+    def liftF[F[_], S](implicit I: Ast[S, ?] :<: F) =
+      new MonadState[Free[F, ?], S] with BindRec[Free[F, ?]] {
+        def get       = Free.liftF(I.inj(Get[S]()))
+        def put(s: S) = Free.liftF(I.inj(Put[S](s)))
+  
+        val delegate         = Free.freeMonad[F]
+        def point[A](a: =>A) = delegate.point(a)
+        ...
+      }
+    ...
+  }
+~~~~~~~~
+
+Esto nos brinda la oportunidad de usar intérpretes optimizados. Por ejemplo,
+podríamos almacenar la `S` en un campo atómico en lugar de construir un
+trampolin `StateT` anidado.
+
+¡Podríamos crear una `Ast` y un `.liftF` para casi cualquier álgebra o
+typeclass! La única restricción es que la `F[_]` no aparezca como un parámetro
+de alguna de las instrucciones, es decir, debe ser posible que el álgebra tenga
+una instancia de `Functor`. Tristemente, esto descarta a `MonadError` y
+`Monoid`.
+
+A> La razón por la que las codificaciones libres no funcionan para toda las
+A> álgebras y typeclasses es realmente sutil.
+A>
+A> Considere lo que sucede si creamos un Ast para `MonadError`, con `F[_]` en
+A> posición contravariante, es dicir como un parámetro.
+A>
+A> {lang="text"}
+A> ~~~~~~~~
+A>   object MonadError {
+A>     sealed abstract class Ast[F[_], E, A]
+A>     final case class RaiseError[F[_], E, A](e: E) extends Ast[F, E, A]
+A>     final case class HandleError[F[_], E, A](fa: F[A], f: E => F[A]) extends Ast[F, E, A]
+A>   
+A>     def liftF[F[_], E](implicit I: Ast[F, E, ?] :<: F): MonadError[F, E] = ...
+A>     ...
+A>   }
+A> ~~~~~~~~
+A> 
+A> Cuando surja la necesidad de interpretar un programa que use `MonadError.Ast`
+A> debemos construir el coproducto de instrucciones. Digamos que extendemos un
+A> programa `Drone`:
+A>
+A> {lang="text"}
+A> ~~~~~~~~
+A>   type Ast[a] = Coproduct[MonadError.Ast[Ast, String, ?], Drone.Ast, a]
+A> ~~~~~~~~
+A>
+A> ¡El código anterior no compila debido a que `Ast` se refiere a sí mismo!
+A>
+A> Las álgebras que no están hechas por completo de firmas de functores
+A> covariantes, es decir, `F[_]` en posición de retorno, son imposibles de
+A> interpretar debido a que el tipo resultante de este programa hace referencia
+A> a sí mismo. De hecho el nombre *álgebra*hemos estado usando tiene sus raíces
+A> en [álgebras-F](https://en.wikipedia.org/wiki/F-algebra), donde la F es
+A> debido a la palabra Functor.
+A>
+A> *Agradezco a Edmund Noble por iniciar esta discusión.*
+
+A medida que el AST de un programa libre crece, el rendimiento se degrada debido
+a que el intérprete debe realizar un match sobre el conjunto de instrucciones
+con un costo `O(n)`. Una alternativa a `scalaz.Coproduct` es la codificación de
+[iotaz](https://github.com/frees-io/iota), que usa una estructura de datos
+optimizada para realizar un despacho dinámico de costo `O(1)` (usando enteros
+que son asignados a cada coproducto en tiempo de compilación).
+
+Por razones históricas una AST libre para un álgebra o typeclass se conoce como
+*Codificación Inicial*, y una implementación directa (por ejemplo, con `IO`) se
+conoce como *Sin Etiqueta Final*. Aunque hemos explorado ideas interesantes con
+`Free`, generalmente se acepta que *Sin Etiqueta Final* es superior. Pero para
+poder usar el estilo de *Sin Etiqueta Final*, requerimos de un tipo para efectos
+de alto rendimiento que proporcione todas las typeclasses que hemos cubierto en
+este capítulo. También necesitaríamos ser capaces de ejecutar nuestro código
+`Applicative` en paralelo. Esto es exactamente lo que estudiaremos a
+continuación.
+
+
+## `Parallel`
+
+Existen dos operaciones con efectos que casi siempre querremos ejecutar en
+paralelo:
+
+1. Realizar un `.map` sobre una colección de efectos, devolviendo un único
+   efecto. Esto se consigue por medio de `.traverse`, que delega al método
+   `.apply2` del efecto.
+2. Ejecuat un número fijo de efectos con el *operador de grito* `|@|`, y
+   combinar sus salidas, de nuevo delegando al método `.apply2`.
+
+Sin embargo, en la práctica, ninguna de estas operaciones se ejecutan en
+paralelo por default. La razón es que si nuestra `F[_]` se implementa por una
+`Monad`, entonces las leyes derivadas para los combinadores `.apply2` deben
+satisfacerse, las cuales dicen:
+
+{lang="text"}
+~~~~~~~~
+  @typeclass trait Bind[F[_]] extends Apply[F] {
+    ...
+    override def apply2[A, B, C](fa: =>F[A], fb: =>F[B])(f: (A, B) => C): F[C] =
+      bind(fa)(a => map(fb)(b => f(a, b)))
+    ...
+  }
+~~~~~~~~
+
+
+En otras palabras, **`Monad` está explícitamente prohibido para ejecutar efectos
+en paralelo.**
+
+Sin embargo, si tenemos una `F[_]` que **no** sea monádica, entonces puede
+implementar `.apply2` en paralelo. Podemos usar el mecanismo de (etiqueta) `@@`
+para crear una instancia de `Applicative` para `F[_] @@ Parallel`, que de manera
+conveniente se le asigna el alias de tipo `Applicative.Par`
+
+{lang="text"}
+~~~~~~~~
+  object Applicative {
+    type Par[F[_]] = Applicative[λ[α => F[α] @@ Tags.Parallel]]
+    ...
+  }
+~~~~~~~~
+
+Los programas monádicos pueden entonces demandar un `Par` implícito además de su
+`Monad`
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]: Monad: Applicative.Par]: F[Unit] = ...
+~~~~~~~~
+
+La sintaxis de `Traverse` de Scalaz soporta paralelismo:
+
+{lang="text"}
+~~~~~~~~
+  implicit class TraverseSyntax[F[_], A](self: F[A]) {
+    ...
+    def parTraverse[G[_], B](f: A => G[B])(
+      implicit F: Traverse[F], G: Applicative.Par[G]
+    ): G[F[B]] = Tag.unwrap(F.traverse(self)(a => Tag(f(a))))
+  }
+~~~~~~~~
+
+Si el implícito `Applicative.Par[IO]` está dentro del alcance, podemos escoger
+entre recorrer de manera secuencial o paralela:
+
+{lang="text"}
+~~~~~~~~
+  val input: IList[String] = ...
+  def network(in: String): IO[Int] = ...
+  
+  input.traverse(network): IO[IList[Int]] // one at a time
+  input.parTraverse(network): IO[IList[Int]] // all in parallel
+~~~~~~~~
+
+
+De manera similar, podemos invocar `.parApply` o `.parTupled` después de usar los
+operadores de grito
+
+{lang="text"}
+~~~~~~~~
+  val fa: IO[String] = ...
+  val fb: IO[String] = ...
+  val fc: IO[String] = ...
+  
+  (fa |@| fb).parTupled: IO[(String, String)]
+  
+  (fa |@| fb |@| fc).parApply { case (a, b, c) => a + b + c }: IO[String]
+~~~~~~~~
+
+
+Es digno de mención que cuando tenemos programas `Applicative`, tales como
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]: Applicative]: F[Unit] = ...
+~~~~~~~~
+
+podemos usar `F[A] @@ Parallel` como nuestro contexto del programa y obtener
+paralelismo como el default en `.traverse` y `|@|`. La conversión entre las
+versiones normal y `@@ Parallel` de `F[_]` debe hacerse manualmente en el
+código, lo que puede resultar doloroso. Por lo tanto, con frecuencia es más
+simple demandar ambas formas de `Applicative`
+
+{lang="text"}
+~~~~~~~~
+  def foo[F[_]: Applicative: Applicative.Par]: F[Unit] = ...
+~~~~~~~~
+
+### Rompiendo la ley
+
+Podríamos tomar un enfoque aún más audaz para el paralelismo: salirnos de la ley
+que demanda que `.apply2` sea secuencial para `Monad`. Esto es altamente
+controversial, pero funciona bien para la mayoría de las aplicaciones del mundo
+real. Es necesario auditar nuestro código (incluyendo las dependencias de
+terceros) para asegurarnos de que nada está haciendo uso de la ley implicada de
+`.apply2`.
+
+Envolvemos `IO`
+
+{lang="text"}
+~~~~~~~~
+  final class MyIO[A](val io: IO[A]) extends AnyVal
+~~~~~~~~
+
+y proporcionamos nuestra propia implementación de `Monad` que ejecute `.apply2`
+en paralelo al delegar a la instancia `@@ Parallel`
+
+{lang="text"}
+~~~~~~~~
+  object MyIO {
+    implicit val monad: Monad[MyIO] = new Monad[MyIO] {
+      override def apply2[A, B, C](fa: MyIO[A], fb: MyIO[B])(f: (A, B) => C): MyIO[C] =
+        Applicative[IO.Par].apply2(fa.io, fb.io)(f)
+      ...
+    }
+  }
+~~~~~~~~
+
+Ahora es posible usar `MyIO` como nuestro contexto de la aplicación en lugar de
+`IO`, y **obtener paralelismo por default**.
+
+
