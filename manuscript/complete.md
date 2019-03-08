@@ -2450,6 +2450,9 @@ We need to provide typeclass instances for basic types:
     implicit val string: UrlEncodedWriter[String] =
       (s => Refined.unsafeApply(URLEncoder.encode(s, "UTF-8")))
   
+    implicit val url: UrlEncodedWriter[String Refined Url] =
+      (s => s.value.toUrlEncoded)
+  
     implicit val long: UrlEncodedWriter[Long] =
       (s => Refined.unsafeApply(s.toString))
   
@@ -2522,7 +2525,7 @@ we wish to convert:
   import UrlEncodedWriter.ops._
   object AuthRequest {
     implicit val query: UrlQueryWriter[AuthRequest] = { a =>
-      UriQuery(List(
+      UrlQuery(List(
         ("redirect_uri"  -> a.redirect_uri.value),
         ("scope"         -> a.scope),
         ("client_id"     -> a.client_id),
@@ -2533,7 +2536,7 @@ we wish to convert:
   }
   object AccessRequest {
     implicit val encoded: UrlEncodedWriter[AccessRequest] = { a =>
-      List(
+      IList(
         "code"          -> a.code.toUrlEncoded,
         "redirect_uri"  -> a.redirect_uri.toUrlEncoded,
         "client_id"     -> a.client_id.toUrlEncoded,
@@ -2545,7 +2548,7 @@ we wish to convert:
   }
   object RefreshRequest {
     implicit val encoded: UrlEncodedWriter[RefreshRequest] = { r =>
-      List(
+      IList(
         "client_secret" -> r.client_secret.toUrlEncoded,
         "refresh_token" -> r.refresh_token.toUrlEncoded,
         "client_id"     -> r.client_id.toUrlEncoded,
@@ -2578,7 +2581,7 @@ responses must have a `JsDecoder` and our `POST` payload must have a
     def post[P: UrlEncodedWriter, A: JsDecoder](
       uri: String Refined Url,
       payload: P,
-      headers: IList[(String, String]
+      headers: IList[(String, String] = IList.empty
     ): F[A]
   }
 ~~~~~~~~
@@ -3844,7 +3847,7 @@ we can derive instances. Filling in the contract:
 {lang="text"}
 ~~~~~~~~
   object Alpha {
-    implicit val decoder: JsDecoder[Alpha] = JsEncoder[Double].map(_.value)
+    implicit val decoder: JsDecoder[Alpha] = JsDecoder[Double].map(Alpha(_))
     implicit val encoder: JsEncoder[Alpha] = JsEncoder[Double].contramap(_.value)
   }
 ~~~~~~~~
@@ -8229,7 +8232,7 @@ of a function, so we can provide it as the parameter to a monad's `.bind`, or
 `>>=`.
 
 The most common use for `ReaderT` is to provide environment information to a
-program. In `drone-dynamic-agents` we need access to the user's Oauth 2.0
+program. In `drone-dynamic-agents` we need access to the user's OAuth 2.0
 Refresh Token to be able to contact Google. The obvious thing is to load the
 `RefreshTokens` from disk on startup, and make every method take a
 `RefreshToken` parameter. In fact, this is such a common requirement that Martin
@@ -10160,17 +10163,17 @@ structure for any algebra `S[_]`
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class Coyoneda[S[_], A] {
-    def run(implicit S: Functor[S]): S[A] = ...
+  sealed abstract class Coyoneda[F[_], A] {
+    def run(implicit F: Functor[F]): F[A] = ...
     def trans[G[_]](f: F ~> G): Coyoneda[G, A] = ...
     ...
   }
   object Coyoneda {
-    implicit def functor[S[_], A]: Functor[Coyoneda[S, A]] = ...
+    implicit def functor[F[_], A]: Functor[Coyoneda[F, A]] = ...
   
     private final case class Map[F[_], A, B](fa: F[A], f: A => B) extends Coyoneda[F, A]
-    def apply[S[_], A, B](sa: S[A])(f: A => B) = Map[S, A, B](sa, f)
-    def lift[S[_], A](sa: S[A]) = Map[S, A, A](sa, identity)
+    def apply[F[_], A, B](sa: F[A])(f: A => B) = Map[F, A, B](sa, f)
+    def lift[F[_], A](sa: F[A]) = Map[F, A, A](sa, identity)
     ...
   }
 ~~~~~~~~
@@ -10179,18 +10182,18 @@ and there is also a contravariant version
 
 {lang="text"}
 ~~~~~~~~
-  sealed abstract class ContravariantCoyoneda[S[_], A] {
-    def run(implicit S: Contravariant[S]): S[A] = ...
+  sealed abstract class ContravariantCoyoneda[F[_], A] {
+    def run(implicit F: Contravariant[F]): F[A] = ...
     def trans[G[_]](f: F ~> G): ContravariantCoyoneda[G, A] = ...
     ...
   }
   object ContravariantCoyoneda {
-    implicit def contravariant[S[_], A]: Contravariant[ContravariantCoyoneda[S, A]] = ...
+    implicit def contravariant[F[_], A]: Contravariant[ContravariantCoyoneda[F, A]] = ...
   
     private final case class Contramap[F[_], A, B](fa: F[A], f: B => A)
       extends ContravariantCoyoneda[F, A]
-    def apply[S[_], A, B](sa: S[A])(f: B => A) = Contramap[S, A, B](sa, f)
-    def lift[S[_], A](sa: S[A]) = Contramap[S, A, A](sa, identity)
+    def apply[F[_], A, B](sa: F[A])(f: B => A) = Contramap[F, A, B](sa, f)
+    def lift[F[_], A](sa: F[A]) = Contramap[F, A, A](sa, identity)
     ...
   }
 ~~~~~~~~
@@ -10422,7 +10425,7 @@ Similarly, we can call `.parApply` or `.parTupled` after using scream operators
   (fa |@| fb |@| fc).parApply { case (a, b, c) => a + b + c }: IO[String]
 ~~~~~~~~
 
-It is worth nothing that when we have `Applicative` programs, such as
+It is worth noting that when we have `Applicative` programs, such as
 
 {lang="text"}
 ~~~~~~~~
@@ -10445,7 +10448,7 @@ can be painful. Therefore it is often easier to simply request both forms of
 
 We can take a more daring approach to parallelism: opt-out of the law that
 `.apply2` must be sequential for `Monad`. This is highly controversial, but
-works well for the majority of real world applications. we must first audit our
+works well for the majority of real world applications. We must first audit our
 codebase (including third party dependencies) to ensure that nothing is making
 use of the `.apply2` implied law.
 
@@ -10844,7 +10847,7 @@ We can read the variable and we have a variety of ways to write or update it.
   }
 ~~~~~~~~
 
-We can make use of this optimised `StateMonad` implementation in a `SafeApp`,
+We can make use of this optimised `MonadState` implementation in a `SafeApp`,
 where our `.program` depends on optimised MTL typeclasses:
 
 {lang="text"}
@@ -11048,7 +11051,7 @@ Before we proceed, here is a quick recap of the core Scalaz typeclasses:
   }
   @typeclass trait MonadError[F[_], E] extends Monad[F] {
     def raiseError[A](e: E): F[A]
-    def emap[A, B](fa: F[A])(f: A => S \/ B): F[B] = ...
+    def emap[A, B](fa: F[A])(f: A => E \/ B): F[B] = ...
     ...
   }
 ~~~~~~~~
@@ -12130,7 +12133,7 @@ For example
   final case class Money(@json.field("integer") i: Int) extends Cost
 ~~~~~~~~
 
-Start with a `JsDecoder` that handles only our sensible defaults:
+Start with a `JsEncoder` that handles only our sensible defaults:
 
 {lang="text"}
 ~~~~~~~~
