@@ -3091,4 +3091,7 @@ en paralelo al delegar a la instancia `@@ Parallel`
 Ahora es posible usar `MyIO` como nuestro contexto de la aplicación en lugar de
 `IO`, y **obtener paralelismo por default**.
 
-
+```scala
+object MyIO {
+}
+```
