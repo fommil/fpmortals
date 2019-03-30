@@ -57,30 +57,28 @@ Ahora codificaremos el diagrama de arquitectura de la sección previa. Primerame
 definir un tipo de datos simple para almacenar un momento (tiempo) en milisegundos porque este
 concepto simple no existe ni en la librería estándar de Java ni en la de Scala:
 
-{lang="text"}
-~~~~~~~~
+```scala
   import scala.concurrent.duration._
-  
+
   final case class Epoch(millis: Long) extends AnyVal {
     def +(d: FiniteDuration): Epoch = Epoch(millis + d.toMillis)
     def -(e: Epoch): FiniteDuration = (millis - e.millis).millis
   }
-~~~~~~~~
+```
 
-En PF, una *algebra* toma el lugar de una `interface` en Jave, o el conjunto de mensajes válidos
+En PF, una *álgebra* toma el lugar de una `interface` en Java, o el conjunto de mensajes válidos
 para un `Actor` de Akka. Esta es la capa donde definimos todas las interacciones colaterales de
 nuestro sistema.
 
 Existe una interacción estrecha entre la escritura de la lógica de negocio y su álgebra: es un buen
 nivel de abstracción para diseñar un sistema.
 
-{lang="text"}
-~~~~~~~~
+```scala
   trait Drone[F[_]] {
     def getBacklog: F[Int]
     def getAgents: F[Int]
   }
-  
+
   final case class MachineNode(id: String)
   trait Machines[F[_]] {
     def getTime: F[Epoch]
@@ -89,7 +87,7 @@ nivel de abstracción para diseñar un sistema.
     def start(node: MachineNode): F[MachineNode]
     def stop(node: MachineNode): F[MachineNode]
   }
-~~~~~~~~
+```
 
 Ya hemos usado `NonEmptyList`, creado fácilmente mediante la invocación de `.toNel` sobre un objecto
 `List` de la librería estándar (que devuelve un `Option[NonEmptyList]`), y el resto debería resultar
@@ -121,8 +119,7 @@ Si estuvieramos diseñando esta aplicación en Akka, `WorldView` probablemente s
 `WorldView` acumula los valores de retorno de todos los métodos en las álgebras, y agrega un campo
 *pendiente* (pending) para darle seguimiento a peticiones que no han sido satisfechas.
 
-{lang="text"}
-~~~~~~~~
+```scala
   final case class WorldView(
     backlog: Int,
     agents: Int,
@@ -131,31 +128,29 @@ Si estuvieramos diseñando esta aplicación en Akka, `WorldView` probablemente s
     pending: Map[MachineNode, Epoch],
     time: Epoch
   )
-~~~~~~~~
+```
 
 Ahora estamos listos para escribir nuestra lógica de negocio, pero necesitamos indicar que
 dependemos de `Drone`y de `Machines`.
 
 Podemos escribir la interfaz para nuestra lógica de negocio
 
-{lang="text"}
-~~~~~~~~
+```scala
   trait DynAgents[F[_]] {
     def initial: F[WorldView]
     def update(old: WorldView): F[WorldView]
     def act(world: WorldView): F[WorldView]
   }
-~~~~~~~~
+```
 
 e implementarla con un *módulo*. Un módulo depende únicamente de otros módulos, álgebras y funciones
 puras, y puede ser abstraída sobre `F`. Si una implementación de una interfaz algebraica está
 acoplada a cierto tipo específico, por ejemplo, `IO`, se llama un *intérprete*.
 
-{lang="text"}
-~~~~~~~~
+```scala
   final class DynAgentsModule[F[_]: Monad](D: Drone[F], M: Machines[F])
     extends DynAgents[F] {
-~~~~~~~~
+```
 
 El límite de contexto `Monad` significa que `F` es *monádico*, permitiéndonos usar `map`, `pure` y,
 por supuesto, `flatMap` por medio de `for` comprehensions.
@@ -166,21 +161,19 @@ mónadas y álgebras.
 
 Nuestra lógica de negocio se ejecutará en un ciclo infinito (pseudocódigo)
 
-{lang="text"}
-~~~~~~~~
+```scala
   state = initial()
   while True:
     state = update(state)
     state = act(state)
-~~~~~~~~
+```
 
 ### initial
 
 En `initial` llamamos a todos los servicios externos y acumulamos sus resultados en un `WorldView`.
 Por default se asigna el campo `pending` a un `Map` vacío.
 
-{lang="text"}
-~~~~~~~~
+```scala
   def initial: F[WorldView] = for {
     db <- D.getBacklog
     da <- D.getAgents
@@ -188,7 +181,7 @@ Por default se asigna el campo `pending` a un `Map` vacío.
     ma <- M.getAlive
     mt <- M.getTime
   } yield WorldView(db, da, mm, ma, Map.empty, mt)
-~~~~~~~~
+```
 
 Recuerde del Capítulo 1 que `flatMap` (es decir, cuando usamos el generador `<-`) nos permite operar
 sobre un valor que se calcula en tiempo de ejecución. Cuando devolvemos un `F[_]` devolvemos otro
@@ -206,8 +199,7 @@ Si un nodo ha cambiado su estado, la quitamos de `pending` y si una acción pend
 más de 10 minutos para lograr algo, asumimos que ha fallado y olvidamos que se solicitó trabajo al
 mismo.
 
-{lang="text"}
-~~~~~~~~
+```scala
   def update(old: WorldView): F[WorldView] = for {
     snap <- initial
     changed = symdiff(old.alive.keySet, snap.alive.keySet)
@@ -216,10 +208,10 @@ mismo.
     }
     update = snap.copy(pending = pending)
   } yield update
-  
+
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] =
     (a union b) -- (a intersect b)
-~~~~~~~~
+```
 
 Funciones concretas como `.symdiff` no requieren intérpretes de prueba, tienen entradas y salidas
 explícitas, de modo que podríamos mover todo el código puro a métodos autónomos en un `object` sin
@@ -241,8 +233,7 @@ Necesitamos agregar agentes a la granja si existe una lista de trabajo pendiente
 tenemos agentes, no tenemos nodos vivos, y no hay acciones pendientes. Regresamos un nodo candidato
 que nos gustaría iniciar:
 
-{lang="text"}
-~~~~~~~~
+```scala
   private object NeedsAgent {
     def unapply(world: WorldView): Option[MachineNode] = world match {
       case WorldView(backlog, 0, managed, alive, pending, _)
@@ -251,7 +242,7 @@ que nos gustaría iniciar:
       case _ => None
     }
   }
-~~~~~~~~
+```
 
 Si no hay *backlog*, deberíamos detener todos los nodos que están detenidos (no están haciendo
 ningún trabajo). Sin embargo, dado que Google cobra por hora nosotros únicamente apagamos las
@@ -261,8 +252,7 @@ los nodos que hay que detener.
 Como una red de seguridad financiera, todos los nodos deben tener un tiempo de vida máximo de 5
 horas.
 
-{lang="text"}
-~~~~~~~~
+```scala
   private object Stale {
     def unapply(world: WorldView): Option[NonEmptyList[MachineNode]] = world match {
       case WorldView(backlog, _, _, alive, pending, time) if alive.nonEmpty =>
@@ -270,25 +260,24 @@ horas.
           case (n, started) if backlog == 0 && (time - started).toMinutes % 60 >= 58 => n
           case (n, started) if (time - started) >= 5.hours => n
         }.toList.toNel
-  
+
       case _ => None
     }
   }
-~~~~~~~~
+```
 
 Ahora que hemos detectado los escenario que pueden ocurrir, podemos escribir el método `act`. Cuando
 se planea que un nodo se inicie o se detenga, lo agregamos a `pending` tomando nota del tiempo en el
 que se programó la acción.
 
-{lang="text"}
-~~~~~~~~
+```scala
   def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) =>
       for {
         _ <- M.start(node)
         update = world.copy(pending = Map(node -> world.time))
       } yield update
-  
+
     case Stale(nodes) =>
       nodes.foldLeftM(world) { (world, n) =>
         for {
@@ -296,10 +285,10 @@ que se programó la acción.
           update = world.copy(pending = world.pending + (n -> world.time))
         } yield update
       }
-  
+
     case _ => world.pure[F]
   }
-~~~~~~~~
+```
 
 Dado que `NeedsAgent` y `Stale` no cubren todas las situaciones posibles, requerimos de un `case _`
 que atrape todas las situaciones posibles restantes, y que no haga nada. Recuerde del Capítulo 2 que
@@ -325,22 +314,21 @@ en las pruebas unitarias.
 
 Empezaremos con algunos datos de prueba
 
-{lang="text"}
-~~~~~~~~
+```scala
   object Data {
     val node1   = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
     val node2   = MachineNode("550c4943-229e-47b0-b6be-3d686c5f013f")
     val managed = NonEmptyList(node1, node2)
-  
+
     val time1: Epoch = epoch"2017-03-03T18:07:00Z"
     val time2: Epoch = epoch"2017-03-03T18:59:00Z" // +52 mins
     val time3: Epoch = epoch"2017-03-03T19:06:00Z" // +59 mins
     val time4: Epoch = epoch"2017-03-03T23:07:00Z" // +5 hours
-  
+
     val needsAgents = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
   }
   import Data._
-~~~~~~~~
+```
 
 A> El interpolador de cadena `epoch` está escrito con la librería de Jon Pretty
 A> [contextual](https://github.com/propensive/contextual), proporcionandonos seguridad en tiempo de
@@ -365,16 +353,15 @@ Implementamos algebras al extender `Drone` y `Machines` con un contexto monádic
 Nuestras implementaciones *mock* simplemente repiten un `WorldView` fijo. Ya hemos aislado el estado
 de nuestro sistema, de modo que podemos usar `var` para almacenar el estado:
 
-{lang="text"}
-~~~~~~~~
+```scala
   class Mutable(state: WorldView) {
     var started, stopped: Int = 0
-  
+
     private val D: Drone[Id] = new Drone[Id] {
       def getBacklog: Int = state.backlog
       def getAgents: Int = state.agents
     }
-  
+
     private val M: Machines[Id] = new Machines[Id] {
       def getAlive: Map[MachineNode, Epoch] = state.alive
       def getManaged: NonEmptyList[MachineNode] = state.managed
@@ -382,10 +369,10 @@ de nuestro sistema, de modo que podemos usar `var` para almacenar el estado:
       def start(node: MachineNode): MachineNode = { started += 1 ; node }
       def stop(node: MachineNode): MachineNode = { stopped += 1 ; node }
     }
-  
+
     val program = new DynAgentsModule[Id](D, M)
   }
-~~~~~~~~
+```
 
 A> Regresaremos a este código más adelante y reemplazaremos `var` con algo más seguro.
 
@@ -399,46 +386,44 @@ aserciones.
 En este caso trivial simplemente verificamos que el método `initial` devuelva el mismo valor que
 usamos en nuestras implementaciones estáticas:
 
-{lang="text"}
-~~~~~~~~
+```scala
   "Business Logic" should "generate an initial world view" in {
     val mutable = new Mutable(needsAgents)
     import mutable._
-  
+
     program.initial shouldBe needsAgents
   }
-~~~~~~~~
+```
 
 Entonces podemos crear pruebas más avanzadas de los métodos `update` y `act`, ayudándonos a eliminar
 bugs y refinar los requerimientos:
 
-{lang="text"}
-~~~~~~~~
+```scala
   it should "remove changed nodes from pending" in {
     val world = WorldView(0, 0, managed, Map(node1 -> time3), Map.empty, time3)
     val mutable = new Mutable(world)
     import mutable._
-  
+
     val old = world.copy(alive = Map.empty,
                          pending = Map(node1 -> time2),
                          time = time2)
     program.update(old) shouldBe world
   }
-  
+
   it should "request agents when needed" in {
     val mutable = new Mutable(needsAgents)
     import mutable._
-  
+
     val expected = needsAgents.copy(
       pending = Map(node1 -> time1)
     )
-  
+
     program.act(needsAgents) shouldBe expected
-  
+
     mutable.stopped shouldBe 0
     mutable.started shouldBe 1
   }
-~~~~~~~~
+```
 
 Sería aburrido ejecutar el conjunto de pruebas completo. Las siguientes pruebas serían fáciles de
 implementar usando el mismo enfoque:
@@ -474,29 +459,26 @@ en lugar de hacer una consulta a la vez.
 En contraste con `flatMap` para operaciones secuenciales, Scalaz usa la sintaxis `Apply` para
 operaciones paralelas:
 
-{lang="text"}
-~~~~~~~~
+```scala
   ^^^^(D.getBacklog, D.getAgents, M.getManaged, M.getAlive, M.getTime)
-~~~~~~~~
+```
 
 y también puede usar notación infija:
 
-{lang="text"}
-~~~~~~~~
+```scala
   (D.getBacklog |@| D.getAgents |@| M.getManaged |@| M.getAlive |@| M.getTime)
-~~~~~~~~
+```
 
 Si cada una de las operaciones paralelas regresa un valor en el mismo contexto monádico, podemos
 aplicar una función a los resultados cuando todos ellos sean devueltos. Reescribiendo `initial`
 para tomar ventaja de esto:
 
-{lang="text"}
-~~~~~~~~
+```scala
   def initial: F[WorldView] =
     ^^^^(D.getBacklog, D.getAgents, M.getManaged, M.getAlive, M.getTime) {
       case (db, da, mm, ma, mt) => WorldView(db, da, mm, ma, Map.empty, mt)
     }
-~~~~~~~~
+```
 
 ### act
 
@@ -513,14 +495,13 @@ elemento en un `F[MachineNode]`, devolviendo un `F[NonEmptyList[MachineNode]]`. 
 `traverse`, y cuando invoquemos un `flatMap` sobre este tendremos un `NonEmptyList[MachineNode]` con
 el cuál lidiaremos de una manera sencilla:
 
-{lang="text"}
-~~~~~~~~
+```scala
   for {
     stopped <- nodes.traverse(M.stop)
     updates = stopped.map(_ -> world.time).toList.toMap
     update = world.copy(pending = world.pending ++ updates)
   } yield update
-~~~~~~~~
+```
 
 Podría argumentarse, que este código es más fácil de entender que la versión secuencial.
 
