@@ -2001,8 +2001,6 @@ tal vez querríamos hacer algo con los mensajes de error.
 La typeclass `Functor`/`Foldable`/`Traverse` tienen parientes extraños que nos permiten hacer un
 mapeo de ambas maneras.
 
-relatives that allow us to map both ways.
-
 {width=30%}
 ![](images/scalaz-bithings.png)
 

@@ -2957,3 +2957,414 @@ en paralelo al delegar a la instancia `@@ Parallel`
 Ahora es posible usar `MyIO` como nuestro contexto de la aplicación en lugar de
 `IO`, y **obtener paralelismo por default**.
 
+A> Envolver un tipo existente y proporcionar instancias de typeclasses a la
+A> medida se conoce como *newtyping*.
+A>
+A> `@@` y newtyping son complementarias: `@@` nos permite solicitar variantes de
+A> typeclasses específicas en nuestro modelo de dominio, mientras que newtyping
+A> nos permite definir las instancias en la implementación. La misma cosa,
+A> diferentes puntos de inserción.
+A>
+A> La macro `@newtype` [por Cary
+A> Robbins](https://github.com/estatico/scala-newtype) tiene una representación
+A> en tiempo de ejecución optimizada (más eficiente que `extends AnyVal`) que
+A> hace sencillo delegar typeclasses que no deseamos crear a la medida. Por
+A> ejemplo, podemos personalizar `Monad` pero delegar el `Plus`:
+A>
+A> {lang="text"}
+A> ~~~~~~~~
+A>   @newtype class MyIO[A](io: IO[A])
+A>   object MyIO {
+A>     implicit val monad: Monad[MyIO] = ...
+A>     implicit val plus: Plus[MyIO] = derived
+A>   }
+A> ~~~~~~~~
+
+Para ser exhaustivos: una implementación ingenua e ineficiente de
+`Applicative.Par` para nuestro `IO` de juguete podría usar `Future`:
+
+```scala
+  object IO {
+    ...
+    type Par[a] = IO[a] @@ Parallel
+    implicit val ParApplicative = new Applicative[Par] {
+      override def apply2[A, B, C](fa: =>Par[A], fb: =>Par[B])(f: (A, B) => C): Par[C] =
+        Tag(
+          IO {
+            val forked = Future { Tag.unwrap(fa).interpret() }
+            val b      = Tag.unwrap(fb).interpret()
+            val a      = Await.result(forked, Duration.Inf)
+            f(a, b)
+          }
+        )
+  }
+```
+
+y debido a un [error en el compilador de
+Scala](https://github.com/scala/bug/issues/10954) que trata todas las instancias
+de `@@` como huérfanas, debemos importar de manera explícita el implícito:
+
+```scala
+  import IO.ParApplicative
+```
+
+En la sección final de este capítulo veremos cómo está implementado `IO` en
+realidad.
+
+## `IO`
+
+`IO` de Scalaz es la construcción de programación asíncrona más rápida del
+ecosistema de Scala: hasta 50 veces más rápida que `Future`. `IO` es una
+estructura de datos libre especializada para usarse como una mónada de efectos
+generalizados.
+
+```scala
+  sealed abstract class IO[E, A] { ... }
+  object IO {
+    private final class FlatMap         ... extends IO[E, A]
+    private final class Point           ... extends IO[E, A]
+    private final class Strict          ... extends IO[E, A]
+    private final class SyncEffect      ... extends IO[E, A]
+    private final class Fail            ... extends IO[E, A]
+    private final class AsyncEffect     ... extends IO[E, A]
+    ...
+  }
+```
+
+`IO` tiene **dos** parámetros de tipo: tiene un `Bifunctor` que permite que el
+tipo de error sea un ADT específico de la aplicación. Pero debido a que estamos
+trabajando sobre la JVM, y debemos interactuar con librerías antiguas, se
+proporciona un type alias conveniente que usa excepciones para el tipo de error:
+
+```scala
+  type Task[A] = IO[Throwable, A]
+```
+
+A> `scalaz.ioeffect.IO` es una implementación de `IO` de alto desempeño por John
+A> de Goes. Tiene un ciclo de desarrollo separado de la librería core de Scalaz
+A> y debe agregarse manualmente a nuestro `build.sbt` con
+A>
+```scala
+A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.10.1"
+```
+A>
+A> No use las librerías deprecadas `scalaz-effect` o `scalaz-concurrency`.
+A>
+A> Prefiera las variantes de `scalaz.ioeffect` de todas las typeclasses y tipos
+A> de datos.
+
+### Creación
+
+Existen múltiples formas de crear una `IO` que cubra una variedad de bloques de
+código que cubran situaciones para bloques de código estrictos, perezosos
+(*lazy*), seguros e inseguros:
+
+```scala
+  object IO {
+    // eager evaluation of an existing value
+    def now[E, A](a: A): IO[E, A] = ...
+    // lazy evaluation of a pure calculation
+    def point[E, A](a: =>A): IO[E, A] = ...
+    // lazy evaluation of a side-effecting, yet Total, code block
+    def sync[E, A](effect: =>A): IO[E, A] = ...
+    // lazy evaluation of a side-effecting code block that may fail
+    def syncThrowable[A](effect: =>A): IO[Throwable, A] = ...
+
+    // create a failed IO
+    def fail[E, A](error: E): IO[E, A] = ...
+    // asynchronously sleeps for a specific period of time
+    def sleep[E](duration: Duration): IO[E, Unit] = ...
+    ...
+  }
+```
+
+con constructores convenientes para `Task`:
+
+```scala
+  object Task {
+    def apply[A](effect: =>A): Task[A] = IO.syncThrowable(effect)
+    def now[A](effect: A): Task[A] = IO.now(effect)
+    def fail[A](error: Throwable): Task[A] = IO.fail(error)
+    def fromFuture[E, A](io: Task[Future[A]])(ec: ExecutionContext): Task[A] = ...
+  }
+```
+
+Los constructores más comunes, por mucho, cuando es necesario lidiar con código
+antiguo, son `Task.apply` y `Task.fromFuture`:
+
+```scala
+  val fa: Task[Future[String]] = Task { ... impure code here ... }
+
+  Task.fromFuture(fa)(ExecutionContext.global): Task[String]
+```
+
+No podemos pasar `Future` (sin envolverlos), porque se evalúan de manera
+estricta, de modo que siempre es necesario construirlos dentro de un bloque
+seguro.
+
+Noten que el `ExecutionContext` **no** es `implícito`, contrario a la
+convención. Recuerde que en Scalaz reservamos la palabra `implicit` para la
+derivación de typeclasses, para simplificar el lenguaje: `ExecutionContext` es
+una configuración que debe proporcionarse de manera explícita.
+
+### Ejecución
+
+El intérprete `IO` se llama `RTS`, para el *sistema de ejecución*. Su
+implementación está más allá del alcance de este libro. Nos enfocaremos en las
+características que proporciona `IO`.
+
+`IO` es simplemente una estructura de datos, y es interpretada *al final del
+mundo* al extender `SafeApp` e implementando `.run`
+
+```scala
+ trait SafeApp extends RTS {
+
+    sealed trait ExitStatus
+    object ExitStatus {
+      case class ExitNow(code: Int)                         extends ExitStatus
+      case class ExitWhenDone(code: Int, timeout: Duration) extends ExitStatus
+      case object DoNotExit                                 extends ExitStatus
+    }
+
+    def run(args: List[String]): IO[Void, ExitStatus]
+
+    final def main(args0: Array[String]): Unit = ... calls run ...
+  }
+```
+
+A> `Void` es un tipo que no tiene valores, como `scala.Nothing`. Sin embargo, el
+A> compilador infiere `Nothing` cuando falla en inferir correctamente el
+A> parámetro de tipo, ocasionando mensajes de error confusos, mientras que
+A> `Void` fallará rápidamente.
+A>
+A> Un tipo de error `Void` significa que el efecto **no puede fallar**, lo que
+A> indica que hemos manejado todos los errores en este punto.
+
+Si estamos integrando con un sistema antiguo y no estamos en control del punto
+de entrada de nuestra aplicación, podemos extender el `RTS` y ganar acceso a
+métodos inseguros para evaluar el `IO` en el punto de entrada de nuestro código
+con principios que usa PF.
+
+### Características
+
+`IO` proporciona instancias de typeclasses para `Bifunctor`, `MonadError[E, ?]`,
+`BindRec`, `Plus`, `MonadPlus` (si `E` forma un `Monoid`), y un
+`Applicative[IO.Par[E, ?]]`.
+
+En adición a la funcionalidad que viene a partir de las typeclasses, hay métodos de implementación específicos:
+
+```scala
+  sealed abstract class IO[E, A] {
+    // retries an action N times, until success
+    def retryN(n: Int): IO[E, A] = ...
+    // ... with exponential backoff
+    def retryBackoff(n: Int, factor: Double, duration: Duration): IO[E, A] = ...
+
+    // repeats an action with a pause between invocations, until it fails
+    def repeat[B](interval: Duration): IO[E, B] = ...
+
+    // cancel the action if it does not complete within the timeframe
+    def timeout(duration: Duration): IO[E, Maybe[A]] = ...
+
+    // runs `release` on success or failure.
+    // Note that IO[Void, Unit] cannot fail.
+    def bracket[B](release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] = ...
+    // alternative syntax for bracket
+    def ensuring(finalizer: IO[Void, Unit]): IO[E, A] =
+    // ignore failure and success, e.g. to ignore the result of a cleanup action
+    def ignore: IO[Void, Unit] = ...
+
+    // runs two effects in parallel
+    def par[B](that: IO[E, B]): IO[E, (A, B)] = ...
+    ...
+```
+
+Es posible que un `IO` tenga un estado *terminado*, que representa trabajo que
+al final será descartado (no es un error ni un éxito). Las utilidades
+relacionadas a la terminación son:
+
+```scala
+  ...
+    // terminate whatever actions are running with the given throwable.
+    // bracket / ensuring is honoured.
+    def terminate[E, A](t: Throwable): IO[E, A] = ...
+
+    // runs two effects in parallel, return the winner and terminate the loser
+    def race(that: IO[E, A]): IO[E, A] = ...
+
+    // ignores terminations
+    def uninterruptibly: IO[E, A] = ...
+  ...
+```
+
+### `Fiber`
+
+Una `IO` puede engendrar *fibers*, una abstracción liviana sobre un `Thread` de
+la JVM. Podemos invocar `.fork` sobre una instancia de `IO`, y `.supervise` sobre cualquier fibra incompleta para asegurar que son terminadas cuando se completa la acción `IO`.
+
+```scala
+  ...
+    def fork[E2]: IO[E2, Fiber[E, A]] = ...
+    def supervised(error: Throwable): IO[E, A] = ...
+  ...
+```
+
+Cuando tenemos una `Fiber` podemos invocar `.join` para regresar a la `IO`, o `interrumpt` el trabajo subyacente.
+
+```scala
+  trait Fiber[E, A] {
+    def join: IO[E, A]
+    def interrupt[E2](t: Throwable): IO[E2, Unit]
+  }
+```
+
+Podemos usar fibras para lograr una forma de control de concurrencia optimista.
+Considere el caso donde tenemos `data` que requerimos analizar, pero también
+tenemos que validarlo. Podemos iniciar el análisis de manera optimista y
+cancelar el trabajo si la validación falla, lo que se realiza en paralelo.
+
+```scala
+  final class BadData(data: Data) extends Throwable with NoStackTrace
+
+  for {
+    fiber1   <- analysis(data).fork
+    fiber2   <- validate(data).fork
+    valid    <- fiber2.join
+    _        <- if (!valid) fiber1.interrupt(BadData(data))
+                else IO.unit
+    result   <- fiber1.join
+  } yield result
+```
+
+Otro caso de uso para las fibras es cuando necesitamos realizar una acción de
+*dispara y olvida*. Por ejemplo, un logging de baja prioridad sobre la red.
+
+```scala
+  final class Promise[E, A] private (ref: AtomicReference[State[E, A]]) {
+    def complete[E2](a: A): IO[E2, Boolean] = ...
+    def error[E2](e: E): IO[E2, Boolean] = ...
+    def get: IO[E, A] = ...
+
+    // interrupts all listeners
+    def interrupt[E2](t: Throwable): IO[E2, Boolean] = ...
+  }
+  object Promise {
+    def make[E, A]: IO[E, Promise[E, A]] = ...
+  }
+```
+
+`Promise` no es algo que típicamente se use en código de aplicación. Es un
+bloque de construcción para frameworks de concurrencia de alto nivel.
+
+A> Cuando está garantizado el éxito de una operación, el tipo de error `E` se
+A> deja como un parámetro de tipo libre de modo que el que realiza la llamada
+A> pueda especificar su preferencia.
+
+### `IORef`
+
+`IORef` es el equivalente de `IO` para una variable mutable atómica.
+
+Podemos leer la variable y tenemos una variedad de maneras de escribirla o
+actualizarla.
+
+```scala
+  final class IORef[A] private (ref: AtomicReference[A]) {
+    def read[E]: IO[E, A] = ...
+
+    // write with immediate consistency guarantees
+    def write[E](a: A): IO[E, Unit] = ...
+    // write with eventual consistency guarantees
+    def writeLater[E](a: A): IO[E, Unit] = ...
+    // return true if an immediate write succeeded, false if not (and abort)
+    def tryWrite[E](a: A): IO[E, Boolean] = ...
+
+    // atomic primitives for updating the value
+    def compareAndSet[E](prev: A, next: A): IO[E, Boolean] = ...
+    def modify[E](f: A => A): IO[E, A] = ...
+    def modifyFold[E, B](f: A => (B, A)): IO[E, B] = ...
+  }
+  object IORef {
+    def apply[E, A](a: A): IO[E, IORef[A]] = ...
+  }
+```
+
+`IORef` es otro bloque de construcción y puede ser usado para proporcionar un
+`MonadState` de alto rendimiento. Por ejemplo, para crear un newtype
+especializado a `Task`
+
+```scala
+  final class StateTask[A](val io: Task[A]) extends AnyVal
+  object StateTask {
+    def create[S](initial: S): Task[MonadState[StateTask, S]] =
+      for {
+        ref <- IORef(initial)
+      } yield
+        new MonadState[StateTask, S] {
+          override def get       = new StateTask(ref.read)
+          override def put(s: S) = new StateTask(ref.write(s))
+          ...
+        }
+  }
+```
+
+Podemos hacer uso de esta implementación optimizada de `MonadState` en un
+`SafeApp`, donde nuestro `.program` depende de typeclasses optimizadas MTL:
+
+```scala
+  object FastState extends SafeApp {
+    def program[F[_]](implicit F: MonadState[F, Int]): F[ExitStatus] = ...
+
+    def run(@unused args: List[String]): IO[Void, ExitStatus] =
+      for {
+        stateMonad <- StateTask.create(10)
+        output     <- program(stateMonad).io
+      } yield output
+  }
+```
+
+Una aplicación más realista tomaría una variedad de álgebras y de typeclasses
+como entrada.
+
+A> Este `MonadState` optimizado está construido de una manera que rompe la
+A> coherencia de typeclasses. Dos instancias que tengan los mismos tipos podrían
+A> estar administrando estados diferentes. Sería prudente ailar la construcción
+A> de dichas instancias en el punto de entrada de la aplicación.
+
+#### `MonadIO`
+
+El `MonadIO` que estudiamos previamente estaba simplificado para esconder el parámetro de tipo `E`. La typeclass real es
+
+```scala
+  trait MonadIO[M[_], E] {
+    def liftIO[A](io: IO[E, A])(implicit M: Monad[M]): M[A]
+  }
+```
+
+con un cambio menor en el código repetitivo del objeto compañero de nuestra
+álgebra, tomando en cuenta la `E` extra:
+
+```scala
+  trait Lookup[F[_]] {
+    def look: F[Int]
+  }
+  object Lookup {
+    def liftIO[F[_]: Monad, E](io: Lookup[IO[E, ?]])(implicit M: MonadIO[F, E]) =
+      new Lookup[F] {
+        def look: F[Int] = M.liftIO(io.look)
+      }
+    ...
+  }
+```
+
+## Resumen
+
+1. El `Future` está descompuesto, no vaya allá.
+2. Administre la seguridad de la pila con un `Trampoline`.
+3. La Librería de Transformadores de Mónadas (MTL) abstrae sobre efectos comunes
+   de typeclasses.
+4. Los Transformadores de Mónadas proporcionan implementaciones por defecto de la MTL.
+5. Las estructuras de datos `Free` nos permiten analizar, optimizar y probar
+   fácilmente nuestros programas.
+6. `IO` nos da la habilidad de implementar álgebras como efectos sobre el mundo.
+7. `IO` puede ejecutar efectos en paralelo y es una columna vertebral para
+   cualquier aplicación.

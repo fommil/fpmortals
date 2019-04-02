@@ -510,5 +510,6 @@ Podría argumentarse, que este código es más fácil de entender que la versió
 1. Las *algebras* definen las interfaces entre sistemas.
 2. Los *módulos* son implementaciones de un álgebra en términos de otras álgebras.
 3. Los *intérpretes* son implementaciones concretas de un álgebra para una `F[_]` fija.
-4. Los intérpretes de prueba pueden reemplazar las partes con efectos colaterales de un sistema,
-   proporcionando un grado elevado de cobertura de las pruebas.
+4. Los intérpretes de prueba pueden reemplazar las partes con efectos
+   colaterales de un sistema, proporcionando un grado elevado de cobertura de
+   las pruebas.

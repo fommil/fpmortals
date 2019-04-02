@@ -11619,7 +11619,7 @@ we can derive the equal for the whole ADT
     implicit val equal: Equal[Darth] = Decidable[Equal].choose2(Equal[Vader], Equal[JarJar])(g)
   }
   
-  scala> Vader("hello", 1).widen === JarJar(1, "hello).widen
+  scala> Vader("hello", 1).widen === JarJar(1, "hello").widen
   false
 ~~~~~~~~
 

@@ -16,4 +16,6 @@ scalaz-data-types-es.md
 
 advanced-monads-es.md
 
+typeclass-derivation-es.md
+
 backmatter.md
