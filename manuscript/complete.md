@@ -13695,6 +13695,7 @@ A> between `XNode` and `JsValue` should convince us that JSON and XML are differ
 A> species, with conversions only possible on a case-by-case basis.
 
 
+
 ### Example: `UrlQueryWriter`
 
 Along similar lines as `xmlformat`, our `drone-dynamic-agents` application could
@@ -14020,7 +14021,7 @@ When deciding on a technology to use for typeclass derivation, this feature
 chart may help:
 
 | Feature        | Scalaz | Magnolia | Shapeless    | Manual       |
-|-------------- |------ |-------- |------------ |------------ |
+|----------------|--------|----------|--------------|--------------|
 | `@deriving`    | yes    | yes      | yes          |              |
 | Laws           | yes    |          |              |              |
 | Fast compiles  | yes    | yes      |              | yes          |
