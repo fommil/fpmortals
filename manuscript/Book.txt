@@ -18,4 +18,6 @@ advanced-monads-es.md
 
 typeclass-derivation-es.md
 
+wiring-up-app-es.md
+
 backmatter.md
