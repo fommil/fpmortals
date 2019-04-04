@@ -37,7 +37,8 @@ poderoso) para las typeclasses con lógica de derivación compleja.
 
 ## Ejemplos
 
-Este capítulo mostrará cómo definir derivaciones para cinco typeclasses específicas. Cada ejemplo exhibe una característica que puede ser generalizada:
+Este capítulo mostrará cómo definir derivaciones para cinco typeclasses
+específicas. Cada ejemplo exhibe una característica que puede ser generalizada:
 
 ```scala
   @typeclass trait Equal[A]  {
@@ -92,7 +93,8 @@ La librería `scalaz-deriving` es una extensión de Scalaz y puede agregarse al
   libraryDependencies += "org.scalaz" %% "scalaz-deriving" % derivingVersion
 ```
 
-proporcionando nuevas typeclasses, mostradas abajo con relación a las typeclasses de Scalaz:
+proporcionando nuevas typeclasses, mostradas abajo con relación a las
+typeclasses de Scalaz:
 
 {width=60%}
 ![](images/scalaz-deriving-base.png)
@@ -235,19 +237,17 @@ Generalmente, es más simple usar `.xmap` en lugar de `.map` o `.contramap`:
 A> La anotación `@xderiving` automáticamente inserta código repetitivo `.xmap`.
 A> Agregue lo siguiente a `build.sbt`
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   addCompilerPlugin("org.scalaz" %% "deriving-plugin" % derivingVersion)
 A>   libraryDependencies += "org.scalaz" %% "deriving-macro" % derivingVersion % "provided"
-A> ~~~~~~~~
+A> ```
 A>
 A> y úselo de la siguiente manera
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   @xderiving(Equal, Default, Semigroup)
 A>   final case class Foo(s: String)
-A> ~~~~~~~~
+A> ```
 
 ### `MonadError`
 
@@ -295,14 +295,16 @@ Como el autor de la typeclass de `Default`, podríamos lograr algo mejor que
   }
 ```
 
-Ahora tenemos acceso a la sintaxis `.emap` y podemos derivar nuestro tipo refinado
+Ahora tenemos acceso a la sintaxis `.emap` y podemos derivar nuestro tipo
+refinado
 
 ```scala
   implicit val nes: Default[String Refined NonEmpty] =
     Default[String].emap(refineV[NonEmpty](_).disjunction)
 ```
 
-De hecho, podemos proporcionar una regla de derivación para todos los tipos refinados
+De hecho, podemos proporcionar una regla de derivación para todos los tipos
+refinados
 
 ```scala
   implicit def refined[A: Default, P](
@@ -316,17 +318,18 @@ A> La extensión `refined-scalaz` de `refined` proporciona soporte para derivar
 A> automáticamente todas las typeclasses para tipos refinados con el siguiente
 A> import
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   import eu.timepit.refined.scalaz._
-A> ~~~~~~~~
+A> ```
 A>
 A> Sin embargo, debido a [limitaciones del compilador de
 A> Scala](https://github.com/scala/bug/issues/10753) raramente funciona en la
 A> práctica, y debemos escribir derivaciones `implicit def refined` para cada
 A> typeclass.
 
-De manera similar podemos usar `.emap` para derivar un decodificador `Int` a partir de un `Long`, con protección alrededor del método no total `.toInt` de la librería estándar.
+De manera similar podemos usar `.emap` para derivar un decodificador `Int` a
+partir de un `Long`, con protección alrededor del método no total `.toInt` de la
+librería estándar.
 
 ```scala
   implicit val long: Default[Long] = instance(0L.right)
@@ -336,7 +339,9 @@ De manera similar podemos usar `.emap` para derivar un decodificador `Int` a par
   }
 ```
 
-Como autores de la typeclass `Default`, podríamos reconsiderar nuestro diseño de la API de modo que nunca pueda fallar, por ejemplo con la siguiente firma de tipo
+Como autores de la typeclass `Default`, podríamos reconsiderar nuestro diseño de
+la API de modo que nunca pueda fallar, por ejemplo con la siguiente firma de
+tipo
 
 ```scala
   @typeclass trait Default[A] {
@@ -370,7 +375,8 @@ Estas significan que si tenemos un tipo `F`, y una forma de convertirlo en una
 `G` que tenga una instancia, entonces podemos llamar `Equal.fromIso` para tener
 una instancia para `F`.
 
-Por ejemplo, como usuarios de la typeclass, si tenemos un tipo de datos `Bar` podemos definir un isomorfismo a `(String, Int)`
+Por ejemplo, como usuarios de la typeclass, si tenemos un tipo de datos `Bar`
+podemos definir un isomorfismo a `(String, Int)`
 
 ```scala
   import Isomorphism._
@@ -381,7 +387,8 @@ Por ejemplo, como usuarios de la typeclass, si tenemos un tipo de datos `Bar` po
   }
 ```
 
-y entonces derivar `Equal[Bar]` porque ya existe un `Equal` para todas las tuplas:
+y entonces derivar `Equal[Bar]` porque ya existe un `Equal` para todas las
+tuplas:
 
 ```scala
   object Bar {
@@ -438,15 +445,16 @@ A> Cuando implementamos `Divisible` el compilador requerirá que proporcionemos
 A> `.contramap`, lo que podemos lograr directamente con una implementación
 A> optimizada o con el siguiente combinador derivado:
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   override def contramap[A, B](fa: F[A])(f: B => A): F[B] =
 A>     divide2(conquer[Unit], fa)(c => ((), f(c)))
-A> ~~~~~~~~
+A> ```
 A>
 A> Este ha sido agregado a `Divisible` en Scala 7.3.
 
-Y a partir de `divide2`, `Divisible` es capaz de construir derivaciones hasta `divide22`. Podemos llamar a estos métodos directamente para nuestros tipos de datos:
+Y a partir de `divide2`, `Divisible` es capaz de construir derivaciones hasta
+`divide22`. Podemos llamar a estos métodos directamente para nuestros tipos de
+datos:
 
 ```scala
   final case class Bar(s: String, i: Int)
@@ -456,7 +464,8 @@ Y a partir de `divide2`, `Divisible` es capaz de construir derivaciones hasta `d
   }
 ```
 
-El equivalente para los parámetros de tipo en posición covariante es `Applicative`:
+El equivalente para los parámetros de tipo en posición covariante es
+`Applicative`:
 
 ```scala
   object Bar {
@@ -493,7 +502,8 @@ Considere `JsEncoder` y la instancia propuesta para `Divisible`
   }
 ```
 
-De un lado de las leyes de composición, para una entrada de tipo `String`, tenemos
+De un lado de las leyes de composición, para una entrada de tipo `String`,
+tenemos
 
 ```scala
   JsArray([JsArray([JsString(hello),JsString(hello)]),JsString(hello)])
@@ -523,7 +533,8 @@ automática, verificando que la ley falla, para recordarnos de este hecho:
   assert(!D.divideLaw.composition(S, S, S)(E))
 ```
 
-Por otro lado, una prueba similar de `JsDecoder` cumple las leyes de composición de `Applicative`
+Por otro lado, una prueba similar de `JsDecoder` cumple las leyes de composición
+de `Applicative`
 
 ```scala
   final case class Comp(a: String, b: Int)
@@ -551,7 +562,8 @@ para un poco de valores de prueba
   composeTest(JsObject(IList("b" -> JsInteger(1))))
 ```
 
-Ahora estamos razonablemente seguros de que nuestra `MonadError` cumple con las leyes.
+Ahora estamos razonablemente seguros de que nuestra `MonadError` cumple con las
+leyes.
 
 Sin embargo, simplemente porque tenemos una prueba que pasa para un conjunto
 pequeño de datos no prueba que las leyes son satisfechas. También debemos
@@ -696,8 +708,7 @@ A> La primitiva de `Alt` es `alt`, tal como la primitiva de `Applicative` es
 A> `ap`, pero con frecuencia tiene más sentido usar `altly2` y `apply2` como las
 A> primitivas usando los siguientes overrides:
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   override def ap[A, B](fa: =>F[A])(f: =>F[A => B]): F[B] =
 A>     apply2(fa, f)((a, abc) => abc(a))
 A>
@@ -705,7 +716,7 @@ A>   override def alt[A](a1: =>F[A], a2: =>F[A]): F[A] = altly2(a1, a2) {
 A>     case -\/(a) => a
 A>     case \/-(a) => a
 A>   }
-A> ~~~~~~~~
+A> ```
 A>
 A> Sólo no olvide implementar `apply2` y `altly2` o existirá un bucle infinito
 A> en tiempo de ejecución
@@ -920,219 +931,11 @@ al instalar las librerías extras `scalaz-deriving-magnolia` y
 
 ### Ejemplos
 
-Finalizamos nuestro estudio de `scalaz-deriving` con implementaciones completamente revisadas de todas las typeclasses de ejemplo. Antes de hacer esto necesitamos conocer sobre un nuevo tipo de datos: `/~\`, es decir, la *serpiente en la pared*, para contener dos estructuras *higher kinded* que comparten el mismo parámetro de tipo:
-
-```scala
-Para ser capaces de usar la API de `scalaz-deriving`, necesitamos un
-`Isomorfismo` entre nuestras ADTs y la representación genérica de `iotaz`. Es
-mucho código repetitivo, y volveremos a esto en un momento:
-
-```scala
-  object Darth {
-    private type Repr   = Vader :: JarJar :: TNil
-    private val VaderI  = Cop.Inject[Vader, Cop[Repr]]
-    private val JarJarI = Cop.Inject[JarJar, Cop[Repr]]
-    private val iso     = IsoSet(
-      {
-        case d: Vader  => VaderI.inj(d)
-        case d: JarJar => JarJarI.inj(d)
-      }, {
-        case VaderI(d)  => d
-        case JarJarI(d) => d
-      }
-    )
-    ...
-  }
-
-  object Vader {
-    private type Repr = String :: Int :: TNil
-    private val iso   = IsoSet(
-      d => Prod(d.s, d.i),
-      p => Vader(p.head, p.tail.head)
-    )
-    ...
-  }
-
-  object JarJar {
-    private type Repr = Int :: String :: TNil
-    private val iso   = IsoSet(
-      d => Prod(d.i, d.s),
-      p => JarJar(p.head, p.tail.head)
-    )
-    ...
-  }
-```
-
-Con esto fuera del camino podemos llamar la API `Deriving` para `Equal`, posible
-porque `scalaz-deriving` proporciona una instancia optimizada de
-`Deriving[Equal]`
-
-```scala
-  object Darth {
-    ...
-    implicit val equal: Equal[Darth] = Deriving[Equal].xcoproductz(
-      Prod(Need(Equal[Vader]), Need(Equal[JarJar])))(iso.to, iso.from)
-  }
-  object Vader {
-    ...
-    implicit val equal: Equal[Vader] = Deriving[Equal].xproductz(
-      Prod(Need(Equal[String]), Need(Equal[Int])))(iso.to, iso.from)
-  }
-  object JarJar {
-    ...
-    implicit val equal: Equal[JarJar] = Deriving[Equal].xproductz(
-      Prod(Need(Equal[Int]), Need(Equal[String])))(iso.to, iso.from)
-  }
-```
-
-A> Typeclasses en la API `Deriving` están envueltas en `Need` (recuerde `Name`
-A> del Capítulo 6), que permite construcción perezosa, evitando trabajo
-A> innecesario si la typeclass no se requiere, y evitando sobreflujos de la pila
-A> para ADTs recursivas.
-
-Para ser capaces de hacer lo mismo para nuestra typeclass `Default`, necesitamos
-proporcionar una instancia de `Deriving[Default]`. Esto es solo un caso de
-envolver nuestro `Alt` con un auxiliar:
-
-```scala
-  object Default {
-    ...
-    implicit val deriving: Deriving[Default] = ExtendedInvariantAlt(monad)
-  }
-```
-
-y entonces invocarlo desde los objetos compañeros
-
-```scala
-  object Darth {
-    ...
-    implicit val default: Default[Darth] = Deriving[Default].xcoproductz(
-      Prod(Need(Default[Vader]), Need(Default[JarJar])))(iso.to, iso.from)
-  }
-  object Vader {
-    ...
-    implicit val default: Default[Vader] = Deriving[Default].xproductz(
-      Prod(Need(Default[String]), Need(Default[Int])))(iso.to, iso.from)
-  }
-  object JarJar {
-    ...
-    implicit val default: Default[JarJar] = Deriving[Default].xproductz(
-      Prod(Need(Default[Int]), Need(Default[String])))(iso.to, iso.from)
-  }
-```
-
-Hemos resuelto el problema de aridad arbitraria, pero hemos introducido aún más
-código repetitivo.
-
-El punto clave es que la anotación `@deriving`, que viene del `deriving-plugin`,
-genera todo este código repetitivo automáticamente y únicamente requiere ser
-aplicado en el punto más alto de la jerarquía de una ADT:
-
-```scala
-Para ser capaces de usar la API de `scalaz-deriving`, necesitamos un
-`Isomorfismo` entre nuestras ADTs y la representación genérica de `iotaz`. Es
-mucho código repetitivo, y volveremos a esto en un momento:
-
-```scala
-  object Darth {
-    private type Repr   = Vader :: JarJar :: TNil
-    private val VaderI  = Cop.Inject[Vader, Cop[Repr]]
-    private val JarJarI = Cop.Inject[JarJar, Cop[Repr]]
-    private val iso     = IsoSet(
-      {
-        case d: Vader  => VaderI.inj(d)
-        case d: JarJar => JarJarI.inj(d)
-      }, {
-        case VaderI(d)  => d
-        case JarJarI(d) => d
-      }
-    )
-    ...
-  }
-
-  object Vader {
-    private type Repr = String :: Int :: TNil
-    private val iso   = IsoSet(
-      d => Prod(d.s, d.i),
-      p => Vader(p.head, p.tail.head)
-    )
-    ...
-  }
-
-  object JarJar {
-    private type Repr = Int :: String :: TNil
-    private val iso   = IsoSet(
-      d => Prod(d.i, d.s),
-      p => JarJar(p.head, p.tail.head)
-    )
-    ...
-  }
-```
-
-Con esto fuera del camino podemos llamar la API `Deriving` para `Equal`, posible
-porque `scalaz-deriving` proporciona una instancia optimizada de
-`Deriving[Equal]`
-
-```scala
-  object Darth {
-    ...
-    implicit val equal: Equal[Darth] = Deriving[Equal].xcoproductz(
-      Prod(Need(Equal[Vader]), Need(Equal[JarJar])))(iso.to, iso.from)
-  }
-  object Vader {
-    ...
-    implicit val equal: Equal[Vader] = Deriving[Equal].xproductz(
-      Prod(Need(Equal[String]), Need(Equal[Int])))(iso.to, iso.from)
-  }
-  object JarJar {
-    ...
-    implicit val equal: Equal[JarJar] = Deriving[Equal].xproductz(
-      Prod(Need(Equal[Int]), Need(Equal[String])))(iso.to, iso.from)
-  }
-```
-
-A> Typeclasses en la API `Deriving` están envueltas en `Need` (recuerde `Name`
-A> del Capítulo 6), que permite construcción perezosa, evitando trabajo
-A> innecesario si la typeclass no se requiere, y evitando sobreflujos de la pila
-A> para ADTs recursivas.
-
-Para ser capaces de hacer lo mismo para nuestra typeclass `Default`, necesitamos
-proporcionar una instancia de `Deriving[Default]`. Esto es solo un caso de
-envolver nuestro `Alt` con un auxiliar:
-
-```scala
-  object Default {
-    ...
-    implicit val deriving: Deriving[Default] = ExtendedInvariantAlt(monad)
-  }
-```
-
-y entonces invocarlo desde los objetos compañeros
-
-```scala
-  object Darth {
-    ...
-    implicit val default: Default[Darth] = Deriving[Default].xcoproductz(
-      Prod(Need(Default[Vader]), Need(Default[JarJar])))(iso.to, iso.from)
-  }
-  object Vader {
-    ...
-    implicit val default: Default[Vader] = Deriving[Default].xproductz(
-      Prod(Need(Default[String]), Need(Default[Int])))(iso.to, iso.from)
-  }
-  object JarJar {
-    ...
-    implicit val default: Default[JarJar] = Deriving[Default].xproductz(
-      Prod(Need(Default[Int]), Need(Default[String])))(iso.to, iso.from)
-  }
-```
-
-Hemos resuelto el problema de aridad arbitraria, pero hemos introducido aún más
-código repetitivo.
-
-El punto clave es que la anotación `@deriving`, que viene del `deriving-plugin`,
-genera todo este código repetitivo automáticamente y únicamente requiere ser
-aplicado en el punto más alto de la jerarquía de una ADT:
+Finalizamos nuestro estudio de `scalaz-deriving` con implementaciones
+completamente revisadas de todas las typeclasses de ejemplo. Antes de hacer esto
+necesitamos conocer sobre un nuevo tipo de datos: `/~\`, es decir, la *serpiente
+en el camino*, para contener dos estructuras *higher kinded* que comparten el
+mismo parámetro de tipo:
 
 ```scala
   sealed abstract class /~\[A[_], B[_]] {
@@ -1158,7 +961,10 @@ ignorar estos parámetros, dado que no los usamos directamente.
 
 #### `Equal`
 
-Como con `Default` podríamos definir un `Decidable` de aridad fija y envolverlo con `ExtendedInvariantAlt` (la forma más simple), pero escogemos implementar `Decidablez` directamente por el beneficio de obtener más performance. Hacemos dos optimizaciones adicionales:
+Como con `Default` podríamos definir un `Decidable` de aridad fija y envolverlo
+con `ExtendedInvariantAlt` (la forma más simple), pero escogemos implementar
+`Decidablez` directamente por el beneficio de obtener más performance. Hacemos
+dos optimizaciones adicionales:
 
 1. Realizar igualdad de instancias `.eq` antes de aplicar `Equal.equal`,
    ejecutando un atajo al verificar la igualdad entre valores idénticos.
@@ -1238,7 +1044,8 @@ posible definir uno para productos generales. Podemos usar la aridad arbitraria
 
 #### `JsEncoder` y `JsDecoder`
 
-`scalaz-deriving` no proporciona acceso a nombres de los campos de modo que no es posible escribir un codificador/decodificador JSON.
+`scalaz-deriving` no proporciona acceso a nombres de los campos de modo que no
+es posible escribir un codificador/decodificador JSON.
 
 A> Una versión previa de `scalaz-deriving` soportaba los nombres de los campos
 A> pero era claro que no había ventaja sobre el uso de Magnolia, de modo que se
@@ -1314,7 +1121,9 @@ escribimos `import mercator._`
 No tiene sentido usar Magnolia para typeclasses que pueden abstraerse con
 `Divisible`, `Decidable`, `Applicative` o `Alt`, dado que estas abstracciones
 proporcionan mucha estructura extra y pruebas de manera gratuita. Sin embargo,
-Magnolia ofrece funcionalidad que `scalaz-deriving` no puede proporcionar: acceso a los nombres de campos, nombres de tipos, anotaciones y valores por defecto.
+Magnolia ofrece funcionalidad que `scalaz-deriving` no puede proporcionar:
+acceso a los nombres de campos, nombres de tipos, anotaciones y valores por
+defecto.
 
 ### Ejemplo: JSON
 
@@ -1662,14 +1471,16 @@ pero hay dos advertencias a tomar en cuenta:
    ejecución.
 2. Podrían derivarse cosas inesperadas
 
-La primera advertencia es evidente, pero las derivaciones inesperadas se manifiestan como errores sutiles. Considere lo que podría ocurrir con
+La primera advertencia es evidente, pero las derivaciones inesperadas se
+manifiestan como errores sutiles. Considere lo que podría ocurrir con
 
 ```scala
   @deriving(JsEncoder)
   final case class Foo(s: Option[String])
 ```
 
-si olvidamos proporcionar una derivación implícita para `Option`. Esperaríamos que `Foo(Some("hello")` se viera como
+si olvidamos proporcionar una derivación implícita para `Option`. Esperaríamos
+que `Foo(Some("hello")` se viera como
 
 ```json
   {
@@ -1823,7 +1634,9 @@ complejas, de modo que procederemos con ejemplos cada vez más complejos.
 
 ### Ejemplo: `Equal`
 
-Un patrón típico es el de extender la typeclass que deseamos derivar, y poner el código de Shapeless en su objeto compañero. Esto nos da un alcance implícito que el compilador puede buscar sin requerir `imports` complejos.
+Un patrón típico es el de extender la typeclass que deseamos derivar, y poner el
+código de Shapeless en su objeto compañero. Esto nos da un alcance implícito que
+el compilador puede buscar sin requerir `imports` complejos.
 
 ```scala
   trait DerivedEqual[A] extends Equal[A]
@@ -1882,19 +1695,21 @@ y para los coproductos deseamos implementar estas firmas
 A> Scalaz y Shapeless comparten muchos nombres de tipos, y cuando los mezclamos
 A> con frecuencia requerimos excluir ciertos elementos del import, por ejemplo
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   import scalaz.{ Coproduct => _, :+: => _, _ }, Scalaz._
 A>   import shapeless._
-A> ~~~~~~~~
+A> ```
 
-`.cnil` nunca será llamada por una typeclass como `Equal` con parámetros de tipo únicamente en posición contravariante. Pero el compilador no sabe esto, de modo que tenemos que proporcionar un *stub*:
+`.cnil` nunca será llamada por una typeclass como `Equal` con parámetros de tipo
+únicamente en posición contravariante. Pero el compilador no sabe esto, de modo
+que tenemos que proporcionar un *stub*:
 
 ```scala
   implicit val cnil: DerivedEqual[CNil] = (_, _) => sys.error("impossible")
 ```
 
-Para el caso del coproducto sólo podemos comparar dos cosas si están alineadas, que ocurre cuando son tanto `In1` o `Inr`
+Para el caso del coproducto sólo podemos comparar dos cosas si están alineadas,
+que ocurre cuando son tanto `In1` o `Inr`
 
 ```scala
   implicit def ccons[H: Equal, T <: Coproduct: DerivedEqual]: DerivedEqual[H :+: T] = {
@@ -1972,7 +1787,8 @@ A> En este momento, ¡ignore cualquier línea roja indicando error y confíe
 A> únicamente en el compilador! Este es el punto donde Shapeless ya no tiene
 A> soporte del IDE.
 
-La razón por la que esto soluciona el problema es porque la firma de tipo, después de quitar algunas conveniencias sintácticas (*syntactic sugar*)
+La razón por la que esto soluciona el problema es porque la firma de tipo,
+después de quitar algunas conveniencias sintácticas (*syntactic sugar*)
 
 ```scala
   def gen[A, R: DerivedEqual](implicit G: Generic.Aux[A, R]): Equal[A]
@@ -2023,7 +1839,8 @@ Note que cuando usamos `scalaz-deriving` o Magnolia podemos poner la anotación
 `@deriving` únicamente en el miembro más alto de una ADT, pero para Shapeless
 debemos agregarlo a todas sus entradas.
 
-Sin embargo, esta implementación todavía tiene un error: falla para los tipos recursivos **en tiempo de ejecución**, es decir
+Sin embargo, esta implementación todavía tiene un error: falla para los tipos
+recursivos **en tiempo de ejecución**, es decir
 
 ```scala
   @deriving(Equal) sealed trait ATree
@@ -2103,7 +1920,8 @@ punto:
   }
 ```
 
-Mientras estábamos haciendo esto, optimizamos usando el atajo `quick` de `scalaz-deriving`.
+Mientras estábamos haciendo esto, optimizamos usando el atajo `quick` de
+`scalaz-deriving`.
 
 Ahora podemos llamar
 
@@ -2254,8 +2072,7 @@ una firma de tipo distinta a la de `JsEncoder`
 A> Un patrón ha emergido en muchas librerías de derivación para Shapeless que
 A> introduceen "pistas" con un `implicit` por defecto
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   trait ProductHint[A] {
 A>     def nulls(field: String): Boolean
 A>     def fieldname(field: String): String
@@ -2266,7 +2083,7 @@ A>       def nulls(field: String)     = false
 A>       def fieldname(field: String) = field
 A>     }
 A>   }
-A> ~~~~~~~~
+A> ```
 A>
 A> Los usuarios deben proporcionar una instancia personalizada de `ProductHint`
 A> en sus objetos compañeros u objetos paquetee. Esta es una **mala idea** que
@@ -2588,7 +2405,8 @@ nuestro codificador y decodificador
   }
 ```
 
-Esperaríamos ser capaces de derivar un `JsDecoder` para algo como nuestra `TradeTemplate` del Capítulo 5
+Esperaríamos ser capaces de derivar un `JsDecoder` para algo como nuestra
+`TradeTemplate` del Capítulo 5
 
 ```scala
   final case class TradeTemplate(
@@ -2890,7 +2708,10 @@ A> posibles únicamente sobre la base de caso por caso.
 
 ### Ejemplo: `UrlQueryWriter`
 
-De manera similar a `xmlformat`, nuestra aplicación `drone-dynamic-agents` podría beneficiarse de una derivación de typeclasses de la typeclass `UrlQueryWriter`, que está construida a partir de instancias de `UrlEncodedWriter` para cada campo de entrada. No soporta coproductos:
+De manera similar a `xmlformat`, nuestra aplicación `drone-dynamic-agents`
+podría beneficiarse de una derivación de typeclasses de la typeclass
+`UrlQueryWriter`, que está construida a partir de instancias de
+`UrlEncodedWriter` para cada campo de entrada. No soporta coproductos:
 
 ```scala
   @typeclass trait UrlQueryWriter[A] {

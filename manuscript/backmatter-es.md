@@ -2,7 +2,7 @@
 
 # Tabla de typeclasses
 
-| Typeclass          | Método          | Desde           | Dado                   | A              |
+| Typeclass          | Método          | Desde           | Dado                   | Hacia          |
 |--------------------|-----------------|-----------------|------------------------|----------------|
 | `InvariantFunctor` | `xmap`          | `F[A]`          | `A => B, B => A`       | `F[B]`         |
 | `Contravariant`    | `contramap`     | `F[A]`          | `B => A`               | `F[B]`         |
@@ -123,11 +123,14 @@ datos primitivos más comunes son:
 - `Char`: un caracter unicode
 - `Text`: para bloques de texto unicode
 - `Int`: un entero con signo de precisión fija, dependiente de la máquina
-- `Word`: un `Int` sin signo, y de tamaños fijos `Word8` / `Word16` / `Word32` / `Word64`
+- `Word`: un `Int` sin signo, y de tamaños fijos `Word8` / `Word16` / `Word32` /
+  `Word64`
 - `Float` / `Double`: Números de precisión IEEE sencilla y doble
-- `Integer` / `Natural`: enteros de precisión arbitraria con y sin signo, respectivamente
+- `Integer` / `Natural`: enteros de precisión arbitraria con y sin signo,
+  respectivamente
 - `(,)`: tuplas, desde 0 (también conocido como *unit*) hasta 62 campos
-- `IO` inspiración para la `IO` de Scalaz, implementada para el entorno de ejecución
+- `IO` inspiración para la `IO` de Scalaz, implementada para el entorno de
+  ejecución
 
 con menciones honoríficas para
 
@@ -441,7 +444,7 @@ Si existen dependencias entre las typeclasses, por ejemplo, el hecho de que un
 ```
 
 Proporcionamos una implementación de una typeclass con la palabra reservada
-`instance`. Si desamos repetir la firma en las funciones instancias, útiles por
+`instance`. Si deseamos repetir la firma en las funciones instancias, útiles por
 claridad, debemos habilitar la extensión del lenguaje `InstanceSigs`.
 
 ```haskell
@@ -806,11 +809,16 @@ charla `#qfpl` en `freenode.net`.
 
 Algunos materiales de aprendizaje adicionales son:
 
--   [Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html) para aprender Haskell a partir de principios primarios.
--   [Parallel and Concurrent Programming in Haskell](http://shop.oreilly.com/product/0636920026365.do) y [What I Wish I Knew When
-    Learning Haskell](http://dev.stephendiehl.com/hask/#data-kinds) para sabiduría intermedia.
--   [Glasgow Haskell Compiler User Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/) y [HaskellWiki](https://wiki.haskell.org) para los hechos duros.
--   [Eta](https://eta-lang.org/), es decir Haskell para la JVM.
+- [Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html) para
+  aprender Haskell a partir de principios primarios.
+- [Parallel and Concurrent Programming in
+  Haskell](http://shop.oreilly.com/product/0636920026365.do) y [What I Wish I
+  Knew When Learning Haskell](http://dev.stephendiehl.com/hask/#data-kinds) para
+  sabiduría intermedia.
+- [Glasgow Haskell Compiler User
+  Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/) y
+  [HaskellWiki](https://wiki.haskell.org) para los hechos duros.
+- [Eta](https://eta-lang.org/), es decir Haskell para la JVM.
 
 Si usted disfruta usar Haskell y entiende el valor que traería a su negocio,
 ¡dígale a sus managers! De esa manera, el pequeño porcentaje de managers que
@@ -825,8 +833,7 @@ distribuyan con el código que se presenta en este libro.
 
 ## Scala License
 
-{lang="text"}
-~~~~~~~~
+```text
   Copyright (c) 2002-2017 EPFL
   Copyright (c) 2011-2017 Lightbend, Inc.
 
@@ -855,13 +862,12 @@ distribuyan con el código que se presenta en este libro.
   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-~~~~~~~~
+```
 
 
 ## Scalaz License
 
-{lang="text"}
-~~~~~~~~
+```text
   Copyright (c) 2009-2014 Tony Morris, Runar Bjarnason, Tom Adams,
                           Kristian Domagala, Brad Clow, Ricky Clarkson,
                           Paul Chiusano, Trygve Laugstøl, Nick Partridge,
@@ -891,7 +897,7 @@ distribuyan con el código que se presenta en este libro.
   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-~~~~~~~~
+```
 
 <!-- LocalWords: infija
 -->

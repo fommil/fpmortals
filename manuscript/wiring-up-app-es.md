@@ -254,10 +254,9 @@ A> `OAuth2JsonClientModule` requiere de un `MonadState` y `BlazeJsonClient`
 A> requiere de `MonadError` y `MonadIO`. Nuestro contexto de la aplicación ahora
 A> será muy probablemente la combinación de ambos.
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   StateT[EitherT[Task, JsonClient.Error, ?], BearerToken, ?]
-A> ~~~~~~~~
+A> ```
 A>
 A> Una pila de mónadas. Las pilas de mónadas proporcionan automáticamente
 A> instancias de `MonadState` y `MonadError` cuando están anidadas, de modo que
@@ -404,7 +403,10 @@ ahora podemos llamar `.liftM[HT]` cuando recibimos un `Task`
   } yield ()
 ```
 
-Pero esto todavía no compila, debido a que `clock` es un `LocalClock[Task]` y `AccessModule` requiere un `LocalClock[H]`. Entonces agregamos el código verboso `.liftM` necesario al objeto compañero de `LocalClock` y entonces podemos elevar el álgebra completa
+Pero esto todavía no compila, debido a que `clock` es un `LocalClock[Task]` y
+`AccessModule` requiere un `LocalClock[H]`. Entonces agregamos el código verboso
+`.liftM` necesario al objeto compañero de `LocalClock` y entonces podemos elevar
+el álgebra completa
 
 ```scala
   clock     = LocalClock.liftM[Task, HT](new LocalClockTask)
@@ -635,7 +637,9 @@ versiones requeridas por https4s:
     http4s.Uri.unsafeFromString(uri.value) // we already validated our String
 ```
 
-Tanto nuestro método `.get` como `.post` requieren una conversión del tipo `Response` de http4s a una `A`. Podemos refactorizar esto en una única función, `.handler`
+Tanto nuestro método `.get` como `.post` requieren una conversión del tipo
+`Response` de http4s a una `A`. Podemos refactorizar esto en una única función,
+`.handler`
 
 ```scala
   import JsonClient.Error
@@ -874,7 +878,10 @@ promesas sin inicializar
   }
 ```
 
-Podríamos haber usado `IO[Void, ?]` en vez de esto, pero dado que el resto de nuestra aplicación está usando `Task` (es decir, `IO[Throwable, ?]`), invocamos `.widenError`para evitar introducir cualquier cantidad de código verboso que nos podría distraer.
+Podríamos haber usado `IO[Void, ?]` en vez de esto, pero dado que el resto de
+nuestra aplicación está usando `Task` (es decir, `IO[Throwable, ?]`), invocamos
+`.widenError`para evitar introducir cualquier cantidad de código verboso que nos
+podría distraer.
 
 ## Gracias
 

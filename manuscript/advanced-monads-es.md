@@ -1,52 +1,49 @@
 # Mónadas avanzadas
 
-Usted tiene que conocer cosas como las mónadas avanzadas para ser un
-programador funcional avanzado.
+Usted tiene que conocer cosas como las mónadas avanzadas para ser un programador
+funcional avanzado.
 
-Sin embargo, somos desarrolladores  buscando una vida simple, y nuestra
-idea de "avanzado" es modesta. Para ponernos en contexto:
-`scala.concurrent.Future` es más complicada y con más matices que
-cualquier `Monad` en este capítulo.
+Sin embargo, somos desarrolladores buscando una vida simple, y nuestra idea de
+"avanzado" es modesta. Para ponernos en contexto: `scala.concurrent.Future` es
+más complicada y con más matices que cualquier `Monad` en este capítulo.
 
-En este capítulo estudiaremos algunas de las implementaciones más
-importantes de `Monad`.
+En este capítulo estudiaremos algunas de las implementaciones más importantes de
+`Monad`.
 
 ## `Future` siempre está en movimiento
 
-El problema más grande con `Future` es que programa trabajo rápidamente
-durante su construcción. Como descubrimos en la introducción, `Future`
-mezcla la definición del programa con su interpretación (es decir, con
-su ejecución).
+El problema más grande con `Future` es que programa trabajo rápidamente durante
+su construcción. Como descubrimos en la introducción, `Future` mezcla la
+definición del programa con su interpretación (es decir, con su ejecución).
 
-`Future` también es malo desde una perspectiva de rendimiento: cada vez
-que `.flatMap` es llamado, una cerradura se manda al `Ejecutor`, resultando
-en una programación de hilos y en cambios de contexto innecesarios. No es
-inusual ver 50% del poder de nuestro CPU lidiando con planeación de hilos.
-Tanto es así que la paralelización de trabajo con `Futuro` puede volverlo
-más lento.
+`Future` también es malo desde una perspectiva de rendimiento: cada vez que
+`.flatMap` es llamado, una cerradura se manda al `Ejecutor`, resultando en una
+programación de hilos y en cambios de contexto innecesarios. No es inusual ver
+50% del poder de nuestro CPU lidiando con planeación de hilos. Tanto es así que
+la paralelización de trabajo con `Futuro` puede volverlo más lento.
 
 En combinación, la evaluación estricta y el despacho de ejecutores significa que
-es imposible de saber cuándo inició un trabajo, cuando terminó, o las subtareas
+es imposible de saber cuándo inició un trabajo, cuando terminó, o las sub-tareas
 que se despacharon para calcular el resultado final. No debería sorprendernos
 que las "soluciones" para el monitoreo de rendimiento para frameworks basados en
 `Future` sean buenas opciones para las ventas.
 
 Además, `Future.flatMap` requiere de un `ExecutionContext` en el ámbito
-implícito: los usuarios están forzados a pensar sobre la lógica de negocios
-y la semántica de ejecución a la vez.
+implícito: los usuarios están forzados a pensar sobre la lógica de negocios y la
+semántica de ejecución a la vez.
 
-A> Si `Future` fuera un personaje de Star Wars, sería Anakin Skywalker: el
-A> malo de la película, apresuránduose y rompiendo cosas sin pensarlo.
+A> Si `Future` fuera un personaje de Star Wars, sería Anakin Skywalker: el malo
+A> de la película, apresuránduose y rompiendo cosas sin pensarlo.
 
 ## Efectos y efectos laterales
 
-Si no podemos llamar métodos que realicen efectos laterales en nuestra lógica
-de negocios, o en `Future` (or `Id`, or `Either`, o `Const`, etc), entonces,
+Si no podemos llamar métodos que realicen efectos laterales en nuestra lógica de
+negocios, o en `Future` (or `Id`, or `Either`, o `Const`, etc), entonces,
 ¿*cuándo podemos escribirlos*? La respuesta es: en una `Monad` que retrasa la
-ejecución hasta que es interpretada por el punto de entrada de la aplicación.
-En este punto, podemos referirnos a I/O y a la mutación como un *efecto* en
-el mundo, capturado por el sistema de tipos, en oposición a tener efectos
-laterales ocultos.
+ejecución hasta que es interpretada por el punto de entrada de la aplicación. En
+este punto, podemos referirnos a I/O y a la mutación como un *efecto* en el
+mundo, capturado por el sistema de tipos, en oposición a tener efectos laterales
+ocultos.
 
 La implementación simple de tal `Monad` es `IO`, formalizando la versión que
 escribimos en la introducción:
@@ -63,8 +60,8 @@ escribimos en la introducción:
   }
 ```
 
-El método `.interpret` se llama únicamente una vez, en el punto de entrada de una
-aplicación.
+El método `.interpret` se llama únicamente una vez, en el punto de entrada de
+una aplicación.
 
 ```scala
   def main(args: Array[String]): Unit = program.interpret()
@@ -93,9 +90,9 @@ En la JVM, toda invocación a un método, agrega una entrada a la pila de llamad
 del hilo (`Thread`), como agregar al frente de una `List`. Cuando el método
 completa, el método en la cabeza (`head`) es descartado/eliminado. La longitud
 máxima de la pila de llamadas es determinada por la bandera `-Xss` cuando se
-llama a `java`.  Los métodos que realizan una recursión de cola, son detectados
-por el compilador de Scala y no agregan una entrada. Si alcanzamos el límite,
-al invocar demasiados métodos encadenados, obtenemos una excepción de
+llama a `java`. Los métodos que realizan una recursión de cola, son detectados
+por el compilador de Scala y no agregan una entrada. Si alcanzamos el límite, al
+invocar demasiados métodos encadenados, obtenemos una excepción de
 `StackOverflowError`.
 
 Desgraciadamente, toda invocación anidada de `.flatMap` (sobre una instancia de
@@ -173,9 +170,9 @@ para explicar por qué razón esto es de utilidad.
 
 ### `Trampoline`
 
-`Free` es más general de lo necesario. Haciendo que el álgebra `S[_]` sea `() => ?`,
-un cálculo diferido o un *thunk*, obtenemos `Trampoline`  que puede implementar una
-`Monad` de manera que se conserva el uso seguro de la pila.
+`Free` es más general de lo necesario. Haciendo que el álgebra `S[_]` sea
+`() => ?`, un cálculo diferido o un *thunk*, obtenemos `Trampoline` que puede
+implementar una `Monad` de manera que se conserva el uso seguro de la pila.
 
 ```scala
   object Free {
@@ -223,14 +220,15 @@ mentalmente con una `A`, debido a que únicamente está añadiendo seguridad al 
 de la pila a un cómputo puro. Obtenemos la `A` al interpretar `Free`, provisto
 por `.run`.
 
-A> Es instructivo, aunque no es necesario, entender cómo se implementa `Free.run`:
-A> `.resume` evalúa una única capa de `Free`, y `go` la ejecuta hasta completarla.
+A> Es instructivo, aunque no es necesario, entender cómo se implementa
+A> `Free.run`: `.resume` evalúa una única capa de `Free`, y `go` la ejecuta
+A> hasta completarla.
 A>
+
 A> En el siguiente bloque de código, `Trampoline[A]` es usado como sinónimo de
 A> `Free[() => ?, A]` para hacer el código más fácil de leer.
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   sealed abstract class Trampoline[A] {
 A>     def run: A = go(f => f())
 A>
@@ -251,11 +249,11 @@ A>       case Gosub(Gosub(a, g), f) => a >>= (z => g(z) >>= f).resume
 A>     }
 A>     ...
 A>   }
-A> ~~~~~~~~
+A> ```
 A>
 A> El caso más probable de ocasionar confusión es cuando hemos anidado `Gosub`:
-A> aplique la función interna `g` y entonces pásela al la función externa `f`,
-A> y simplemente se trata de composición de funciones.
+A> aplique la función interna `g` y entonces pásela al la función externa `f`, y
+A> simplemente se trata de composición de funciones.
 
 ### Ejemplo: `DList` con seguridad en el manejo de la pila
 
@@ -364,8 +362,8 @@ uno de los transformadores, por qué razón son útiles, y cómo funcionan.
 
 ### `MonadTrans`
 
-Cada transformador tiene la forma general `T[F[_], A]`, proporcionando al menos una instancia de
-`Monad` y `Hoist` (y por lo tanto de `MonadTrans`):
+Cada transformador tiene la forma general `T[F[_], A]`, proporcionando al menos
+una instancia de `Monad` y `Hoist` (y por lo tanto de `MonadTrans`):
 
 ```scala
   @typeclass trait MonadTrans[T[_[_], _]] {
@@ -377,12 +375,14 @@ Cada transformador tiene la forma general `T[F[_], A]`, proporcionando al menos 
   }
 ```
 
-A> `T[_[_], _]` es otro ejemplo de un *higher kinded type*. Lo que dice es lo siguiente:
-A> `T` toma dos parámetros de tipo; el primero también toma un parámetro de tipo,
-A> escrito como `_[_]`, y el segundo no toma ningún parámetro de tipo, escrito como `_`.
+A> `T[_[_], _]` es otro ejemplo de un *higher kinded type*. Lo que dice es lo
+A> siguiente: `T` toma dos parámetros de tipo; el primero también toma un
+A> parámetro de tipo, escrito como `_[_]`, y el segundo no toma ningún parámetro
+A> de tipo, escrito como `_`.
 
-`.liftM` nos permite crear un transformador de mónadas si tenemos un `F[A]`. Por ejemplo,
-podemos crear un `OptionT[IO, String]` al invocar ` .liftM[OptionT]` en una `IO[String]`.
+`.liftM` nos permite crear un transformador de mónadas si tenemos un `F[A]`. Por
+ejemplo, podemos crear un `OptionT[IO, String]` al invocar ` .liftM[OptionT]` en
+una `IO[String]`.
 
 `.hoist` es la misma idea, pero para transformaciones naturales.
 
@@ -392,16 +392,17 @@ Generalmente, hay tres maneras de crear un transformador de mónadas:
 - A partir de un único valor `A`, usando `.pure` usando la sintaxis de `Monad`
 - A partir de `F[A]`, usando `.liftM` usando la sintaxis de `MonadTrans`
 
-Debido a la forma en la que funciona la inferencia de tipos en Scala, esto con frecuencia
-significa que un parámetro de tipo complejo debe escribirse de manera explícita. Como una
-forma de lidiar con el problema, los transformadores proporcionan constructores convenientes
-en su objeto compañero que los hacen más fáciles de usar.
+Debido a la forma en la que funciona la inferencia de tipos en Scala, esto con
+frecuencia significa que un parámetro de tipo complejo debe escribirse de manera
+explícita. Como una forma de lidiar con el problema, los transformadores
+proporcionan constructores convenientes en su objeto compañero que los hacen más
+fáciles de usar.
 
 ### `MaybeT`
 
-`OptionT`, `MaybeT` y `LazyOption` tienen implementaciones similares, proporcionando
-opcionalidad a través de `Option`, `Maybe` y `LazyOption`, respectivamente. Nos
-enfocaremos en `MaybeT` para evitar la repetición.
+`OptionT`, `MaybeT` y `LazyOption` tienen implementaciones similares,
+proporcionando opcionalidad a través de `Option`, `Maybe` y `LazyOption`,
+respectivamente. Nos enfocaremos en `MaybeT` para evitar la repetición.
 
 ```scala
   final case class MaybeT[F[_], A](run: F[Maybe[A]])
@@ -435,8 +436,8 @@ Con esta mónada podemos escribir lógica que maneja la opcionalidad en el
 contexto de `F[_]`, más bien que estar lidiando con `Option` o `Maybe`.
 
 Por ejemplo, digamos que estamos interactuando con un sitio social para contar
-el número de estrellas que tiene el usuario, y empezamos con una cadena (`String`)
-que podría o no corresponder al usuario. Tenemos esta álgebra:
+el número de estrellas que tiene el usuario, y empezamos con una cadena
+(`String`) que podría o no corresponder al usuario. Tenemos esta álgebra:
 
 ```scala
   trait Twitter[F[_]] {
@@ -446,8 +447,9 @@ que podría o no corresponder al usuario. Tenemos esta álgebra:
   def T[F[_]](implicit t: Twitter[F]): Twitter[F] = t
 ```
 
-Necesitamos invocar `getUser` seguido de `getStars`. Si usamos `Monad` como nuestro
-contexto, nuestra función es difícil porque tendremos que lidiar con el caso `Empty`:
+Necesitamos invocar `getUser` seguido de `getStars`. Si usamos `Monad` como
+nuestro contexto, nuestra función es difícil porque tendremos que lidiar con el
+caso `Empty`:
 
 ```scala
   def stars[F[_]: Monad: Twitter](name: String): F[Maybe[Int]] = for {
@@ -466,11 +468,11 @@ Sin embargo, si tenemos una `MonadPlus` como nuestro contexto, podemos poner
   } yield stars
 ```
 
-Sin embargo, agregar un requerimiento de `MonadPlus` puede ocasionar problemas más
-adelante en el proceso, si el contexto no tiene una. La solución es, o cambiar el
-contexto del programa a `MaybeT[F, ?]` (elevando el contexto de `Monad[F]` a una
-`MonadPlus`), o para usar explícitamente `MaybeT` en el tipo de retorno, a costa de
-un poco de código adicional:
+Sin embargo, agregar un requerimiento de `MonadPlus` puede ocasionar problemas
+más adelante en el proceso, si el contexto no tiene una. La solución es, o
+cambiar el contexto del programa a `MaybeT[F, ?]` (elevando el contexto de
+`Monad[F]` a una `MonadPlus`), o para usar explícitamente `MaybeT` en el tipo de
+retorno, a costa de un poco de código adicional:
 
 ```scala
   def stars[F[_]: Monad: Twitter](name: String): MaybeT[F, Int] = for {
@@ -485,10 +487,10 @@ planee usar en sus programas.
 
 ### `EitherT`
 
-Un valor opcional es el caso especial de un valor que puede ser un error, pero no
-sabemos nada sobre el error. `EitherT` (y la variante perezosa `LazyEitherT`) nos
-permite usar cualquier tipo que deseemos como el valor del error, porporcionando
-información contextual sobre lo que pasó mal.
+Un valor opcional es el caso especial de un valor que puede ser un error, pero
+no sabemos nada sobre el error. `EitherT` (y la variante perezosa `LazyEitherT`)
+nos permite usar cualquier tipo que deseemos como el valor del error,
+porporcionando información contextual sobre lo que pasó mal.
 
 `EitherT` es un envoltorio sobre `F[A \/ B]`
 
@@ -513,8 +515,8 @@ información contextual sobre lo que pasó mal.
   }
 ```
 
-`.raiseError` y `.handleError` son descriptivos en sí mismos: el equivalente
-de lanzar (`throw`) y atrapar (`catch`) una excepción, respectivamente.
+`.raiseError` y `.handleError` son descriptivos en sí mismos: el equivalente de
+lanzar (`throw`) y atrapar (`catch`) una excepción, respectivamente.
 
 `MonadError` tiene sintaxis adicional para lidiar con problemas comunes:
 
@@ -526,8 +528,8 @@ de lanzar (`throw`) y atrapar (`catch`) una excepción, respectivamente.
   }
 ```
 
-`.attempt` trae los errores dentro del valor, lo cual es útil para exponer
-los errores en los subsistemas como valores de primera clase.
+`.attempt` trae los errores dentro del valor, lo cual es útil para exponer los
+errores en los subsistemas como valores de primera clase.
 
 `.recover` es para convertir un error en un valor en todos los casos, en
 oposición a `.handleError` que toma una `F[A]` y por lo tanto permite una
@@ -576,8 +578,8 @@ donde `.orError` es un método conveniente sobre `Maybe`
   }
 ```
 
-A> Es común usar bloques de parámetros implícitos en lugar de límites de contexto
-A> cuando la firma de una typeclass tiene más de un parámetro.
+A> Es común usar bloques de parámetros implícitos en lugar de límites de
+A> contexto cuando la firma de una typeclass tiene más de un parámetro.
 A>
 A> También es práctica común nombrar el parámetro implícito después del tipo
 A> primario, en este caso `F`.
@@ -623,8 +625,8 @@ Nuestras pruebas unitarias para `.stars` pueden cubrir estos casos:
   -\/(stars have been replaced by hearts)
 ```
 
-Así como hemos visto varias veces, podemos enfocarnos en probar la lógica
-de negocios sin distracciones.
+Así como hemos visto varias veces, podemos enfocarnos en probar la lógica de
+negocios sin distracciones.
 
 Finalmente, si devolvemos nuestra álgebra `JsonClient` del capítulo 4.3
 
@@ -725,8 +727,8 @@ sucediendo:
   Meta(com.acme,<console>,11)
 ```
 
-Sí, hemos usado macros, pero también pudimos escribir `Meta` manualmente
-y hubiera sido necesario hacerla obsoleta antes que nuestra documentación.
+Sí, hemos usado macros, pero también pudimos escribir `Meta` manualmente y
+hubiera sido necesario hacerla obsoleta antes que nuestra documentación.
 
 ### `ReaderT`
 
@@ -735,8 +737,8 @@ del valor de tiempo de ejecución `A`. Para aquellos que etán familiarizados co
 la inyección de dependencias, la mónada reader es el equivalente funcional de la
 inyección `@Inject` de Spring o de Guice, sin el uso de XML o reflexión.
 
-`ReaderT` es simplemente un alias de otro tipo de datos que con frecuencia es más
-general, y que recibe su nombre en honor al matemático *Heinrich Kleisli*.
+`ReaderT` es simplemente un alias de otro tipo de datos que con frecuencia es
+más general, y que recibe su nombre en honor al matemático *Heinrich Kleisli*.
 
 ```scala
   type ReaderT[F[_], A, B] = Kleisli[F, A, B]
@@ -756,7 +758,8 @@ general, y que recibe su nombre en honor al matemático *Heinrich Kleisli*.
 ```
 
 A> algunas personas llaman a `>->` el operador pez. Siempre existe un pez más
-A> grande, y por lo tanto existe `>==>`. También se llaman las flechas de Kleisli.
+A> grande, y por lo tanto existe `>==>`. También se llaman las flechas de
+A> Kleisli.
 
 Una conversión implícita en el objeto companion nos permite usar `Kleisli` en
 lugar de una función, de modo que puede proporcionarse como el parámetro de
@@ -770,8 +773,8 @@ un parámetro `RefreshToken`. De hecho, se trata de un requerimiento tan común
 que Martin Odersky propuso las [funciones
 implícitas](https://www.scala-lang.org/blog/2016/12/07/implicit-function-types.html).
 
-Una mejor solución para nuestro programa es tener un álgebra de configuración que
-proporcione la configuración cuando sea necesario, es decir
+Una mejor solución para nuestro programa es tener un álgebra de configuración
+que proporcione la configuración cuando sea necesario, es decir
 
 ```scala
   trait ConfigReader[F[_]] {
@@ -779,8 +782,8 @@ proporcione la configuración cuando sea necesario, es decir
   }
 ```
 
-Hemos reinventado `MonadReader`, la typeclass que está asociada a `ReaderT`, donde
-`.ask` es la misma que nuestra `.token` y `S` es `RefreshToken`:
+Hemos reinventado `MonadReader`, la typeclass que está asociada a `ReaderT`,
+donde `.ask` es la misma que nuestra `.token` y `S` es `RefreshToken`:
 
 ```scala
   @typeclass trait MonadReader[F[_], S] extends Monad[F] {
@@ -1212,7 +1215,8 @@ y podemos reescribir nuestras pruebas para seguir la convención donde:
 - `world1` es el estado del mundo antes de ejecutar el programa
 - `view1` es la creencia/visión de la aplicación sobre el mundo
 - `world2` es el estado del mundo después de ejecutar el programa
-- `view2` es la creencia/visión sobre la aplicación después de ejecutar el programa
+- `view2` es la creencia/visión sobre la aplicación después de ejecutar el
+  programa
 
 Por ejemplo,
 
@@ -1362,35 +1366,32 @@ explícitamente en su estado:
     } yield a2
 ```
 
-A> Hemos introducido algo de duplicación en el código en nuestra API cuando definimos
-A> operaciones múltiples `.read`
+A> Hemos introducido algo de duplicación en el código en nuestra API cuando
+A> definimos operaciones múltiples `.read`
 A>
-A>  {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   def read(k: Int): F[Ready, Ready, Maybe[String]]
 A>   def readLocked(k: Int): F[Locked, Locked, Maybe[String]]
 A>   def readUncommitted(k: Int): F[Updated, Updated, Maybe[String]]
-A> ~~~~~~~~
+A> ```
 A>
 A> en lugar de
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   def read[S <: Status](k: Int): F[S, S, Maybe[String]]
-A> ~~~~~~~~
+A> ```
 A>
-A> La razón por la que no hacemos esto es, *debido al subtipo*. Este código (malo)
-A> podría compilar con la signatura de tipo inferido
-A> `F[Nothing, Ready, Maybe[String]]`
+A> La razón por la que no hacemos esto es, *debido al subtipo*. Este código
+A> (malo) podría compilar con la signatura de tipo inferido `F[Nothing, Ready,
+A> Maybe[String]]`
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   for {
 A>     a1 <- C.read(13)
 A>     _  <- C.update(13, "wibble")
 A>     _  <- C.commit
 A>   } yield a1
-A> ~~~~~~~~
+A> ```
 A>
 A> Scala tiene un tipo `Nothing` que es subtipo de todos los otros tipos. Es una
 A> buena noticia que este código no llegue a tiempo de ejecución, dado que sería
@@ -1402,13 +1403,12 @@ A> `Nothing`. Scalaz proporciona evidencia implícita para realizar aserciones d
 A> que un tipo no es inferido como `Nothing` y podemos usar este mecanismo en
 A> lugar de esto:
 A>
-A> A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   def read[S <: Status](k: Int)(implicit NN: NotNothing[S]): F[S, S, Maybe[String]]
-A> ~~~~~~~~
+A> ```
 A>
-A> La elección de cual de las tres alternativas de diseño de la API usar, se deja
-A> al gusto personal del diseñador de la API.
+A> La elección de cual de las tres alternativas de diseño de la API usar, se
+A> deja al gusto personal del diseñador de la API.
 
 ### `IndexedReaderWriterStateT`
 
@@ -1433,8 +1433,8 @@ estado indexadas.
   }
 ```
 
-Las abreviaturas se proporcionan porque de otra manera, con toda honestidad, estos
-tipos son tan largos que parecen que son parte de una API de J2EE:
+Las abreviaturas se proporcionan porque de otra manera, con toda honestidad,
+estos tipos son tan largos que parecen que son parte de una API de J2EE:
 
 ```scala
   type IRWST[F[_], -R, W, -S1, S2, A] = IndexedReaderWriterStateT[F, R, W, S1, S2, A]
@@ -1573,8 +1573,9 @@ bloqueante), podríamos simplemente encadenar las funciones
   def simple(a: A1): IO[A0] = bar2(a) >>= bar3 >>= bar4 >>= bar0
 ```
 
-Podríamos elevar `.simple` a su forma escrita con continuaciones al usar sintaxis
-conveniente `.cps` y un poco de código extra (*boilerplate*) para cada paso:
+Podríamos elevar `.simple` a su forma escrita con continuaciones al usar
+sintaxis conveniente `.cps` y un poco de código extra (*boilerplate*) para cada
+paso:
 
 ```scala
   def foo1(a: A1): ContT[IO, A0, A2] = bar2(a).cps
@@ -1679,24 +1680,25 @@ más poder sobre el control de flujo. Algunas veces el cliente simplemente quier
 el espagueti.
 
 Por ejemplo, si el compilador de Scala estuviera escrito usando CPS, permitiría
-un enfoque basado en principios para comunicar las fases del compilador. Un plugin
-para el compilador sería capaz de realizar algunas acciones basándose en el tipo
-inferido de una expresión, calculado en una etapa posterior del proceso de
-compilación. De manera similar, las continuaciones serían una buena API para una
-herramienta extensible para los builds, o para un editor de texto.
+un enfoque basado en principios para comunicar las fases del compilador. Un
+plugin para el compilador sería capaz de realizar algunas acciones basándose en
+el tipo inferido de una expresión, calculado en una etapa posterior del proceso
+de compilación. De manera similar, las continuaciones serían una buena API para
+una herramienta extensible para los builds, o para un editor de texto.
 
-Algo que debería considerarse con `ContT` es que no tiene un uso seguro de la pila,
-de modo que no es posible usarla para programas que se ejecutan por siempre.
+Algo que debería considerarse con `ContT` es que no tiene un uso seguro de la
+pila, de modo que no es posible usarla para programas que se ejecutan por
+siempre.
 
 #### No use `ContT`
 
-Una variante más compleja de `ContT` llamada `IndexedContT` envuelve
-`(A => F[B]) => F[C]`. El nuevo parámetro de tipo `C` permite al tipo de retorno del
-cómputo completo sea diferente del tipo de retorno entre cada componente. Pero si
-`B` no es igual a `C` entonces no hay una `Monad`.
+Una variante más compleja de `ContT` llamada `IndexedContT` envuelve `(A =>
+F[B]) => F[C]`. El nuevo parámetro de tipo `C` permite al tipo de retorno del
+cómputo completo sea diferente del tipo de retorno entre cada componente. Pero
+si `B` no es igual a `C` entonces no hay una `Monad`.
 
-Sin perder la oportunidad de generalizar tanto como sea posible, `IndexedContT` es
-realmente implementada en términos de una estructura aún más general (note la
+Sin perder la oportunidad de generalizar tanto como sea posible, `IndexedContT`
+es realmente implementada en términos de una estructura aún más general (note la
 `s` estra antes de la `T`)
 
 ```scala
@@ -1708,22 +1710,22 @@ realmente implementada en términos de una estructura aún más general (note la
   type Cont[b, a]                  = IndexedContsT[Id, Id, b, b, a]
 ```
 
-donde `W[_]` tiene una `Comonad`, y `ContT` está implementada como un alias de tipo.
-Los objetos compañeros existen para contener los aliases de tipo con constructores
-de tipo convenientes.
+donde `W[_]` tiene una `Comonad`, y `ContT` está implementada como un alias de
+tipo. Los objetos compañeros existen para contener los aliases de tipo con
+constructores de tipo convenientes.
 
-La verdad es que, cinco parámetros de tipo es tal vez una generalización bastante
-amplia (tal vez demasiado). Pero de nuevo, la sobre-generalización es consistente
-con las sensibilidades de las continuaciones.
+La verdad es que, cinco parámetros de tipo es tal vez una generalización
+bastante amplia (tal vez demasiado). Pero de nuevo, la sobre-generalización es
+consistente con las sensibilidades de las continuaciones.
 
 ### Las pilas de transformadores y los implícitos ambiguos
 
 Esto concluye nuestro tour de los transformadores de mónadas en Scalaz.
 
-Cuando se combinan múltiples transformadores, llamamos a esto una
-*pila de transformadores* y aunque es muy verboso, es posible leer las
-características al leer los transformadores. Por ejemplo, si construimos un
-contexto `F[_]` que sea un conjunto de transformadores compuestos, tales como
+Cuando se combinan múltiples transformadores, llamamos a esto una *pila de
+transformadores* y aunque es muy verboso, es posible leer las características al
+leer los transformadores. Por ejemplo, si construimos un contexto `F[_]` que sea
+un conjunto de transformadores compuestos, tales como
 
 ```scala
   type Ctx[A] = StateT[EitherT[IO, E, ?], S, A]
@@ -1975,7 +1977,8 @@ elevar una `IO` en una pila de transformadores:
   }
 ```
 
-con instancias de `MonadIO` para todas las combinaciones comunes de transformadores.
+con instancias de `MonadIO` para todas las combinaciones comunes de
+transformadores.
 
 El costo extra del código repetitivo para elevar un intérprete `IO` a cualquier
 instancia de `MonadIO` es por lo tanto de dos líneas de código (para la
@@ -2004,8 +2007,8 @@ adicional importa. Otros transformadores, tales como `StateT`, efectivamente
 agregan un trampolín, y `ContT` mantiene la cadena de invocaciones entera
 retenida en memoria.
 
-A> Para algunas aplicaciones no es importante la asignación de memoria si su límite
-A> está impuesto por redes o por I/O. Siempre mida.
+A> Para algunas aplicaciones no es importante la asignación de memoria si su
+A> límite está impuesto por redes o por I/O. Siempre mida.
 
 Si el rendimiento se vuelve un problema, la solución es no usar transformadores
 de mónadas. Al menos no las estructuras de datos de los transformadores. Una
@@ -2126,9 +2129,9 @@ W> `Free[Machines.Ast, ?]`, es decir, para la AST, not `Free[Machines, ?]`.
 W> Es fácil cometer un error, dado que el último compilará, pero no tiene
 W> significado.
 
-Entonces definimos `.liftF`, una implementación de `Machines`, con `Free[Ast, ?]`
-siendo el contexto. Todo método simplemente delega a `Free.liftT` para crear un
-`Suspend`
+Entonces definimos `.liftF`, una implementación de `Machines`, con `Free[Ast,
+?]` siendo el contexto. Todo método simplemente delega a `Free.liftT` para crear
+un `Suspend`
 
 ```scala
   ...
@@ -2142,10 +2145,11 @@ siendo el contexto. Todo método simplemente delega a `Free.liftT` para crear un
   }
 ```
 
-cuando construimos un programa, parametrizado sobre un valor `Free`, lo ejecutamos
-al proporcionar un *intérprete* (una transformación natural `Ast ~> M`) al método
-`.foldMap`. Por ejemplo, si pudieramos proporcionar un intérprete que mapee a
-`IO` podemos construir un `IO[Unit]` por medio del AST libre
+cuando construimos un programa, parametrizado sobre un valor `Free`, lo
+ejecutamos al proporcionar un *intérprete* (una transformación natural
+`Ast ~> M`) al método `.foldMap`. Por ejemplo, si pudieramos proporcionar un
+intérprete que mapee a `IO` podemos construir un `IO[Unit]` por medio del AST
+libre
 
 ```scala
   def program[F[_]: Monad](M: Machines[F]): F[Unit] = ...
@@ -2235,9 +2239,9 @@ conjunto completo de instrucciones `F`: esta sintaxis es intencional.
 
 A> Un plugin del compilador que automáticamente genera el código repetitivo de
 A> `scalaz.Free` sería una contribución fantástica al ecosistema! No solamente
-A> es doloroso escribir este código, sino que existe el potencial de que un error
-A> de dedo arruine nuestro día: si dos miembros del álgebra tiene la misma signatura
-A> de tipo, podríamos no notarlo.
+A> es doloroso escribir este código, sino que existe el potencial de que un
+A> error de dedo arruine nuestro día: si dos miembros del álgebra tiene la misma
+A> signatura de tipo, podríamos no notarlo.
 
 Poniendo todo junto, digamos que tenemos un program que escribimos abstrayendo
 sobre `Monad`
@@ -2327,8 +2331,7 @@ A> una clase separada es que únicamente tengamos que proporcionar el parámetro
 A> de tipo `A`, a la vez que `F` y `G` se infieren del lado izquierdo de la
 A> expresión:
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   object Mocker {
 A>     final class Stub[A] {
 A>       def apply[F[_], G[_]](pf: PartialFunction[F[A], G[A]]): F ~> G = new (F ~> G) {
@@ -2337,7 +2340,7 @@ A>       }
 A>     }
 A>     def stub[A]: Stub[A] = new Stub[A]
 A>   }
-A> ~~~~~~~~
+A> ```
 
 #### Monitoreo
 
@@ -2778,8 +2781,7 @@ A>
 A> Considere lo que sucede si creamos un Ast para `MonadError`, con `F[_]` en
 A> posición contravariante, es dicir como un parámetro.
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   object MonadError {
 A>     sealed abstract class Ast[F[_], E, A]
 A>     final case class RaiseError[F[_], E, A](e: E) extends Ast[F, E, A]
@@ -2788,16 +2790,15 @@ A>
 A>     def liftF[F[_], E](implicit I: Ast[F, E, ?] :<: F): MonadError[F, E] = ...
 A>     ...
 A>   }
-A> ~~~~~~~~
+A> ```scala
 A>
 A> Cuando surja la necesidad de interpretar un programa que use `MonadError.Ast`
 A> debemos construir el coproducto de instrucciones. Digamos que extendemos un
 A> programa `Drone`:
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   type Ast[a] = Coproduct[MonadError.Ast[Ast, String, ?], Drone.Ast, a]
-A> ~~~~~~~~
+A> ```
 A>
 A> ¡El código anterior no compila debido a que `Ast` se refiere a sí mismo!
 A>
@@ -2971,14 +2972,13 @@ A> en tiempo de ejecución optimizada (más eficiente que `extends AnyVal`) que
 A> hace sencillo delegar typeclasses que no deseamos crear a la medida. Por
 A> ejemplo, podemos personalizar `Monad` pero delegar el `Plus`:
 A>
-A> {lang="text"}
-A> ~~~~~~~~
+A> ```scala
 A>   @newtype class MyIO[A](io: IO[A])
 A>   object MyIO {
 A>     implicit val monad: Monad[MyIO] = ...
 A>     implicit val plus: Plus[MyIO] = derived
 A>   }
-A> ~~~~~~~~
+A> ```
 
 Para ser exhaustivos: una implementación ingenua e ineficiente de
 `Applicative.Par` para nuestro `IO` de juguete podría usar `Future`:
@@ -3044,9 +3044,9 @@ A> `scalaz.ioeffect.IO` es una implementación de `IO` de alto desempeño por Jo
 A> de Goes. Tiene un ciclo de desarrollo separado de la librería core de Scalaz
 A> y debe agregarse manualmente a nuestro `build.sbt` con
 A>
-```scala
+A> ```scala
 A>   libraryDependencies += "org.scalaz" %% "scalaz-ioeffect" % "2.10.1"
-```
+A> ```
 A>
 A> No use las librerías deprecadas `scalaz-effect` o `scalaz-concurrency`.
 A>
@@ -3151,7 +3151,8 @@ con principios que usa PF.
 `BindRec`, `Plus`, `MonadPlus` (si `E` forma un `Monoid`), y un
 `Applicative[IO.Par[E, ?]]`.
 
-En adición a la funcionalidad que viene a partir de las typeclasses, hay métodos de implementación específicos:
+En adición a la funcionalidad que viene a partir de las typeclasses, hay métodos
+de implementación específicos:
 
 ```scala
   sealed abstract class IO[E, A] {
@@ -3200,7 +3201,9 @@ relacionadas a la terminación son:
 ### `Fiber`
 
 Una `IO` puede engendrar *fibers*, una abstracción liviana sobre un `Thread` de
-la JVM. Podemos invocar `.fork` sobre una instancia de `IO`, y `.supervise` sobre cualquier fibra incompleta para asegurar que son terminadas cuando se completa la acción `IO`.
+la JVM. Podemos invocar `.fork` sobre una instancia de `IO`, y `.supervise`
+sobre cualquier fibra incompleta para asegurar que son terminadas cuando se
+completa la acción `IO`.
 
 ```scala
   ...
@@ -3209,7 +3212,8 @@ la JVM. Podemos invocar `.fork` sobre una instancia de `IO`, y `.supervise` sobr
   ...
 ```
 
-Cuando tenemos una `Fiber` podemos invocar `.join` para regresar a la `IO`, o `interrumpt` el trabajo subyacente.
+Cuando tenemos una `Fiber` podemos invocar `.join` para regresar a la `IO`, o
+`interrumpt` el trabajo subyacente.
 
 ```scala
   trait Fiber[E, A] {
@@ -3332,7 +3336,8 @@ A> de dichas instancias en el punto de entrada de la aplicación.
 
 #### `MonadIO`
 
-El `MonadIO` que estudiamos previamente estaba simplificado para esconder el parámetro de tipo `E`. La typeclass real es
+El `MonadIO` que estudiamos previamente estaba simplificado para esconder el
+parámetro de tipo `E`. La typeclass real es
 
 ```scala
   trait MonadIO[M[_], E] {
@@ -3362,7 +3367,8 @@ con un cambio menor en el código repetitivo del objeto compañero de nuestra
 2. Administre la seguridad de la pila con un `Trampoline`.
 3. La Librería de Transformadores de Mónadas (MTL) abstrae sobre efectos comunes
    de typeclasses.
-4. Los Transformadores de Mónadas proporcionan implementaciones por defecto de la MTL.
+4. Los Transformadores de Mónadas proporcionan implementaciones por defecto de
+   la MTL.
 5. Las estructuras de datos `Free` nos permiten analizar, optimizar y probar
    fácilmente nuestros programas.
 6. `IO` nos da la habilidad de implementar álgebras como efectos sobre el mundo.
