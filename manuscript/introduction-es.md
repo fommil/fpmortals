@@ -11,7 +11,7 @@ propósito general y era el fundamento de nuestras bases de código.
 
 Pero había un problema, teníamos que hacer *casting* en tiempo de ejecución:
 
-```scala
+```java
   public String first(Collection collection) {
     return (String)(collection.get(0));
   }
