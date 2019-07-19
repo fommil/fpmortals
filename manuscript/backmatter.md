@@ -579,15 +579,17 @@ topic, but it is easy to derive a typeclass for an ADT:
 ~~~~~~~~
 
 
-## Algebras
+## Records of Functions
 
 In Scala, typeclasses and algebras are both defined as a `trait` interface.
 Typeclasses are injected by the `implicit` feature and algebras are passed as
 explicit parameters. There is no language-level support in Haskell for algebras:
 they are just data!
 
-Consider the simple `Console` algebra from the introduction. We can rewrite it
-into Haskell as a *record of functions*:
+A> *Algebra* is the somewhat confused Scala name for this concept: in Haskell it's
+A> called a *record of functions*. Because it's just a record. Of functions.
+
+Consider `Console` from the introduction. We can rewrite it into Haskell:
 
 {lang="text"}
 ~~~~~~~~
@@ -632,9 +634,9 @@ more boilerplate but makes the code easier to read:
 ~~~~~~~~
 
 Whereas in Scala this encoding may be called *Finally Tagless*, in Haskell it is
-known as MTL style. Without going into details, some Scala developers didn't
-understand a research paper about the performance benefits of [Generalised ADTs
-in Haskell](http://okmij.org/ftp/tagless-final/index.html#tagless-final).
+known as *MTL style with records of functions*. Without going into details, some
+Scala developers didn't understand a research paper about the performance
+benefits of [Generalised ADTs in Haskell](http://okmij.org/ftp/tagless-final/index.html#tagless-final).
 
 An alternative to MTL style are *Extensible Effects*, also known as [Free Monad
 style](http://okmij.org/ftp/Haskell/extensible/more.pdf).
