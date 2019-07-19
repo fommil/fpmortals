@@ -9225,7 +9225,7 @@ composed transformers, such as
 ~~~~~~~~
 
 we know that we are adding error handling with error type `E` (there is a
-`MonadError[Ctx, E]`) and we are managing state `A` (there is a `MonadState[Ctx,
+`MonadError[Ctx, E]`) and we are managing state `S` (there is a `MonadState[Ctx,
 S]`).
 
 But there are unfortunately practical drawbacks to using monad transformers and
