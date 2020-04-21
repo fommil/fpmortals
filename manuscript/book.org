@@ -13736,7 +13736,7 @@ object JsMagnoliaEncoder {
 
   def combine[A](ctx: CaseClass[JsEncoder, A]): JsEncoder[A] = { a =>
     val empty = IList.empty[(String, JsValue)]
-    val fields = ctx.parameters.foldRight(right) { (p, acc) =>
+    val fields = ctx.parameters.foldRight(empty) { (p, acc) =>
       p.typeclass.toJson(p.dereference(a)) match {
         case JsNull => acc
         case value  => (p.label -> value) :: acc
