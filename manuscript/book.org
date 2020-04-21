@@ -5570,10 +5570,9 @@ digraph G {
 }
 #+END_SRC
 
-~cobind~ (also known as ~coflatmap~) takes an ~F[A] => B~ that acts on
-an ~F[A]~ rather than its elements. But this is not necessarily the
-full ~fa~, it is usually some substructure as defined by ~cojoin~
-(also known as ~coflatten~) which expands a data structure.
+~cobind~ (also known as ~coflatmap~) takes an ~F[A] => B~ that acts on an ~F[A]~
+rather than its elements. But this is not necessarily the full ~fa~, it can be a
+substructure that has been created by ~.coflatten~.
 
 Compelling use-cases for =Cobind= are rare, although when shown in the
 =Functor= permutation table (for =F[_]=, =A= and =B=) it is difficult
@@ -5597,15 +5596,21 @@ to argue why any method should be less important than the others:
 }
 #+END_SRC
 
-=.copoint= (also =.copure=) unwraps an element from its context. Effects do not
-typically have an instance of =Comonad= since would break referential
-transparency to interpret an =IO[A]= into an =A=. But for collection-like /data
-structures/, it is a way to construct a view of all elements alongside their
-neighbours.
+=.copoint= (also =.copure=) unwraps an element from its context. The =Id= type
+alias that we encountered in Chapter 1 has an instance of =Comonad=, so we can
+reach into an =Id= and extract the value it contains. Similarly, =Name= has a
+=Comonad= with =.value= effectively being the =Value= strategy.
 
-Consider a /neighbourhood/ (=Hood= for short) for a list containing all the
-elements to the left of an element (=lefts=), the element itself (the =focus=),
-and all the elements to its right (=rights=).
+Another example of a =Comonad= is the =NonEmptyList=, where =.copoint= returns
+the =.head= element and =.cobind= operates on all the tails of the list.
+
+Effects do not typically have an instance of =Comonad= since it would break
+referential transparency to interpret an =IO[A]= into an =A=.
+
+=Comonad= allows navigation over elements of a data structure and eventually
+returning to one view of that data. Consider a /neighbourhood/ (=Hood= for
+short) of a list, containing all the elements to the left (=.lefts=) of an
+element =.focus=, and all the elements to its right (=.rights=).
 
 #+BEGIN_SRC scala
 final case class Hood[A](lefts: IList[A], focus: A, rights: IList[A])
@@ -5622,7 +5627,7 @@ object Hood {
 #+END_SRC
 
 We can write methods that let us move the focus one to the left
-(=previous=) and one to the right (=next=)
+(=.previous=) and one to the right (=.next=)
 
 #+BEGIN_SRC scala
 ...
@@ -5638,9 +5643,8 @@ We can write methods that let us move the focus one to the left
     }
 #+END_SRC
 
-By introducing =more= to repeatedly apply an optional function to
-=Hood= we can calculate /all/ the =positions= that =Hood= can take in
-the list
+=.more= repeatedly applies an optional function to =Hood= such that we calculate
+/all/ the views that =Hood= can take on the list
 
 #+BEGIN_SRC scala
 ...
@@ -5671,7 +5675,7 @@ We can now implement =Comonad[Hood]=
 }
 #+END_SRC
 
-=cojoin= gives us a =Hood[Hood[IList]]= containing all the possible
+=.cojoin= gives us a =Hood[Hood[IList]]= containing all the possible
 neighbourhoods in our initial =IList=
 
 #+BEGIN_SRC scala
@@ -5689,7 +5693,7 @@ res = Hood(
          Hood([8,7,6,5,4,3,2,1],9,[])])
 #+END_SRC
 
-Indeed, =cojoin= is just =positions=! We can =override= it with a more
+Indeed, =.cojoin= is just =positions=! We can =override= it with a more
 direct (and performant) implementation
 
 #+BEGIN_SRC scala
