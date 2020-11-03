@@ -12620,6 +12620,8 @@ digraph G {
 In Scalaz 7.3, =Applicative= and =Divisible= will inherit from =InvariantApplicative=
 #+END_ASIDE
 
+A recorded presentation of this chapter is available at https://www.youtube.com/watch?v=JmOFKdpuF9g
+
 Before we proceed, here is a quick recap of the core Scalaz typeclasses:
 
 #+BEGIN_SRC scala

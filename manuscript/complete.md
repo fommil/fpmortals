@@ -11018,6 +11018,8 @@ providing new typeclasses, shown below in relation to core Scalaz typeclasses:
 
 A> In Scalaz 7.3, `Applicative` and `Divisible` will inherit from `InvariantApplicative`
 
+A recorded presentation of this chapter is available at <https://www.youtube.com/watch?v=JmOFKdpuF9g>
+
 Before we proceed, here is a quick recap of the core Scalaz typeclasses:
 
 {lang="text"}
