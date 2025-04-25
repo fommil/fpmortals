@@ -42,7 +42,7 @@ this book.
 
 Scala also brings `Future`, making it easy to write asynchronous
 applications. But when a `Future` makes it into a return type,
-*everything* needs to be rewritten to accomodate it, including the
+*everything* needs to be rewritten to accommodate it, including the
 tests, which are now subject to arbitrary timeouts.
 
 We have a problem similar to Java 1.0: there is no way of abstracting

@@ -196,7 +196,7 @@ this book.
 
 Scala also brings =Future=, making it easy to write asynchronous
 applications. But when a =Future= makes it into a return type,
-/everything/ needs to be rewritten to accomodate it, including the
+/everything/ needs to be rewritten to accommodate it, including the
 tests, which are now subject to arbitrary timeouts.
 
 We have a problem similar to Java 1.0: there is no way of abstracting
@@ -1236,7 +1236,7 @@ causing a side effect.
 
 We prefer =NonEmptyList=, not because it is a =List=, but because of its
 non-empty property. When we learn about Scalaz's typeclass hierarchy, we will
-see a better way to request non-emptyness.
+see a better way to request non-emptiness.
 #+END_ASIDE
 
 *** Business Logic
@@ -3897,7 +3897,7 @@ res: Boolean = true
 
 which means that the =acc= is not evaluated unless it is needed.
 
-It is worth baring in mind that not all operations are stack safe in
+It is worth bearing in mind that not all operations are stack safe in
 =foldRight=. If we were to require evaluation of all elements, we can
 also get a =StackOverflowError= with Scalaz's =EphemeralStream=
 

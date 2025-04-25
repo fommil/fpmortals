@@ -743,7 +743,7 @@ A> causing a side effect.
 A> 
 A> We prefer `NonEmptyList`, not because it is a `List`, but because of its
 A> non-empty property. When we learn about Scalaz's typeclass hierarchy, we will
-A> see a better way to request non-emptyness.
+A> see a better way to request non-emptiness.
 
 
 ## Business Logic
@@ -3328,7 +3328,7 @@ A> ~~~~~~~~
 A> 
 A> which means that the `acc` is not evaluated unless it is needed.
 A> 
-A> It is worth baring in mind that not all operations are stack safe in
+A> It is worth bearing in mind that not all operations are stack safe in
 A> `foldRight`. If we were to require evaluation of all elements, we can
 A> also get a `StackOverflowError` with Scalaz's `EphemeralStream`
 A> 
